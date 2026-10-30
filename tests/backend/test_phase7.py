@@ -165,7 +165,78 @@ def test_rasterise_matches_to_cell_on_every_map():
             got = Counter()
             heatmaps.rasterise(layout, path, got, cell_m)
             want = reference(layout, path, cell_m)
-            assert list(got.items()) == list(want.items())  # same counts, same order (response cell order)
+            assert got == want
+
+
+def _reference_paths(players, mode, hz=2):
+    """The per-sample loop heatmaps.layer_paths replaced (numpy): yields (key, path of (x, z) metres)."""
+    import math
+
+    def key_of(t, i):
+        if mode == "team":
+            return t["team"][i]
+        if mode in heatmaps.GEAR_FIELDS:
+            value = t[heatmaps.GEAR_FIELDS[mode]][i]
+            return None if value == 255 else value
+        if mode == "loadout":
+            key = (t["weapon"][i], t["ordnance"][i], t["tacmod"][i])
+            return None if 255 in key else key
+        j = i + 1  # speed
+        if j >= len(t["team"]) or not t["team"][j]:
+            return None
+        metres = math.hypot(t["x"][j] - t["x"][i], t["z"][j] - t["z"][i]) / 10
+        if metres > heatmaps.MAX_STEP_M:
+            return None
+        return next(k for limit, k, _ in heatmaps.SPEED_BANDS if metres * hz < limit)
+
+    for t in players.values():
+        path, current = [], None
+        for i, team in enumerate(t["team"]):
+            key = None if team == 0 else key_of(t, i)
+            if key != current:
+                if path and current is not None:
+                    if key is not None:
+                        path.append((t["x"][i] / 10, t["z"][i] / 10))
+                    yield current, path
+                path, current = [], key
+            if key is not None:
+                path.append((t["x"][i] / 10, t["z"][i] / 10))
+        if path and current is not None:
+            yield current, path
+
+
+def test_build_layers_matches_per_sample_reference():
+    """Every mode on random tracks with absences, respawn jumps and missing gear: same cells as the old loop."""
+    import random
+    from array import array
+
+    rng = random.Random(11)
+    layout = HEATMAP_LAYOUTS["dyson"]
+    header = {"hz": 2, "weapons": ["assault", "blaster"], "ordnances": ["det", "stun"], "tacmods": ["heal", "wraith"]}
+    players = {}
+    for p in range(4):
+        x, z, cols = 0, 0, {"x": array("h"), "z": array("h"), "team": bytearray(), "weapon": bytearray(),
+                            "ordnance": bytearray(), "tacmod": bytearray()}
+        for _ in range(400):
+            jump = rng.random() < 0.03
+            x = rng.randint(-500, 500) if jump else max(-600, min(600, x + rng.randint(-25, 25)))
+            z = rng.randint(-400, 300) if jump else max(-450, min(350, z + rng.randint(-25, 25)))
+            cols["x"].append(x)
+            cols["z"].append(z)
+            cols["team"].append(0 if rng.random() < 0.05 else 1 + p % 2)
+            for f in ("weapon", "ordnance", "tacmod"):
+                cols[f].append(255 if rng.random() < 0.05 else rng.randint(0, 1))
+        players[str(p)] = {k: bytes(v) if isinstance(v, bytearray) else v for k, v in cols.items()}
+    for mode in heatmaps.TRACK_MODES:
+        for cell_m in heatmaps.CELL_SIZES:
+            got, _ = heatmaps.build_layers(layout, [(header, players)], None, mode, cell_m)
+            want: dict[str, Counter] = {}
+            for key, path in _reference_paths(players, mode):
+                layer, _ = heatmaps.layer_label(mode, header, key)
+                heatmaps.rasterise(layout, path, want.setdefault(layer, Counter()), cell_m)
+            if mode == "loadout":
+                want, _ = heatmaps.fold_layers(want, {k: k for k in want})
+            assert {k: v for k, v in got.items() if v} == {k: v for k, v in want.items() if v}, (mode, cell_m)
 
 # --- endpoints ---------------------------------------------------------------------------
 

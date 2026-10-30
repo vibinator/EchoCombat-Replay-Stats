@@ -13,6 +13,21 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 28 — 2026-10-30
+### Website
+- **Player heatmaps 7–11x faster** (D50), same picture as before (checked cell by cell on 600 real matches, every
+  mode and cell size). 1000 matches: team 5.1 → 0.6 s, speed 8.1 → 0.8 s, loadout 5.4 → 0.7 s, 0.1 m cells
+  13.9 → 1.6 s.
+- **Home page 3x faster** to build (470 → 160 ms): two new database indexes for "Most popular gear" and "Fastest
+  player".
+
+### Upgrading to Beta 28
+- QNAP: upload Beta 28, wait for the Actions run, Recreate. The first start adds the two indexes (about a second;
+  the database grows ~15 MB). No re-import.
+- Windows: restart `run.bat` (it installs the new `numpy` package by itself).
+
+---
+
 ## Beta 27 — 2026-10-30
 ### Website
 - **Home, "Matches recorded over time"**: one stacked bar per month (or year) split into the four maps (Combustion,

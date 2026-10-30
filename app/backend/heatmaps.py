@@ -6,11 +6,14 @@ from collections import Counter
 from collections.abc import Callable, Iterable
 from functools import lru_cache
 
+import numpy as np
+
 from .stats.maps import HEATMAP_LAYOUTS, HeatmapLayout
 
 CELL_M = 0.25  # default; 0.1 (positions are stored to 0.1 m), 0.5 and 1.0 also offered
 CELL_SIZES = (0.1, 0.25, 0.5, 1.0)
 MAX_STEP_M = 12.0  # > 24 m/s between 0.5 s samples = respawn or teleport: do not draw a line
+NO_GEAR = 255  # tracks.NO_WEAPON
 
 
 def grid_size(layout: HeatmapLayout, cell_m: float = CELL_M) -> tuple[int, int]:
@@ -50,88 +53,146 @@ def to_cell(layout: HeatmapLayout, x: float, z: float, cell_m: float = CELL_M) -
 
 def rasterise(layout: HeatmapLayout, path: Iterable[tuple[float, float] | None], into: Counter,
               cell_m: float = CELL_M) -> None:
-    """Add one player's path (metres; None = gap) to `into` as cell counts. Same mapping as to_cell, written
-    out in the loop (the 5000-match player heatmap maps ~18 million points)."""
-    x_min, x_max, z_min, z_max, swap, u_min, u_max, v_min, v_max, u_flip, v_flip, last_col, last_row =         _geometry(layout, cell_m)
-    half_cell = cell_m / 2
-    count = into.get
-    prev = None
+    """Add one player's path (metres; None = gap) to `into` as cell counts."""
+    paths, current = [], []
     for point in path:
         if point is None:
-            prev = None
-            continue
-        points = (point,)
-        if prev is not None:
-            px, pz = prev
-            x, z = point
-            dx, dz = x - px, z - pz
-            dist = math.hypot(dx, dz)
-            if dist <= MAX_STEP_M:
-                steps = max(1, int(dist / half_cell))
-                if steps > 1:
-                    points = [(px + dx * (i / steps), pz + dz * (i / steps)) for i in range(1, steps)]
-                    points.append(point)
-        for x, z in points:
-            if x_min <= x <= x_max and z_min <= z <= z_max:
-                u, v = (z, x) if swap else (x, z)
-                col = int(((u_max - u) if u_flip else (u - u_min)) / cell_m)
-                row = int(((v - v_min) if v_flip else (v_max - v)) / cell_m)
-                cell = (col if col < last_col else last_col, row if row < last_row else last_row)
-                into[cell] = count(cell, 0) + 1
-        prev = point
+            paths.append(current)
+            current = []
+        else:
+            current.append(point)
+    paths.append(current)
+    into.update(rasterise_many(layout, paths, cell_m))
+
+
+def rasterise_many(layout: HeatmapLayout, paths: list[list[tuple[float, float]]], cell_m: float = CELL_M) -> Counter:
+    """Cell counts for many paths (lists of (x, z) metres)."""
+    lengths = np.fromiter((len(p) for p in paths), dtype=np.int64, count=len(paths))
+    total = int(lengths.sum())
+    xz = np.fromiter((c for p in paths for point in p for c in point), dtype=np.float64, count=2 * total).reshape(-1, 2)
+    return _rasterise_arrays(layout, xz[:, 0], xz[:, 1], lengths, cell_m)
+
+
+def _rasterise_arrays(layout: HeatmapLayout, x: np.ndarray, z: np.ndarray, lengths: np.ndarray,
+                      cell_m: float = CELL_M) -> Counter:
+    """Cell counts for paths given as flat x / z arrays (metres) cut into `lengths` (numpy: the 1000-match player
+    heatmap maps ~7 million points). Consecutive points are joined with a point every half cell unless the step is a
+    jump (> MAX_STEP_M); same arithmetic as to_cell, so both give the same cells."""
+    total = len(x)
+    if total == 0:
+        return Counter()
+    first = np.zeros(total, dtype=bool)
+    first[np.cumsum(lengths[lengths > 0])[:-1]] = True
+    first[0] = True
+    # points per sample: the sample itself, plus the in-between points from the previous sample (same path)
+    dx, dz = np.zeros(total), np.zeros(total)
+    dx[1:], dz[1:] = x[1:] - x[:-1], z[1:] - z[:-1]
+    dist = np.hypot(dx, dz)
+    # np.hypot can differ from math.hypot in the last bit: where that could change a step count (positions are
+    # whole decimetres, so exact multiples of half a cell are common), use math.hypot as before
+    ratio = dist / (cell_m / 2)
+    edge = np.flatnonzero((dist > 0) & ((np.abs(ratio - np.rint(ratio)) < 1e-6) | (np.abs(dist - MAX_STEP_M) < 1e-6)))
+    for i in edge.tolist():
+        dist[i] = math.hypot(dx[i], dz[i])
+    joined = ~first & (dist <= MAX_STEP_M)
+    steps = np.where(joined, np.maximum(1, (dist / (cell_m / 2)).astype(np.int64)), 1)
+    owner = np.repeat(np.arange(total), steps)
+    j = np.arange(len(owner)) - np.repeat(np.cumsum(steps) - steps, steps) + 1  # 1..steps
+    k = steps[owner]
+    inner = j < k
+    px, pz = np.zeros(total), np.zeros(total)
+    px[1:], pz[1:] = x[:-1], z[:-1]
+    t = j / k
+    xs = np.where(inner, px[owner] + dx[owner] * t, x[owner])
+    zs = np.where(inner, pz[owner] + dz[owner] * t, z[owner])
+
+    x_min, x_max, z_min, z_max, swap, u_min, u_max, v_min, v_max, u_flip, v_flip, last_col, last_row =         _geometry(layout, cell_m)
+    keep = (x_min <= xs) & (xs <= x_max) & (z_min <= zs) & (zs <= z_max)
+    xs, zs = xs[keep], zs[keep]
+    u, v = (zs, xs) if swap else (xs, zs)
+    col = np.minimum((((u_max - u) if u_flip else (u - u_min)) / cell_m).astype(np.int64), last_col)
+    row = np.minimum((((v - v_min) if v_flip else (v_max - v)) / cell_m).astype(np.int64), last_row)
+    counts = np.bincount(col * (last_row + 1) + row, minlength=(last_col + 1) * (last_row + 1))
+    cells = np.flatnonzero(counts)
+    cols, rows = np.divmod(cells, last_row + 1)
+    return Counter(dict(zip(zip(cols.tolist(), rows.tolist()), counts[cells].tolist())))
 
 
 SPEED_BANDS = [(1.0, "stopped", "Stopped (< 1 m/s)"), (3.0, "slow", "Slow (1-3 m/s)"),
                (6.0, "medium", "Medium (3-6 m/s)"), (float("inf"), "fast", "Fast (6+ m/s)")]
 
 
-def _speed_band(t: dict, i: int, hz: int) -> str | None:
-    """Speed from the movement to the next sample (2 Hz)."""
-    j = i + 1
-    if j >= len(t["team"]) or not t["team"][j]:
-        return None
-    metres = math.hypot(t["x"][j] - t["x"][i], t["z"][j] - t["z"][i]) / 10
-    speed = metres * hz
-    if metres > MAX_STEP_M:
-        return None  # respawn / teleport
-    return next(key for limit, key, _ in SPEED_BANDS if speed < limit)
+GEAR_FIELDS = {"weapons": "weapon", "ordnance": "ordnance", "tacmod": "tacmod"}
+_SPEED_LIMITS = np.array([limit for limit, _, _ in SPEED_BANDS[:-1]])
 
 
-def layer_key(mode: str, t: dict, i: int, hz: int = 2):
-    """Layer of sample i: team code, gear index, (weapon, ordnance, tacmod) or speed band; None = skip."""
+def _sample_keys(t: dict, mode: str, hz: int) -> np.ndarray:
+    """Layer of every sample as an int (-1 = skip): team code, gear index, weapon << 16 | ordnance << 8 | tacmod,
+    or speed band index (speed from the movement to the next sample; none after a jump or before an absence)."""
+    team = np.frombuffer(t["team"], dtype=np.uint8)
     if mode == "team":
-        return t["team"][i]
-    if mode in ("weapons", "ordnance", "tacmod"):
-        value = t[{"weapons": "weapon", "ordnance": "ordnance", "tacmod": "tacmod"}[mode]][i]
-        return None if value == 255 else value
-    if mode == "loadout":
-        key = (t["weapon"][i], t["ordnance"][i], t["tacmod"][i])
-        return None if 255 in key else key
+        keys = team.astype(np.int64)
+    elif mode in GEAR_FIELDS:
+        value = np.frombuffer(t[GEAR_FIELDS[mode]], dtype=np.uint8).astype(np.int64)
+        keys = np.where(value == NO_GEAR, -1, value)
+    elif mode == "loadout":
+        w, o, tm = (np.frombuffer(t[f], dtype=np.uint8).astype(np.int64) for f in ("weapon", "ordnance", "tacmod"))
+        keys = np.where((w == NO_GEAR) | (o == NO_GEAR) | (tm == NO_GEAR), -1, (w << 16) | (o << 8) | tm)
+    elif mode == "speed":
+        x, z = np.frombuffer(t["x"], dtype=np.int16), np.frombuffer(t["z"], dtype=np.int16)
+        keys = np.full(len(team), -1, dtype=np.int64)
+        if len(team) > 1:
+            metres = np.hypot(np.diff(x.astype(np.float64)), np.diff(z.astype(np.float64))) / 10
+            band = np.searchsorted(_SPEED_LIMITS, metres * hz, side="right")
+            keys[:-1] = np.where((team[1:] != 0) & (metres <= MAX_STEP_M), band, -1)
+    else:
+        raise ValueError(mode)
+    return np.where(team != 0, keys, -1)
+
+
+def key_value(mode: str, key: int):
+    """The int from _sample_keys as layer_label takes it."""
     if mode == "speed":
-        return _speed_band(t, i, hz)
-    raise ValueError(mode)
+        return SPEED_BANDS[key][1]
+    if mode == "loadout":
+        return key >> 16, (key >> 8) & 255, key & 255
+    return key
 
 
-def track_paths(players: dict, user_ids: set[str] | None = None, mode: str = "team", hz: int = 2):
-    """Yield (user_id, key, path) from decoded tracks; a new path starts whenever the layer key changes
-    or the player is absent."""
+def layer_paths(players: dict, user_ids: set[str] | None = None, mode: str = "team", hz: int = 2):
+    """Yield (user_id, key, x, z, lengths): one player's paths in one layer, flat x / z (metres) cut into lengths.
+    A path is a run of samples in the same layer, plus the next sample while the player is still present
+    (joins it up to the next layer's path); absent samples end it."""
     for uid, t in players.items():
         if user_ids is not None and uid not in user_ids:
             continue
-        path: list[tuple[float, float]] = []
-        current = None
-        for i, team in enumerate(t["team"]):
-            key = None if team == 0 else layer_key(mode, t, i, hz)
-            if key != current:
-                if path and current is not None:
-                    if key is not None:  # still present: join the previous layer's path up to this point
-                        path.append((t["x"][i] / 10, t["z"][i] / 10))
-                    yield uid, current, path
-                path, current = [], key
-            if key is not None:
-                path.append((t["x"][i] / 10, t["z"][i] / 10))
-        if path and current is not None:
-            yield uid, current, path
+        keys = _sample_keys(t, mode, hz)
+        n = len(keys)
+        if n == 0:
+            continue
+        change = np.flatnonzero(keys[1:] != keys[:-1]) + 1
+        starts = np.concatenate(([0], change))
+        ends = np.concatenate((change, [n]))
+        run_keys = keys[starts]
+        keep = run_keys >= 0
+        starts, ends, run_keys = starts[keep], ends[keep], run_keys[keep]
+        if len(starts) == 0:
+            continue
+        joins = ends < n
+        joins[joins] = keys[ends[joins]] >= 0
+        lengths = ends - starts + joins
+        x = np.frombuffer(t["x"], dtype=np.int16) / 10
+        z = np.frombuffer(t["z"], dtype=np.int16) / 10
+        for key in np.unique(run_keys).tolist():
+            sel = run_keys == key
+            run_starts, run_lengths = starts[sel], lengths[sel]
+            idx = np.repeat(run_starts, run_lengths) + (
+                np.arange(int(run_lengths.sum())) - np.repeat(np.cumsum(run_lengths) - run_lengths, run_lengths))
+            yield uid, key, x[idx], z[idx], run_lengths
+
+
+def _merge(parts: list) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    return tuple(np.concatenate([p[i] for p in parts]) for i in range(3))
 
 
 def layer_label(mode: str, header: dict, key) -> tuple[str, str]:
@@ -172,10 +233,10 @@ def fold_layers(layers: dict[str, Counter], labels: dict[str, str]) -> tuple[dic
 def player_layers(layout: HeatmapLayout, players: dict, user_ids: set[str] | None,
                   cell_m: float) -> dict[str, Counter]:
     """One layer per player (keyed by raw user id), for a single match."""
-    layers: dict[str, Counter] = {}
-    for uid, _, path in track_paths(players, user_ids, "team"):
-        rasterise(layout, path, layers.setdefault(uid, Counter()), cell_m)
-    return layers
+    parts: dict[str, list] = {}
+    for uid, _, x, z, lengths in layer_paths(players, user_ids, "team"):
+        parts.setdefault(uid, []).append((x, z, lengths))
+    return {uid: _rasterise_arrays(layout, *_merge(p), cell_m) for uid, p in parts.items()}
 
 
 def response(map_name: str, layers: dict[str, Counter], labels: dict[str, str] | None = None, matches: int = 0,
@@ -205,13 +266,14 @@ TRACK_MODES = ("team", "weapons", "ordnance", "tacmod", "loadout", "speed")
 def build_layers(layout: HeatmapLayout, decoded: Iterable[tuple[dict, dict]], user_ids: set[str] | None,
                  mode: str, cell_m: float) -> tuple[dict[str, Counter], dict[str, str]]:
     """Rasterise every (header, players) track file into one Counter per layer."""
-    layers: dict[str, Counter] = {}
+    parts: dict[str, list] = {}
     labels: dict[str, str] = {}
     for header, players in decoded:
-        for _, key, path in track_paths(players, user_ids, mode, header.get("hz", 2)):
-            layer, label = layer_label(mode, header, key)
+        for _, key, x, z, lengths in layer_paths(players, user_ids, mode, header.get("hz", 2)):
+            layer, label = layer_label(mode, header, key_value(mode, key))
             labels[layer] = label
-            rasterise(layout, path, layers.setdefault(layer, Counter()), cell_m)
+            parts.setdefault(layer, []).append((x, z, lengths))
+    layers = {layer: _rasterise_arrays(layout, *_merge(p), cell_m) for layer, p in parts.items()}
     if mode == "loadout":
         layers, labels = fold_layers(layers, labels)
     if mode == "speed":  # keep the band order

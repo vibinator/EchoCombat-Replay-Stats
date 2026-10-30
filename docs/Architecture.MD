@@ -44,7 +44,7 @@ GET /api/... ← React pages (home, matches, match, players, player, import stat
 | `backend/worker.py` | `analyse()` (runs in pool), `save_result()`, `Worker` (claim newest-first, pool, crash recovery, `wait_idle()` for tests). |
 | `backend/gear.py` | Loadout code → in-game name / cut flag (incl. old hex codes). |
 | `backend/tracks.py` | 2 Hz position tracks: `TrackRecorder` (fed by `stats.compute`), binary encode/decode, `tracks.bin` per replay (DataModel). |
-| `backend/heatmaps.py` | World → minimap cell mapping, line rasterising (breaks on jumps > 12 m per sample), layer response. |
+| `backend/heatmaps.py` | World → minimap cell mapping, line rasterising in numpy (D50; breaks on jumps > 12 m per sample), layer response. |
 | `backend/api/leaderboard.py`, `downloads.py` | Leaderboard (incl. `stat=achievements`); CSV/JSON download responses. |
 | `backend/admin_actions.py`, `aliases.py`; `app/admin_console.py` (`admin.bat`) | Every write: player merges (lossless, via reprocess), challenge period, reprocess / repair / scan / reprocess all, hiding replays that cannot be repaired. The website is read-only (D38): the server answers 405 `read_only` to any non-GET request |
 | `backend/api/overview.py` | Dashboard, activity, players seen, search |

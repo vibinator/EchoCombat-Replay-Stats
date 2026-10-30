@@ -179,7 +179,8 @@ In memory (`functools.lru_cache`, 64 entries) keyed by player, map, mode, period
 - replays.sha256 UNIQUE; replays.status
 - matches.session_id; matches.started_at; matches.map; matches(private_match, started_at)
 - players.user_id UNIQUE; players.name
-- match_players(player_id)
+- match_players(player_id); match_players.top_speed (home "fastest player", D50)
+- match_player_loadouts(weapon, ordnance, tacmod, match_id, frames): covering, home "most popular gear" (D50)
 - events(match_id, t_s)
 
 ## Reprocessing

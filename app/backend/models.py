@@ -92,7 +92,7 @@ class MatchPlayer(Base):
     ping_frames: Mapped[int]
     frames_in_bounds: Mapped[int]
     speed_sum: Mapped[float]
-    top_speed: Mapped[float]
+    top_speed: Mapped[float] = mapped_column(index=True)  # home page "fastest player"
     frames_stopped: Mapped[int]
     frames_upside_down: Mapped[int]
     frames_near_mate: Mapped[int]
@@ -108,6 +108,8 @@ class MatchPlayer(Base):
 
 class MatchPlayerLoadout(Base):
     __tablename__ = "match_player_loadouts"
+    # covering index for the home page's most-used gear (one pass in gear order, no temp table): 330 -> 95 ms
+    __table_args__ = (Index("ix_loadouts_gear", "weapon", "ordnance", "tacmod", "match_id", "frames"),)
 
     match_id: Mapped[int] = mapped_column(ForeignKey("matches.id", ondelete="CASCADE"), primary_key=True)
     player_id: Mapped[int] = mapped_column(ForeignKey("players.id"), primary_key=True)
