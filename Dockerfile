@@ -1,7 +1,8 @@
-# EchoVR Replay Stats as one container (QNAP Container Station or any Docker host). See docs/Setup.MD (QNAP).
+# EchoVR Replay Stats as one container. Built by GitHub Actions (.github/workflows/docker-image.yml) and
+# published to ghcr.io for the QNAP NAS; `docker build .` works locally too. See docs/Setup.MD (QNAP).
 
-# 1) Build the website
-FROM node:24-bookworm-slim AS frontend
+# 1) Build the website (same files for every processor type, so it runs natively on the build machine)
+FROM --platform=$BUILDPLATFORM node:24-bookworm-slim AS frontend
 WORKDIR /src/app/frontend
 COPY app/frontend/package.json app/frontend/package-lock.json ./
 RUN npm ci

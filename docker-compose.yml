@@ -1,15 +1,12 @@
 # EchoVR Replay Stats on a QNAP NAS: Container Station > Applications > Create, paste this file, Create.
-# It downloads the app from GitHub and builds it on the NAS - no SSH or manual clone needed. See docs/Setup.MD (QNAP).
-# Public at https://echocombat.com through a Cloudflare Tunnel: no router ports opened, home IP hidden (Setup.MD).
-# Before deploying replace YOUR_GITHUB_TOKEN and YOUR_CLOUDFLARE_TUNNEL_TOKEN, and check the NAS folders under "volumes".
-# Never upload this file to GitHub with real tokens in it (upload_to_github.bat refuses).
+# The app image is built by GitHub on every upload (ghcr.io); the NAS only downloads it. Container Station needs a
+# login for ghcr.io first (Setup.MD, QNAP NAS). Public at https://echocombat.com through a Cloudflare Tunnel.
+# Before deploying replace YOUR_CLOUDFLARE_TUNNEL_TOKEN and check the NAS folders under "volumes".
+# Never upload this file to GitHub with a real token in it (upload_to_github.bat refuses).
 services:
   echovr-replay-stats:
-    build:
-      # Private repository: YOUR_GITHUB_TOKEN = a read-only GitHub token for this repository (Setup.MD says how to make one).
-      # Public repository: delete "vibinator:YOUR_GITHUB_TOKEN@".
-      context: https://vibinator:YOUR_GITHUB_TOKEN@github.com/vibinator/EchoCombat-Replay-Stats.git#main
-    image: echovr-replay-stats:latest
+    image: ghcr.io/vibinator/echocombat-replay-stats:latest
+    pull_policy: always   # recreating the application picks up the newest upload
     container_name: echovr-replay-stats
     restart: unless-stopped
     ports:
@@ -20,8 +17,8 @@ services:
       ECHOVR_WORKERS: "4"            # parallel import processes: about the NAS's CPU core count
       ECHOVR_SCAN_INTERVAL_S: "300"  # seconds between scans of the replay folder
     volumes:
-      # Replay folder on the NAS, read-only: the app never writes to it
-      - /share/ECRanked/Replays:/replays:ro
+      # Replay folder on the NAS (File Station: ECRanked > ECRanked), read-only; subfolders are scanned too
+      - /share/ECRanked/ECRanked:/replays:ro
       # Database and processed files: kept when the app is updated (created automatically if missing)
       - /share/Container/echovr-replay-stats/data:/data
 

@@ -13,6 +13,21 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 5 — 2026-10-30
+### Server
+- The QNAP NAS no longer builds the app (its Docker has no `git`, so building from GitHub failed). GitHub Actions now
+  builds the image on every upload and publishes it to `ghcr.io/vibinator/echocombat-replay-stats` (Intel/AMD and
+  ARM); `docker-compose.yml` downloads it. The YAML no longer contains a GitHub token: Container Station logs in to
+  ghcr.io with a read-only token instead.
+- Replay folder on the NAS: `/share/ECRanked/ECRanked`.
+
+### Upgrading to Beta 5
+- Windows: nothing to do; restart `run.bat` to see "Beta 5" in the footer.
+- QNAP: upload Beta 5, wait for the Actions run, add the ghcr.io registry login in Container Station, then create
+  the application with the new `docker-compose.yml` (Setup.MD, QNAP NAS).
+
+---
+
 ## Beta 4 — 2026-10-30
 ### Website
 - Ready to be public at **https://echocombat.com**: `docker-compose.yml` now also runs a Cloudflare Tunnel

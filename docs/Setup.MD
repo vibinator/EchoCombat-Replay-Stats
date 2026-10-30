@@ -54,28 +54,27 @@ application only, labelled with the beta version (`Beta N: <your description>`).
 before anything is sent. Needs Git for Windows (https://git-scm.com/download/win).
 
 ## QNAP NAS (Docker / Container Station)
-`docker-compose.yml` is the whole deployment: Container Station downloads the app from GitHub, builds it (`Dockerfile`:
-website + server in one container) and starts it. No SSH or manual clone needed.
-1. Upload the current version with `upload_to_github.bat` (the NAS builds whatever is on GitHub's `main`).
-2. The repository is private, so make a read-only token: GitHub > Settings > Developer settings > Personal access
-   tokens > Fine-grained tokens > Generate. Repository access: only `EchoCombat-Replay-Stats`; Permissions:
-   Contents = Read-only. Copy the token (starts with `github_pat_`).
-3. Open `docker-compose.yml`, replace `YOUR_GITHUB_TOKEN` with the token, and check the two NAS folders under
-   `volumes`: the replay share (read-only; QNAP shared folders are `/share/<shared folder name>/...`) and `data`.
-   Set `ECHOVR_WORKERS` to about the NAS's core count.
-4. Container Station > Applications > Create, name it `echovr-replay-stats`, paste the edited YAML, Create. The first
-   build takes several minutes.
-5. Open `http://<nas address>:8000`. The first import of all replays takes longer than on the PC.
+Every upload to GitHub (`upload_to_github.bat`) makes GitHub Actions build the app image (`Dockerfile`: website +
+server in one container) and publish it as `ghcr.io/vibinator/echocombat-replay-stats` (tags `latest` and
+`beta-N`); watch it on the repository's **Actions** tab (a few minutes). The NAS only downloads that image: its Docker
+has no `git`, so it cannot build from the repository itself.
+1. Upload with `upload_to_github.bat` and wait for the Actions run to finish (green tick).
+2. Token for downloading the image: GitHub > Settings > Developer settings > Personal access tokens >
+   **Tokens (classic)** > Generate new token (classic). Note `QNAP ghcr`, scope **read:packages** only (fine-grained
+   tokens cannot read packages). Copy it (starts with `ghp_`) and paste it nowhere but Container Station.
+3. Container Station > Images (or Registry / Repository) > Add registry: URL `ghcr.io`, user name `vibinator`,
+   password = the token.
+4. Put the Cloudflare tunnel token in `docker-compose.yml` (`YOUR_CLOUDFLARE_TUNNEL_TOKEN`) and check the two NAS
+   folders under `volumes`: the replay folder (File Station `ECRanked > ECRanked` = `/share/ECRanked/ECRanked`,
+   read-only, subfolders included) and `data`. Set `ECHOVR_WORKERS` to about the NAS's core count.
+5. Container Station > Applications > Create, name it `echovr-replay-stats`, paste the edited YAML, Create.
+6. Open `http://<nas address>:8000`. The first import of all replays takes longer than on the PC.
 
-Keep the token only in the copy pasted into Container Station: `upload_to_github.bat` stops if a token is in any file
-it would upload. If the repository is made public, delete `vibinator:YOUR_GITHUB_TOKEN@` from the address instead.
+Update to a new beta: upload it, wait for the Actions run, then in Container Station open the application and
+Recreate / redeploy it (`pull_policy: always` downloads the new image). The `data` folder is kept.
 
-Update to a new beta: upload it to GitHub, then in Container Station open the application and Recreate / redeploy it
-so it builds again (over SSH: `docker compose build --no-cache && docker compose up -d`). The `data` folder is kept.
-
-Admin console: Container Station > Containers > echovr-replay-stats > Terminal (or `docker exec -it echovr-replay-stats
-sh`), then `python app/admin_console.py` (add a command, e.g. `status`). The website has no login (read-only), so keep
-port 8000 on your home network, not forwarded to the internet.
+Admin console: Container Station > Containers > echovr-replay-stats > Terminal, then `python app/admin_console.py`
+(add a command, e.g. `status`), or over SSH `docker exec -it echovr-replay-stats python app/admin_console.py`.
 
 ## Public website: echocombat.com (Cloudflare Tunnel)
 The NAS reaches out to Cloudflare (the `cloudflared` container in `docker-compose.yml`); visitors go to Cloudflare,
@@ -92,8 +91,7 @@ DNS moves to Cloudflare.
    On the install page choose Docker and copy only the token (the long value after `--token`, starts with `eyJ`).
 4. **Public hostnames** (next page of the tunnel): `echocombat.com` > Service HTTP, URL `echovr-replay-stats:8000`;
    add a second one for `www.echocombat.com` with the same service.
-5. **NAS**: put the token in `docker-compose.yml` (`YOUR_CLOUDFLARE_TUNNEL_TOKEN`), then recreate the application in
-   Container Station. The tunnel page shows *Healthy*; open https://echocombat.com.
+5. **NAS**: the tunnel token goes in `docker-compose.yml` (`YOUR_CLOUDFLARE_TUNNEL_TOKEN`, QNAP NAS step 4). The tunnel page shows *Healthy*; open https://echocombat.com.
 6. **Cloudflare settings** for echocombat.com: SSL/TLS > Edge Certificates > *Always Use HTTPS* on and
    *Minimum TLS version* 1.2; Security > Bots > *Bot Fight Mode* on. Optional, Security > WAF > Rate limiting rule:
    URI path contains `/api/`, 100 requests per 10 seconds per IP > Block (heatmaps, playback and exports are the
