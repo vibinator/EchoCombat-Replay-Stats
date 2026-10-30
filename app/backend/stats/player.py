@@ -1,0 +1,164 @@
+"""Per-player accumulator. Rules follow the old app (ReplayData.MD): ping over all frames (except the 999 placeholder),
+everything else over in-bounds frames only; a death is an in-bounds -> out-of-bounds step."""
+
+import math
+from collections import Counter, deque
+from datetime import datetime
+
+from parser import Frame, PlayerFrame
+
+from .maps import Bounds, in_bounds
+from .results import EventRecord, PlayerStats
+
+LEFT_EARLY_S = 45.0  # last seen more than 45 s before the end (old "crashed")
+NEAR_DISTANCE_SQ = 7.0  # head distance² in m² (≈ 2.65 m)
+STOPPED_SPEED = 1.0  # m/s
+PING_PLACEHOLDER = 999  # API value when there is no reading; excluded from average ping
+TOP_SPEED_WINDOW_S = 1.0  # top speed = highest speed held for a full window
+
+
+def _distance_sq(a, b) -> float:
+    return (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2
+
+
+class PlayerAccumulator:
+    def __init__(self, user_id: str, bounds: Bounds | None, started_at: datetime, events: list[EventRecord]):
+        self.user_id = user_id
+        self.bounds = bounds  # None for unknown maps: every frame counts as in bounds, no deaths
+        self.started_at = started_at
+        self.events = events
+        self.first_frame = self.last_frame = -1
+        self.frames = 0
+        self.play_time_s = 0.0
+        self.team_frames: Counter[str] = Counter()
+        self.last_seen: datetime | None = None
+        self.latest: PlayerFrame | None = None
+        self.team = ""
+
+        self.ping_sum = 0.0
+        self.packet_loss_sum = 0.0
+        self.emote_count = 0
+        self._emoting = False
+        self.ping_frames = 0
+        self.frames_in_bounds = 0
+        self.speed_sum = 0.0
+        self.top_speed = 0.0
+        self.frames_stopped = 0
+        self.frames_upside_down = 0
+        self.frames_near_mate = 0
+        self.frames_near_enemy = 0
+        self.frames_left_arm = 0
+        self.frames_right_arm = 0
+        self.deaths = 0
+        self.loadouts: Counter[tuple[str, str, str]] = Counter()
+
+        self._was_in_bounds: bool | None = None
+        self._last_in_bounds_position = None
+        self._loadout: tuple[str, str, str] | None = None
+        self._speeds: deque[tuple[float, float]] = deque()  # (t_s, speed), in-bounds only
+
+    def event(self, frame: Frame, type_: str, data: dict | None = None) -> None:
+        t_s = round((frame.timestamp - self.started_at).total_seconds(), 3)
+        self.events.append(EventRecord(frame.index, t_s, type_, self.user_id, self.team, data))
+
+    def add(self, frame: Frame, team: str, p: PlayerFrame, dt: float,
+            teammates: list[PlayerFrame], enemies: list[PlayerFrame]) -> None:
+        if self.first_frame < 0:
+            self.first_frame = frame.index
+        self.last_frame = frame.index
+        self.last_seen = frame.timestamp
+        self.frames += 1
+        self.play_time_s += dt
+        self.team_frames[team] += 1
+        self.team = team
+        self.latest = p
+        self.packet_loss_sum += p.packet_loss
+        if p.emote and not self._emoting:
+            self.emote_count += 1
+        self._emoting = p.emote
+        if p.ping < PING_PLACEHOLDER:
+            self.ping_sum += p.ping
+            self.ping_frames += 1
+
+        inside = self.bounds is None or in_bounds(p.head_position, self.bounds)
+        if inside:
+            if self._was_in_bounds is False:
+                self.event(frame, "respawn")
+            self._last_in_bounds_position = p.head_position
+            self._add_in_bounds(frame, p, teammates, enemies)
+        elif self._was_in_bounds:
+            self.deaths += 1
+            x, _, z = self._last_in_bounds_position
+            self.event(frame, "death_est", {"x": round(x, 2), "z": round(z, 2)})
+            self._speeds.clear()
+        self._was_in_bounds = inside
+
+    def _add_in_bounds(self, frame: Frame, p: PlayerFrame, teammates, enemies) -> None:
+        self.frames_in_bounds += 1
+        if p.body_up[1] < 0:
+            self.frames_upside_down += 1
+
+        speed = math.hypot(*p.velocity)
+        self.speed_sum += speed
+        if speed < STOPPED_SPEED:
+            self.frames_stopped += 1
+        self._track_top_speed((frame.timestamp - self.started_at).total_seconds(), speed)
+
+        if p.arm == "Right":
+            self.frames_right_arm += 1
+        elif p.arm == "Left":
+            self.frames_left_arm += 1
+
+        pos = p.head_position
+        if any(o is not p and _distance_sq(pos, o.head_position) < NEAR_DISTANCE_SQ for o in teammates):
+            self.frames_near_mate += 1
+        if any(_distance_sq(pos, o.head_position) < NEAR_DISTANCE_SQ for o in enemies):
+            self.frames_near_enemy += 1
+
+        loadout = (p.weapon, p.tacmod, p.ordnance)
+        if not any(loadout):
+            return  # no loadout info (replays before ~2021 Q4 have no loadout fields)
+        self.loadouts[loadout] += 1
+        if loadout != self._loadout:
+            self._loadout = loadout
+            self.event(frame, "loadout_change", dict(zip(("weapon", "tacmod", "ordnance"), loadout)))
+
+    def _track_top_speed(self, t_s: float, speed: float) -> None:
+        window = self._speeds
+        window.append((t_s, speed))
+        # Keep the shortest run of samples that still spans the window.
+        while len(window) > 1 and window[1][0] <= t_s - TOP_SPEED_WINDOW_S:
+            window.popleft()
+        if window[0][0] <= t_s - TOP_SPEED_WINDOW_S:
+            self.top_speed = max(self.top_speed, min(s for _, s in window))
+
+    def result(self, ended_at: datetime) -> PlayerStats:
+        p = self.latest
+        return PlayerStats(
+            user_id=self.user_id,
+            name=p.name,
+            team=self.team_frames.most_common(1)[0][0],
+            slot=p.slot,
+            number=p.number,
+            level=p.level,
+            first_frame=self.first_frame,
+            last_frame=self.last_frame,
+            frames_present=self.frames,
+            play_time_s=round(self.play_time_s, 3),
+            left_early=(ended_at - self.last_seen).total_seconds() > LEFT_EARLY_S,
+            ping_sum=self.ping_sum,
+            ping_frames=self.ping_frames,
+            packet_loss_sum=round(self.packet_loss_sum, 4),
+            emote_count=self.emote_count,
+            frames_in_bounds=self.frames_in_bounds,
+            speed_sum=round(self.speed_sum, 3),
+            top_speed=round(self.top_speed, 3),
+            frames_stopped=self.frames_stopped,
+            frames_upside_down=self.frames_upside_down,
+            frames_near_mate=self.frames_near_mate,
+            frames_near_enemy=self.frames_near_enemy,
+            frames_left_arm=self.frames_left_arm,
+            frames_right_arm=self.frames_right_arm,
+            deaths_est=self.deaths,
+            loadouts=dict(self.loadouts),
+        )

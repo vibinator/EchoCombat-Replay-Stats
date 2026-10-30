@@ -1,0 +1,255 @@
+import { useState } from "react";
+import { Link } from "react-router";
+import { getActivity, getOverview, getPlayersSeen, type GearShare, type PlayersSeen } from "../api";
+import { BarChart } from "../components/charts";
+import { MatchCards } from "../components/MatchCards";
+import { PlayerSearch } from "../components/PlayerSearch";
+import { Skeleton, EmptyState } from "../components/ui";
+import { Status, TableWrap } from "../components/common";
+import { dateTime, duration, num, pct, title } from "../format";
+import { useApi } from "../useApi";
+
+function GearTop({ label, items }: { label: string; items: GearShare[] }) {
+  return (
+    <div className="card gear-top">
+      <span className="label">{label}</span>
+      {items.length === 0 ? (
+        <strong>–</strong>
+      ) : (
+        <>
+          <strong>
+            {items[0].name}
+            {items[0].cut && <sup className="cut">cut</sup>}
+          </strong>
+          <span className="muted">{pct(items[0].share)} of the time</span>
+          <ol className="runner-up muted">
+            {items.slice(1).map((g) => (
+              <li key={g.code}>
+                {g.name} {pct(g.share)}
+              </li>
+            ))}
+          </ol>
+        </>
+      )}
+    </div>
+  );
+}
+
+const RANGES: [PlayersSeen["range"], string][] = [
+  ["24h", "24 hours"],
+  ["7d", "7 days"],
+  ["30d", "1 month"],
+];
+
+function PlayersSeenChart() {
+  const [range, setRange] = useState<PlayersSeen["range"]>("7d");
+  const [anchor, setAnchor] = useState<PlayersSeen["anchor"]>("now");
+  const seen = useApi(() => getPlayersSeen(range, anchor), `${range}|${anchor}`);
+  const d = seen.data;
+  return (
+    <section className="panel">
+      <div className="section-head">
+        <h2>Players seen in Combat</h2>
+        <div className="tabs" role="tablist">
+          {RANGES.map(([value, label]) => (
+            <button key={value} role="tab" aria-selected={range === value} className={range === value ? "tab active" : "tab"} onClick={() => setRange(value)}>
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <label className="inline-check">
+        <input type="checkbox" checked={anchor === "latest"} onChange={(e) => setAnchor(e.target.checked ? "latest" : "now")} /> Count back from the
+        latest recorded match instead of now
+      </label>
+      {!d && <Skeleton lines={2} />}
+      {d && (
+        <>
+          <p className="muted">
+            <strong className="big-number">{d.unique_players.toLocaleString()}</strong> different players in {d.matches.toLocaleString()} matches,{" "}
+            {dateTime(d.start)} – {dateTime(d.end)}
+          </p>
+          {d.unique_players === 0 ? (
+            <EmptyState title="No matches in this period">Try "count back from the latest recorded match".</EmptyState>
+          ) : (
+            <BarChart
+              title={`Players per ${d.unit}`}
+              unit=" players"
+              data={d.items.map((i) => ({
+                label: d.unit === "hour" ? i.bucket.slice(11, 13) + "h" : i.bucket.slice(5),
+                tooltip: d.unit === "hour" ? `${i.bucket.slice(0, 10)} ${i.bucket.slice(11)}:00` : i.bucket,
+                value: i.players,
+              }))}
+            />
+          )}
+        </>
+      )}
+    </section>
+  );
+}
+
+function ActivityChart() {
+  const [bucket, setBucket] = useState<"month" | "year">("month");
+  const activity = useApi(() => getActivity(bucket), bucket);
+  return (
+    <section className="panel">
+      <div className="section-head">
+        <h2>Matches recorded over time</h2>
+        <div className="tabs" role="tablist">
+          {(["month", "year"] as const).map((b) => (
+            <button key={b} role="tab" aria-selected={bucket === b} className={bucket === b ? "tab active" : "tab"} onClick={() => setBucket(b)}>
+              Per {b}
+            </button>
+          ))}
+        </div>
+      </div>
+      {!activity.data && <Skeleton lines={2} />}
+      {activity.data && activity.data.items.length > 0 && (
+        <BarChart
+          title={`Matches per ${bucket}`}
+          unit=" matches"
+          color="var(--chart-2)"
+          data={activity.data.items.map((i) => ({ label: i.period, value: i.matches, tooltip: `${i.period}: ${i.hours} h` }))}
+        />
+      )}
+    </section>
+  );
+}
+
+export function HomePage() {
+  const overview = useApi(getOverview, "overview");
+  const o = overview.data;
+  const g = o?.global;
+
+  return (
+    <section>
+      <div className="hero">
+        <h1>Echo Combat replay stats</h1>
+        <p className="muted">Match and player statistics from the Echo Combat replay archive.</p>
+        <PlayerSearch large />
+      </div>
+
+      {!o && !overview.error && <Skeleton cards={6} lines={0} />}
+      <Status loading={false} error={overview.error} />
+
+      {o && g && (
+        <>
+          {o.matches === 0 ? (
+            <EmptyState title="No matches yet">
+              Replays are still being imported — see <Link to="/import">Import</Link>.
+            </EmptyState>
+          ) : (
+            <>
+              <div className="cards">
+                <div className="card"><span className="label">Matches</span><strong>{o.matches.toLocaleString()}</strong></div>
+                <div className="card"><span className="label">Players</span><strong>{o.players.toLocaleString()}</strong></div>
+                <div className="card"><span className="label">Recorded replay time</span><strong>{g.recorded_hours.toLocaleString()} h</strong></div>
+                <div className="card"><span className="label">Time played (all players)</span><strong>{o.player_hours.toLocaleString()} h</strong></div>
+                <div className="card"><span className="label">Matches today</span><strong>{o.today.toLocaleString()}</strong></div>
+                <div className="card"><span className="label">This week</span><strong>{o.this_week.toLocaleString()}</strong></div>
+              </div>
+              <p className="muted">
+                Archive {o.first_match_at && dateTime(o.first_match_at).slice(0, 10)} – {o.last_match_at && dateTime(o.last_match_at).slice(0, 10)}
+              </p>
+
+              <h2>Most popular gear</h2>
+              <div className="cards gear-cards">
+                <GearTop label="Weapon" items={g.top_weapons} />
+                <GearTop label="Ordnance" items={g.top_ordnances} />
+                <GearTop label="Tac mod" items={g.top_tacmods} />
+              </div>
+
+              <h2>Global stats</h2>
+              <div className="cards">
+                <div className="card"><span className="label">Average match</span><strong>{duration(g.avg_match_s)}</strong></div>
+                <div className="card">
+                  <span className="label">Longest match</span>
+                  <strong>{g.longest_match ? <Link to={`/matches/${g.longest_match.id}`}>{duration(g.longest_match.duration_s)}</Link> : "–"}</strong>
+                </div>
+                <div className="card"><span className="label">Players per match</span><strong>{num(g.avg_players_per_match)}</strong></div>
+                <div className="card" title="Estimated from players leaving the play area"><span className="label">Deaths (est.)</span><strong>{g.deaths_est.toLocaleString()}</strong></div>
+                <div className="card">
+                  <span className="label">Fastest player</span>
+                  <strong>{g.fastest ? <Link to={`/players/${g.fastest.user_id}`}>{g.fastest.name}</Link> : "–"}</strong>
+                  {g.fastest && <span className="muted">{num(g.fastest.top_speed)} m/s</span>}
+                </div>
+                <div className="card">
+                  <span className="label">Most matches</span>
+                  <strong>{g.most_active ? <Link to={`/players/${g.most_active.user_id}`}>{g.most_active.name}</Link> : "–"}</strong>
+                  {g.most_active && <span className="muted">{g.most_active.games.toLocaleString()} matches</span>}
+                </div>
+                <div className="card">
+                  <span className="label">Busiest day</span>
+                  <strong>{g.busiest_day?.day ?? "–"}</strong>
+                  {g.busiest_day && <span className="muted">{g.busiest_day.matches} matches</span>}
+                </div>
+                <div className="card" title="Payload matches with a known result">
+                  <span className="label">Payload attack wins</span>
+                  <strong>{pct(g.payload_attack_win_rate)}</strong>
+                  <span className="muted">of {g.payload_decided.toLocaleString()} decided</span>
+                </div>
+                <div className="card">
+                  <span className="label">Capture point wins</span>
+                  <strong>
+                    <span className="team-text blue">{g.capture_wins.blue}</span> – <span className="team-text orange">{g.capture_wins.orange}</span>
+                  </strong>
+                  <span className="muted">blue – orange</span>
+                </div>
+              </div>
+
+              <h2>Matches per map</h2>
+              <div className="map-cards">
+                {Object.entries(o.by_map)
+                  .sort((a, b) => b[1] - a[1])
+                  .map(([m, n]) => (
+                    <Link key={m} to={`/matches?map=${m}`} className="map-card">
+                      <img src={`/minimaps/${m}_small.png`} alt="" />
+                      <strong>{title(m)}</strong>
+                      <span className="muted">
+                        {n.toLocaleString()} matches · {pct(n / o.matches)}
+                      </span>
+                    </Link>
+                  ))}
+              </div>
+
+              <div className="two-col">
+                <PlayersSeenChart />
+                <ActivityChart />
+              </div>
+
+              {o.top_this_week.length > 0 && (
+                <>
+                  <h2>Most active this week</h2>
+                  <TableWrap>
+                    <table className="stack">
+                      <thead>
+                        <tr><th>Player</th><th className="num">Matches</th><th className="num">Wins</th></tr>
+                      </thead>
+                      <tbody>
+                        {o.top_this_week.map((p) => (
+                          <tr key={p.user_id}>
+                            <td data-label="Player"><Link to={`/players/${p.user_id}`}>{p.name}</Link></td>
+                            <td data-label="Matches" className="num">{p.games}</td>
+                            <td data-label="Wins" className="num">{p.wins}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </TableWrap>
+                </>
+              )}
+
+              <div className="section-head">
+                <h2>Latest matches</h2>
+                <span>
+                  <Link to="/matches">All matches</Link> · <Link to="/import">Import status</Link>
+                </span>
+              </div>
+              <MatchCards matches={o.latest} />
+            </>
+          )}
+        </>
+      )}
+    </section>
+  );
+}

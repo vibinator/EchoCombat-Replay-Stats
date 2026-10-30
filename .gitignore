@@ -1,0 +1,32 @@
+# Only the application goes to GitHub: no replay data, database, generated files or reference material.
+
+# Raw and derived data (replays, database, position tracks, exports)
+/data/
+*.echoreplay
+*.ecrreplay
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+tracks.bin
+/tests/sample-replays/
+
+# Reference material from the old site (read-only, not ours to publish)
+/docs/reference/
+
+# Environments, dependencies and build output (recreated by run.bat)
+/.venv/
+node_modules/
+/app/frontend/dist/
+*.tsbuildinfo
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Local / editor files
+.env
+*.log
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini

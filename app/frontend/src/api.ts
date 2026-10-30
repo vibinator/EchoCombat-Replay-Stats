@@ -1,0 +1,541 @@
+export type ReplayStatus = "queued" | "processing" | "done" | "failed";
+
+export interface Replay {
+  id: number;
+  source_path: string;
+  size_bytes: number;
+  source_mtime: number;
+  discovered_at: string;
+  container: "zip" | "plain" | null;
+  status: ReplayStatus;
+  error_code: string | null;
+  error_message: string | null;
+  warnings: string[];
+  processed_at: string | null;
+  match_id: number | null;
+  repair_requested: boolean;
+}
+
+export interface ImportStage {
+  key: string;
+  label: string;
+  done: number;
+  total: number | null;
+  detail: string;
+}
+
+export interface ImportStatus {
+  source_dir: string;
+  workers: number;
+  busy: number;
+  counts: Record<ReplayStatus, number>;
+  hidden_failed: number; // failed replays hidden in the admin console, left out of `counts`
+  redo: number;
+  versions: { parser: string; stats: string };
+  rate_per_min: number;
+  eta_min: number | null;
+  matches_by_map: Record<string, number>;
+  stages: ImportStage[];
+  current: { replay_id: number; source_path: string; seconds: number }[];
+  throughput: { minute: string; replays: number }[];
+  by_year: ({ year: string } & Record<ReplayStatus, number>)[];
+  scan: {
+    reachable: boolean | null;
+    scanning: boolean;
+    last_scan_at: string | null;
+    last_scan_s: number | null;
+    files: number;
+    settling: number;
+    added: number;
+    changed: number;
+    error: string | null;
+  };
+}
+
+function errorMessage(body: unknown, status: number): string {
+  const message = (body as { message?: unknown } | null)?.message;
+  return typeof message === "string" ? message : `Request failed (${status})`;
+}
+
+async function send<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(path, init);
+  if (!res.ok) throw new Error(errorMessage(await res.json().catch(() => null), res.status));
+  return (res.status === 204 ? undefined : await res.json()) as T;
+}
+
+// The website is read-only (changes are made in the admin console). GET responses are reused for a minute: going
+// back to a page is instant, and two components asking for the same thing share one request. Live views (import
+// progress, replay lists) always go to the server.
+const CACHE_MS = 60_000;
+const UNCACHED = ["/api/import", "/api/replays"];
+const responses = new Map<string, { at: number; value: Promise<unknown> }>();
+
+function request<T>(path: string, init?: RequestInit): Promise<T> {
+  if (init || UNCACHED.some((prefix) => path.startsWith(prefix))) return send<T>(path, init);
+  const hit = responses.get(path);
+  if (hit && Date.now() - hit.at < CACHE_MS) return hit.value as Promise<T>;
+  const value = send<T>(path);
+  responses.set(path, { at: Date.now(), value });
+  value.catch(() => responses.delete(path)); // never keep an error
+  return value;
+}
+
+export const listReplays = (status?: ReplayStatus, limit = 50) =>
+  request<{ items: Replay[]; total: number }>(`/api/replays${query({ status, limit })}`);
+
+export const getImportStatus = () => request<ImportStatus>("/api/import");
+
+
+
+export type Team = "blue" | "orange";
+
+export interface Page<T> {
+  items: T[];
+  total: number;
+}
+
+export interface MatchSummary {
+  id: number;
+  replay_id: number;
+  session_id: string;
+  map: string;
+  mode: "capture_point" | "payload";
+  started_at: string;
+  duration_s: number;
+  blue_rounds: number;
+  orange_rounds: number;
+  final_payload_checkpoint: number | null;
+  attacking_team: Team | null;
+  winner: Team | null;
+  player_count: number | null;
+  players?: { user_id: string; name: string; team: Team }[];
+}
+
+export interface GearItem {
+  code: string;
+  name: string;
+  cut: boolean;
+}
+
+export interface Loadout {
+  weapon: GearItem;
+  tacmod: GearItem;
+  ordnance: GearItem;
+  frames: number;
+  share: number | null;
+}
+
+export interface MatchPlayer {
+  user_id: string;
+  name: string;
+  team: Team;
+  number: number | null;
+  level: number | null;
+  play_time_s: number;
+  left_early: boolean;
+  avg_ping: number | null;
+  avg_speed: number | null;
+  top_speed: number;
+  pct_stopped: number | null;
+  pct_upside_down: number | null;
+  pct_near_mate: number | null;
+  pct_near_enemy: number | null;
+  dominant_arm: string | null;
+  deaths_est: number;
+  payload_push_s: number;
+  payload_block_s: number;
+  avg_packet_loss: number | null;
+  emote_count: number;
+  loadouts: Loadout[];
+}
+
+export interface MatchDetail extends MatchSummary {
+  ended_at: string;
+  frame_rate_hz: number;
+  recorded_by: string | null;
+  private_match: boolean;
+  final_blue_points: number | null;
+  final_orange_points: number | null;
+  final_payload_distance: number | null;
+  final_game_timer: number | null;
+  contested_s: number;
+  blue_capture_s: number;
+  orange_capture_s: number;
+  teams: Record<Team, MatchPlayer[]>;
+  also_recorded_in: number[];
+}
+
+export interface PlayerListItem {
+  user_id: string;
+  name: string;
+  games: number;
+  last_seen_at: string;
+}
+
+export type Period = "day" | "week" | "month" | "all";
+
+export interface PlayerStats {
+  games: number;
+  wins: number;
+  losses: number;
+  games_by_map: Record<string, number>;
+  games_by_mode: Record<string, number>;
+  hours_played: number;
+  deaths_est: number;
+  deaths_per_game_est: number | null;
+  avg_speed: number | null;
+  top_speed: number | null;
+  avg_ping: number | null;
+  pct_stopped: number | null;
+  pct_upside_down: number | null;
+  pct_near_mate: number | null;
+  pct_near_enemy: number | null;
+  pct_left_early: number | null;
+  dominant_arm: string | null;
+  pct_left_arm: number | null;
+  payload_push_s: number;
+  payload_block_s: number;
+  avg_packet_loss: number | null;
+  emote_count: number;
+}
+
+export interface PlayerMatch extends MatchSummary {
+  team: Team;
+  result: "win" | "loss" | null;
+  deaths_est: number;
+  play_time_s: number;
+}
+
+export interface PlayerProfile {
+  user_id: string;
+  name: string;
+  merged_ids: string[];
+  level: number | null;
+  first_seen_at: string;
+  last_seen_at: string;
+  period: Period;
+  map: string | null;
+  stats: PlayerStats;
+  loadouts: Loadout[];
+  recent_matches: PlayerMatch[];
+}
+
+function query(params: Record<string, string | number | boolean | undefined | null>): string {
+  const q = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) if (v !== undefined && v !== null && v !== "") q.set(k, String(v));
+  const s = q.toString();
+  return s ? `?${s}` : "";
+}
+
+export interface MatchFilters {
+  map?: string;
+  mode?: string;
+  player?: string;
+  from?: string;
+  to?: string;
+  private?: string;
+  min_players?: string | number;
+  result?: string;
+  player_name?: string;
+  with_players?: boolean | string;
+  limit?: number;
+  offset?: number;
+}
+
+export const listMatches = (filters: MatchFilters = {}) =>
+  request<Page<MatchSummary>>(`/api/matches${query({ ...filters })}`);
+
+export const getMatch = (id: number) => request<MatchDetail>(`/api/matches/${id}`);
+
+export const searchPlayers = (q: string, limit = 50) =>
+  request<Page<PlayerListItem>>(`/api/players${query({ q, limit })}`);
+
+export const getPlayer = (userId: string, period: Period, map?: string) =>
+  request<PlayerProfile>(`/api/players/${encodeURIComponent(userId)}${query({ period, map })}`);
+
+export interface HeatmapLayer {
+  key: string;
+  label: string;
+  cells: [number, number, number][];
+  max: number;
+  team?: string; // "player" mode only
+}
+
+export interface Heatmap {
+  map: string;
+  image: string;
+  cols: number;
+  rows: number;
+  cell_m: number;
+  mode: string;
+  matches: number;
+  layers: HeatmapLayer[];
+}
+
+export interface MatchEvent {
+  frame: number;
+  t_s: number;
+  type: string;
+  team: Team | null;
+  user_id: string | null;
+  name: string | null;
+  data: Record<string, unknown> | null;
+}
+
+export interface Timeline {
+  hz: number;
+  duration_s: number;
+  series: Partial<Record<"blue_points" | "orange_points" | "payload_distance", (number | null)[]>>;
+  events: MatchEvent[];
+}
+
+export interface LeaderboardRow {
+  rank: number;
+  user_id: string;
+  name: string;
+  games: number;
+  value: number;
+  previous_rank: number | null;
+}
+
+export interface Leaderboard {
+  stat: string;
+  label: string;
+  higher_is_better: boolean;
+  total: number;
+  items: LeaderboardRow[];
+  player: LeaderboardRow | null;
+}
+
+export interface StatOption {
+  key: string;
+  label: string;
+  higher_is_better: boolean;
+}
+
+export interface GearList {
+  weapons: GearItem[];
+  tacmods: GearItem[];
+  ordnances: GearItem[];
+}
+
+export type HeatmapMode = "team" | "weapons" | "deaths";
+
+export const getMatchHeatmap = (id: number, player?: string) =>
+  request<Heatmap>(`/api/matches/${id}/heatmap${query({ player })}`);
+
+export const getTimeline = (id: number) => request<Timeline>(`/api/matches/${id}/timeline`);
+
+export const getPlayerHeatmap = (userId: string, map: string, mode: HeatmapMode, period: Period, last: number) =>
+  request<Heatmap>(`/api/players/${encodeURIComponent(userId)}/heatmap${query({ map, mode, period, last })}`);
+
+export interface LeaderboardQuery {
+  stat: string;
+  period: Period;
+  map?: string;
+  min_games: number;
+  weapon?: string;
+  tacmod?: string;
+  ordnance?: string;
+  offset?: number;
+  limit?: number;
+  player?: string;
+  compare?: boolean;
+}
+
+export const getLeaderboard = (q: LeaderboardQuery) =>
+  request<Leaderboard>(`/api/leaderboard${query({ ...q })}`);
+
+export const getLeaderboardStats = () => request<StatOption[]>("/api/leaderboard/stats");
+
+export const getGear = () => request<GearList>("/api/leaderboard/gear");
+
+export const matchExportUrl = (id: number, format: "csv" | "json") => `/api/matches/${id}/export?format=${format}`;
+
+export const playerExportUrl = (userId: string, format: "csv" | "json") =>
+  `/api/players/${encodeURIComponent(userId)}/export?format=${format}`;
+
+export interface AchievementRule {
+  id: number;
+  name: string;
+  description: string;
+  period: "game" | "day" | "week" | "all";
+  icon: string | null;
+  estimated: boolean;
+  new: boolean; // added in this app (80+), not on the original ECRanked site
+  group: string | null; // theme of a new achievement
+}
+
+export interface Achievement extends AchievementRule {
+  progress: number;
+  tier: "white" | "bronze" | "silver" | "gold" | null;
+  unlocked_at: string | null;
+}
+
+export interface PlayerAchievements {
+  user_id: string;
+  name: string;
+  window: { start: string | null; end: string | null };
+  games: number;
+  overall: number;
+  completed: number;
+  total: number;
+  items: Achievement[];
+}
+
+export const getAchievements = (userId: string) =>
+  request<PlayerAchievements>(`/api/players/${encodeURIComponent(userId)}/achievements`);
+
+export const listAchievements = () => request<AchievementRule[]>("/api/achievements");
+
+// ---- GUI round 2 -------------------------------------------------------------------------
+
+export interface GearShare extends GearItem {
+  hours: number;
+  share: number | null;
+}
+
+export interface GlobalStats {
+  recorded_hours: number;
+  avg_match_s: number | null;
+  longest_match: { id: number; duration_s: number } | null;
+  avg_players_per_match: number | null;
+  deaths_est: number;
+  top_weapons: GearShare[];
+  top_ordnances: GearShare[];
+  top_tacmods: GearShare[];
+  fastest: { user_id: string; name: string; top_speed: number; match_id: number } | null;
+  most_active: { user_id: string; name: string; games: number } | null;
+  busiest_day: { day: string; matches: number } | null;
+  payload_attack_win_rate: number | null;
+  payload_decided: number;
+  capture_wins: { blue: number; orange: number };
+}
+
+export interface Overview {
+  global: GlobalStats;
+  matches: number;
+  players: number;
+  match_hours: number;
+  player_hours: number;
+  today: number;
+  this_week: number;
+  by_map: Record<string, number>;
+  most_played_map: string | null;
+  first_match_at: string | null;
+  last_match_at: string | null;
+  top_this_week: { user_id: string; name: string; games: number; wins: number }[];
+  latest: MatchSummary[];
+}
+
+export interface PlayersSeen {
+  range: "24h" | "7d" | "30d";
+  unit: "hour" | "day";
+  anchor: "now" | "latest";
+  start: string;
+  end: string;
+  unique_players: number;
+  matches: number;
+  items: { bucket: string; players: number }[];
+}
+
+export interface SearchResult {
+  players: { user_id: string; name: string; games: number }[];
+  matches: MatchSummary[];
+}
+
+export interface Playback {
+  map: string;
+  image: string;
+  hz: number;
+  samples: number;
+  players: { user_id: string; name: string; points: ([number, number, number] | null)[] }[];
+}
+
+export interface TrendPoint {
+  period: string;
+  games: number;
+  win_rate: number | null;
+  deaths_per_game_est: number | null;
+  avg_speed: number | null;
+  top_speed: number;
+  avg_ping: number | null;
+}
+
+export interface Companion {
+  user_id: string;
+  name: string;
+  games: number;
+  wins: number;
+  losses: number;
+}
+
+export interface Comparison {
+  period: Period;
+  players: { user_id: string; name: string; stats: PlayerStats }[];
+  head_to_head: Record<"together" | "against", { games: number; wins: number; losses: number }>;
+}
+
+export interface ChallengeWindow {
+  start: string | null;
+  end: string | null;
+  updated_at: string | null;
+  active: boolean;
+}
+
+export interface AchievementRarity extends AchievementRule {
+  unlocked_share: number | null;
+  completed_share: number | null;
+}
+
+export interface RecentUnlock {
+  date: string;
+  user_id: string;
+  name: string;
+  id: number;
+  achievement: string;
+  icon: string | null;
+}
+
+export const getHealth = () => request<{ version: string }>("/api/health");
+export const getOverview = () => request<Overview>("/api/overview");
+export const getActivity = (bucket: "day" | "week" | "month" | "year") =>
+  request<{ bucket: string; items: { period: string; matches: number; hours: number }[] }>(`/api/overview/activity?bucket=${bucket}`);
+export const getPlayersSeen = (range: PlayersSeen["range"], anchor: PlayersSeen["anchor"]) =>
+  request<PlayersSeen>(`/api/overview/players-seen?range=${range}&anchor=${anchor}`);
+export const search = (q: string) => request<SearchResult>(`/api/search${query({ q })}`);
+export const getPlayback = (id: number) => request<Playback>(`/api/matches/${id}/playback`);
+export const getTrends = (userId: string, bucket: "week" | "month" | "year") =>
+  request<{ bucket: string; items: TrendPoint[] }>(`/api/players/${encodeURIComponent(userId)}/trends?bucket=${bucket}`);
+export const getCompanions = (userId: string) =>
+  request<{ teammates: Companion[]; opponents: Companion[] }>(`/api/players/${encodeURIComponent(userId)}/companions`);
+export const comparePlayers = (userIds: string[], period: Period) =>
+  request<Comparison>(`/api/players/compare/${userIds.map(encodeURIComponent).join(",")}?period=${period}`);
+export const getChallenges = () => request<ChallengeWindow>("/api/challenges");
+export const getRarity = () => request<AchievementRarity[]>("/api/achievements");
+export const getRecentUnlocks = () => request<RecentUnlock[]>("/api/achievements/recent");
+
+export type HeatmapLayerMode = "team" | "weapons" | "ordnance" | "tacmod" | "loadout" | "speed";
+
+export const getMatchHeatmapBy = (id: number, mode: HeatmapLayerMode | "player", cell: number, player?: string) =>
+  request<Heatmap>(`/api/matches/${id}/heatmap${query({ mode, cell, player })}`);
+export const getPlayerHeatmapBy = (userId: string, map: string, mode: HeatmapLayerMode | "deaths", period: Period, last: number, cell: number) =>
+  request<Heatmap>(`/api/players/${encodeURIComponent(userId)}/heatmap${query({ map, mode, period, last, cell })}`);
+
+// "My player" (per-browser convenience): pins your own rank on the leaderboard.
+const ME_KEY = "echovr-me";
+export function myPlayer(): { user_id: string; name: string } | null {
+  try {
+    return JSON.parse(localStorage.getItem(ME_KEY) ?? "null");
+  } catch {
+    return null;
+  }
+}
+export function setMyPlayer(value: { user_id: string; name: string } | null) {
+  try {
+    if (value) localStorage.setItem(ME_KEY, JSON.stringify(value));
+    else localStorage.removeItem(ME_KEY);
+  } catch {
+    /* storage unavailable */
+  }
+}
