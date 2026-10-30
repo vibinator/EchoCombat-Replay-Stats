@@ -8,5 +8,7 @@ if not exist ".venv\Scripts\python.exe" (
   pause
   exit /b 1
 )
+rem Discord bot token for listing server roles (option 14): the same private settings.local.bat as run.bat
+if exist "settings.local.bat" call "settings.local.bat"
 ".venv\Scripts\python" app\admin_console.py %*
 if "%~1"=="" pause

@@ -5,6 +5,6 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
-    proxy: { "/api": "http://127.0.0.1:8000" },
+    proxy: { "/api": "http://127.0.0.1:8000", "/achievements/custom": "http://127.0.0.1:8000" },
   },
 });

@@ -92,6 +92,9 @@ All JSON. No upload, delete or replay-download endpoints: replays come only from
 | GET | /api/players/{user_id}/achievements | `{overall, completed, total, items[{id, name, description, period, icon, estimated, progress, tier}]}` (D31) | 8 |
 | GET | /api/achievements | Catalogue + rarity (`unlocked_share`, `completed_share` of players with 10+ games) | 8, D37 |
 | GET | /api/achievements/recent | Latest completions (players active in the archive's last 30 days) | D37 |
+| GET | /api/admin/achievements, /api/admin/achievements.xlsx, /api/admin/icons | Admin tab (Discord admin role): achievement list with how to get it and current / default icon, the same as Excel, icon choices | D42, D43 |
+| PUT, POST | /api/admin/achievements/{id}/icon | Choose an icon `{icon}` (null = default) / upload a PNG (raw body). Needs header `X-EchoVR: 1`; the only writes the website accepts | D43 |
+| GET | /achievements/custom/{hash}.png | Uploaded icons | D43 |
 | GET | /api/auth/me, /login, /callback, /logout | Discord login for previews: `{enabled, user: {name, preview}}`; login / callback / logout redirect | D41 |
 | GET | /api/challenges | Flamingo Challenge period `{start, end, launched, preview, active}`; `preview` = this visitor has the Discord preview role; `launched` = start date reached. Before it the achievement endpoints (and `stat=achievements`) answer 403 `coming_soon` | D33, D40 |
 | GET | /api/matches/{id}/export?format=csv\|json | Match download: CSV = one row per player; JSON = match detail | 7 |

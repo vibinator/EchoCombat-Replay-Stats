@@ -9,7 +9,7 @@ from datetime import date, timedelta
 from fastapi import APIRouter, Query, Request
 from sqlalchemy import func, select
 
-from .. import auth
+from .. import auth, icons
 from ..achievements import RULES, Game, evaluate, icon_file, in_window, overall, unlock_dates
 from ..admin_actions import WINDOW_KEYS, achievements_launched, challenge_window
 from ..cache import cached, data_stamp
@@ -97,7 +97,9 @@ def player_achievements(request: Request, user_id: str):
     require_launched(request)
     with request.app.state.sessionmaker() as db:
         window = counted_window(db)  # part of the cache key: an admin period change shows at once
-    return cached(request, "achievements", (user_id, window), lambda: _player_achievements(request, user_id))
+    result = cached(request, "achievements", (user_id, window), lambda: _player_achievements(request, user_id))
+    with request.app.state.sessionmaker() as db:
+        return result | {"items": icons.apply(db, result["items"])}  # icons chosen in the Admin tab (D43)
 
 
 def _player_achievements(request: Request, user_id: str) -> dict:
@@ -235,11 +237,13 @@ def list_achievements(request: Request):
                     "icon": icon_file(r), "estimated": r.estimated, "new": r.new, "group": r.group,
                     "unlocked_share": round(sum(v >= 0.25 for v in values) / len(values), 4) if values else None,
                     "completed_share": round(sum(v >= 1 for v in values) / len(values), 4) if values else None})
-    return out
+    with request.app.state.sessionmaker() as db:
+        return icons.apply(db, out)
 
 
 @router.get("/api/achievements/recent")
 def recent_unlocks(request: Request, limit: int = Query(20, ge=1, le=100)):
     """Latest 100 % completions by players active in the last 30 days of the archive."""
     require_launched(request)
-    return _everyone(request)["recent"][:limit]
+    with request.app.state.sessionmaker() as db:
+        return icons.apply(db, _everyone(request)["recent"][:limit])

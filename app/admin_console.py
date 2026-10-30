@@ -12,6 +12,8 @@ rule and the affected replays are re-processed from the original files, so it ca
     admin.bat merges
     admin.bat unmerge <merged id> [--yes]
     admin.bat challenge [--start YYYY-MM-DD] [--end YYYY-MM-DD] [--clear]
+    admin.bat preview-roles [--server] [--add <role id>] [--remove <role id>]   Discord roles: achievements early
+    admin.bat admin-roles [--server] [--add <role id>] [--remove <role id>]     Discord roles: website Admin tab
     admin.bat status
     admin.bat repair-failed [--yes]
     admin.bat cannot-repair [--hide] [--yes]   failed replays repair cannot fix; --hide hides them on the website
@@ -34,7 +36,7 @@ from sqlalchemy import create_engine, event, func, not_, select  # noqa: E402
 from sqlalchemy.orm import Session, sessionmaker  # noqa: E402
 
 from backend import admin_actions as actions  # noqa: E402
-from backend import aliases  # noqa: E402
+from backend import aliases, auth  # noqa: E402
 from backend.admin_actions import REPAIRABLE, AdminError, hidden_failure, unrepairable  # noqa: E402
 from backend.config import Settings  # noqa: E402
 from backend.version import APP_VERSION  # noqa: E402
@@ -223,6 +225,61 @@ def cmd_challenge(sessions, start: str | None, end: str | None, clear: bool) -> 
         print(f"Website: \"Coming soon\" until {current[0]}; from that day they go live and count matches from it.")
     else:
         print("Website: \"Coming soon\". Set a start date to launch achievements and challenges.")
+
+
+def _server_roles(settings: Settings) -> list[dict] | None:
+    """The Discord server's roles via the bot, or None when the bot token is not set / Discord cannot be asked."""
+    if not settings.discord_bot_token:
+        return None
+    try:
+        return auth.server_roles(settings)
+    except Exception:  # network, bad token, bot not in the server: the role ids still work without names
+        return None
+
+
+ROLE_KINDS = {  # kind -> (heading, what the members get)
+    "preview": ("Preview roles", "see achievements and challenges before the launch date"),
+    "admin": ("Admin roles", "get the website's Admin tab (achievement list + Excel download) and the preview"),
+}
+
+
+def cmd_discord_roles(sessions, settings: Settings, kind: str, add: str | None = None, remove: str | None = None,
+                      show_server: bool = False) -> list[dict]:
+    """Discord roles for `kind` ("preview" D41, "admin" D42). Returns the server's roles (numbered as printed) when
+    show_server and the bot could list them."""
+    heading, gets = ROLE_KINDS[kind]
+    with sessions() as db:
+        if add:
+            actions.add_discord_role(db, kind, add)
+            print(f"Added. Members with role {add} {gets} within 5 minutes.")
+        if remove:
+            actions.remove_discord_role(db, kind, remove)
+            print(f"Removed. Members with only role {remove} lose it within 5 minutes.")
+        roles = actions.discord_roles(db, kind)
+    server = _server_roles(settings)
+    names = {r["id"]: r["name"] for r in server or []}
+    from_env = [r for r in settings.discord_preview_roles if r not in roles] if kind == "preview" else []
+    print(f"{heading} (members {gets}):")
+    for r in roles:
+        print(f"  {names.get(r, '?'):<28} {r}")
+    for r in from_env:
+        print(f"  {names.get(r, '?'):<28} {r}   (from ECHOVR_DISCORD_PREVIEW_ROLES, change it there)")
+    if not roles and not from_env:
+        print("  none yet")
+    if not auth.enabled(settings):
+        print("Note: Discord login is off on this computer / container: the client secret or bot token is not set "
+              "(Setup.MD, Discord login).")
+    if not show_server:
+        return []
+    if server is None:
+        print("Server roles could not be listed (bot token not set here, or Discord / the bot not reachable). "
+              "Copy the role id in Discord instead: right-click the role > Copy Role ID.")
+        return []
+    print("Roles in the Discord server:")
+    for i, r in enumerate(server, 1):
+        mark = f"  [{kind}]" if r["id"] in roles or r["id"] in from_env else ""
+        print(f"  {i:>3}  {r['name']:<28} {r['id']}{mark}")
+    return server
 
 
 RATE_WINDOW_MIN = 10
@@ -414,6 +471,8 @@ EchoVR Replay Stats - admin console ({APP_VERSION})
   11 Repair a replay
   12 Scan the replay folder now
   13 Rescan and re-process every replay
+  14 Discord preview roles (see achievements before the launch)
+  15 Discord admin roles (website Admin tab: achievement list + Excel)
   q  Quit"""
 
 
@@ -486,8 +545,21 @@ def interactive(sessions, settings: Settings) -> None:
                 cmd_scan(sessions, settings)
             elif choice == "13":
                 cmd_reprocess_all(sessions, settings, yes=False)
+            elif choice in ("14", "15"):
+                kind = "preview" if choice == "14" else "admin"
+                server = cmd_discord_roles(sessions, settings, kind, show_server=True)
+                pick = ask("Add: number or role id. Remove: '-' + number or role id. Enter to go back: ")
+                if pick:
+                    remove = pick.startswith("-")
+                    value = pick.lstrip("-").strip()
+                    if value.isdigit() and 1 <= int(value) <= len(server):
+                        value = server[int(value) - 1]["id"]
+                    if remove:
+                        cmd_discord_roles(sessions, settings, kind, remove=value)
+                    else:
+                        cmd_discord_roles(sessions, settings, kind, add=value)
             else:
-                print("Choose 1-13 or q.")
+                print("Choose 1-15 or q.")
         except ConsoleError as e:
             print(f"! {e}")
 
@@ -510,6 +582,12 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--start", help="YYYY-MM-DD, or '' for no limit")
     p.add_argument("--end", help="YYYY-MM-DD, or '' for no limit")
     p.add_argument("--clear", action="store_true", help="remove both dates")
+    for kind, help_ in (("preview", "Discord roles that see achievements before the launch date"),
+                        ("admin", "Discord roles that get the website's Admin tab")):
+        p = sub.add_parser(f"{kind}-roles", help=help_)
+        p.add_argument("--add", metavar="ROLE_ID", help="add this role")
+        p.add_argument("--remove", metavar="ROLE_ID", help="remove this role")
+        p.add_argument("--server", action="store_true", help="also list every role in the Discord server (needs the bot token)")
     sub.add_parser("status", help="import progress, replay and player counts")
     p = sub.add_parser("repair-failed", help="re-process damaged / incomplete replays in repair mode")
     p.add_argument("--yes", action="store_true")
@@ -543,6 +621,8 @@ def main(argv: list[str] | None = None) -> int:
                 cmd_unmerge(sessions, args.alias, args.yes)
             case "challenge":
                 cmd_challenge(sessions, args.start, args.end, args.clear)
+            case "preview-roles" | "admin-roles":
+                cmd_discord_roles(sessions, settings, args.command.removesuffix("-roles"), args.add, args.remove, args.server)
             case "status":
                 cmd_status(sessions)
             case "repair-failed":

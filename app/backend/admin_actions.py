@@ -15,6 +15,9 @@ from .models import AppSetting, HiddenReplay, Player, PlayerAlias, PriorityRepla
 
 REPAIRABLE = ("corrupt", "incomplete", "internal", "crashed")  # not: unsupported (not Combat), unreadable (I/O)
 WINDOW_KEYS = ("challenge_start", "challenge_end")
+# Discord role ids, comma-separated: "preview" sees achievements before the launch (D41), "admin" also gets the
+# website's Admin tab (D42)
+ROLE_KEYS = {"preview": "discord_preview_roles", "admin": "discord_admin_roles"}
 
 
 class AdminError(Exception):
@@ -174,6 +177,40 @@ def unmerge_player(db: Session, alias_user_id: str) -> list[int]:
 def challenge_window(db: Session) -> tuple[str | None, str | None]:
     values = dict(db.execute(select(AppSetting.key, AppSetting.value).where(AppSetting.key.in_(WINDOW_KEYS))).all())
     return values.get("challenge_start"), values.get("challenge_end")
+
+
+def discord_roles(db: Session, kind: str) -> list[str]:
+    """Discord role ids set in the admin console for `kind` ("preview" / "admin")."""
+    value = db.scalar(select(AppSetting.value).where(AppSetting.key == ROLE_KEYS[kind]))
+    return [r for r in (value or "").split(",") if r]
+
+
+def _role_id(value: str) -> str:
+    value = value.strip()
+    if not (value.isdigit() and 17 <= len(value) <= 20):
+        raise AdminError(f"'{value}' is not a Discord role id (17-20 digits: right-click the role > Copy Role ID)")
+    return value
+
+
+def add_discord_role(db: Session, kind: str, role_id: str) -> list[str]:
+    roles = discord_roles(db, kind)
+    role_id = _role_id(role_id)
+    if role_id not in roles:
+        roles.append(role_id)
+    return _save_discord_roles(db, kind, roles)
+
+
+def remove_discord_role(db: Session, kind: str, role_id: str) -> list[str]:
+    roles = discord_roles(db, kind)
+    if role_id.strip() not in roles:
+        raise AdminError(f"Role {role_id} is not a{'n' if kind == 'admin' else ''} {kind} role")
+    return _save_discord_roles(db, kind, [r for r in roles if r != role_id.strip()])
+
+
+def _save_discord_roles(db: Session, kind: str, roles: list[str]) -> list[str]:
+    db.merge(AppSetting(key=ROLE_KEYS[kind], value=",".join(roles) or None, updated_at=utcnow()))
+    db.commit()
+    return roles
 
 
 def achievements_launched(db: Session) -> bool:

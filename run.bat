@@ -10,6 +10,9 @@ if not exist ".venv\Scripts\python.exe" (
   ".venv\Scripts\python" -m pip install -r app\backend\requirements.txt
   if errorlevel 1 goto :error
 )
+rem New packages after an update (quick when nothing is missing)
+".venv\Scripts\python" -m pip install -q --disable-pip-version-check -r app\backend\requirements.txt
+if errorlevel 1 goto :error
 
 cd app\frontend
 if not exist "node_modules" (

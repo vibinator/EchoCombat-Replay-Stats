@@ -13,6 +13,35 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 12 — 2026-10-30
+### Admin console
+- **Option 14, Discord preview roles**: lists the roles in your Discord server (by name, via the bot) and marks the
+  preview ones. Type a number to give that role the preview, `-` + number to take it away. Changes apply on the
+  website straight away and are kept across database rebuilds. Command line: `admin.bat preview-roles --server`,
+  `--add <role id>`, `--remove <role id>`.
+- **Option 15, Discord admin roles**: same as option 14, for the roles that get the website's Admin tab.
+- `admin.bat` reads `settings.local.bat` too, so the bot token is available to it on Windows.
+
+### Website
+- **Admin tab** (only for logged-in Discord members with an admin role): every achievement and challenge with the
+  requirement players see, how to achieve it, how progress is measured and notes on the terms; filterable.
+  **Download Excel** gives the same list (plus a "How it works" sheet and a summary). Both are built from the live
+  rules each time, so the link always matches the website.
+- **Change achievement icons** in the Admin tab: click an icon, then pick another badge image, upload your own PNG
+  (at most 512 KB and 1024 x 1024), or reset to the default. The new icon shows everywhere on the site at once and
+  is kept across updates. This is the only change that can be made on the website; everything else stays in the
+  admin console.
+- Admins also see achievements before the launch, like previewers.
+- Discord login only needs the client secret and bot token; who gets the preview comes from the admin console.
+  `ECHOVR_DISCORD_PREVIEW_ROLES` still works but is optional.
+
+### Upgrading to Beta 12
+- QNAP: upload Beta 12, wait for the Actions run, Recreate. Then open the admin console in the container and use
+  option 14 to pick the preview role and option 15 for the admin role.
+- Windows: restart `run.bat`.
+
+---
+
 ## Beta 11 — 2026-10-30
 ### Website
 - **Preview with Discord**: before the launch date, members of the EchoVR Combat Discord server with the preview

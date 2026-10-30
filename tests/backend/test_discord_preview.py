@@ -12,6 +12,7 @@ from backend import auth
 
 BLUE = str(rf.BIG_USER_ID)  # player in rf.plain
 ROLE, MEMBER, OUTSIDER, NO_ROLE = "555", "42", "43", "44"
+DB_ROLE, DB_MEMBER = "123456789012345678", "45"  # role set in the admin console
 
 
 @pytest.fixture
@@ -31,12 +32,16 @@ def discord(monkeypatch):
         if path.endswith("/users/@me"):
             uid = request.headers["Authorization"].removeprefix("Bearer token-")
             return httpx.Response(200, json={"id": uid, "username": f"user{uid}", "global_name": None})
+        if path.endswith("/roles"):
+            return httpx.Response(200, json=[{"id": "779349159852769310", "name": "@everyone", "position": 0},
+                                             {"id": DB_ROLE, "name": "Preview", "position": 2},
+                                             {"id": "999", "name": "Member", "position": 1}])
         if "/members/" in path:
             assert request.headers["Authorization"] == "Bot bot-token"
             uid = path.rsplit("/", 1)[1]
             if uid == OUTSIDER:
                 return httpx.Response(404)
-            return httpx.Response(200, json={"roles": [ROLE] if uid == MEMBER else ["999"]})
+            return httpx.Response(200, json={"roles": {MEMBER: [ROLE], DB_MEMBER: [DB_ROLE]}.get(uid, ["999"])})
         return httpx.Response(404)
 
     monkeypatch.setattr(auth, "http_client", lambda: httpx.Client(transport=httpx.MockTransport(handle)))
@@ -67,7 +72,7 @@ def test_preview_role_sees_achievements_before_launch(tmp_path, discord):
 
         done = login(client, MEMBER)
         assert done.status_code == 303 and done.headers["location"] == "/achievements"
-        assert client.get("/api/auth/me").json()["user"] == {"name": f"user{MEMBER}", "preview": True}
+        assert client.get("/api/auth/me").json()["user"] == {"name": f"user{MEMBER}", "preview": True, "admin": False}
         assert client.get("/api/challenges").json()["preview"] is True
         a = client.get(f"/api/players/{BLUE}/achievements").json()
         assert a["games"] == 1 and a["window"] == {"start": None, "end": None}  # whole archive before launch
@@ -84,7 +89,7 @@ def test_preview_role_sees_achievements_before_launch(tmp_path, discord):
 def test_without_the_role_it_stays_coming_soon(tmp_path, discord, user_id):
     with app_client(settings(tmp_path)) as client:
         login(client, user_id)
-        assert client.get("/api/auth/me").json()["user"] == {"name": f"user{user_id}", "preview": False}
+        assert client.get("/api/auth/me").json()["user"] == {"name": f"user{user_id}", "preview": False, "admin": False}
         assert client.get("/api/achievements").status_code == 403
 
 
@@ -142,3 +147,115 @@ def test_compose_placeholders_keep_login_off(monkeypatch):
     monkeypatch.setenv("ECHOVR_DISCORD_PREVIEW_ROLES", "1, 2")
     s = Settings.from_env()
     assert auth.enabled(s) and s.discord_preview_roles == ("1", "2")
+
+
+def test_preview_roles_from_the_admin_console(tmp_path, discord, capsys):
+    import admin_console as console
+
+    with app_client(settings(tmp_path, discord_preview_roles=())) as client:
+        login(client, DB_MEMBER)
+        assert client.get("/api/auth/me").json()["user"]["preview"] is False  # no role set yet
+        sessions = console.open_sessions(client.app.state.settings)
+        with pytest.raises(actions.AdminError, match="not a Discord role id"):
+            console.cmd_discord_roles(sessions, client.app.state.settings, "preview", add="Preview")
+        server = console.cmd_discord_roles(sessions, client.app.state.settings, "preview", show_server=True)
+        assert [r["name"] for r in server] == ["Preview", "Member"]  # highest first, no @everyone
+        console.cmd_discord_roles(sessions, client.app.state.settings, "preview", add=DB_ROLE)
+        assert "Preview" in capsys.readouterr().out
+        assert client.get("/api/auth/me").json()["user"]["preview"] is True  # applies at once (roles cached, not the answer)
+        console.cmd_discord_roles(sessions, client.app.state.settings, "preview", remove=DB_ROLE)
+        assert client.get("/api/auth/me").json()["user"]["preview"] is False
+        with pytest.raises(actions.AdminError, match="not a preview role"):
+            console.cmd_discord_roles(sessions, client.app.state.settings, "preview", remove=DB_ROLE)
+
+
+def test_admin_tab_and_excel_download(tmp_path, discord):
+    import io
+
+    import admin_console as console
+    from openpyxl import load_workbook
+
+    with app_client(settings(tmp_path)) as client:
+        login(client, DB_MEMBER)
+        assert client.get("/api/admin/achievements").status_code == 403
+        assert client.get("/api/admin/achievements.xlsx").status_code == 403
+        sessions = console.open_sessions(client.app.state.settings)
+        console.cmd_discord_roles(sessions, client.app.state.settings, "admin", add=DB_ROLE)
+        assert client.get("/api/auth/me").json()["user"] == {"name": f"user{DB_MEMBER}", "preview": True, "admin": True}
+
+        data = client.get("/api/admin/achievements").json()
+        assert len(data["items"]) == 96 and data["columns"][0] == {"key": "id", "label": "ID"}
+        assert all(row["how"].startswith(row["requirement"].removesuffix(" *")) for row in data["items"])
+
+        r = client.get("/api/admin/achievements.xlsx")
+        assert r.status_code == 200 and "EchoVR-Achievements.xlsx" in r.headers["content-disposition"]
+        wb = load_workbook(io.BytesIO(r.content))
+        assert wb.sheetnames == ["Achievements", "How it works", "Summary"]
+        sheet = wb["Achievements"]
+        assert sheet.max_row == 97 and sheet["B2"].value == data["items"][0]["name"]
+        assert wb["Summary"]["B2"].value.startswith("=COUNTIFS(")
+
+        # a preview role is not an admin role
+        console.cmd_discord_roles(sessions, client.app.state.settings, "admin", remove=DB_ROLE)
+        console.cmd_discord_roles(sessions, client.app.state.settings, "preview", add=DB_ROLE)
+        assert client.get("/api/auth/me").json()["user"]["admin"] is False
+        assert client.get("/api/admin/achievements").status_code == 403
+
+
+def _png(width=64, height=64) -> bytes:
+    import struct
+    import zlib
+
+    def chunk(kind, body):
+        return struct.pack(">I", len(body)) + kind + body + struct.pack(">I", zlib.crc32(kind + body))
+
+    raw = b"".join(b"\x00" + b"\x00\x00\x00\x00" * width for _ in range(height))
+    return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 6, 0, 0, 0))
+            + chunk(b"IDAT", zlib.compress(raw)) + chunk(b"IEND", b""))
+
+
+def test_admin_changes_achievement_icons(tmp_path, discord):
+    import admin_console as console
+
+    headers = {"X-EchoVR": "1"}
+    with app_client(settings(tmp_path)) as client:
+        add(client, {"dyson/0.echoreplay": rf.plain(rf.lines(20))})
+        act(client, actions.set_challenge_window, "2026-01-01", None)
+        login(client, DB_MEMBER)
+        # not an admin yet: refused (and without the header the site stays read-only)
+        assert client.put("/api/admin/achievements/5/icon", json={"icon": "nova.png"}, headers=headers).status_code == 403
+        sessions = console.open_sessions(client.app.state.settings)
+        console.cmd_discord_roles(sessions, client.app.state.settings, "admin", add=DB_ROLE)
+        assert client.put("/api/admin/achievements/5/icon", json={"icon": "nova.png"}).status_code == 405
+
+        choices = client.get("/api/admin/icons").json()
+        assert "nova.png" in choices and "gold.png" not in choices  # tier frames are not icons
+        assert client.put("/api/admin/achievements/5/icon", json={"icon": "nova.png"}, headers=headers).json()["icon"] == "nova.png"
+        assert client.put("/api/admin/achievements/5/icon", json={"icon": "../secret.png"}, headers=headers).status_code == 400
+        assert client.put("/api/admin/achievements/999/icon", json={"icon": "nova.png"}, headers=headers).status_code == 400
+
+        def icon_everywhere(rule_id):
+            player = {a["id"]: a["icon"] for a in client.get(f"/api/players/{BLUE}/achievements").json()["items"]}
+            catalogue = {a["id"]: a["icon"] for a in client.get("/api/achievements").json()}
+            admin = {a["id"]: a["icon"] for a in client.get("/api/admin/achievements").json()["items"]}
+            assert player[rule_id] == catalogue[rule_id] == admin[rule_id]
+            return player[rule_id]
+
+        assert icon_everywhere(5) == "nova.png"
+
+        bad = client.post("/api/admin/achievements/5/icon", content=b"GIF89a....", headers=headers)
+        assert bad.status_code == 400 and "PNG" in bad.json()["message"]
+        assert client.post("/api/admin/achievements/5/icon", content=_png(4096, 16), headers=headers).status_code == 400
+        up = client.post("/api/admin/achievements/5/icon", content=_png(), headers=headers | {"Content-Type": "image/png"})
+        icon = up.json()["icon"]
+        assert icon.startswith("custom/") and icon_everywhere(5) == icon
+        served = client.get(f"/achievements/{icon}")
+        assert served.status_code == 200 and served.headers["content-type"] == "image/png"
+        key = (client.app.state.settings.data_dir / "session.key").read_bytes()
+        for evil in ("..%2Fsession.key", "%2e%2e/session.key", "../session.key"):
+            r = client.get(f"/achievements/custom/{evil}")  # the site's page (or 404), never the file
+            assert key not in r.content and r.headers.get("content-type") != "image/png"
+        assert icon in client.get("/api/admin/icons").json()
+
+        assert client.put("/api/admin/achievements/5/icon", json={"icon": None}, headers=headers).json()["icon"] == "pulsar_daily.png"
+        assert icon_everywhere(5) == "pulsar_daily.png"

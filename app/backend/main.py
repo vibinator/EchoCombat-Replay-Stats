@@ -2,14 +2,14 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException
 
 from parser import PARSER_VERSION
 
-from . import auth
-from .api import achievements, auth as auth_api, imports, leaderboard, matches, overview, players, replays
+from . import auth, icons
+from .api import achievements, admin, auth as auth_api, imports, leaderboard, matches, overview, players, replays
 from .config import PROJECT_ROOT, Settings
 from .db import open_db
 from .errors import ApiError, api_error_handler
@@ -19,7 +19,7 @@ from .scanner import Scanner
 from .worker import Worker
 
 FRONTEND_DIST = PROJECT_ROOT / "app" / "frontend" / "dist"
-PER_VISITOR = ("/api/auth", "/api/challenges", "/api/achievements", "/api/players", "/api/leaderboard")
+PER_VISITOR = ("/api/admin", "/api/auth", "/api/challenges", "/api/achievements", "/api/players", "/api/leaderboard")
 
 
 class SinglePageApp(StaticFiles):
@@ -59,7 +59,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.middleware("http")
     async def read_only(request, call_next):
-        """The website never changes data: every change is made in the admin console (admin.bat)."""
+        """The website never changes data: every change is made in the admin console (admin.bat). Only exception:
+        achievement icons in the Admin tab (D43), for Discord admins; the X-EchoVR header proves the request comes
+        from this site's own pages (other sites cannot send it without a CORS preflight, which is refused)."""
+        if (request.method in ("PUT", "POST") and request.url.path.startswith("/api/admin/achievements/")
+                and request.headers.get("x-echovr") == "1"):
+            return await call_next(request)  # the endpoint checks the admin role
         if request.method not in ("GET", "HEAD", "OPTIONS"):
             return JSONResponse({"error_code": "read_only", "message": "The website is read-only. Use the admin console (admin.bat)."},
                                 status_code=405)
@@ -85,11 +90,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(achievements.router)
     app.include_router(overview.router)
     app.include_router(auth_api.router)
+    app.include_router(admin.router)
 
     @app.get("/api/health")
     def health():
         return {"status": "ok", "version": APP_VERSION, "parser_version": PARSER_VERSION, "stats_version": STATS_VERSION,
                 "source_dir": str(settings.source_dir)}
+
+    @app.get("/achievements/custom/{name}")
+    def custom_icon(name: str):
+        """Icons uploaded in the Admin tab (D43). Before the site mount, which serves the built-in ones."""
+        path = icons.custom_dir(settings) / name
+        if not icons.CUSTOM_NAME.match(name) or not path.is_file():
+            raise HTTPException(404)
+        return FileResponse(path, media_type="image/png", headers={"Cache-Control": "public, max-age=31536000, immutable"})
 
     # Built frontend (npm run build); in development Vite serves it instead.
     if FRONTEND_DIST.is_dir():

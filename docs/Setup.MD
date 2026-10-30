@@ -27,7 +27,7 @@ npm install
 | `ECHOVR_PUBLIC_URL` | `http://127.0.0.1:8000` | Address people use; Discord sends them back to `<it>/api/auth/callback` |
 | `ECHOVR_DISCORD_CLIENT_SECRET` | – | Discord login (D41). Secret: never in GitHub |
 | `ECHOVR_DISCORD_BOT_TOKEN` | – | Bot that checks the preview role (D41). Secret: never in GitHub |
-| `ECHOVR_DISCORD_PREVIEW_ROLES` | – | Preview role id(s), comma-separated |
+| `ECHOVR_DISCORD_PREVIEW_ROLES` | – | Optional: preview role id(s), comma-separated. Easier: admin console option 14 |
 | `ECHOVR_DISCORD_CLIENT_ID` / `_GUILD_ID` | `1214456381466222683` / `779349159852769310` | Bot application and EchoVR Combat server |
 
 ## Admin console
@@ -40,6 +40,8 @@ Replays it queues go to the front of the queue: a running server picks them up w
 | `admin.bat find <name or id>` | Find players |
 | `admin.bat merge <keep> <other>...` / `merges` / `unmerge <merged id>` | Merge duplicate player records, list them, undo one |
 | `admin.bat challenge --start 2026-01-01 --end 2026-01-31` (`--clear`) | Flamingo Challenge period. The start date is the launch date: achievements and challenges are "Coming soon" on the website until then (D40) |
+| `admin.bat preview-roles [--server] [--add <role id>] [--remove <role id>]` | Discord roles whose members see achievements before the launch (menu option 14 lists the server's roles to pick from; needs the bot token) |
+| `admin.bat admin-roles [--server] [--add <role id>] [--remove <role id>]` | Discord roles that get the website's **Admin** tab: achievement list + Excel download, and changing achievement icons (menu option 15) |
 | `admin.bat reprocess <replay id or path>` | Read one replay again |
 | `admin.bat repair <replay id or path>` / `repair-failed` | Repair (salvage) damaged replays |
 | `admin.bat cannot-repair [--hide]` / `hidden [--unhide <path> \| --unhide-all]` | Replays repair cannot fix: list, hide from the Import page, show again |
@@ -109,22 +111,24 @@ The website stays read-only to everyone: changes are only possible from the admi
 ## Discord login (achievement previews, D41)
 Before the achievements launch date (admin console option 5), members of the Discord server
 779349159852769310 with a preview role can log in and see achievements and challenges; everyone else sees "Coming
-soon". The login is off until the client secret, bot token and role id(s) are all set.
+soon". The login is off until the client secret and bot token are set; preview roles are picked in the admin
+console (option 14, or `admin.bat preview-roles`).
 1. **Developer Portal** (https://discord.com/developers/applications) > the bot's application
    (1214456381466222683) > OAuth2 > Redirects: add `https://echocombat.com/api/auth/callback` and
    `http://127.0.0.1:8000/api/auth/callback`. Copy the **Client Secret** (Reset Secret if you never copied it).
 2. **Bot token**: the bot's existing token (Bot page). The website only asks Discord about members with it; it does
    not connect as the bot, so the bot keeps working. Resetting the token means updating the bot too.
-3. **Role id**: Discord > User Settings > Advanced > Developer Mode on; Server Settings > Roles > right-click the
-   role > Copy Role ID. The bot must be in the server (no permissions needed).
-4. **NAS**: in Container Station > the application > edit, replace `YOUR_DISCORD_CLIENT_SECRET`,
-   `YOUR_DISCORD_BOT_TOKEN` and `YOUR_PREVIEW_ROLE_ID`, then Recreate.
-5. **Windows (`run.bat`)**: create `settings.local.bat` next to `run.bat` (never uploaded):
+3. **NAS**: in Container Station > the application > edit, replace `YOUR_DISCORD_CLIENT_SECRET` and
+   `YOUR_DISCORD_BOT_TOKEN` (leave `YOUR_PREVIEW_ROLE_ID` as it is), then Recreate.
+4. **Windows (`run.bat`, `admin.bat`)**: create `settings.local.bat` next to `run.bat` (never uploaded):
    ```bat
    set ECHOVR_DISCORD_CLIENT_SECRET=...
    set ECHOVR_DISCORD_BOT_TOKEN=...
-   set ECHOVR_DISCORD_PREVIEW_ROLES=...
    ```
+5. **Preview roles**: admin console option 14 lists the server's roles (via the bot); type the number of the role
+   to add it, `-` + number to remove it. Kept across database rebuilds. The bot must be in the server (no
+   permissions needed). Without the bot token on that computer, enter the role id instead (Discord: Developer
+   Mode on, Server Settings > Roles > right-click the role > Copy Role ID).
 
 Giving or removing the role in Discord takes effect within 5 minutes. A login lasts 30 days; deleting
 `data/session.key` logs everyone out.

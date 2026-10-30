@@ -809,6 +809,51 @@ nav {
 @media (max-width: 480px) {
   .processing-text { display: none; } /* spinner only; the full text is in the tooltip */
 }
+.icon-editor {
+  margin-bottom: 16px;
+}
+.icon-thumb {
+  width: 32px;
+  height: 32px;
+  vertical-align: middle;
+}
+.icon-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+  gap: 8px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.icon-choice {
+  padding: 4px;
+  background: transparent;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  line-height: 0;
+}
+.icon-choice img {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+}
+.icon-choice.active,
+.icon-choice:hover {
+  border-color: var(--blue);
+}
+.admin-achievements td {
+  vertical-align: top;
+  min-width: 90px;
+}
+a.button.discord-login {
+  padding: 6px 10px;
+  background: #5865f2; /* Discord blurple */
+  color: #fff;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+a.button.discord-login:hover {
+  background: #4752c4;
+}
 .account {
   font-size: 0.85rem;
   white-space: nowrap;

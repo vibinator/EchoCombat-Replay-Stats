@@ -14,6 +14,7 @@ from urllib.parse import urlencode
 import httpx
 from fastapi import Request
 
+from .admin_actions import discord_roles
 from .config import Settings
 
 API = "https://discord.com/api/v10"
@@ -25,7 +26,7 @@ STATE_S = 600  # time allowed on Discord's login page
 ROLE_CHECK_S = 300  # a removed role stops working within 5 minutes
 ROLE_RETRY_S = 30  # Discord unreachable: keep the last answer, ask again soon
 
-_roles: dict[str, tuple[float, bool]] = {}  # discord user id -> (checked at, has a preview role)
+_roles: dict[str, tuple[float, frozenset[str]]] = {}  # discord user id -> (valid until, their role ids in the server)
 _roles_lock = threading.Lock()
 
 
@@ -35,8 +36,23 @@ def http_client() -> httpx.Client:
 
 
 def enabled(settings: Settings) -> bool:
+    """Login is possible. Who gets a preview: the role ids from the admin console (and ECHOVR_DISCORD_PREVIEW_ROLES)."""
     return bool(settings.discord_client_id and settings.discord_client_secret and settings.discord_bot_token
-                and settings.discord_guild_id and settings.discord_preview_roles)
+                and settings.discord_guild_id)
+
+
+def _bot_get(settings: Settings, path: str) -> httpx.Response:
+    with http_client() as client:
+        return client.get(f"{API}{path}", headers={"Authorization": f"Bot {settings.discord_bot_token}"})
+
+
+def server_roles(settings: Settings) -> list[dict]:
+    """Every role in the Discord server ({"id", "name"}), highest first: for picking preview roles in the admin
+    console. Raises httpx.HTTPError when Discord cannot be asked."""
+    r = _bot_get(settings, f"/guilds/{settings.discord_guild_id}/roles")
+    r.raise_for_status()
+    roles = sorted(r.json(), key=lambda x: -x.get("position", 0))
+    return [{"id": x["id"], "name": x["name"]} for x in roles if x["id"] != settings.discord_guild_id]  # not @everyone
 
 
 def redirect_uri(settings: Settings) -> str:
@@ -116,27 +132,25 @@ def user_from_code(settings: Settings, code: str) -> dict:
     return {"id": user["id"], "name": user.get("global_name") or user["username"]}
 
 
-def has_preview_role(settings: Settings, user_id: str) -> bool:
-    """Asks the bot whether the user is in the server with a preview role; remembered for ROLE_CHECK_S."""
+def member_roles(settings: Settings, user_id: str) -> frozenset[str]:
+    """The user's role ids in the server, asked with the bot token; remembered for ROLE_CHECK_S."""
     now = time.monotonic()
     with _roles_lock:
         hit = _roles.get(user_id)
     if hit and hit[0] > now:
         return hit[1]
     try:
-        with http_client() as client:
-            r = client.get(f"{API}/guilds/{settings.discord_guild_id}/members/{user_id}",
-                           headers={"Authorization": f"Bot {settings.discord_bot_token}"})
+        r = _bot_get(settings, f"/guilds/{settings.discord_guild_id}/members/{user_id}")
         if r.status_code == 404:  # not in the server (any more)
-            allowed, until = False, now + ROLE_CHECK_S
+            roles, until = frozenset(), now + ROLE_CHECK_S
         else:
             r.raise_for_status()
-            allowed, until = bool(set(r.json().get("roles", [])) & set(settings.discord_preview_roles)), now + ROLE_CHECK_S
+            roles, until = frozenset(r.json().get("roles", [])), now + ROLE_CHECK_S
     except (httpx.HTTPError, ValueError):
-        allowed, until = (hit[1] if hit else False), now + ROLE_RETRY_S
+        roles, until = (hit[1] if hit else frozenset()), now + ROLE_RETRY_S
     with _roles_lock:
-        _roles[user_id] = (until, allowed)
-    return allowed
+        _roles[user_id] = (until, roles)
+    return roles
 
 
 # --- the current visitor --------------------------------------------------------------------
@@ -150,7 +164,23 @@ def viewer(request: Request) -> dict | None:
     return {"id": session["id"], "name": session["name"]} if session and "id" in session else None
 
 
-def has_preview(request: Request) -> bool:
-    """The visitor may see achievements before their launch date."""
+def _has_role(request: Request, kind: str) -> bool:
     user = viewer(request)
-    return bool(user) and has_preview_role(request.app.state.settings, user["id"])
+    if not user:
+        return False
+    settings = request.app.state.settings
+    with request.app.state.sessionmaker() as db:
+        allowed = set(discord_roles(db, "admin"))
+        if kind == "preview":  # admins see everything
+            allowed |= set(settings.discord_preview_roles) | set(discord_roles(db, "preview"))
+    return bool(allowed & member_roles(settings, user["id"]))
+
+
+def has_preview(request: Request) -> bool:
+    """The visitor may see achievements before their launch date (preview or admin role)."""
+    return _has_role(request, "preview")
+
+
+def is_admin(request: Request) -> bool:
+    """The visitor has an admin role: the website's Admin tab (D42). Still read-only: changes are made in admin.bat."""
+    return _has_role(request, "admin")

@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { BrowserRouter, Link, NavLink, Route, Routes, useLocation } from "react-router";
-import { getHealth, getMe, getProcessing, LOGOUT_URL } from "./api";
+import { getHealth, getMe, getProcessing, loginUrl, LOGOUT_URL } from "./api";
 import { GlobalSearch } from "./components/GlobalSearch";
 import { AchievementsPage } from "./pages/AchievementsPage";
+import { AdminPage } from "./pages/AdminPage";
 import { ComparePage } from "./pages/ComparePage";
 import { HomePage } from "./pages/HomePage";
 import { LeaderboardPage } from "./pages/LeaderboardPage";
@@ -95,7 +96,8 @@ function Layout() {
   const version = useApi(getHealth, "health").data?.version;
   const pending = usePendingReplays();
   const achievements = useAchievementsAccess();
-  const user = useApi(getMe, "me").data?.user;
+  const me = useApi(getMe, "me").data;
+  const user = me?.user;
   const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
   useEffect(() => setMenuOpen(false), [location.pathname]);
@@ -111,7 +113,7 @@ function Layout() {
           {menuOpen ? "Close" : "Menu"}
         </button>
         <nav id="main-nav" className={menuOpen ? "open" : ""}>
-          {NAV.map(([to, label]) => (
+          {[...NAV, ...(user?.admin ? ([["/admin", "Admin"]] as const) : [])].map(([to, label]) => (
             <NavLink key={to} to={to} end={to === "/"}>
               {label}
               {to === "/achievements" && achievements.visible === false && <span className="tag">soon</span>}
@@ -120,14 +122,20 @@ function Layout() {
           ))}
         </nav>
         <GlobalSearch />
-        {user && (
-          <span className="account muted">
-            {user.name} · <a href={LOGOUT_URL}>Log out</a>
-          </span>
-        )}
         <button className="theme-toggle secondary" onClick={toggleTheme} aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}>
           {theme === "dark" ? "Light" : "Dark"}
         </button>
+        {user ? (
+          <span className="account muted">
+            {user.name} · <a href={LOGOUT_URL}>Log out</a>
+          </span>
+        ) : (
+          me?.enabled && (
+            <a className="button discord-login" href={loginUrl(location.pathname + location.search)}>
+              Log in with Discord
+            </a>
+          )
+        )}
       </header>
       <main>
         <Routes>
@@ -139,6 +147,7 @@ function Layout() {
           <Route path="/compare" element={<ComparePage />} />
           <Route path="/leaderboard" element={<LeaderboardPage />} />
           <Route path="/achievements" element={<AchievementsPage />} />
+          <Route path="/admin" element={<AdminPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
