@@ -17,10 +17,13 @@ Working record of what changed in each release, newest first.
 ### Website
 - Console page: `ECHOVR_DISCORD_PREVIEW_ROLES` may also hold a **person's Discord user id** (right-click them >
   Copy User ID), not only role ids: that person gets the Console tab whatever their roles.
+- Console page, options 14 / 15: only the roles that are set are listed. The list of every role in the Discord
+  server (for picking one in admin.bat) is no longer shown there; it looked like everyone was an admin.
 
 ### Admin console
 - Option 16 (`discord-check`) also says whether the person gets the Console page, and warns when
   `ECHOVR_DISCORD_PREVIEW_ROLES` is not set.
+- Options 14 / 15: the list of every server role is now headed "All roles in the Discord server, to pick from".
 
 ### Upgrading to Beta 16
 - QNAP: upload Beta 16, wait for the Actions run, Recreate (this also brings Beta 15's Console page live).

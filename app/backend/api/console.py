@@ -57,8 +57,9 @@ COMMANDS = {  # name as in admin.bat -> (sessions, settings, args) -> None
     "repair": lambda s, st, a: console.cmd_repair(s, _required(a.replay, "a replay id or path")),
     "scan": lambda s, st, a: console.cmd_scan(s, st),
     "reprocess-all": lambda s, st, a: console.cmd_reprocess_all(s, st, yes=True),
-    "preview-roles": lambda s, st, a: console.cmd_discord_roles(s, st, "preview", show_server=True),
-    "admin-roles": lambda s, st, a: console.cmd_discord_roles(s, st, "admin", show_server=True),
+    # only the roles that are set: the console's list of every server role is for picking one, not possible here
+    "preview-roles": lambda s, st, a: console.cmd_discord_roles(s, st, "preview"),
+    "admin-roles": lambda s, st, a: console.cmd_discord_roles(s, st, "admin"),
     "admin-users": lambda s, st, a: console.cmd_admin_users(s, st),
     "discord-check": lambda s, st, a: console.cmd_discord_check(s, st, _required(a.user_id, "a Discord user id")),
 }

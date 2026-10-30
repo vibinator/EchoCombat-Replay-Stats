@@ -282,7 +282,7 @@ def cmd_discord_roles(sessions, settings: Settings, kind: str, add: str | None =
         print("Server roles could not be listed (bot token not set here, or Discord / the bot not reachable). "
               "Copy the role id in Discord instead: right-click the role > Copy Role ID.")
         return []
-    print("Roles in the Discord server:")
+    print(f"All roles in the Discord server, to pick from ([{kind}] = already set):")
     for i, r in enumerate(server, 1):
         mark = f"  [{kind}]" if r["id"] in roles or r["id"] in from_env else ""
         print(f"  {i:>3}  {r['name']:<28} {r['id']}{mark}")

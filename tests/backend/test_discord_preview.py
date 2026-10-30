@@ -364,6 +364,8 @@ def test_console_page_for_yaml_preview_roles_only(tmp_path, discord):
         # who gets access is only shown here, never changed
         r = client.post("/api/admin/console/preview-roles", json={"term": DB_ROLE}, headers=CONSOLE).json()
         assert r["ok"] and "Preview roles" in r["output"]
+        r = client.post("/api/admin/console/admin-roles", json={}, headers=CONSOLE).json()
+        assert "none yet" in r["output"] and "All roles in the Discord server" not in r["output"]  # no pick list
         assert client.post("/api/admin/console/admin-users", json={"user_id": MEMBER}, headers=CONSOLE).json()["ok"]
         with client.app.state.sessionmaker() as db:
             assert actions.discord_roles(db, "admin_user") == []
@@ -377,3 +379,17 @@ def test_console_page_for_a_user_id_in_the_yaml(tmp_path, discord):
         assert client.post("/api/admin/console/status", json={}, headers=CONSOLE).json()["ok"]
         login(client, MEMBER)
         assert client.get("/api/auth/me").json()["user"]["console"] is False
+
+
+def test_after_the_launch_no_login_is_needed(tmp_path, discord):
+    """From the start date on achievements are public (D40): Discord login is on, but nobody has to use it."""
+    with app_client(settings(tmp_path)) as client:
+        add(client, {"dyson/0.echoreplay": rf.plain(rf.lines(20))})
+        act(client, actions.set_challenge_window, "2026-01-01", None)  # launched
+        assert client.get("/api/auth/me").json() == {"enabled": True, "user": None}
+        challenges = client.get("/api/challenges").json()
+        assert challenges["launched"] is True and challenges["preview"] is False
+        assert client.get("/api/achievements").status_code == 200
+        assert client.get(f"/api/players/{BLUE}/achievements").json()["window"]["start"] == "2026-01-01"
+        assert "achievements" in {s["key"] for s in client.get("/api/leaderboard/stats").json()}
+        assert not any("/members/" in c.url.path for c in discord)  # Discord never asked
