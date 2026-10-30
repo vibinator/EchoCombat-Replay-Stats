@@ -10,8 +10,10 @@ File = zlib( uint32 header length | header JSON | player arrays, in header order
 import json
 import os
 import struct
+import threading
 import zlib
 from array import array
+from collections import OrderedDict
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -159,8 +161,61 @@ def write(path: Path, tracks: Tracks) -> None:
     os.replace(tmp, path)
 
 
+# Decoded tracks kept in RAM (D49): player heatmaps read up to 5000 files per request. Least recently used first
+# out once over the limit; keyed on the file's mtime + size, so a reprocessed replay is read again. Callers never
+# change what read() returns, so one decoded copy is shared.
+_cache: OrderedDict = OrderedDict()  # path -> (mtime_ns, size, cost, decoded)
+_cache_lock = threading.Lock()
+_cache_limit = 0
+_cache_used = 0
+
+
+def set_cache_limit(mb: int) -> None:
+    """0 = no cache (the default, and the tests)."""
+    global _cache_limit, _cache_used
+    with _cache_lock:
+        _cache_limit = max(0, mb) * 1024 * 1024
+        _cache.clear()
+        _cache_used = 0
+
+
+def _cost(header: dict, players: dict) -> int:
+    """Bytes in RAM, roughly: the arrays plus a flat allowance for the header JSON."""
+    return 4096 + sum(len(t["x"]) * 4 + sum(len(t[k]) for k in ("weapon", "team", "tacmod", "ordnance"))
+                      for t in players.values())
+
+
 def read(path: Path) -> tuple[dict, dict] | None:
+    global _cache_used
+    if not _cache_limit:
+        try:
+            return decode(path.read_bytes())
+        except FileNotFoundError:
+            return None
+    key = str(path)
     try:
-        return decode(path.read_bytes())
+        st = path.stat()
+    except FileNotFoundError:
+        with _cache_lock:
+            if (gone := _cache.pop(key, None)) is not None:
+                _cache_used -= gone[2]
+        return None
+    with _cache_lock:
+        hit = _cache.get(key)
+        if hit and hit[0] == st.st_mtime_ns and hit[1] == st.st_size:
+            _cache.move_to_end(key)
+            return hit[3]
+    try:
+        decoded = decode(path.read_bytes())
     except FileNotFoundError:
         return None
+    cost = _cost(*decoded)
+    with _cache_lock:
+        if (old := _cache.pop(key, None)) is not None:
+            _cache_used -= old[2]
+        if cost <= _cache_limit:
+            _cache[key] = (st.st_mtime_ns, st.st_size, cost, decoded)
+            _cache_used += cost
+            while _cache_used > _cache_limit:
+                _cache_used -= _cache.popitem(last=False)[1][2]
+    return decoded

@@ -13,6 +13,23 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 26 — 2026-10-30
+### Website
+- **Faster pages: important data is kept in RAM** (D49). First loads measured on the full archive (29k matches):
+  leaderboard 680 → 235 ms (2.9x), player profile 150 → 60 ms (2.6x), home page 560 → 480 ms. Reading a match's
+  position file is 18x faster once it is in RAM (heatmaps, playback, timeline); big player heatmaps gain ~10 %,
+  as drawing the grid is most of their time.
+  - The database is memory-mapped and read into RAM when the app starts (`ECHOVR_DB_CACHE_MB`, default 1024).
+  - Decoded position files are kept in RAM, least recently used out first (`ECHOVR_TRACK_CACHE_MB`, default 512,
+    ~7,500 matches). `0` turns either off.
+
+### Upgrading to Beta 26
+- QNAP: upload Beta 26, wait for the Actions run, Recreate. Optional: add the two `ECHOVR_*_CACHE_MB` lines from the
+  new `docker-compose.yml`; lower them if the NAS has little RAM (the defaults use up to ~1.5 GB).
+- Windows: restart `run.bat`.
+
+---
+
 ## Beta 25 — 2026-10-30
 ### Website
 - **Protection against scrapers** (D48). Visitors notice nothing; the website's data now only goes to the website

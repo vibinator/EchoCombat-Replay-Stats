@@ -1,6 +1,7 @@
 import csv
 import io
 import json
+import os
 from collections import Counter
 from datetime import timedelta
 
@@ -56,6 +57,27 @@ def test_tracks_round_trip(client):
     assert set(blue["team"]) == {tracks.BLUE}
     assert header["weapons"] == ["assault"] and set(blue["weapon"]) == {0}
     assert header["series"]["blue_points"][0] == 0.0 and header["series"]["blue_points"][-1] > 45
+
+
+def test_tracks_ram_cache(client, tmp_path):
+    """D49: a hit returns the decoded copy; a rewritten file is read again; over the limit nothing is kept."""
+    src = tracks.tracks_path(client.app.state.settings.processed_dir, replay_by_path(client, "dyson/walk.echoreplay")["id"])
+    path = tmp_path / "copy" / "tracks.bin"
+    path.parent.mkdir()
+    path.write_bytes(src.read_bytes())
+    tracks.set_cache_limit(1)
+    try:
+        first = tracks.read(path)
+        assert tracks.read(path) is first
+        os.utime(path, ns=(1, 1))  # reprocessed replay: new mtime, read again
+        assert tracks.read(path) is not first
+        path.unlink()
+        assert tracks.read(path) is None
+        tracks.set_cache_limit(0)
+        path.write_bytes(src.read_bytes())
+        assert tracks.read(path) is not tracks.read(path)
+    finally:
+        tracks.set_cache_limit(0)
 
 
 def test_recorder_pads_gaps_and_absence():

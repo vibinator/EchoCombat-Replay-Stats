@@ -8,10 +8,10 @@ from starlette.exceptions import HTTPException
 
 from parser import PARSER_VERSION
 
-from . import auth, guard, icons
+from . import auth, guard, icons, tracks
 from .api import achievements, admin, auth as auth_api, console, imports, leaderboard, matches, overview, permissions, players, replays
 from .config import PROJECT_ROOT, Settings
-from .db import open_db
+from .db import open_db, warm
 from .errors import ApiError, api_error_handler
 from .stats import STATS_VERSION
 from .version import APP_VERSION
@@ -39,7 +39,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        engine, app.state.sessionmaker = open_db(settings.db_path)
+        engine, app.state.sessionmaker = open_db(settings.db_path, settings.db_cache_mb)
+        tracks.set_cache_limit(settings.track_cache_mb)
+        if settings.db_cache_mb > 0:
+            warm(settings.db_path, settings.db_cache_mb)
         app.state.worker = Worker(app.state.sessionmaker, settings)
         app.state.scanner = Scanner(app.state.sessionmaker, settings, on_queued=app.state.worker.notify)
         app.state.worker.start()

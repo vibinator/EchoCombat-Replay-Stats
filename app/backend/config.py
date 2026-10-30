@@ -35,6 +35,9 @@ class Settings:
     # Scraper protection (D48, guard.py): /api only for the site's own pages, no bots; tests turn it off
     scraper_guard: bool = True
     rate_limit_per_min: int = 60  # /api requests per visitor per minute (bursts up to 2x); 0 = no limit
+    # RAM caches (D49): database memory-mapped up to db_cache_mb, decoded tracks.bin files up to track_cache_mb; 0 = off
+    db_cache_mb: int = 0
+    track_cache_mb: int = 0
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -50,6 +53,8 @@ class Settings:
             discord_bot_token=_secret(env("ECHOVR_DISCORD_BOT_TOKEN")),
             discord_guild_id=env("ECHOVR_DISCORD_GUILD_ID", DISCORD_GUILD_ID),
             rate_limit_per_min=int(env("ECHOVR_RATE_LIMIT_PER_MIN", 60)),
+            db_cache_mb=int(env("ECHOVR_DB_CACHE_MB", 1024)),
+            track_cache_mb=int(env("ECHOVR_TRACK_CACHE_MB", 512)),
             discord_preview_roles=tuple(r.strip() for r in _secret(env("ECHOVR_DISCORD_PREVIEW_ROLES")).split(",") if r.strip()),
         )
 

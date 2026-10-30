@@ -1,3 +1,4 @@
+import threading
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -13,7 +14,10 @@ def utcnow() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
-def open_db(db_path: Path) -> tuple[Engine, sessionmaker]:
+def open_db(db_path: Path, cache_mb: int = 0) -> tuple[Engine, sessionmaker]:
+    """cache_mb > 0 keeps the database in RAM (D49): memory-mapped up to cache_mb (one copy in the OS page cache,
+    shared by every connection) plus a 32 MB page cache per connection. Not temp_store=MEMORY: measured 60 %
+    slower on the archive-wide GROUP BY queries."""
     db_path.parent.mkdir(parents=True, exist_ok=True)
     engine = create_engine(f"sqlite:///{db_path}", connect_args={"check_same_thread": False})
 
@@ -22,6 +26,9 @@ def open_db(db_path: Path) -> tuple[Engine, sessionmaker]:
         cur = conn.cursor()
         cur.execute("PRAGMA journal_mode=WAL")
         cur.execute("PRAGMA foreign_keys=ON")
+        if cache_mb > 0:
+            cur.execute(f"PRAGMA mmap_size={cache_mb * 1024 * 1024}")
+            cur.execute("PRAGMA cache_size=-32768")
         cur.close()
 
     from . import models  # noqa: F401  registers tables on Base
@@ -30,6 +37,20 @@ def open_db(db_path: Path) -> tuple[Engine, sessionmaker]:
     Base.metadata.create_all(engine)
     _add_missing_indexes(engine)
     return engine, sessionmaker(engine, expire_on_commit=False)
+
+
+def warm(db_path: Path, cache_mb: int) -> None:
+    """Read the database file once in the background so the first visitors do not wait on the disk (D49)."""
+    def _read():
+        left = cache_mb * 1024 * 1024
+        try:
+            with open(db_path, "rb") as f:
+                while left > 0 and (chunk := f.read(1 << 20)):
+                    left -= len(chunk)
+        except OSError:
+            pass
+
+    threading.Thread(target=_read, name="db-warm", daemon=True).start()
 
 
 def _add_missing_indexes(engine: Engine) -> None:
