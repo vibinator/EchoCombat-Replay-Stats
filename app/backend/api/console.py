@@ -6,6 +6,7 @@ Who gets the preview / admin is not changed here: those lists are shown, but edi
 import contextlib
 import io
 import logging
+import re
 import threading
 
 from fastapi import APIRouter, Request
@@ -65,19 +66,45 @@ COMMANDS = {  # name as in admin.bat -> (sessions, settings, args) -> None
 }
 
 
+# The console names its own commands; on the page they are buttons (labels in ConsolePage.tsx). Each phrase must
+# still appear in admin_console.py (checked by a test), so a changed console message cannot slip through unrenamed.
+WEB_WORDING = (
+    ("Use the merged id from 'merges'.", "Use the merged id from “List merges”."),
+    ("'cannot-repair' lists them", "“Replays that cannot be repaired” lists them"),
+    ("show up under 'cannot-repair'", "show up under “Replays that cannot be repaired”"),
+    ("'hidden' lists them", "“Hidden replays” lists them"),
+    ("Progress: 'admin.bat status'.", "Progress: “Status and import progress”."),
+)
+SERVER_LINE = re.compile(r"^Server: running \(http://[^)]*\)$", re.M)
+OPTION = re.compile(r"(?<!admin\.bat )option (1[4-7])")  # access settings: changed in admin.bat only
+
+
+def for_the_page(text: str) -> str:
+    for old, new in WEB_WORDING:
+        text = text.replace(old, new)
+    text = SERVER_LINE.sub("Server: running", text)
+    return OPTION.sub(r"admin.bat option \1", text).replace(" -> ", " → ")
+
+
 @router.post("/{command}")
 def run(request: Request, command: str, args: Args):
-    if not auth.has_console(request):
-        raise ApiError(403, "console_only", "Log in with Discord with a role from ECHOVR_DISCORD_PREVIEW_ROLES")
+    user = auth.viewer(request)
+    if not auth.has_console(request, fresh=True):  # roles asked from Discord on every command
+        if user:
+            log.warning("Console %s refused for %s (%s): no console access", command, user["name"], user["id"])
+        raise ApiError(403, "console_only", "You do not have access to the console")
     if command not in COMMANDS:
         raise ApiError(404, "unknown_command", f"No console command '{command}'")
-    user = auth.viewer(request)
     log.info("Console %s by %s (%s): %s", command, user["name"], user["id"], args.model_dump(exclude_defaults=True))
     out, ok = io.StringIO(), True
+    running = console.server_running
     with _lock, contextlib.redirect_stdout(out):
+        console.server_running = lambda: True  # this is the server: queued replays are picked up at once
         try:
             COMMANDS[command](request.app.state.sessionmaker, request.app.state.settings, args)
         except console.ConsoleError as e:
-            print(f"! {e}")
+            print(e)
             ok = False
-    return {"ok": ok, "output": out.getvalue()}
+        finally:
+            console.server_running = running
+    return {"ok": ok, "output": for_the_page(out.getvalue()).strip()}

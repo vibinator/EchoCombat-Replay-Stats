@@ -1407,43 +1407,110 @@ tr.me td {
   font-weight: 600;
 }
 
-/* Console page (D45): admin.bat menu on the left, form and output on the right; stacked on phones */
+/* Console page (D45): command menu on the left, form and results on the right; stacked on phones */
 .console-layout {
   display: grid;
-  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
-  gap: 16px;
+  grid-template-columns: minmax(200px, 260px) minmax(0, 1fr);
+  gap: 24px;
   align-items: start;
 }
+.console-menu {
+  position: sticky;
+  top: 72px;
+}
 .console-menu h2 {
-  margin: 12px 0 6px;
+  margin: 16px 0 6px;
   color: var(--muted);
-  font-size: 0.8rem;
+  font-size: 0.75rem;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
+}
+.console-menu > div:first-child h2 {
+  margin-top: 0;
 }
 .console-menu button {
   display: block;
   width: 100%;
   margin-bottom: 4px;
+  padding: 7px 12px;
+  font-weight: 500;
   text-align: left;
 }
-.console-layout textarea {
-  min-width: min(320px, 100%);
-  font: inherit;
+.console-menu button.secondary {
+  background: transparent;
 }
-.console-layout label.check {
-  flex-direction: row;
+.console-menu button.secondary:hover {
+  background: var(--surface-2);
+}
+.console-menu button.active {
+  font-weight: 600;
+}
+.console-main {
+  min-width: 0;
+}
+.console-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 0;
+}
+.console-form h2,
+.console-form p {
+  margin: 0;
+}
+.console-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 480px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.console-field input,
+.console-field textarea {
+  width: 100%;
+  box-sizing: border-box;
+}
+.console-check {
+  display: flex;
   align-items: center;
-  color: var(--text);
+  gap: 8px;
+  font-size: 0.9rem;
+}
+.console-output header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+.console-output header .muted {
+  margin-left: auto;
+  font-size: 0.8rem;
+}
+.console-output .tag {
+  margin-left: 0;
+}
+.console-output.failed {
+  border-left: 3px solid var(--bad);
 }
 .console-output pre {
-  margin: 8px 0 0;
-  overflow-x: auto;
+  max-height: 480px;
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  overflow: auto;
+  border-radius: 6px;
+  background: var(--bg);
   font-size: 0.8rem;
+  line-height: 1.5;
   white-space: pre;
 }
 @media (max-width: 720px) {
   .console-layout {
     grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .console-menu {
+    position: static;
   }
 }

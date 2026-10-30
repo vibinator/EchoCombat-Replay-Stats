@@ -274,10 +274,15 @@ def test_discord_check_explains_access(tmp_path, discord, capsys):
     with app_client(settings(tmp_path)) as client:
         st = client.app.state.settings
         sessions = console.open_sessions(st)
-        assert console.cmd_discord_check(sessions, st, OUTSIDER) == {"member": False}
+        assert console.cmd_discord_check(sessions, st, OUTSIDER) == {"member": False, "admin": False, "preview": False,
+                                                                         "console": False}
         assert console.cmd_discord_check(sessions, st, DB_MEMBER) == {"member": True, "admin": False, "preview": False,
                                                                           "console": False}
-        assert "No admin roles are set yet" in capsys.readouterr().out
+        out = capsys.readouterr().out
+        assert "  Admin tab     no\n  Preview       no\n  Console page  no" in out
+        assert "Member" not in out and "999" not in out  # permissions only, not the person's Discord roles
+        yaml_user = console.cmd_discord_check(sessions, st.__class__(**(st.__dict__ | {"discord_preview_roles": (OUTSIDER,)})), OUTSIDER)
+        assert yaml_user == {"member": False, "admin": False, "preview": True, "console": True}  # user id in the YAML
         console.cmd_discord_roles(sessions, st, "admin", add=DB_ROLE)
         assert console.cmd_discord_check(sessions, st, DB_MEMBER) == {"member": True, "admin": True, "preview": True,
                                                                           "console": False}
@@ -354,7 +359,7 @@ def test_console_page_for_yaml_preview_roles_only(tmp_path, discord):
         r = client.post("/api/admin/console/status", json={}, headers=CONSOLE).json()
         assert r["ok"] and "Replays: done 1" in r["output"]
         r = client.post("/api/admin/console/challenge", json={"start": "2026-01-01"}, headers=CONSOLE).json()
-        assert r["ok"] and "2026-01-01 -> open-ended" in r["output"]
+        assert r["ok"] and "2026-01-01 → open-ended" in r["output"]
         assert client.get("/api/challenges").json()["start"] == "2026-01-01"
         r = client.post("/api/admin/console/challenge", json={"start": "nope"}, headers=CONSOLE).json()
         assert not r["ok"] and "is not a date" in r["output"]
@@ -393,3 +398,49 @@ def test_after_the_launch_no_login_is_needed(tmp_path, discord):
         assert client.get(f"/api/players/{BLUE}/achievements").json()["window"]["start"] == "2026-01-01"
         assert "achievements" in {s["key"] for s in client.get("/api/leaderboard/stats").json()}
         assert not any("/members/" in c.url.path for c in discord)  # Discord never asked
+
+
+def test_console_refuses_everyone_without_access(tmp_path, discord, monkeypatch):
+    """D45: the server checks every command; a role taken away stops working at once (no 5-minute memory)."""
+    with app_client(settings(tmp_path)) as client:
+        for method in ("get", "put", "delete"):  # only POST runs a command
+            assert getattr(client, method)("/api/admin/console/status", headers=CONSOLE).status_code in (404, 405)
+        login(client, MEMBER)
+        assert client.post("/api/admin/console/status", json={}, headers=CONSOLE).status_code == 200
+        assert client.post("/api/admin/console/status", json={}, headers={"X-EchoVR": "0"}).status_code == 405
+        client.cookies.clear()
+        client.cookies.set(auth.SESSION_COOKIE, "eyJpZCI6IjQyIn0.forged")  # MEMBER's id, unsigned
+        assert client.post("/api/admin/console/status", json={}, headers=CONSOLE).status_code == 403
+
+        client.cookies.clear()
+        login(client, MEMBER)
+        assert client.get("/api/auth/me").json()["user"]["console"] is True  # remembered for the menu
+        real = auth.http_client
+        monkeypatch.setattr(auth, "http_client", lambda: httpx.Client(transport=httpx.MockTransport(
+            lambda r: httpx.Response(200, json={"roles": ["999"]}))))  # role taken away in Discord
+        r = client.post("/api/admin/console/status", json={}, headers=CONSOLE)
+        assert r.status_code == 403 and "ECHOVR" not in r.json()["message"]
+        monkeypatch.setattr(auth, "http_client", lambda: httpx.Client(transport=httpx.MockTransport(
+            lambda r: httpx.Response(503))))  # Discord cannot be asked: refused, not the remembered answer
+        assert client.post("/api/admin/console/status", json={}, headers=CONSOLE).status_code == 403
+        monkeypatch.setattr(auth, "http_client", real)
+        assert client.post("/api/admin/console/status", json={}, headers=CONSOLE).status_code == 200
+
+
+def test_console_output_uses_the_page_names(tmp_path, discord):
+    from pathlib import Path
+
+    from backend.api import console as page
+
+    source = (Path(__file__).parents[2] / "app" / "admin_console.py").read_text(encoding="utf-8")
+    for old, _ in page.WEB_WORDING:
+        assert old in source, f"admin_console.py no longer says {old!r}: update WEB_WORDING"
+    with app_client(settings(tmp_path)) as client:
+        add(client, {"dyson/0.echoreplay": rf.plain(rf.lines(20))})
+        login(client, MEMBER)
+        out = client.post("/api/admin/console/status", json={}, headers=CONSOLE).json()["output"]
+        assert out.startswith("Server: running\n") and "http://" not in out
+        out = client.post("/api/admin/console/challenge", json={"start": "2026-01-01"}, headers=CONSOLE).json()["output"]
+        assert "2026-01-01 → open-ended" in out
+        out = client.post("/api/admin/console/repair-failed", json={}, headers=CONSOLE).json()["output"]
+        assert "'" not in out.replace("don't", "")  # no console command names

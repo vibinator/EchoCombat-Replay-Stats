@@ -336,42 +336,28 @@ def cmd_discord_check(sessions, settings: Settings, user_id: str) -> dict:
                            "Developer Portal > Bot, put it in ECHOVR_DISCORD_BOT_TOKEN and restart / Recreate.")
     if r.status_code == 403:
         raise ConsoleError(f"The bot is not in server {settings.discord_guild_id} (403): invite it to the server.")
-    if r.status_code == 404:
-        print(f"{user_id} is not a member of server {settings.discord_guild_id} (or not a Discord user id): "
-              "no preview, no admin.")
-        return {"member": False}
-    if r.status_code != 200:
+    if r.status_code not in (200, 404):  # 404: not in the server (or not a Discord user id)
         raise ConsoleError(f"Discord answered {r.status_code}: {r.text[:200]}")
-    member = r.json()
-    names = {x["id"]: x["name"] for x in (_server_roles(settings) or [])}
-    roles = member.get("roles", [])
-    with sessions() as db:
-        admin = set(actions.discord_roles(db, "admin"))
-        preview = admin | set(actions.discord_roles(db, "preview")) | set(settings.discord_preview_roles)
-        named_admin = user_id in actions.discord_roles(db, "admin_user")
-    user = member.get("user", {})
-    print(f"{user.get('global_name') or user.get('username', '?')} ({user_id}) is in the server with roles:")
-    for role in roles:
-        tags = [t for t, ok in (("admin", role in admin), ("preview", role in preview)) if ok]
-        print(f"  {names.get(role, '?'):<28} {role}{'  [' + ', '.join(tags) + ']' if tags else ''}")
-    if not roles:
-        print("  none")
-    is_admin = named_admin or bool(admin & set(roles))
-    has_preview = is_admin or bool(preview & set(roles))
+    member = r.json() if r.status_code == 200 else None
+    roles = set(member.get("roles", [])) if member else set()
     yaml_ids = set(settings.discord_preview_roles)
-    has_console = user_id in yaml_ids or bool(yaml_ids & set(roles))
-    if named_admin:
-        print("This person is an admin user (option 17): Admin tab whatever their roles.")
-    print(f"Admin tab: {'yes' if is_admin else 'NO'}   Preview: {'yes' if has_preview else 'NO'}   "
-          f"Console page: {'yes' if has_console else 'NO'}")
+    with sessions() as db:
+        admin_roles = set(actions.discord_roles(db, "admin"))
+        is_admin = user_id in actions.discord_roles(db, "admin_user") or bool(admin_roles & roles)
+        has_preview = (is_admin or user_id in yaml_ids
+                       or bool((set(actions.discord_roles(db, "preview")) | yaml_ids) & roles))
+    has_console = user_id in yaml_ids or bool(yaml_ids & roles)
+    user = (member or {}).get("user", {})
+    name = user.get("global_name") or user.get("username") or _discord_user(settings, user_id)
+    print(f"{name} ({user_id})" + ("" if member else ": not in the Discord server"))
+    for label, ok in (("Admin tab", is_admin), ("Preview", has_preview), ("Console page", has_console)):
+        print(f"  {label:<14}{'yes' if ok else 'no'}")
     if not yaml_ids:
-        print("Console page: ECHOVR_DISCORD_PREVIEW_ROLES is not set here, so nobody gets it.")
-    if not is_admin and not admin:
-        print("No admin roles are set yet: add a role with option 15, or this person with option 17.")
+        print("Nobody gets the Console page: ECHOVR_DISCORD_PREVIEW_ROLES is not set here.")
     if not auth.enabled(settings):
         print("Note: the Discord login is off here (client secret or bot token missing).")
-    print("The website re-checks roles every 5 minutes; log out and in again to see the change at once.")
-    return {"member": True, "admin": is_admin, "preview": has_preview, "console": has_console}
+    print("A change shows on the website within 5 minutes, or at once after logging out and in again.")
+    return {"member": bool(member), "admin": is_admin, "preview": has_preview, "console": has_console}
 
 
 RATE_WINDOW_MIN = 10

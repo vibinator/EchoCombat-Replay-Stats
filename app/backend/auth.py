@@ -181,6 +181,8 @@ def _has_role(request: Request, kind: str) -> bool:
     with request.app.state.sessionmaker() as db:
         if user["id"] in discord_roles(db, "admin_user"):  # named admin: no role needed
             return True
+        if kind == "preview" and user["id"] in settings.discord_preview_roles:  # a person's id in the YAML (D45)
+            return True
         allowed = set(discord_roles(db, "admin"))
         if kind == "preview":  # admins see everything
             allowed |= set(settings.discord_preview_roles) | set(discord_roles(db, "preview"))
@@ -197,12 +199,17 @@ def is_admin(request: Request) -> bool:
     return _has_role(request, "admin")
 
 
-def has_console(request: Request) -> bool:
+def has_console(request: Request, fresh: bool = False) -> bool:
     """The visitor is named in ECHOVR_DISCORD_PREVIEW_ROLES (the YAML / environment, not the console's preview
     roles), by a role they have or by their own Discord user id: the website's Console page, admin.bat on the
-    website (D45)."""
+    website (D45). fresh: ask Discord now instead of using the remembered roles, and refuse when Discord cannot
+    be asked (every console command: a removed role stops working at once)."""
     user = viewer(request)
     ids = set(request.app.state.settings.discord_preview_roles)
     if not user or not ids:
         return False
-    return user["id"] in ids or bool(ids & member_roles(request.app.state.settings, user["id"]))
+    if user["id"] in ids:
+        return True
+    if fresh:
+        forget_roles(user["id"])
+    return bool(ids & member_roles(request.app.state.settings, user["id"]))

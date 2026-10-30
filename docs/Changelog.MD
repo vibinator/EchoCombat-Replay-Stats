@@ -13,6 +13,26 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 17 — 2026-10-30
+### Website
+- **Console page tidied up**: plain names instead of menu numbers, clearer help text, results as cards (Done /
+  Failed, time, Clear), and messages that name the page's buttons instead of console commands.
+- **Console access is checked on every command**, straight from Discord: a role taken away stops working at once
+  (the menu tab can take up to 5 minutes to go), and when Discord cannot be asked the command is refused. A forged
+  or missing login gets nothing, and refused attempts are written to the server log.
+- A person's user id in `ECHOVR_DISCORD_PREVIEW_ROLES` now gives the preview too (before: only the Console page),
+  even if they are not in the Discord server.
+
+### Admin console
+- Option 16 (`discord-check`, also "Check a member's access" on the Console page) now shows only the three
+  permissions: **Admin tab**, **Preview** and **Console page** (yes / no), not the person's Discord roles.
+
+### Upgrading to Beta 17
+- QNAP: upload Beta 17, wait for the Actions run, Recreate.
+- Windows: restart `run.bat`.
+
+---
+
 ## Beta 16 — 2026-10-30
 ### Website
 - Console page: `ECHOVR_DISCORD_PREVIEW_ROLES` may also hold a **person's Discord user id** (right-click them >
