@@ -6,7 +6,7 @@ import { MatchCards } from "../components/MatchCards";
 import { PlayerSearch } from "../components/PlayerSearch";
 import { Skeleton, EmptyState } from "../components/ui";
 import { Status, TableWrap } from "../components/common";
-import { dateTime, pct, title } from "../format";
+import { dateTime, duration, num, pct, title } from "../format";
 import { useApi } from "../useApi";
 
 function GearTop({ label, items }: { label: string; items: GearShare[] }) {
@@ -157,6 +157,44 @@ export function HomePage() {
                 <GearTop label="Weapon" items={g.top_weapons} />
                 <GearTop label="Ordnance" items={g.top_ordnances} />
                 <GearTop label="Tac mod" items={g.top_tacmods} />
+              </div>
+
+              <h2>Global stats</h2>
+              <div className="cards">
+                <div className="card"><span className="label">Average match</span><strong>{duration(g.avg_match_s)}</strong></div>
+                <div className="card">
+                  <span className="label">Longest match</span>
+                  <strong>{g.longest_match ? <Link to={`/matches/${g.longest_match.id}`}>{duration(g.longest_match.duration_s)}</Link> : "–"}</strong>
+                </div>
+                <div className="card"><span className="label">Players per match</span><strong>{num(g.avg_players_per_match)}</strong></div>
+                <div className="card" title="Estimated from players leaving the play area"><span className="label">Deaths (est.)</span><strong>{g.deaths_est.toLocaleString()}</strong></div>
+                <div className="card">
+                  <span className="label">Fastest player</span>
+                  <strong>{g.fastest ? <Link to={`/players/${g.fastest.user_id}`}>{g.fastest.name}</Link> : "–"}</strong>
+                  {g.fastest && <span className="muted">{num(g.fastest.top_speed)} m/s</span>}
+                </div>
+                <div className="card">
+                  <span className="label">Most matches</span>
+                  <strong>{g.most_active ? <Link to={`/players/${g.most_active.user_id}`}>{g.most_active.name}</Link> : "–"}</strong>
+                  {g.most_active && <span className="muted">{g.most_active.games.toLocaleString()} matches</span>}
+                </div>
+                <div className="card">
+                  <span className="label">Busiest day</span>
+                  <strong>{g.busiest_day?.day ?? "–"}</strong>
+                  {g.busiest_day && <span className="muted">{g.busiest_day.matches} matches</span>}
+                </div>
+                <div className="card" title="Payload matches with a known result">
+                  <span className="label">Payload attack wins</span>
+                  <strong>{pct(g.payload_attack_win_rate)}</strong>
+                  <span className="muted">of {g.payload_decided.toLocaleString()} decided</span>
+                </div>
+                <div className="card">
+                  <span className="label">Capture point wins</span>
+                  <strong>
+                    <span className="team-text blue">{g.capture_wins.blue}</span> – <span className="team-text orange">{g.capture_wins.orange}</span>
+                  </strong>
+                  <span className="muted">blue – orange</span>
+                </div>
               </div>
 
               <h2>Matches per map</h2>

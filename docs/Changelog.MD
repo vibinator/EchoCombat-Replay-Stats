@@ -13,6 +13,18 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 7 — 2026-10-30
+### Website
+- **Global stats** is back on the home page (https://echocombat.com), between "Most popular gear" and "Matches per
+  map". The separate Global stats page and its menu entry are removed.
+- **Home** menu entry, first in the menu: back to the home page from anywhere.
+
+### Upgrading to Beta 7
+- Windows: restart `run.bat`.
+- QNAP: upload Beta 7, wait for the Actions run, then Recreate the application in Container Station.
+
+---
+
 ## Beta 6 — 2026-10-30
 ### Website
 - **Global stats** has its own page in the menu (`/stats`); it is no longer on the home page.

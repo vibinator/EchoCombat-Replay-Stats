@@ -4,7 +4,6 @@ import { getHealth } from "./api";
 import { GlobalSearch } from "./components/GlobalSearch";
 import { AchievementsPage } from "./pages/AchievementsPage";
 import { ComparePage } from "./pages/ComparePage";
-import { GlobalStatsPage } from "./pages/GlobalStatsPage";
 import { HomePage } from "./pages/HomePage";
 import { LeaderboardPage } from "./pages/LeaderboardPage";
 import { MatchPage } from "./pages/MatchPage";
@@ -50,10 +49,10 @@ function NotFound() {
 }
 
 const NAV = [
+  ["/", "Home"],
   ["/matches", "Matches"],
   ["/players", "Players"],
   ["/leaderboard", "Leaderboard"],
-  ["/stats", "Global stats"],
   ["/achievements", "Achievements"],
   ["/compare", "Compare"],
 ] as const;
@@ -76,7 +75,7 @@ function Layout() {
         </button>
         <nav id="main-nav" className={menuOpen ? "open" : ""}>
           {NAV.map(([to, label]) => (
-            <NavLink key={to} to={to}>
+            <NavLink key={to} to={to} end={to === "/"}>
               {label}
             </NavLink>
           ))}
@@ -96,7 +95,6 @@ function Layout() {
           <Route path="/compare" element={<ComparePage />} />
           <Route path="/leaderboard" element={<LeaderboardPage />} />
           <Route path="/achievements" element={<AchievementsPage />} />
-          <Route path="/stats" element={<GlobalStatsPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
