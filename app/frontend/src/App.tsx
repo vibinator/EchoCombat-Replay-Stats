@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { BrowserRouter, Link, NavLink, Route, Routes, useLocation } from "react-router";
-import { getHealth, getProcessing } from "./api";
+import { getHealth, getMe, getProcessing, LOGOUT_URL } from "./api";
 import { GlobalSearch } from "./components/GlobalSearch";
 import { AchievementsPage } from "./pages/AchievementsPage";
 import { ComparePage } from "./pages/ComparePage";
@@ -10,7 +10,7 @@ import { MatchPage } from "./pages/MatchPage";
 import { MatchesPage } from "./pages/MatchesPage";
 import { PlayerPage } from "./pages/PlayerPage";
 import { PlayersPage } from "./pages/PlayersPage";
-import { useAchievementsLaunched } from "./components/AchievementsView";
+import { useAchievementsAccess } from "./components/AchievementsView";
 import { useApi } from "./useApi";
 
 type Theme = "dark" | "light";
@@ -94,7 +94,8 @@ function Layout() {
   const [theme, toggleTheme] = useTheme();
   const version = useApi(getHealth, "health").data?.version;
   const pending = usePendingReplays();
-  const achievementsLaunched = useAchievementsLaunched().launched;
+  const achievements = useAchievementsAccess();
+  const user = useApi(getMe, "me").data?.user;
   const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
   useEffect(() => setMenuOpen(false), [location.pathname]);
@@ -113,11 +114,17 @@ function Layout() {
           {NAV.map(([to, label]) => (
             <NavLink key={to} to={to} end={to === "/"}>
               {label}
-              {to === "/achievements" && achievementsLaunched === false && <span className="tag">soon</span>}
+              {to === "/achievements" && achievements.visible === false && <span className="tag">soon</span>}
+              {to === "/achievements" && achievements.preview && <span className="tag">preview</span>}
             </NavLink>
           ))}
         </nav>
         <GlobalSearch />
+        {user && (
+          <span className="account muted">
+            {user.name} · <a href={LOGOUT_URL}>Log out</a>
+          </span>
+        )}
         <button className="theme-toggle secondary" onClick={toggleTheme} aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}>
           {theme === "dark" ? "Light" : "Dark"}
         </button>

@@ -77,13 +77,13 @@ if not "!BLOCKED_SIZE!"=="0" (
   goto :fail
 )
 
-rem GitHub and Cloudflare tunnel tokens (e.g. pasted into docker-compose.yml for the NAS) never go to GitHub.
-git grep --cached -I -l -E "ghp_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|eyJhIjoi[A-Za-z0-9+/=]{20,}" > "%BLOCKED%" 2>nul
+rem GitHub, Cloudflare tunnel and Discord tokens / secrets (e.g. pasted into docker-compose.yml for the NAS) never go to GitHub.
+git grep --cached -I -l -E "ghp_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|eyJhIjoi[A-Za-z0-9+/=]{20,}|[MN][A-Za-z0-9_-]{23,27}\.[A-Za-z0-9_-]{6}\.[A-Za-z0-9_-]{27,}|ECHOVR_DISCORD_CLIENT_SECRET: *([A-XZa-z0-9_-]|Y[A-NP-Za-z0-9_-])[A-Za-z0-9_-]{18,}" > "%BLOCKED%" 2>nul
 set "BLOCKED_SIZE=0"
 for %%F in ("%BLOCKED%") do set "BLOCKED_SIZE=%%~zF"
 if not "!BLOCKED_SIZE!"=="0" (
   echo.
-  echo  STOPPED: these files contain a GitHub or Cloudflare token ^(put the YOUR_..._TOKEN placeholder back^):
+  echo  STOPPED: these files contain a GitHub, Cloudflare or Discord token ^(put the YOUR_... placeholder back^):
   type "%BLOCKED%"
   git reset -q
   echo  Nothing was uploaded.

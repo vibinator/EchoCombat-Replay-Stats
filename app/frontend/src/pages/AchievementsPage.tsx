@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Link, useSearchParams } from "react-router";
 import { getAchievements, getLeaderboard, getRarity, getRecentUnlocks, searchPlayers } from "../api";
-import { AchievementsView, ChallengeBanner, ComingSoon, GroupedBadges, JumpToNew, useAchievementsLaunched } from "../components/AchievementsView";
+import { AchievementsView, ChallengeBanner, ComingSoon, GroupedBadges, JumpToNew, useAchievementsAccess } from "../components/AchievementsView";
 import { Status, TableWrap } from "../components/common";
 import { pct } from "../format";
 import { useApi } from "../useApi";
@@ -113,9 +113,9 @@ function Catalogue() {
 }
 
 export function AchievementsPage() {
-  const { launched, start } = useAchievementsLaunched();
-  if (launched === null) return null;
-  if (!launched)
+  const { visible, start } = useAchievementsAccess();
+  if (visible === null) return null;
+  if (!visible)
     return (
       <section>
         <h1>Achievements</h1>

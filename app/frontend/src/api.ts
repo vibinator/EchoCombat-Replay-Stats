@@ -419,7 +419,15 @@ export interface ChallengeWindow {
   updated_at: string | null;
   /** false until the admin-set start date: achievements and challenges are "Coming soon" */
   launched: boolean;
+  /** before the launch: this visitor has the Discord preview role and sees everything */
+  preview: boolean;
   active: boolean;
+}
+
+export interface Me {
+  /** Discord login is set up on this server */
+  enabled: boolean;
+  user: { name: string; preview: boolean } | null;
 }
 
 export interface AchievementRarity extends AchievementRule {
@@ -436,6 +444,10 @@ export interface RecentUnlock {
   icon: string | null;
 }
 
+export const getMe = () => request<Me>("/api/auth/me");
+/** Full-page navigation (not a fetch): Discord's login page, then back to `next`. */
+export const loginUrl = (next: string) => `/api/auth/login?next=${encodeURIComponent(next)}`;
+export const LOGOUT_URL = "/api/auth/logout";
 export const getHealth = () => request<{ version: string }>("/api/health");
 export const getOverview = () => request<Overview>("/api/overview");
 export const getProcessing = () => request<{ pending: number }>("/api/overview/processing");

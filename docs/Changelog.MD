@@ -13,6 +13,25 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 11 — 2026-10-30
+### Website
+- **Preview with Discord**: before the launch date, members of the EchoVR Combat Discord server with the preview
+  role can see achievements and challenges. On the "Coming soon" page: *Have preview access? Log in with Discord*.
+  Logged in, the top bar shows your name and *Log out*; the menu shows "preview" next to Achievements and the page
+  says it is a preview.
+- Previewers see progress over **every match in the archive** until the launch; from the launch date everyone sees
+  only matches from that day on.
+- Without the role, or not logged in, it stays "Coming soon". Giving or removing the role works within 5 minutes.
+
+### Upgrading to Beta 11
+- Set up the Discord login once (Setup.MD, *Discord login*): add the two redirect addresses in the Developer Portal,
+  then fill in the client secret, bot token and preview role id. Until then the site works as in Beta 10.
+- Windows: put the three values in `settings.local.bat`, then restart `run.bat`.
+- QNAP: upload Beta 11, wait for the Actions run, edit the application (replace the three `YOUR_...` values,
+  `ECHOVR_PUBLIC_URL` is already `https://echocombat.com`), then Recreate.
+
+---
+
 ## Beta 10 — 2026-10-30
 ### Website
 - **Achievements and challenges are "Coming soon"** until their start date. The Achievements page shows a

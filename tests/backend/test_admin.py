@@ -122,7 +122,7 @@ def test_unreadable_reprocess_keeps_previous_results(client):
 
 def test_challenge_period(client):
     assert client.get("/api/challenges").json() == {"start": None, "end": None, "updated_at": None, "launched": False,
-                                                    "active": False}
+                                                    "active": False, "preview": False}
     assert client.get("/api/players/100/achievements").status_code == 403  # coming soon
     act(client, actions.set_challenge_window, "2026-01-01", None)
     before = client.get("/api/players/100/achievements").json()

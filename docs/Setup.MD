@@ -24,6 +24,11 @@ npm install
 | `ECHOVR_REPLAY_SOURCE` | `Z:\ECRanked\Replays` | Read-only replay share (D25). Use the share's network (UNC) path, e.g. `\\<server>\<share>\Replays`, if `Z:` is not mapped for the account running the app |
 | `ECHOVR_WORKERS` | `8` | Parallel processes for the import (PC has 24 cores) |
 | `ECHOVR_SCAN_INTERVAL_S` | `300` | Seconds between scans of the share |
+| `ECHOVR_PUBLIC_URL` | `http://127.0.0.1:8000` | Address people use; Discord sends them back to `<it>/api/auth/callback` |
+| `ECHOVR_DISCORD_CLIENT_SECRET` | – | Discord login (D41). Secret: never in GitHub |
+| `ECHOVR_DISCORD_BOT_TOKEN` | – | Bot that checks the preview role (D41). Secret: never in GitHub |
+| `ECHOVR_DISCORD_PREVIEW_ROLES` | – | Preview role id(s), comma-separated |
+| `ECHOVR_DISCORD_CLIENT_ID` / `_GUILD_ID` | `1214456381466222683` / `779349159852769310` | Bot application and EchoVR Combat server |
 
 ## Admin console
 The website is read-only: every change is made with `admin.bat` (double-click it for a menu, or run it in a
@@ -100,6 +105,29 @@ DNS moves to Cloudflare.
    internet (myQNAPcloud / UPnP port forwarding off) - only the website is public, through the tunnel.
 
 The website stays read-only to everyone: changes are only possible from the admin console in the container.
+
+## Discord login (achievement previews, D41)
+Before the achievements launch date (admin console option 5), members of the Discord server
+779349159852769310 with a preview role can log in and see achievements and challenges; everyone else sees "Coming
+soon". The login is off until the client secret, bot token and role id(s) are all set.
+1. **Developer Portal** (https://discord.com/developers/applications) > the bot's application
+   (1214456381466222683) > OAuth2 > Redirects: add `https://echocombat.com/api/auth/callback` and
+   `http://127.0.0.1:8000/api/auth/callback`. Copy the **Client Secret** (Reset Secret if you never copied it).
+2. **Bot token**: the bot's existing token (Bot page). The website only asks Discord about members with it; it does
+   not connect as the bot, so the bot keeps working. Resetting the token means updating the bot too.
+3. **Role id**: Discord > User Settings > Advanced > Developer Mode on; Server Settings > Roles > right-click the
+   role > Copy Role ID. The bot must be in the server (no permissions needed).
+4. **NAS**: in Container Station > the application > edit, replace `YOUR_DISCORD_CLIENT_SECRET`,
+   `YOUR_DISCORD_BOT_TOKEN` and `YOUR_PREVIEW_ROLE_ID`, then Recreate.
+5. **Windows (`run.bat`)**: create `settings.local.bat` next to `run.bat` (never uploaded):
+   ```bat
+   set ECHOVR_DISCORD_CLIENT_SECRET=...
+   set ECHOVR_DISCORD_BOT_TOKEN=...
+   set ECHOVR_DISCORD_PREVIEW_ROLES=...
+   ```
+
+Giving or removing the role in Discord takes effect within 5 minutes. A login lasts 30 days; deleting
+`data/session.key` logs everyone out.
 
 ## Run (single server)
 ```

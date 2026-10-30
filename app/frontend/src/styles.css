@@ -809,6 +809,10 @@ nav {
 @media (max-width: 480px) {
   .processing-text { display: none; } /* spinner only; the full text is in the tooltip */
 }
+.account {
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
 .menu-toggle,
 .theme-toggle {
   padding: 6px 10px;

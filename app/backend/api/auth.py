@@ -2,6 +2,7 @@
 
 import hmac
 import secrets
+from urllib.parse import urlencode, urlparse
 
 import httpx
 from fastapi import APIRouter, Request
@@ -38,6 +39,10 @@ def me(request: Request):
 @router.get("/login")
 def login(request: Request, next: str | None = None):
     settings = _settings(request)
+    public = urlparse(settings.public_url)
+    if request.url.hostname != public.hostname:  # e.g. www.: Discord returns to public_url, the cookie must be there
+        query = urlencode({"next": _safe_next(next)})
+        return RedirectResponse(f"{settings.public_url.rstrip('/')}/api/auth/login?{query}", status_code=303)
     state = secrets.token_urlsafe(24)
     response = RedirectResponse(auth.authorize_url(settings, state), status_code=303)
     response.set_cookie(auth.STATE_COOKIE, auth.sign(settings, {"state": state, "next": _safe_next(next)}, auth.STATE_S),

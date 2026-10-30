@@ -16,6 +16,12 @@ services:
       ECHOVR_REPLAY_SOURCE: /replays
       ECHOVR_WORKERS: "4"            # parallel import processes: about the NAS's CPU core count
       ECHOVR_SCAN_INTERVAL_S: "300"  # seconds between scans of the replay folder
+      # Discord login: people with the preview role see achievements before their launch (Setup.MD, Discord login).
+      # Leave the YOUR_... placeholders and the login stays off. Never upload real values to GitHub.
+      ECHOVR_PUBLIC_URL: https://echocombat.com
+      ECHOVR_DISCORD_CLIENT_SECRET: YOUR_DISCORD_CLIENT_SECRET
+      ECHOVR_DISCORD_BOT_TOKEN: YOUR_DISCORD_BOT_TOKEN
+      ECHOVR_DISCORD_PREVIEW_ROLES: YOUR_PREVIEW_ROLE_ID   # role id; several separated by commas
     volumes:
       # Replay folder on the NAS (File Station: ECRanked > ECRanked), read-only; subfolders are scanned too
       - /share/ECRanked/ECRanked:/replays:ro

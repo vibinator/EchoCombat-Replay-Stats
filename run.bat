@@ -26,6 +26,8 @@ echo.
 echo  EchoVR Replay Stats is running at http://127.0.0.1:8000
 echo  Close this window or press Ctrl+C to stop.
 echo.
+rem Private settings (Discord secret / bot token): settings.local.bat, never uploaded. See Setup.MD, Discord login.
+if exist "settings.local.bat" call "settings.local.bat"
 if not defined NO_BROWSER start "" cmd /c "timeout /t 3 /nobreak >nul & start http://127.0.0.1:8000"
 ".venv\Scripts\python" -m uvicorn backend.main:app --app-dir app --host 127.0.0.1 --port 8000
 goto :eof

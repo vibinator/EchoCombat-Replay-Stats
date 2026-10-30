@@ -9,6 +9,11 @@ DISCORD_CLIENT_ID = "1214456381466222683"
 DISCORD_GUILD_ID = "779349159852769310"
 
 
+def _secret(value: str | None) -> str:
+    """docker-compose.yml placeholders (YOUR_...) count as not set: the Discord login stays off."""
+    return "" if not value or value.startswith("YOUR_") else value
+
+
 @dataclass(frozen=True)
 class Settings:
     data_dir: Path
@@ -38,10 +43,10 @@ class Settings:
             scan_interval_s=float(env("ECHOVR_SCAN_INTERVAL_S", 300)),
             public_url=env("ECHOVR_PUBLIC_URL", "http://127.0.0.1:8000"),
             discord_client_id=env("ECHOVR_DISCORD_CLIENT_ID", DISCORD_CLIENT_ID),
-            discord_client_secret=env("ECHOVR_DISCORD_CLIENT_SECRET", ""),
-            discord_bot_token=env("ECHOVR_DISCORD_BOT_TOKEN", ""),
+            discord_client_secret=_secret(env("ECHOVR_DISCORD_CLIENT_SECRET")),
+            discord_bot_token=_secret(env("ECHOVR_DISCORD_BOT_TOKEN")),
             discord_guild_id=env("ECHOVR_DISCORD_GUILD_ID", DISCORD_GUILD_ID),
-            discord_preview_roles=tuple(r.strip() for r in env("ECHOVR_DISCORD_PREVIEW_ROLES", "").split(",") if r.strip()),
+            discord_preview_roles=tuple(r.strip() for r in _secret(env("ECHOVR_DISCORD_PREVIEW_ROLES")).split(",") if r.strip()),
         )
 
     @property

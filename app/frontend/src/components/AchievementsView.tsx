@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router";
-import { getAchievements, getChallenges, type Achievement, type AchievementRarity, type AchievementRule } from "../api";
+import { getAchievements, getChallenges, getMe, loginUrl, type Achievement, type AchievementRarity, type AchievementRule } from "../api";
 import { pct } from "../format";
 import { useApi } from "../useApi";
 import { Status } from "./common";
@@ -123,33 +123,62 @@ export function Badge({ a }: { a: AchievementRule & Partial<Pick<Achievement, "p
 }
 
 /** Small summary for the player page; the full list lives on /achievements. */
-/** Whether achievements and challenges are public yet (null while loading). */
-export function useAchievementsLaunched(): { launched: boolean | null; start: string | null } {
+export interface AchievementsAccess {
+  /** this visitor sees achievements: launched, or a Discord preview (null while loading) */
+  visible: boolean | null;
+  launched: boolean;
+  preview: boolean;
+  start: string | null;
+}
+
+export function useAchievementsAccess(): AchievementsAccess {
   const d = useApi(getChallenges, "challenge").data;
-  return { launched: d ? d.launched : null, start: d?.start ?? null };
+  return { visible: d ? d.launched || d.preview : null, launched: !!d?.launched, preview: !!d?.preview, start: d?.start ?? null };
+}
+
+function PreviewLogin() {
+  const me = useApi(getMe, "me").data;
+  const location = useLocation();
+  const failed = new URLSearchParams(location.search).get("login") === "failed";
+  if (!me?.enabled) return null;
+  if (me.user)
+    return (
+      <p className="muted">
+        Logged in as <strong>{me.user.name}</strong>, but your Discord account does not have the preview role.
+      </p>
+    );
+  return (
+    <p className="muted">
+      {failed && <>The Discord login did not work, please try again. </>}
+      Have preview access? <a href={loginUrl("/achievements")}>Log in with Discord</a>
+    </p>
+  );
 }
 
 export function ComingSoon({ start }: { start: string | null }) {
   return (
-    <EmptyState title="Coming soon">
-      Achievements and Flamingo Challenges are on their way
-      {start ? (
-        <>
-          {" "}
-          — they start on <strong>{start}</strong>. Only matches from that day on count.
-        </>
-      ) : (
-        ". Only matches played after they start will count."
-      )}
-    </EmptyState>
+    <>
+      <EmptyState title="Coming soon">
+        Achievements and Flamingo Challenges are on their way
+        {start ? (
+          <>
+            {" "}
+            — they start on <strong>{start}</strong>. Only matches from that day on count.
+          </>
+        ) : (
+          ". Only matches played after they start will count."
+        )}
+      </EmptyState>
+      <PreviewLogin />
+    </>
   );
 }
 
 export function AchievementsSummary({ userId }: { userId: string }) {
-  const { launched } = useAchievementsLaunched();
-  return launched ? (
+  const { visible } = useAchievementsAccess();
+  return visible ? (
     <LaunchedSummary userId={userId} />
-  ) : launched === false ? (
+  ) : visible === false ? (
     <div className="section-head">
       <h2>
         Achievements <span className="tag">coming soon</span>
@@ -206,7 +235,22 @@ function LaunchedSummary({ userId }: { userId: string }) {
 export function ChallengeBanner() {
   const w = useApi(getChallenges, "challenge");
   const d = w.data;
-  if (!d || !d.launched) return null;
+  if (!d) return null;
+  if (d.preview)
+    return (
+      <p className="note">
+        <strong>Preview</strong> — only people with the Discord preview role see this. It counts every match in the archive;
+        {d.start ? (
+          <>
+            {" "}
+            from the launch on <strong>{d.start}</strong> only matches from that day count.
+          </>
+        ) : (
+          " after the launch only matches from its start date count."
+        )}
+      </p>
+    );
+  if (!d.launched) return null;
   return (
     <p className={`note${d.active ? "" : " ended"}`}>
       Flamingo Challenge period: <strong>{d.start}</strong> to <strong>{d.end ?? "open-ended"}</strong>
