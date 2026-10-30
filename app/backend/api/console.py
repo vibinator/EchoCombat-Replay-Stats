@@ -10,11 +10,13 @@ import re
 import threading
 
 from fastapi import APIRouter, Request
+from fastapi.responses import Response
 from pydantic import BaseModel
 
 import admin_console as console
 
 from .. import auth
+from ..achievement_sheet import csv_bytes, name_and_rule
 from ..errors import ApiError
 
 router = APIRouter(prefix="/api/admin/console", tags=["console"])
@@ -86,13 +88,33 @@ def for_the_page(text: str) -> str:
     return OPTION.sub(r"admin.bat option \1", text).replace(" -> ", " → ")
 
 
+def require_console(request: Request, what: str) -> dict:
+    """The logged-in visitor, if they may use the console; roles are asked from Discord every time."""
+    user = auth.viewer(request)
+    if not auth.has_console(request, fresh=True):
+        if user:
+            log.warning("Console %s refused for %s (%s): no console access", what, user["name"], user["id"])
+        raise ApiError(403, "console_only", "You do not have access to the console")
+    return user
+
+
+@router.get("/achievements")
+def achievements(request: Request):
+    """Every achievement and challenge: name and the rule to win it (same text as on the website)."""
+    require_console(request, "achievements")
+    return name_and_rule()
+
+
+@router.get("/achievements.csv")
+def achievements_csv(request: Request):
+    require_console(request, "achievements.csv")
+    return Response(csv_bytes(), media_type="text/csv; charset=utf-8",
+                    headers={"Content-Disposition": 'attachment; filename="EchoVR-Achievements.csv"'})
+
+
 @router.post("/{command}")
 def run(request: Request, command: str, args: Args):
-    user = auth.viewer(request)
-    if not auth.has_console(request, fresh=True):  # roles asked from Discord on every command
-        if user:
-            log.warning("Console %s refused for %s (%s): no console access", command, user["name"], user["id"])
-        raise ApiError(403, "console_only", "You do not have access to the console")
+    user = require_console(request, command)
     if command not in COMMANDS:
         raise ApiError(404, "unknown_command", f"No console command '{command}'")
     log.info("Console %s by %s (%s): %s", command, user["name"], user["id"], args.model_dump(exclude_defaults=True))

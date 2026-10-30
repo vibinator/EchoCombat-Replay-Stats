@@ -13,6 +13,19 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 18 — 2026-10-30
+### Website
+- **Console page > Achievements > Export achievements and challenges**: every achievement and challenge with just
+  its **Name** and **How to win it** (the rule text shown on the website; "(deaths are estimated)" where that
+  applies). Filter the list, **Copy** it (pastes as two columns into Excel / Google Sheets) or **Download CSV**
+  (`EchoVR-Achievements.csv`, always the full list). Console access only, checked with Discord on every request.
+
+### Upgrading to Beta 18
+- QNAP: upload Beta 18, wait for the Actions run, Recreate.
+- Windows: restart `run.bat`.
+
+---
+
 ## Beta 17 — 2026-10-30
 ### Website
 - **Console page tidied up**: plain names instead of menu numbers, clearer help text, results as cards (Done /

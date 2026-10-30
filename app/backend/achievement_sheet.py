@@ -2,7 +2,8 @@
 Built from RULES on every request, so a changed rule shows up straight away. "Requirement" is the exact text on the
 website (it holds every condition, D39); "How to achieve it" and "Good to know" only explain it."""
 
-from io import BytesIO
+import csv
+from io import BytesIO, StringIO
 
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
@@ -71,6 +72,20 @@ def rows() -> list[dict]:
         "how": f"{r.description}. {HINT[r.period]}",
         "progress": PROGRESS[r.period], "notes": _notes(r),
     } for r in RULES]
+
+
+def name_and_rule() -> list[dict]:
+    """Console export (D45): just the name and the rule to win it, the text on the website."""
+    return [{"name": r.name, "rule": r.description + (" (deaths are estimated)" if r.estimated else "")} for r in RULES]
+
+
+def csv_bytes() -> bytes:
+    """name_and_rule as CSV; UTF-8 with BOM so Excel shows accents and symbols correctly."""
+    out = StringIO()
+    writer = csv.writer(out, lineterminator="\r\n")
+    writer.writerow(["Name", "How to win it"])
+    writer.writerows([r["name"], r["rule"]] for r in name_and_rule())
+    return out.getvalue().encode("utf-8-sig")
 
 
 def workbook_bytes(version: str) -> bytes:

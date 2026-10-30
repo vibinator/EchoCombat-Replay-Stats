@@ -444,3 +444,28 @@ def test_console_output_uses_the_page_names(tmp_path, discord):
         assert "2026-01-01 → open-ended" in out
         out = client.post("/api/admin/console/repair-failed", json={}, headers=CONSOLE).json()["output"]
         assert "'" not in out.replace("don't", "")  # no console command names
+
+
+def test_console_exports_achievement_names_and_rules(tmp_path, discord):
+    import csv
+    import io
+
+    from backend.achievements import RULES
+
+    with app_client(settings(tmp_path)) as client:
+        for url in ("/api/admin/console/achievements", "/api/admin/console/achievements.csv"):
+            assert client.get(url).status_code == 403  # logged out
+        login(client, NO_ROLE)
+        assert client.get("/api/admin/console/achievements").status_code == 403  # no console access
+
+        login(client, MEMBER)
+        items = client.get("/api/admin/console/achievements").json()
+        assert len(items) == len(RULES) and set(items[0]) == {"name", "rule"}
+        assert items[0] == {"name": RULES[0].name, "rule": RULES[0].description}
+        estimated = next(r for r in RULES if r.estimated)
+        assert {"name": estimated.name, "rule": estimated.description + " (deaths are estimated)"} in items
+        r = client.get("/api/admin/console/achievements.csv")
+        assert r.headers["content-type"].startswith("text/csv") and "attachment" in r.headers["content-disposition"]
+        rows = list(csv.reader(io.StringIO(r.content.decode("utf-8-sig"))))
+        assert rows[0] == ["Name", "How to win it"] and rows[1:] == [[i["name"], i["rule"]] for i in items]
+        assert "no-store" in r.headers["cache-control"]

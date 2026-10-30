@@ -480,6 +480,10 @@ export const runConsole = (command: string, args: Record<string, unknown>) =>
     body: JSON.stringify(args),
   });
 
+/** Console export: every achievement and challenge, name + the rule to win it. */
+export const getConsoleAchievements = () => send<{ name: string; rule: string }[]>("/api/admin/console/achievements");
+export const CONSOLE_ACHIEVEMENTS_CSV = "/api/admin/console/achievements.csv";
+
 export interface AchievementRarity extends AchievementRule {
   unlocked_share: number | null;
   completed_share: number | null;
