@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { BrowserRouter, Link, NavLink, Route, Routes, useLocation } from "react-router";
-import { getHealth } from "./api";
+import { getHealth, getProcessing } from "./api";
 import { GlobalSearch } from "./components/GlobalSearch";
 import { AchievementsPage } from "./pages/AchievementsPage";
 import { ComparePage } from "./pages/ComparePage";
@@ -48,6 +48,38 @@ function NotFound() {
   );
 }
 
+const PROCESSING_POLL_MS = 15_000;
+
+/** Number of replays still waiting to be read; polled so the top bar shows when new data is on its way. */
+function usePendingReplays(): number {
+  const [pending, setPending] = useState(0);
+  useEffect(() => {
+    let current = true;
+    const poll = () =>
+      getProcessing()
+        .then((d) => current && setPending(d.pending))
+        .catch(() => current && setPending(0));
+    poll();
+    const timer = setInterval(poll, PROCESSING_POLL_MS);
+    return () => {
+      current = false;
+      clearInterval(timer);
+    };
+  }, []);
+  return pending;
+}
+
+function ProcessingIndicator({ pending }: { pending: number }) {
+  if (pending === 0) return null;
+  const text = `Processing ${pending.toLocaleString()} replay${pending === 1 ? "" : "s"}`;
+  return (
+    <span className="processing" role="status" title={`${text} in the background. New matches and stats appear as they finish.`}>
+      <span className="spinner" aria-hidden="true" />
+      <span className="processing-text">{text}</span>
+    </span>
+  );
+}
+
 const NAV = [
   ["/", "Home"],
   ["/matches", "Matches"],
@@ -60,6 +92,7 @@ const NAV = [
 function Layout() {
   const [theme, toggleTheme] = useTheme();
   const version = useApi(getHealth, "health").data?.version;
+  const pending = usePendingReplays();
   const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
   useEffect(() => setMenuOpen(false), [location.pathname]);
@@ -70,6 +103,7 @@ function Layout() {
         <Link to="/" className="brand">
           EchoVR Replay Stats
         </Link>
+        <ProcessingIndicator pending={pending} />
         <button className="menu-toggle secondary" aria-expanded={menuOpen} aria-controls="main-nav" onClick={() => setMenuOpen(!menuOpen)}>
           {menuOpen ? "Close" : "Menu"}
         </button>

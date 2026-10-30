@@ -52,6 +52,10 @@ def test_overview_and_global_stats(client):
     assert len(o["latest"]) == 3
 
 
+def test_processing_is_zero_once_everything_is_read(client):
+    assert client.get("/api/overview/processing").json() == {"pending": 0}
+
+
 def test_activity_and_players_seen(client):
     a = client.get("/api/overview/activity", params={"bucket": "day"}).json()
     assert a["items"] == [{"period": "2026-10-28", "matches": 3, "hours": a["items"][0]["hours"]}]

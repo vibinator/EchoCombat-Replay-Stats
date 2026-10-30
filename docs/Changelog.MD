@@ -13,6 +13,19 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 9 — 2026-10-30
+### Website
+- **Processing indicator**: while replays are still being read in the background, a small spinning wheel with
+  "Processing N replays" shows in the top bar next to the site name, on every page. It checks every 15 seconds and
+  disappears once everything is read. On phones only the wheel shows; tap/hover it for the count.
+- New public endpoint `/api/overview/processing` (`{"pending": N}`) behind it.
+
+### Upgrading to Beta 9
+- Windows: restart `run.bat`.
+- QNAP: upload Beta 9, wait for the Actions run, then Recreate the application in Container Station.
+
+---
+
 ## Beta 8 — 2026-10-30
 ### Website
 - **Long player names stay on one line**: in stat cards (home page Global stats, match page highlights) and on the

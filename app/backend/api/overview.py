@@ -7,7 +7,7 @@ from sqlalchemy import case, func, select
 
 from ..cache import cached
 from ..gear import ORDNANCES, TACMODS, WEAPONS
-from ..models import Match, MatchPlayer, MatchPlayerLoadout, Player
+from ..models import Match, MatchPlayer, MatchPlayerLoadout, Player, Replay
 from .derived import gear, match_summary, period_start, ratio
 from .players import games_of
 
@@ -54,6 +54,14 @@ def _overview(request: Request) -> dict:
         "top_this_week": [{"user_id": u, "name": n, "games": g, "wins": w or 0} for u, n, g, w in top_week],
         "latest": [match_summary(m) for m in latest],
     }
+
+
+@router.get("/api/overview/processing")
+def processing(request: Request):
+    """Replays still waiting to be read, for the "processing" spinner in the top bar. Not cached: it is the live queue."""
+    with request.app.state.sessionmaker() as db:
+        pending = db.scalar(select(func.count()).select_from(Replay).where(Replay.status.in_(("queued", "processing"))))
+    return {"pending": pending or 0}
 
 
 @router.get("/api/overview/activity")

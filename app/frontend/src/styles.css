@@ -782,6 +782,33 @@ nav {
   font-size: 1.1rem;
   letter-spacing: 0.02em;
 }
+.processing {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: auto; /* stays next to the brand */
+  color: var(--muted);
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+.spinner {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  border: 2px solid var(--line);
+  border-top-color: var(--blue);
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spinner { animation-duration: 2.5s; }
+}
+@media (max-width: 480px) {
+  .processing-text { display: none; } /* spinner only; the full text is in the tooltip */
+}
 .menu-toggle,
 .theme-toggle {
   padding: 6px 10px;
