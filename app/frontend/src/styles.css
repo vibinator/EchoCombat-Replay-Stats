@@ -10,6 +10,11 @@
   --bad: #e6194b;
   --chart-1: #12a6c4;
   --chart-2: #d96a1a;
+  /* one colour per map, stacked charts (dataviz validator: dark, surface #1f2228, all pass) */
+  --map-combustion: #3987e5;
+  --map-dyson: #d95926;
+  --map-fission: #199e70;
+  --map-surge: #c98500;
   --surface-2: #262a31;
   font-family: Montserrat, system-ui, -apple-system, "Segoe UI", sans-serif;
   color: var(--text);
@@ -754,6 +759,11 @@ nav {
   --bad: #c41e3a;
   --chart-1: #0087a8;
   --chart-2: #c25a10;
+  /* light, surface #ffffff: fission / surge < 3:1, so the chart always has a legend and per-map tooltip */
+  --map-combustion: #2a78d6;
+  --map-dyson: #eb6834;
+  --map-fission: #1baf7a;
+  --map-surge: #eda100;
   --surface-2: #eef0f3;
   color-scheme: light;
 }
@@ -1655,4 +1665,80 @@ td.best {
 .status-facts dd {
   margin: 0;
   overflow-wrap: anywhere;
+}
+
+/* Home: "Most active this week" ranked list */
+.active-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.active-row {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--surface-2);
+  border-left: 3px solid transparent;
+}
+.active-row.place-1 { border-left-color: #d4af37; }
+.active-row.place-2 { border-left-color: #b9bdc4; }
+.active-row.place-3 { border-left-color: #b7773f; }
+.active-rank {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--line);
+  color: var(--text);
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+.place-1 .active-rank { background: #d4af37; color: #1b1e23; }
+.place-2 .active-rank { background: #b9bdc4; color: #1b1e23; }
+.place-3 .active-rank { background: #b7773f; color: #1b1e23; }
+.active-main {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.active-name {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.active-bar {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--line);
+  overflow: hidden;
+}
+.active-bar div {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--chart-1);
+}
+.active-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  min-width: 56px;
+  line-height: 1.2;
+}
+.active-stat strong {
+  font-variant-numeric: tabular-nums;
+}
+.active-stat span {
+  font-size: 0.75rem;
+}
+@media (max-width: 480px) {
+  .active-row { gap: 10px; padding: 8px 10px; grid-template-columns: 28px minmax(0, 1fr) auto auto; }
 }

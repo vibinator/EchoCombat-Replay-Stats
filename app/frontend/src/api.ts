@@ -546,7 +546,7 @@ export const getHealth = () => request<{ version: string }>("/api/health");
 export const getOverview = () => request<Overview>("/api/overview");
 export const getProcessing = () => request<{ pending: number }>("/api/overview/processing");
 export const getActivity = (bucket: "day" | "week" | "month" | "year") =>
-  request<{ bucket: string; items: { period: string; matches: number; hours: number }[] }>(`/api/overview/activity?bucket=${bucket}`);
+  request<{ bucket: string; items: { period: string; matches: number; hours: number; maps: Record<string, number> }[] }>(`/api/overview/activity?bucket=${bucket}`);
 export const getPlayersSeen = (range: PlayersSeen["range"], anchor: PlayersSeen["anchor"]) =>
   request<PlayersSeen>(`/api/overview/players-seen?range=${range}&anchor=${anchor}`);
 export const search = (q: string) => request<SearchResult>(`/api/search${query({ q })}`);

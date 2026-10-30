@@ -58,7 +58,9 @@ def test_processing_is_zero_once_everything_is_read(client):
 
 def test_activity_and_players_seen(client):
     a = client.get("/api/overview/activity", params={"bucket": "day"}).json()
-    assert a["items"] == [{"period": "2026-10-28", "matches": 3, "hours": a["items"][0]["hours"]}]
+    assert a["items"] == [{"period": "2026-10-28", "matches": 3, "hours": a["items"][0]["hours"],
+                           "maps": a["items"][0]["maps"]}]
+    assert sum(a["items"][0]["maps"].values()) == 3
     seen = client.get("/api/overview/players-seen", params={"range": "24h", "anchor": "latest"}).json()
     assert seen["unique_players"] == 2 and seen["matches"] == 3 and len(seen["items"]) in (24, 25)
     assert max(i["players"] for i in seen["items"]) == 2

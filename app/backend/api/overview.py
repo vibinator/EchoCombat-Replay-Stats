@@ -66,7 +66,7 @@ def processing(request: Request):
 
 @router.get("/api/overview/activity")
 def activity(request: Request, bucket: str = Query("month", pattern="^(day|week|month|year)$")):
-    """Matches per period over the whole archive (recorder-local dates)."""
+    """Matches per period over the whole archive (recorder-local dates), split by map for the stacked chart."""
     return cached(request, "activity", (bucket,), lambda: _activity(request, bucket))
 
 
@@ -79,9 +79,18 @@ def _activity(request: Request, bucket: str) -> dict:
     }[bucket]
     with request.app.state.sessionmaker() as db:
         rows = db.execute(
-            select(expr.label("period"), func.count(), func.sum(Match.duration_s)).group_by("period").order_by("period")
+            select(expr.label("period"), Match.map, func.count(), func.sum(Match.duration_s))
+            .group_by("period", Match.map).order_by("period")
         ).all()
-    return {"bucket": bucket, "items": [{"period": p, "matches": n, "hours": round((s or 0) / 3600, 1)} for p, n, s in rows]}
+    items: dict[str, dict] = {}
+    for period, map_, n, s in rows:
+        item = items.setdefault(period, {"period": period, "matches": 0, "hours": 0.0, "maps": {}})
+        item["matches"] += n
+        item["hours"] += (s or 0) / 3600
+        item["maps"][map_] = n
+    for item in items.values():
+        item["hours"] = round(item["hours"], 1)
+    return {"bucket": bucket, "items": list(items.values())}
 
 
 @router.get("/api/search")

@@ -1,7 +1,8 @@
 import { useState, type MouseEvent } from "react";
 
 /* Small SVG charts. Colours come from CSS variables validated per theme (dataviz validator):
-   --chart-1 (blue) / --chart-2 (orange). One series per chart (no dual axes); hover tooltip on every mark. */
+   --chart-1 (blue) / --chart-2 (orange), --map-* for the stacked per-map chart. No dual axes; hover tooltip on
+   every mark. */
 
 export interface BarDatum {
   label: string; // shown on the axis (sparse) and in the tooltip
@@ -84,6 +85,111 @@ export function BarChart({ data, title, unit = "", height = 180, color = "var(--
 function roundedTop(x: number, y: number, w: number, h: number, r: number): string {
   if (h <= r) return `M${x},${y + h}V${y}H${x + w}V${y + h}Z`;
   return `M${x},${y + h}V${y + r}Q${x},${y} ${x + r},${y}H${x + w - r}Q${x + w},${y} ${x + w},${y + r}V${y + h}Z`;
+}
+
+export interface StackSeries {
+  key: string;
+  label: string;
+  color: string;
+}
+
+export interface StackDatum {
+  label: string;
+  values: Record<string, number>; // series key -> value
+  tooltip?: string;
+}
+
+/** Stacked bars: one bar per label, series stacked bottom-up in the given (fixed) order, legend above. */
+export function StackedBarChart({ data, series, title, unit = "", height = 180 }: {
+  data: StackDatum[];
+  series: StackSeries[];
+  title: string;
+  unit?: string;
+  height?: number;
+}) {
+  const [hover, setHover] = useState<number | null>(null);
+  const pad = { left: 40, right: 8, top: 8, bottom: 24 };
+  const total = (d: StackDatum) => series.reduce((sum, s) => sum + (d.values[s.key] ?? 0), 0);
+  const max = Math.max(1, ...data.map(total));
+  const innerW = W - pad.left - pad.right;
+  const slot = innerW / Math.max(1, data.length);
+  const gap = Math.min(2, slot * 0.2);
+  const y = (v: number) => height - pad.bottom - (v / max) * (height - pad.top - pad.bottom);
+  const labelEvery = Math.max(1, Math.ceil(data.length / 8));
+
+  function onMove(e: MouseEvent<SVGSVGElement>) {
+    const box = e.currentTarget.getBoundingClientRect();
+    const i = Math.floor((((e.clientX - box.left) / box.width) * W - pad.left) / slot);
+    setHover(i >= 0 && i < data.length ? i : null);
+  }
+
+  return (
+    <figure className="chart">
+      <figcaption className="chart-title">{title}</figcaption>
+      <div className="legend" aria-label="Key">
+        {series.map((s) => (
+          <span key={s.key} className="legend-item">
+            <span className="swatch" style={{ background: s.color }} />
+            {s.label}
+          </span>
+        ))}
+      </div>
+      <div className="chart-wrap">
+        <svg viewBox={`0 0 ${W} ${height}`} role="img" aria-label={title} onMouseMove={onMove} onMouseLeave={() => setHover(null)}>
+          {[0, 0.5, 1].map((f) => (
+            <g key={f}>
+              <line className="grid" x1={pad.left} x2={W - pad.right} y1={y(max * f)} y2={y(max * f)} />
+              <text className="axis" x={pad.left - 6} y={y(max * f) + 4} textAnchor="end">
+                {Math.round(max * f).toLocaleString()}
+              </text>
+            </g>
+          ))}
+          {data.map((d, i) => {
+            const x = pad.left + i * slot + gap / 2;
+            const w = Math.max(1, slot - gap);
+            const shown = series.filter((s) => (d.values[s.key] ?? 0) > 0);
+            let base = 0;
+            return (
+              <g key={d.label} opacity={hover == null || hover === i ? 1 : 0.55}>
+                {shown.map((s, j) => {
+                  const v = d.values[s.key];
+                  const top = y(base + v);
+                  // 2 px surface gap between segments (none under the bottom one)
+                  const h = Math.max(0, y(base) - top - (j > 0 ? 2 : 0));
+                  base += v;
+                  return j === shown.length - 1 ? (
+                    <path key={s.key} d={roundedTop(x, top, w, h, Math.min(4, w / 2))} fill={s.color} />
+                  ) : (
+                    <rect key={s.key} x={x} y={top} width={w} height={h} fill={s.color} />
+                  );
+                })}
+                {i % labelEvery === 0 && (
+                  <text className="axis" x={x + w / 2} y={height - 6} textAnchor="middle">
+                    {d.label}
+                  </text>
+                )}
+              </g>
+            );
+          })}
+        </svg>
+        {hover != null && (
+          <div className="tooltip chart-tooltip" style={{ left: `${((pad.left + hover * slot) / W) * 100}%` }}>
+            <strong>{data[hover].tooltip ?? data[hover].label}</strong>
+            <div>
+              {total(data[hover]).toLocaleString()}
+              {unit}
+            </div>
+            {[...series].reverse().map((s) => (
+              <div key={s.key} className="legend-item">
+                <span className="swatch" style={{ background: s.color }} />
+                {s.label}: {(data[hover].values[s.key] ?? 0).toLocaleString()}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </figure>
+  );
 }
 
 export interface LinePoint {

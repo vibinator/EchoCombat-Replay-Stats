@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { Link } from "react-router";
 import { getActivity, getOverview, getPlayersSeen, type GearShare, type PlayersSeen } from "../api";
-import { BarChart } from "../components/charts";
+import { BarChart, StackedBarChart } from "../components/charts";
 import { MatchCards } from "../components/MatchCards";
 import { PlayerSearch } from "../components/PlayerSearch";
 import { EmptyState, FitText, Skeleton } from "../components/ui";
-import { Status, TableWrap } from "../components/common";
-import { dateTime, duration, num, pct, title } from "../format";
+import { Status } from "../components/common";
+import { MAPS, dateTime, duration, num, pct, title } from "../format";
 import { useApi } from "../useApi";
 
 function GearTop({ label, items }: { label: string; items: GearShare[] }) {
@@ -105,11 +105,11 @@ function ActivityChart() {
       </div>
       {!activity.data && <Skeleton lines={2} />}
       {activity.data && activity.data.items.length > 0 && (
-        <BarChart
-          title={`Matches per ${bucket}`}
+        <StackedBarChart
+          title={`Matches per ${bucket}, by map`}
           unit=" matches"
-          color="var(--chart-2)"
-          data={activity.data.items.map((i) => ({ label: i.period, value: i.matches, tooltip: `${i.period}: ${i.hours} h` }))}
+          series={MAPS.map((m) => ({ key: m, label: title(m), color: `var(--map-${m})` }))}
+          data={activity.data.items.map((i) => ({ label: i.period, values: i.maps, tooltip: `${i.period}: ${i.hours} h` }))}
         />
       )}
     </section>
@@ -182,22 +182,27 @@ export function HomePage() {
                     </span>
                   </div>
                   {o.top_this_week.length > 0 ? (
-                    <TableWrap>
-                      <table className="stack">
-                        <thead>
-                          <tr><th>Player</th><th className="num">Matches</th><th className="num">Wins</th></tr>
-                        </thead>
-                        <tbody>
-                          {o.top_this_week.map((p) => (
-                            <tr key={p.user_id}>
-                              <td data-label="Player"><Link to={`/players/${p.user_id}`}>{p.name}</Link></td>
-                              <td data-label="Matches" className="num">{p.games}</td>
-                              <td data-label="Wins" className="num">{p.wins}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </TableWrap>
+                    <ol className="active-list">
+                      {o.top_this_week.map((p, i) => (
+                        <li key={p.user_id} className={`active-row place-${i + 1}`}>
+                          <span className="active-rank">{i + 1}</span>
+                          <div className="active-main">
+                            <Link to={`/players/${p.user_id}`} className="active-name">{p.name}</Link>
+                            <div className="active-bar" aria-hidden="true">
+                              <div style={{ width: `${(p.games / o.top_this_week[0].games) * 100}%` }} />
+                            </div>
+                          </div>
+                          <div className="active-stat">
+                            <strong>{p.games.toLocaleString()}</strong>
+                            <span className="muted">matches</span>
+                          </div>
+                          <div className="active-stat">
+                            <strong>{pct(p.wins / p.games)}</strong>
+                            <span className="muted">{p.wins.toLocaleString()} won</span>
+                          </div>
+                        </li>
+                      ))}
+                    </ol>
                   ) : (
                     <p className="muted">No matches recorded this week yet.</p>
                   )}

@@ -69,7 +69,7 @@ All JSON. No upload, delete or replay-download endpoints: replays come only from
 | Method | Path | Purpose | Phase |
 |---|---|---|---|
 | GET | /api/overview | Home dashboard: totals, today / week, by map, top players this week, latest; `global` = top weapon / ordnance / tac mod (time share), recorded hours, avg / longest match, players per match, deaths (est.), fastest, most active, busiest day, payload attack win rate, capture wins | D37 |
-| GET | /api/overview/activity | Matches per `bucket` (day / week / month / year) | D37 |
+| GET | /api/overview/activity | Matches per `bucket` (day / week / month / year), with a per-map split (`maps`) for the stacked chart | D37 |
 | GET | /api/overview/players-seen | Distinct players per hour (24h) / day (7d, 30d); `anchor` now / latest match | D37 |
 | GET | /api/search | `q`: players by name + match by `#id` | D37 |
 | GET | /api/health | `{status, parser_version, stats_version, source_dir}` | 3 |

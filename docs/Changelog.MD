@@ -13,6 +13,18 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 27 — 2026-10-30
+### Website
+- **Home, "Matches recorded over time"**: one stacked bar per month (or year) split into the four maps (Combustion,
+  Dyson, Fission, Surge), with a key above the chart; hovering a bar lists the matches on each map.
+- **Home, "Most active this week"**: a ranked list instead of a table: gold / silver / bronze badges for the top
+  three, a bar comparing each player's matches with the leader's, and win rate with the number of wins.
+
+### Upgrading to Beta 27
+- QNAP: upload Beta 27, wait for the Actions run, Recreate. Windows: restart `run.bat`.
+
+---
+
 ## Beta 26 — 2026-10-30
 ### Website
 - **Faster pages: important data is kept in RAM** (D49). First loads measured on the full archive (29k matches):
