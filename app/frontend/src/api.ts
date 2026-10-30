@@ -1,57 +1,3 @@
-export type ReplayStatus = "queued" | "processing" | "done" | "failed";
-
-export interface Replay {
-  id: number;
-  source_path: string;
-  size_bytes: number;
-  source_mtime: number;
-  discovered_at: string;
-  container: "zip" | "plain" | null;
-  status: ReplayStatus;
-  error_code: string | null;
-  error_message: string | null;
-  warnings: string[];
-  processed_at: string | null;
-  match_id: number | null;
-  repair_requested: boolean;
-}
-
-export interface ImportStage {
-  key: string;
-  label: string;
-  done: number;
-  total: number | null;
-  detail: string;
-}
-
-export interface ImportStatus {
-  source_dir: string;
-  workers: number;
-  busy: number;
-  counts: Record<ReplayStatus, number>;
-  hidden_failed: number; // failed replays hidden in the admin console, left out of `counts`
-  redo: number;
-  versions: { parser: string; stats: string };
-  rate_per_min: number;
-  eta_min: number | null;
-  matches_by_map: Record<string, number>;
-  stages: ImportStage[];
-  current: { replay_id: number; source_path: string; seconds: number }[];
-  throughput: { minute: string; replays: number }[];
-  by_year: ({ year: string } & Record<ReplayStatus, number>)[];
-  scan: {
-    reachable: boolean | null;
-    scanning: boolean;
-    last_scan_at: string | null;
-    last_scan_s: number | null;
-    files: number;
-    settling: number;
-    added: number;
-    changed: number;
-    error: string | null;
-  };
-}
-
 function errorMessage(body: unknown, status: number): string {
   const message = (body as { message?: unknown } | null)?.message;
   return typeof message === "string" ? message : `Request failed (${status})`;
@@ -64,14 +10,12 @@ async function send<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 // The website is read-only (changes are made in the admin console). GET responses are reused for a minute: going
-// back to a page is instant, and two components asking for the same thing share one request. Live views (import
-// progress, replay lists) always go to the server.
+// back to a page is instant, and two components asking for the same thing share one request.
 const CACHE_MS = 60_000;
-const UNCACHED = ["/api/import", "/api/replays"];
 const responses = new Map<string, { at: number; value: Promise<unknown> }>();
 
 function request<T>(path: string, init?: RequestInit): Promise<T> {
-  if (init || UNCACHED.some((prefix) => path.startsWith(prefix))) return send<T>(path, init);
+  if (init) return send<T>(path, init);
   const hit = responses.get(path);
   if (hit && Date.now() - hit.at < CACHE_MS) return hit.value as Promise<T>;
   const value = send<T>(path);
@@ -79,13 +23,6 @@ function request<T>(path: string, init?: RequestInit): Promise<T> {
   value.catch(() => responses.delete(path)); // never keep an error
   return value;
 }
-
-export const listReplays = (status?: ReplayStatus, limit = 50) =>
-  request<{ items: Replay[]; total: number }>(`/api/replays${query({ status, limit })}`);
-
-export const getImportStatus = () => request<ImportStatus>("/api/import");
-
-
 
 export type Team = "blue" | "orange";
 

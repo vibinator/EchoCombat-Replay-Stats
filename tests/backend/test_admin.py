@@ -51,6 +51,13 @@ def test_website_is_read_only(client):
         assert r.status_code == 405 and r.json()["error_code"] == "read_only", url
 
 
+def test_import_lists_are_not_on_the_website(tmp_path):
+    with app_client(make_settings(tmp_path, import_api=False)) as c:
+        for url in ("/api/import", "/api/replays", "/api/replays/1"):
+            assert c.get(url).status_code == 404, url
+        assert c.get("/api/health").status_code == 200
+
+
 def test_merge_then_undo_restores_everything(client):
     before = snapshot(client)
     assert set(before) == {"100", "200", "300"}

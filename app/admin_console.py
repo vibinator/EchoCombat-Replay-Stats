@@ -25,7 +25,7 @@ rule and the affected replays are re-processed from the original files, so it ca
 import argparse
 import socket
 import sys
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -38,7 +38,7 @@ from backend import aliases  # noqa: E402
 from backend.admin_actions import REPAIRABLE, AdminError, hidden_failure, unrepairable  # noqa: E402
 from backend.config import Settings  # noqa: E402
 from backend.version import APP_VERSION  # noqa: E402
-from backend.models import HiddenReplay, MatchPlayer, Player, PlayerAlias, Replay  # noqa: E402
+from backend.models import HiddenReplay, Match, MatchPlayer, Player, PlayerAlias, Replay  # noqa: E402
 
 REASONS = {  # error codes -> why repair cannot help
     "unsupported": "not an Echo Combat replay", "unreadable": "file could not be read (network / locked)",
@@ -217,9 +217,19 @@ def cmd_challenge(sessions, start: str | None, end: str | None, clear: bool) -> 
     print(f"Flamingo Challenge period: {current[0] or 'beginning'} -> {current[1] or 'open-ended'}")
 
 
+RATE_WINDOW_MIN = 10
+
+
 def cmd_status(sessions) -> None:
+    """Server, import progress (the website has no Import page), failures, players."""
+    since = (datetime.now(timezone.utc) - timedelta(minutes=RATE_WINDOW_MIN)).isoformat(timespec="seconds")
     with sessions() as db:
         counts = dict(db.execute(select(Replay.status, func.count()).group_by(Replay.status)).all())
+        redo = db.scalar(select(func.count()).select_from(Replay)
+                         .where(Replay.status == "queued", Replay.parser_version.is_not(None)))
+        recent = db.scalar(select(func.count()).select_from(Replay).where(Replay.processed_at >= since))
+        last = db.scalar(select(func.max(Replay.processed_at)))
+        matches = db.scalar(select(func.count()).select_from(Match))
         failed = dict(db.execute(select(Replay.error_code, func.count()).where(Replay.status == "failed")
                                  .group_by(Replay.error_code)).all())
         hidden = db.scalar(select(func.count()).select_from(Replay).where(hidden_failure()))
@@ -228,6 +238,18 @@ def cmd_status(sessions) -> None:
         players = db.scalar(select(func.count()).select_from(Player))
     print(f"Server: {'running' if server_running() else 'not running'} (http://{SERVER[0]}:{SERVER[1]})")
     print("Replays: " + ", ".join(f"{k} {counts.get(k, 0)}" for k in ("done", "queued", "processing", "failed")))
+    total = sum(counts.values())
+    waiting = counts.get("queued", 0) + counts.get("processing", 0)
+    if total:
+        finished = counts.get("done", 0) + counts.get("failed", 0)
+        print(f"Import: {finished / total:.1%} finished ({finished:,} / {total:,}), {matches:,} matches"
+              + (f", {redo:,} being redone after an update" if redo else ""))
+    per_min = recent / RATE_WINDOW_MIN
+    if waiting:
+        eta = f", about {waiting / per_min / 60:.1f} h left" if per_min else ""
+        print(f"Speed: {per_min:.1f} replays/min over the last {RATE_WINDOW_MIN} min{eta}")
+    if last:
+        print(f"Last replay finished: {last.replace('T', ' ')[:19]} UTC")
     if failed:
         print("Failed by reason: " + ", ".join(f"{k or 'unknown'} {n}" for k, n in sorted(failed.items(), key=lambda kv: -kv[1])))
     if stuck or hidden:
@@ -272,7 +294,7 @@ def cmd_cannot_repair(sessions, hide: bool, yes: bool) -> list[Replay]:
             for r in rows:
                 print(f"  {describe_replay(r)}")
             return rows
-        if not confirm(f"Hide these {len(rows)} replays on the website (Import page lists and counts)?", yes):
+        if not confirm(f"Hide these {len(rows)} replays (left out of the failed lists and counts)?", yes):
             print("Nothing changed.")
             return rows
         actions.hide_unrepairable(db)
@@ -364,7 +386,7 @@ def cmd_reprocess_all(sessions, settings: Settings, yes: bool) -> None:
     cmd_scan(sessions, settings)
     with sessions() as db:
         n = actions.reprocess_all(db)
-    print(f"{n:,} replays queued for re-processing. {when_applied()} Progress: the Import page, or 'admin.bat status'.")
+    print(f"{n:,} replays queued for re-processing. {when_applied()} Progress: 'admin.bat status'.")
 
 
 # --- interactive menu -------------------------------------------------------------------------
@@ -376,7 +398,7 @@ EchoVR Replay Stats - admin console ({APP_VERSION})
   3  List merges
   4  Undo a merge
   5  Flamingo Challenge period
-  6  Status
+  6  Status and import progress
   7  Repair failed replays
   8  Replays that cannot be repaired (hide them)
   9  Hidden replays (show again)
@@ -479,7 +501,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--start", help="YYYY-MM-DD, or '' for no limit")
     p.add_argument("--end", help="YYYY-MM-DD, or '' for no limit")
     p.add_argument("--clear", action="store_true", help="remove both dates")
-    sub.add_parser("status", help="replay and player counts")
+    sub.add_parser("status", help="import progress, replay and player counts")
     p = sub.add_parser("repair-failed", help="re-process damaged / incomplete replays in repair mode")
     p.add_argument("--yes", action="store_true")
     p = sub.add_parser("cannot-repair", help="list failed replays that repair cannot fix")

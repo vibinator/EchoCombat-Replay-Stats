@@ -175,7 +175,7 @@ class Worker:
         return len(self._in_flight)
 
     def current(self) -> list[dict]:
-        """Files being processed right now (for the Import page)."""
+        """Files being processed right now."""
         now = time.monotonic()
         running = [(rid, *self._started[rid]) for rid in list(self._in_flight.values()) if rid in self._started]
         return [{"replay_id": rid, "source_path": path, "seconds": round(now - t0, 1)}

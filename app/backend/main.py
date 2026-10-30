@@ -72,10 +72,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
         return response
 
-    app.include_router(replays.router)
+    if settings.import_api:
+        app.include_router(replays.router)
+        app.include_router(imports.router)
     app.include_router(matches.router)
     app.include_router(players.router)
-    app.include_router(imports.router)
     app.include_router(leaderboard.router)
     app.include_router(achievements.router)
     app.include_router(overview.router)

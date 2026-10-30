@@ -14,6 +14,9 @@ class Settings:
     scan_interval_s: float = 300.0
     settle_s: float = 120.0  # skip files modified more recently (may still be recording / copying)
     auto_scan: bool = True  # tests turn this off and call scan_once() themselves
+    # /api/import and /api/replays: off on the website, import progress is only in the admin console (user,
+    # 2026-10-30); tests turn it on to inspect replays
+    import_api: bool = False
 
     @classmethod
     def from_env(cls) -> "Settings":

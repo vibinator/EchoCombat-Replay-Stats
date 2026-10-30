@@ -7,7 +7,7 @@ Last updated: 2026-10-30 — Phase 6 (full website, `run.bat`).
 - Node.js 20+ and npm (tested with Node 24, npm 11)
 
 ## Quick start (Windows)
-Double-click `run.bat` in `EchoVR-Replay-Stats\` (or run it from a terminal). First run creates `.venv` and installs packages (needs internet); every run rebuilds the website, starts the server and opens http://127.0.0.1:8000. Close the window (or Ctrl+C) to stop. The app reads replays from `Z:\ECRanked\Replays` by itself (no uploads): the first full import of ~29k files takes about 3 hours, newest first, so recent matches appear within minutes. Watch progress on the **Import** page. Stopping and restarting is safe and quick: finished replays are kept and never re-read (D27); it continues with whatever is still queued. Only an app update that changes how stats are calculated reprocesses replays, in the background, with the old results visible meanwhile.
+Double-click `run.bat` in `EchoVR-Replay-Stats\` (or run it from a terminal). First run creates `.venv` and installs packages (needs internet); every run rebuilds the website, starts the server and opens http://127.0.0.1:8000. Close the window (or Ctrl+C) to stop. The app reads replays from `Z:\ECRanked\Replays` by itself (no uploads): the first full import of ~29k files takes about 3 hours, newest first, so recent matches appear within minutes. Watch progress with `admin.bat status` (the website has no Import page). Stopping and restarting is safe and quick: finished replays are kept and never re-read (D27); it continues with whatever is still queued. Only an app update that changes how stats are calculated reprocesses replays, in the background, with the old results visible meanwhile.
 
 ## Install manually (from `EchoVR-Replay-Stats\`)
 ```
@@ -40,7 +40,7 @@ Replays it queues go to the front of the queue: a running server picks them up w
 | `admin.bat cannot-repair [--hide]` / `hidden [--unhide <path> \| --unhide-all]` | Replays repair cannot fix: list, hide from the Import page, show again |
 | `admin.bat scan` | Look for new files in the replay folder now |
 | `admin.bat reprocess-all` | Rescan the folder, then read every replay again (about 3 hours; current results stay visible until replaced) |
-| `admin.bat status` | Server, replay and player counts |
+| `admin.bat status` | Server, import progress (finished %, speed, time left), failures, player counts |
 
 `--yes` skips confirmations; `admin.bat --help` lists everything. Names work as well as ids; an ambiguous name lists
 the matches to pick from.

@@ -169,7 +169,7 @@ class PriorityReplay(Base):
 
 
 class HiddenReplay(Base):
-    """Failed replays an admin chose to hide (they cannot be repaired): left out of the Import page lists and
+    """Failed replays an admin chose to hide (they cannot be repaired): left out of the failed lists and
     counts and of "repair all". Set in the admin console; kept across rebuilds, keyed by file path."""
 
     __tablename__ = "hidden_replays"

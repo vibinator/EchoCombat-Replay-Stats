@@ -13,7 +13,7 @@ from backend.scanner import scan_once
 def make_settings(tmp_path: Path, **overrides) -> Settings:
     share = tmp_path / "share"
     share.mkdir(exist_ok=True)
-    values = dict(data_dir=tmp_path / "data", source_dir=share, workers=0, settle_s=0, auto_scan=False)
+    values = dict(data_dir=tmp_path / "data", source_dir=share, workers=0, settle_s=0, auto_scan=False, import_api=True)
     return Settings(**(values | overrides))
 
 

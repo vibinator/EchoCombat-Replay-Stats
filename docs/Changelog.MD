@@ -13,6 +13,22 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 6 — 2026-10-30
+### Website
+- **Global stats** has its own page in the menu (`/stats`); it is no longer on the home page.
+- **Import page removed** from the public website (admin information): no menu entry, no page, and the import /
+  replay lists (`/api/import`, `/api/replays`) are switched off.
+
+### Admin console
+- **Status** (menu 6, `admin.bat status`) now shows the import progress: % finished, matches, replays being redone
+  after an update, speed over the last 10 minutes, time left, last replay finished.
+
+### Upgrading to Beta 6
+- Windows: restart `run.bat`.
+- QNAP: upload Beta 6, wait for the Actions run, then Recreate the application in Container Station.
+
+---
+
 ## Beta 5 — 2026-10-30
 ### Server
 - The QNAP NAS no longer builds the app (its Docker has no `git`, so building from GitHub failed). GitHub Actions now
