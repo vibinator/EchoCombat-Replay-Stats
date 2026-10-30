@@ -53,6 +53,30 @@ application only, labelled with the beta version (`Beta N: <your description>`).
 `.venv`, `node_modules`, the built website. If one of those is ever about to be uploaded anyway, the script stops
 before anything is sent. Needs Git for Windows (https://git-scm.com/download/win).
 
+## QNAP NAS (Docker / Container Station)
+The repository has a `Dockerfile` and `docker-compose.yml`: one container that builds the website and runs the server.
+The GitHub repository is private, so the NAS cannot build from the GitHub address directly: clone it onto the NAS first.
+1. Enable SSH on the NAS (Control Panel > Network & File Services > Telnet / SSH), log in, then:
+   ```
+   mkdir -p /share/Container/echovr-replay-stats/data
+   cd /share/Container/echovr-replay-stats
+   git clone https://github.com/vibinator/EchoCombat-Replay-Stats.git
+   ```
+   Git asks for your GitHub user name and a personal access token (GitHub > Settings > Developer settings >
+   Personal access tokens, read access to this repository) as the password. If `git` is missing on the NAS, use
+   `docker run --rm -it -v "$PWD":/git alpine/git clone https://github.com/vibinator/EchoCombat-Replay-Stats.git`.
+2. Check the paths in `docker-compose.yml`: `build` (the clone), the replay share (mounted read-only) and `data`.
+   QNAP shared folders live under `/share/<shared folder name>/...`. Set `ECHOVR_WORKERS` to about the NAS's core count.
+3. Container Station > Applications > Create, paste `docker-compose.yml`, or in the clone folder:
+   `docker compose up -d --build`.
+4. Open `http://<nas address>:8000`. The first import of all replays takes longer than on the PC.
+
+Update to a new beta: `cd /share/Container/echovr-replay-stats/EchoCombat-Replay-Stats && git pull && docker compose
+up -d --build` (or Recreate the application in Container Station). The `data` folder is outside the clone and is kept.
+
+Admin console in the container: `docker exec -it echovr-replay-stats python app/admin_console.py` (add a command,
+e.g. `status`). The website has no login (read-only), so keep port 8000 on your home network, not forwarded to the internet.
+
 ## Run (single server)
 ```
 cd app\frontend

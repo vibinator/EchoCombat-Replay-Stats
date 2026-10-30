@@ -1,0 +1,21 @@
+# EchoVR Replay Stats on a QNAP NAS (Container Station > Applications > Create), or `docker compose up -d --build`.
+# Expects the GitHub repository cloned to /share/Container/echovr-replay-stats/EchoCombat-Replay-Stats.
+# Check the paths under "build" and "volumes" match your NAS before deploying. See docs/Setup.MD (QNAP).
+services:
+  echovr-replay-stats:
+    build: /share/Container/echovr-replay-stats/EchoCombat-Replay-Stats   # the clone (full path, so pasting into Container Station works)
+    image: echovr-replay-stats:latest
+    container_name: echovr-replay-stats
+    restart: unless-stopped
+    ports:
+      - "8000:8000"   # website at http://<nas address>:8000 (change the left number if 8000 is taken on the NAS)
+    environment:
+      ECHOVR_DATA_DIR: /data
+      ECHOVR_REPLAY_SOURCE: /replays
+      ECHOVR_WORKERS: "4"            # parallel import processes: about the NAS's CPU core count
+      ECHOVR_SCAN_INTERVAL_S: "300"  # seconds between scans of the replay folder
+    volumes:
+      # Replay folder on the NAS, read-only: the app never writes to it
+      - /share/ECRanked/Replays:/replays:ro
+      # Database and processed files: outside the clone, so updates (git pull) never touch them
+      - /share/Container/echovr-replay-stats/data:/data

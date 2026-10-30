@@ -13,6 +13,19 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 3 — 2026-10-30
+### Server
+- Can run on a QNAP NAS (or any Docker host): new `Dockerfile`, `docker-compose.yml` and `.dockerignore`. The
+  container builds the website itself; replays are mounted read-only, the database lives in a mounted `data` folder.
+  Steps in Setup.MD (QNAP NAS).
+
+### Upgrading to Beta 3
+- Windows: nothing to do; restart `run.bat` to see "Beta 3" in the footer.
+- QNAP: clone the repository onto the NAS, check the folder paths in `docker-compose.yml`, then create the
+  application (see Setup.MD).
+
+---
+
 ## Beta 2 — 2026-10-30
 ### GitHub
 - The replay share's network address is no longer in the repository: Setup.MD and Architecture.MD show a placeholder

@@ -1,0 +1,18 @@
+# Only the application goes into the image (same idea as .gitignore)
+.git/
+.venv/
+.pytest_cache/
+data/
+tests/
+docs/
+**/node_modules/
+app/frontend/dist/
+**/__pycache__/
+*.pyc
+*.tsbuildinfo
+*.bat
+*.echoreplay
+*.ecrreplay
+*.db
+*.db-wal
+*.db-shm
