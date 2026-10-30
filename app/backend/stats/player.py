@@ -17,10 +17,6 @@ PING_PLACEHOLDER = 999  # API value when there is no reading; excluded from aver
 TOP_SPEED_WINDOW_S = 1.0  # top speed = highest speed held for a full window
 
 
-def _distance_sq(a, b) -> float:
-    return (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2
-
-
 class PlayerAccumulator:
     def __init__(self, user_id: str, bounds: Bounds | None, started_at: datetime, events: list[EventRecord]):
         self.user_id = user_id
@@ -56,6 +52,7 @@ class PlayerAccumulator:
         self._last_in_bounds_position = None
         self._loadout: tuple[str, str, str] | None = None
         self._speeds: deque[tuple[float, float]] = deque()  # (t_s, speed), in-bounds only
+        self._window_min: deque[tuple[float, float]] = deque()  # same samples, rising speeds: [0] = window minimum
 
     def event(self, frame: Frame, type_: str, data: dict | None = None) -> None:
         t_s = round((frame.timestamp - self.started_at).total_seconds(), 3)
@@ -91,6 +88,7 @@ class PlayerAccumulator:
             x, _, z = self._last_in_bounds_position
             self.event(frame, "death_est", {"x": round(x, 2), "z": round(z, 2)})
             self._speeds.clear()
+            self._window_min.clear()
         self._was_in_bounds = inside
 
     def _add_in_bounds(self, frame: Frame, p: PlayerFrame, teammates, enemies) -> None:
@@ -109,11 +107,18 @@ class PlayerAccumulator:
         elif p.arm == "Left":
             self.frames_left_arm += 1
 
-        pos = p.head_position
-        if any(o is not p and _distance_sq(pos, o.head_position) < NEAR_DISTANCE_SQ for o in teammates):
-            self.frames_near_mate += 1
-        if any(_distance_sq(pos, o.head_position) < NEAR_DISTANCE_SQ for o in enemies):
-            self.frames_near_enemy += 1
+        x, y, z = p.head_position  # head distance² written out: ~100k player frames x team size per match
+        for o in teammates:
+            if o is not p:
+                ox, oy, oz = o.head_position
+                if (x - ox) ** 2 + (y - oy) ** 2 + (z - oz) ** 2 < NEAR_DISTANCE_SQ:
+                    self.frames_near_mate += 1
+                    break
+        for o in enemies:
+            ox, oy, oz = o.head_position
+            if (x - ox) ** 2 + (y - oy) ** 2 + (z - oz) ** 2 < NEAR_DISTANCE_SQ:
+                self.frames_near_enemy += 1
+                break
 
         loadout = (p.weapon, p.tacmod, p.ordnance)
         if not any(loadout):
@@ -124,13 +129,18 @@ class PlayerAccumulator:
             self.event(frame, "loadout_change", dict(zip(("weapon", "tacmod", "ordnance"), loadout)))
 
     def _track_top_speed(self, t_s: float, speed: float) -> None:
-        window = self._speeds
-        window.append((t_s, speed))
+        window, lows = self._speeds, self._window_min
+        sample = (t_s, speed)
+        window.append(sample)
+        while lows and lows[-1][1] >= speed:  # can never be the minimum again
+            lows.pop()
+        lows.append(sample)
         # Keep the shortest run of samples that still spans the window.
         while len(window) > 1 and window[1][0] <= t_s - TOP_SPEED_WINDOW_S:
-            window.popleft()
+            if window.popleft() is lows[0]:
+                lows.popleft()
         if window[0][0] <= t_s - TOP_SPEED_WINDOW_S:
-            self.top_speed = max(self.top_speed, min(s for _, s in window))
+            self.top_speed = max(self.top_speed, lows[0][1])
 
     def result(self, ended_at: datetime) -> PlayerStats:
         p = self.latest

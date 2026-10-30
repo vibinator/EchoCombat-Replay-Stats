@@ -29,12 +29,26 @@ HEX_CODES = {
 }
 
 
-def gear_code(value) -> str:
-    """Loadout code as text; hex symbols of the older API -> their code (unknown symbols kept as they are)."""
+def _gear_code(value) -> str:
     code = str(value or "")
     if code[:2].lower() == "0x":
         return HEX_CODES.get("0x" + code[2:].upper(), code)
     return code
+
+
+_GEAR_CODES: dict = {}  # value -> code: a match uses a handful of values, looked up ~25 times a second per player
+
+
+def gear_code(value) -> str:
+    """Loadout code as text; hex symbols of the older API -> their code (unknown symbols kept as they are)."""
+    try:
+        return _GEAR_CODES[value]
+    except KeyError:
+        if len(_GEAR_CODES) < 1024:
+            _GEAR_CODES[value] = _gear_code(value)
+        return _gear_code(value)
+    except TypeError:  # unhashable (malformed line)
+        return _gear_code(value)
 
 
 TIMESTAMP_FORMATS = ("%Y-%m-%d %H:%M:%S.%f", "%Y/%m/%d %H:%M:%S.%f", "%Y-%m-%d %H:%M:%S", "%Y/%m/%d %H:%M:%S")
@@ -106,22 +120,24 @@ def _vec(v) -> Vec3:
 
 
 def _player(p: dict) -> PlayerFrame:
+    # positional, in PlayerFrame field order (faster than keywords: ~100k calls per match)
+    get = p.get
     return PlayerFrame(
-        user_id=str(p["userid"]),
-        name=p.get("name", ""),
-        slot=p.get("playerid", -1),
-        number=p.get("number", 0),
-        level=p.get("level", 0),
-        ping=p.get("ping", 0),
-        packet_loss=p.get("packetlossratio", 0.0),
-        head_position=_vec(p["head"]["position"]),
-        body_up=_vec(p["body"]["up"]),
-        velocity=_vec(p["velocity"]),
-        weapon=gear_code(p.get("Weapon", "")),
-        tacmod=gear_code(p.get("TacMod", p.get("Ability", ""))),  # older API: Ability / Grenade
-        ordnance=gear_code(p.get("Ordnance", p.get("Grenade", ""))),
-        arm=p.get("Arm", ""),
-        emote=bool(p.get("is_emote_playing", False)),
+        str(p["userid"]),  # user_id
+        get("name", ""),
+        get("playerid", -1),  # slot
+        get("number", 0),
+        get("level", 0),
+        get("ping", 0),
+        get("packetlossratio", 0.0),  # packet_loss
+        _vec(p["head"]["position"]),  # head_position
+        _vec(p["body"]["up"]),  # body_up
+        _vec(p["velocity"]),
+        gear_code(get("Weapon", "")),
+        gear_code(get("TacMod", get("Ability", ""))),  # tacmod; older API: Ability / Grenade
+        gear_code(get("Ordnance", get("Grenade", ""))),  # ordnance
+        get("Arm", ""),
+        bool(get("is_emote_playing", False)),  # emote
     )
 
 

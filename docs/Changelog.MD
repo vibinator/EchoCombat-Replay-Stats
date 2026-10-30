@@ -13,6 +13,19 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 29 — 2026-10-30
+### Import
+- **Reading a replay takes ~12 % less processor time** (parser and stats; same results, checked on 13 replays:
+  stats, events and position files byte for byte). Helps where the processor is the limit (the NAS, 4 processes);
+  no re-import.
+- Measured on the PC: the import is limited by reading from the share (45-58 MB/s at its fastest, whether 2.6 or
+  4.2 files/s), not by processing (8 processes could read ~700 MB/s), so it is not faster there.
+
+### Upgrading to Beta 29
+- QNAP: upload Beta 29, wait for the Actions run, Recreate. Windows: restart `run.bat`.
+
+---
+
 ## Beta 28 — 2026-10-30
 ### Website
 - **Player heatmaps 7–11x faster** (D50), same picture as before (checked cell by cell on 600 real matches, every
