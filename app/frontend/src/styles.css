@@ -1514,3 +1514,61 @@ tr.me td {
     position: static;
   }
 }
+
+/* Permissions page: one card per permission */
+.permissions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+.permission-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+}
+.permission-card h2,
+.permission-card p {
+  margin: 0;
+}
+.permission-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.permission-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+}
+.permission-list .tag {
+  margin-left: 0;
+}
+.permission-name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.permission-list code {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+.permission-list li > :last-child:is(button, .tag[title]) {
+  margin-left: auto;
+}
+.permission-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.permission-add input,
+.permission-add select:last-of-type {
+  flex: 1 1 160px;
+  min-width: 0;
+}

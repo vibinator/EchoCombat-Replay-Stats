@@ -480,9 +480,42 @@ export const runConsole = (command: string, args: Record<string, unknown>) =>
     body: JSON.stringify(args),
   });
 
-/** Console export: every achievement and challenge, name + the rule to win it. */
-export const getConsoleAchievements = () => send<{ name: string; rule: string }[]>("/api/admin/console/achievements");
+/** What the icon picker needs (Admin tab and Console export). */
+export interface IconRow {
+  id: number;
+  name: string;
+  icon: string | null;
+  default_icon: string | null;
+}
+
+export interface ConsoleAchievement extends IconRow {
+  rule: string;
+}
+
+/** Console export: every achievement and challenge, name + the rule to win it + its icon. */
+export const getConsoleAchievements = () => send<ConsoleAchievement[]>("/api/admin/console/achievements");
 export const CONSOLE_ACHIEVEMENTS_CSV = "/api/admin/console/achievements.csv";
+
+/** Permissions page: who gets the Admin tab, the Console and the Preview, by Discord role or user id. */
+export type Permission = "admin" | "console" | "preview";
+export interface DiscordEntry {
+  id: string;
+  name: string;
+}
+export interface PermissionState {
+  permissions: Record<Permission, { roles: DiscordEntry[]; users: DiscordEntry[] }>;
+  /** ECHOVR_DISCORD_PREVIEW_ROLES (YAML): always the Console, cannot be removed on the page */
+  fixed: (DiscordEntry & { type: "role" | "user" })[];
+  /** every role in the Discord server; null when the bot cannot list them */
+  server_roles: DiscordEntry[] | null;
+}
+export const getPermissions = () => send<PermissionState>("/api/admin/permissions");
+export const changePermission = (change: { permission: Permission; type: "role" | "user"; id: string; remove?: boolean }) =>
+  send<PermissionState>("/api/admin/permissions", {
+    method: "POST",
+    headers: { ...ADMIN_WRITE, "Content-Type": "application/json" },
+    body: JSON.stringify(change),
+  });
 
 export interface AchievementRarity extends AchievementRule {
   unlocked_share: number | null;

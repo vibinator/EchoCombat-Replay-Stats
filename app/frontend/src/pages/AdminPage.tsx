@@ -8,7 +8,7 @@ import {
   loginUrl,
   setIcon,
   uploadIcon,
-  type AdminAchievementRow,
+  type IconRow,
 } from "../api";
 import { Status, TableWrap } from "../components/common";
 import { EmptyState } from "../components/ui";
@@ -37,10 +37,11 @@ export function AdminPage() {
   return <AdminAchievements />;
 }
 
-const IMG = "/achievements/";
-const GENERIC_ICON = "happy_cubesat.png";
+export const IMG = "/achievements/";
+export const GENERIC_ICON = "happy_cubesat.png";
 
-function IconEditor({ row, onDone }: { row: AdminAchievementRow; onDone: (changed: boolean) => void }) {
+/** Icon picker for one achievement (D43): Admin tab and the Console page's achievement export. */
+export function IconEditor({ row, onDone }: { row: IconRow; onDone: (changed: boolean) => void }) {
   const choices = useApi(getIconChoices, `icon-choices-${row.icon}`); // an upload adds a choice
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);

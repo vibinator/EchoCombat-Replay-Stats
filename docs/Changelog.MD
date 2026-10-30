@@ -13,6 +13,30 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 19 — 2026-10-30
+### Website
+- **Permissions page** (menu: *Permissions*, for Console users): give or take away the **Admin tab**, the
+  **Console** and the **Preview**, each by **Discord role** (everyone with it; picked from the server's roles by
+  name) or by a **person's Discord user id**. Changes apply straight away and are kept across updates. Admins and
+  Console users also get the Preview. Each change is written to the server log with who made it.
+- The ids in `ECHOVR_DISCORD_PREVIEW_ROLES` (the YAML) are shown on the Console card as **YAML, fixed**: they
+  always have the Console and cannot be removed on the page, so the owner cannot be locked out.
+- **Console page > Export achievements and challenges** now shows each **icon**. Click one to pick another badge,
+  upload a PNG or **reset it to the original**. Console users can change icons as well as admins.
+- The Console page's view-only role lists (options 14, 15, 17) are gone: the Permissions page replaces them.
+  "Check a member's access" stays.
+
+### Admin console
+- Option 16 (`discord-check`) follows the Permissions page too (user ids and roles for all three permissions).
+- Options 14 / 15 / 17 still edit preview roles, admin roles and admin users (the same lists as the page); console
+  roles / users and preview users are set on the Permissions page.
+
+### Upgrading to Beta 19
+- QNAP: upload Beta 19, wait for the Actions run, Recreate.
+- Windows: restart `run.bat`.
+
+---
+
 ## Beta 18 — 2026-10-30
 ### Website
 - **Console page > Achievements > Export achievements and challenges**: every achievement and challenge with just

@@ -20,6 +20,13 @@ def require_admin(request: Request) -> None:
         raise ApiError(403, "admin_only", "Admins only: log in with Discord with an admin role")
 
 
+def require_icon_editor(request: Request) -> None:
+    """Icons are changed from the Admin tab (admins) or the Console page's achievement export (console access,
+    asked from Discord every time, D45)."""
+    if not (auth.is_admin(request) or auth.has_console(request, fresh=True)):
+        raise ApiError(403, "admin_only", "Only admins and console users can change icons")
+
+
 @router.get("/achievements")
 def achievement_list(request: Request):
     """Every achievement / challenge with how to get it (the same rows as the Excel file)."""
@@ -34,7 +41,7 @@ def achievement_list(request: Request):
 @router.get("/icons")
 def icon_choices(request: Request):
     """Icons an admin can pick: built-in badge art and earlier uploads (served under /achievements/)."""
-    require_admin(request)
+    require_icon_editor(request)
     return icons.available(request.app.state.settings)
 
 
@@ -44,7 +51,7 @@ class IconChoice(BaseModel):
 
 @router.put("/achievements/{rule_id}/icon")
 def set_icon(request: Request, rule_id: int, choice: IconChoice):
-    require_admin(request)
+    require_icon_editor(request)
     with request.app.state.sessionmaker() as db:
         try:
             icons.set_icon(db, request.app.state.settings, rule_id, choice.icon)
@@ -56,7 +63,7 @@ def set_icon(request: Request, rule_id: int, choice: IconChoice):
 @router.post("/achievements/{rule_id}/icon")
 async def upload_icon(request: Request, rule_id: int):
     """Body = the PNG file itself (Content-Type: image/png). Stored, then used for this achievement."""
-    require_admin(request)
+    require_icon_editor(request)
     data = await request.body()
     settings = request.app.state.settings
     try:

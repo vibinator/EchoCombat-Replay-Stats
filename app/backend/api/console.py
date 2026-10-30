@@ -1,7 +1,7 @@
 """Console page (D45): admin.bat on the website, for Discord members with a role from ECHOVR_DISCORD_PREVIEW_ROLES.
 Runs the admin console's own commands (app/admin_console.py) on the server's database and returns what they print,
 so the page and admin.bat always do the same thing. The page asks for confirmation; commands run with --yes.
-Who gets the preview / admin is not changed here: those lists are shown, but edited in admin.bat only."""
+Who gets the preview / admin / console is managed on the Permissions page (api/permissions.py)."""
 
 import contextlib
 import io
@@ -15,7 +15,7 @@ from pydantic import BaseModel
 
 import admin_console as console
 
-from .. import auth
+from .. import auth, icons
 from ..achievement_sheet import csv_bytes, name_and_rule
 from ..errors import ApiError
 
@@ -60,10 +60,6 @@ COMMANDS = {  # name as in admin.bat -> (sessions, settings, args) -> None
     "repair": lambda s, st, a: console.cmd_repair(s, _required(a.replay, "a replay id or path")),
     "scan": lambda s, st, a: console.cmd_scan(s, st),
     "reprocess-all": lambda s, st, a: console.cmd_reprocess_all(s, st, yes=True),
-    # only the roles that are set: the console's list of every server role is for picking one, not possible here
-    "preview-roles": lambda s, st, a: console.cmd_discord_roles(s, st, "preview"),
-    "admin-roles": lambda s, st, a: console.cmd_discord_roles(s, st, "admin"),
-    "admin-users": lambda s, st, a: console.cmd_admin_users(s, st),
     "discord-check": lambda s, st, a: console.cmd_discord_check(s, st, _required(a.user_id, "a Discord user id")),
 }
 
@@ -100,9 +96,12 @@ def require_console(request: Request, what: str) -> dict:
 
 @router.get("/achievements")
 def achievements(request: Request):
-    """Every achievement and challenge: name and the rule to win it (same text as on the website)."""
+    """Every achievement and challenge: name, the rule to win it (same text as on the website) and its icon."""
     require_console(request, "achievements")
-    return name_and_rule()
+    with request.app.state.sessionmaker() as db:
+        chosen = icons.overrides(db)
+    return [r | {"default_icon": icons.default(r["id"]), "icon": chosen.get(r["id"], icons.default(r["id"]))}
+            for r in name_and_rule()]
 
 
 @router.get("/achievements.csv")

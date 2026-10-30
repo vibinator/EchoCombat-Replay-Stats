@@ -290,14 +290,7 @@ def cmd_discord_roles(sessions, settings: Settings, kind: str, add: str | None =
 
 
 def _discord_user(settings: Settings, user_id: str) -> str:
-    """Display name of a Discord user via the bot, or '?'."""
-    if not settings.discord_bot_token:
-        return "?"
-    try:
-        r = auth._bot_get(settings, f"/users/{user_id.strip()}")
-        return (r.json().get("global_name") or r.json().get("username") or "?") if r.status_code == 200 else "?"
-    except Exception:
-        return "?"
+    return auth.user_name(settings, user_id)
 
 
 def cmd_admin_users(sessions, settings: Settings, add: str | None = None, remove: str | None = None) -> list[str]:
@@ -340,20 +333,14 @@ def cmd_discord_check(sessions, settings: Settings, user_id: str) -> dict:
         raise ConsoleError(f"Discord answered {r.status_code}: {r.text[:200]}")
     member = r.json() if r.status_code == 200 else None
     roles = set(member.get("roles", [])) if member else set()
-    yaml_ids = set(settings.discord_preview_roles)
     with sessions() as db:
-        admin_roles = set(actions.discord_roles(db, "admin"))
-        is_admin = user_id in actions.discord_roles(db, "admin_user") or bool(admin_roles & roles)
-        has_preview = (is_admin or user_id in yaml_ids
-                       or bool((set(actions.discord_roles(db, "preview")) | yaml_ids) & roles))
-    has_console = user_id in yaml_ids or bool(yaml_ids & roles)
+        is_admin, has_console, has_preview = (auth.allowed(settings, db, user_id, kind, lambda: frozenset(roles))
+                                              for kind in ("admin", "console", "preview"))
     user = (member or {}).get("user", {})
     name = user.get("global_name") or user.get("username") or _discord_user(settings, user_id)
     print(f"{name} ({user_id})" + ("" if member else ": not in the Discord server"))
     for label, ok in (("Admin tab", is_admin), ("Preview", has_preview), ("Console page", has_console)):
         print(f"  {label:<14}{'yes' if ok else 'no'}")
-    if not yaml_ids:
-        print("Nobody gets the Console page: ECHOVR_DISCORD_PREVIEW_ROLES is not set here.")
     if not auth.enabled(settings):
         print("Note: the Discord login is off here (client secret or bot token missing).")
     print("A change shows on the website within 5 minutes, or at once after logging out and in again.")

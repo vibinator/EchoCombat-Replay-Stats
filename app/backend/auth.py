@@ -3,6 +3,7 @@ you are); access = a preview role in the EchoVR Combat Discord server, checked w
 kept). The session is a signed cookie: nothing is written to the database, so the website stays read-only (D38)."""
 
 import base64
+import functools
 import hashlib
 import hmac
 import json
@@ -10,6 +11,7 @@ import logging
 import secrets
 import threading
 import time
+from typing import Callable
 from urllib.parse import urlencode
 
 import httpx
@@ -55,6 +57,26 @@ def server_roles(settings: Settings) -> list[dict]:
     r.raise_for_status()
     roles = sorted(r.json(), key=lambda x: -x.get("position", 0))
     return [{"id": x["id"], "name": x["name"]} for x in roles if x["id"] != settings.discord_guild_id]  # not @everyone
+
+
+_names: dict[str, str] = {}  # discord user id -> display name (names rarely change; the list is short)
+
+
+def user_name(settings: Settings, user_id: str) -> str:
+    """Display name of a Discord user via the bot, or '?'."""
+    user_id = user_id.strip()
+    if user_id in _names:
+        return _names[user_id]
+    if not settings.discord_bot_token:
+        return "?"
+    try:
+        r = _bot_get(settings, f"/users/{user_id}")
+        if r.status_code != 200:
+            return "?"
+        _names[user_id] = r.json().get("global_name") or r.json().get("username") or "?"
+        return _names[user_id]
+    except Exception:
+        return "?"
 
 
 def redirect_uri(settings: Settings) -> str:
@@ -173,43 +195,42 @@ def viewer(request: Request) -> dict | None:
     return {"id": session["id"], "name": session["name"]} if session and "id" in session else None
 
 
-def _has_role(request: Request, kind: str) -> bool:
+def allowed(settings: Settings, db, user_id: str, kind: str, roles: Callable[[], frozenset[str]]) -> bool:
+    """Whether a person has permission `kind` ("admin" / "console" / "preview"): by their user id or one of their
+    Discord roles (Permissions page). ECHOVR_DISCORD_PREVIEW_ROLES ids (YAML) always give the console. Admins and
+    console users also get the preview. `roles` is only called when an id does not settle it."""
+    if kind == "preview" and (allowed(settings, db, user_id, "admin", roles) or allowed(settings, db, user_id, "console", roles)):
+        return True
+    ids = set(settings.discord_preview_roles) if kind == "console" else set()
+    if user_id in ids | set(discord_roles(db, f"{kind}_user")):
+        return True
+    role_ids = ids | set(discord_roles(db, kind))
+    return bool(role_ids and role_ids & roles())
+
+
+def _has(request: Request, kind: str, fresh: bool = False) -> bool:
+    """fresh: ask Discord now instead of using the remembered roles, and refuse when it cannot be asked."""
     user = viewer(request)
     if not user:
         return False
     settings = request.app.state.settings
+    if fresh:
+        forget_roles(user["id"])
     with request.app.state.sessionmaker() as db:
-        if user["id"] in discord_roles(db, "admin_user"):  # named admin: no role needed
-            return True
-        if kind == "preview" and user["id"] in settings.discord_preview_roles:  # a person's id in the YAML (D45)
-            return True
-        allowed = set(discord_roles(db, "admin"))
-        if kind == "preview":  # admins see everything
-            allowed |= set(settings.discord_preview_roles) | set(discord_roles(db, "preview"))
-    return bool(allowed & member_roles(settings, user["id"]))
+        return allowed(settings, db, user["id"], kind, functools.cache(lambda: member_roles(settings, user["id"])))
 
 
 def has_preview(request: Request) -> bool:
-    """The visitor may see achievements before their launch date (preview or admin role)."""
-    return _has_role(request, "preview")
+    """The visitor may see achievements before their launch date."""
+    return _has(request, "preview")
 
 
 def is_admin(request: Request) -> bool:
-    """The visitor has an admin role: the website's Admin tab (D42). Still read-only: changes are made in admin.bat."""
-    return _has_role(request, "admin")
+    """The website's Admin tab (D42)."""
+    return _has(request, "admin")
 
 
 def has_console(request: Request, fresh: bool = False) -> bool:
-    """The visitor is named in ECHOVR_DISCORD_PREVIEW_ROLES (the YAML / environment, not the console's preview
-    roles), by a role they have or by their own Discord user id: the website's Console page, admin.bat on the
-    website (D45). fresh: ask Discord now instead of using the remembered roles, and refuse when Discord cannot
-    be asked (every console command: a removed role stops working at once)."""
-    user = viewer(request)
-    ids = set(request.app.state.settings.discord_preview_roles)
-    if not user or not ids:
-        return False
-    if user["id"] in ids:
-        return True
-    if fresh:
-        forget_roles(user["id"])
-    return bool(ids & member_roles(request.app.state.settings, user["id"]))
+    """The Console and Permissions pages (D45). Every command asks with fresh=True: a removed role stops working
+    at once."""
+    return _has(request, "console", fresh)

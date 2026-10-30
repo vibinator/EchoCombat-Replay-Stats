@@ -9,7 +9,7 @@ from starlette.exceptions import HTTPException
 from parser import PARSER_VERSION
 
 from . import auth, icons
-from .api import achievements, admin, auth as auth_api, console, imports, leaderboard, matches, overview, players, replays
+from .api import achievements, admin, auth as auth_api, console, imports, leaderboard, matches, overview, permissions, players, replays
 from .config import PROJECT_ROOT, Settings
 from .db import open_db
 from .errors import ApiError, api_error_handler
@@ -61,9 +61,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def read_only(request, call_next):
         """The website never changes data: every change is made in the admin console (admin.bat). Exceptions:
         achievement icons in the Admin tab (D43), for Discord admins, and the Console page (D45, admin.bat itself), for
-        ECHOVR_DISCORD_PREVIEW_ROLES members; the X-EchoVR header proves the request comes from this site's own pages
+        ECHOVR_DISCORD_PREVIEW_ROLES members, and the Permissions page (console users); the X-EchoVR header proves the request comes from this site's own pages
         (other sites cannot send it without a CORS preflight, which is refused)."""
-        if (request.method in ("PUT", "POST") and request.url.path.startswith(("/api/admin/achievements/", "/api/admin/console/"))
+        if (request.method in ("PUT", "POST") and request.url.path.startswith(("/api/admin/achievements/", "/api/admin/console/", "/api/admin/permissions"))
                 and request.headers.get("x-echovr") == "1"):
             return await call_next(request)  # the endpoint checks the role
         if request.method not in ("GET", "HEAD", "OPTIONS"):
@@ -93,6 +93,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(auth_api.router)
     app.include_router(admin.router)
     app.include_router(console.router)
+    app.include_router(permissions.router)
 
     @app.get("/api/health")
     def health():

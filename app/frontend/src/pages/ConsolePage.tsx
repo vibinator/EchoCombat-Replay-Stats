@@ -1,14 +1,8 @@
 import { useState } from "react";
-import {
-  CONSOLE_ACHIEVEMENTS_CSV,
-  forgetResponses,
-  getConsoleAchievements,
-  getMe,
-  loginUrl,
-  runConsole,
-} from "../api";
+import { CONSOLE_ACHIEVEMENTS_CSV, forgetResponses, getConsoleAchievements, getMe, loginUrl, runConsole } from "../api";
 import { Status, TableWrap } from "../components/common";
 import { EmptyState } from "../components/ui";
+import { GENERIC_ICON, IconEditor, IMG } from "./AdminPage";
 import { useApi } from "../useApi";
 
 type Field = {
@@ -85,8 +79,7 @@ const GROUPS: { title: string; commands: Command[] }[] = [
         label: "Replays that cannot be repaired",
         help: "Failed replays that repair cannot fix. Hiding them leaves them out of the failed lists and counts; nothing is deleted.",
         fields: [{ key: "hide", label: "Hide them", kind: "check" }],
-        confirm: (v) =>
-          v.hide ? "Hide every failed replay that cannot be repaired?" : null,
+        confirm: (v) => (v.hide ? "Hide every failed replay that cannot be repaired?" : null),
       },
       {
         name: "hidden",
@@ -100,12 +93,7 @@ const GROUPS: { title: string; commands: Command[] }[] = [
           },
           { key: "unhide_all", label: "Show all of them again", kind: "check" },
         ],
-        confirm: (v) =>
-          v.unhide_all
-            ? "Show every hidden replay again?"
-            : v.unhide
-              ? `Show ${v.unhide} again?`
-              : null,
+        confirm: (v) => (v.unhide_all ? "Show every hidden replay again?" : v.unhide ? `Show ${v.unhide} again?` : null),
       },
       {
         name: "reprocess-all",
@@ -137,8 +125,7 @@ const GROUPS: { title: string; commands: Command[] }[] = [
             hint: "One name or id per line",
           },
         ],
-        confirm: (v) =>
-          `Merge ${lines(v.others).length} record(s) into ${v.main}?`,
+        confirm: (v) => `Merge ${lines(v.others).length} record(s) into ${v.main}?`,
       },
       {
         name: "merges",
@@ -149,9 +136,7 @@ const GROUPS: { title: string; commands: Command[] }[] = [
         name: "unmerge",
         label: "Undo a merge",
         help: "Make a merged record a separate player again.",
-        fields: [
-          { key: "alias", label: "Merged id", hint: "From “List merges”" },
-        ],
+        fields: [{ key: "alias", label: "Merged id", hint: "From “List merges”" }],
         confirm: (v) => `Undo the merge of ${v.alias}?`,
       },
     ],
@@ -177,53 +162,25 @@ const GROUPS: { title: string; commands: Command[] }[] = [
           { key: "clear", label: "Remove both dates", kind: "check" },
         ],
         confirm: (v) =>
-          v.clear
-            ? "Remove both dates? Achievements go back to “Coming soon”."
-            : v.start
-              ? `Set the launch date to ${v.start}?`
-              : null,
+          v.clear ? "Remove both dates? Achievements go back to “Coming soon”." : v.start ? `Set the launch date to ${v.start}?` : null,
       },
     ],
   },
   {
-    title: "Discord access (view only)",
+    title: "Discord access",
     commands: [
       {
         name: "discord-check",
         label: "Check a member's access",
-        help: "Whether one person gets the Admin tab, the Preview and the Console page.",
-        fields: [
-          {
-            key: "user_id",
-            label: "Discord user id",
-            hint: "In Discord: right-click the person > Copy User ID",
-          },
-        ],
-      },
-      {
-        name: "preview-roles",
-        label: "Preview roles",
-        help: "Roles that see achievements before the launch. To change them, use admin.bat (option 14).",
-      },
-      {
-        name: "admin-roles",
-        label: "Admin roles",
-        help: "Roles that get the Admin tab. To change them, use admin.bat (option 15).",
-      },
-      {
-        name: "admin-users",
-        label: "Admin users",
-        help: "People who get the Admin tab by their user id. To change them, use admin.bat (option 17).",
+        help: "Whether one person gets the Admin tab, the Preview and the Console page. To change who gets what, use the Permissions page.",
+        fields: [{ key: "user_id", label: "Discord user id", hint: "In Discord: right-click the person > Copy User ID" }],
       },
     ],
   },
 ];
 
 /** What the server expects: text, true / false, and `others` as a list. An empty date is left out (= keep). */
-function toArgs(
-  fields: Field[],
-  values: Record<string, string>,
-): Record<string, unknown> {
+function toArgs(fields: Field[], values: Record<string, string>): Record<string, unknown> {
   const args: Record<string, unknown> = {};
   for (const f of fields) {
     const v = values[f.key] ?? "";
@@ -256,14 +213,10 @@ export function ConsolePage() {
           {!me.data.enabled ? (
             "Discord login is not set up on this server."
           ) : user ? (
-            <>
-              You are logged in as {user.name}, but you do not have access to
-              the console.
-            </>
+            <>You are logged in as {user.name}, but you do not have access to the console.</>
           ) : (
             <>
-              The console is for site staff.{" "}
-              <a href={loginUrl("/console")}>Log in with Discord</a>
+              The console is for site staff. <a href={loginUrl("/console")}>Log in with Discord</a>
             </>
           )}
         </EmptyState>
@@ -277,8 +230,7 @@ function Console() {
   const [values, setValues] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [results, setResults] = useState<Result[]>([]);
-  const set = (key: string, value: string) =>
-    setValues((v) => ({ ...v, [key]: value }));
+  const set = (key: string, value: string) => setValues((v) => ({ ...v, [key]: value }));
 
   async function run() {
     const question = selected.confirm?.(values);
@@ -296,10 +248,7 @@ function Console() {
         ...prev,
       ]);
     try {
-      const r = await runConsole(
-        selected.name,
-        toArgs(selected.fields ?? [], values),
-      );
+      const r = await runConsole(selected.name, toArgs(selected.fields ?? [], values));
       add(r.ok, r.output || "Done.");
       forgetResponses(); // other pages show the change straight away
     } catch (e) {
@@ -313,8 +262,8 @@ function Console() {
     <section>
       <h1>Console</h1>
       <p className="muted">
-        The admin console on the website. Commands run on the server and changes
-        apply straight away. Every command is logged with your Discord name.
+        The admin console on the website. Commands run on the server and changes apply straight away. Every command is logged with your
+        Discord name.
       </p>
       <div className="console-layout">
         <nav className="console-menu" aria-label="Console commands">
@@ -353,23 +302,14 @@ function Console() {
               {selected.fields?.map((f) =>
                 f.kind === "check" ? (
                   <label key={f.key} className="console-check">
-                    <input
-                      type="checkbox"
-                      checked={values[f.key] === "1"}
-                      onChange={(e) => set(f.key, e.target.checked ? "1" : "")}
-                    />
+                    <input type="checkbox" checked={values[f.key] === "1"} onChange={(e) => set(f.key, e.target.checked ? "1" : "")} />
                     {f.label}
                   </label>
                 ) : (
                   <label key={f.key} className="console-field">
                     <span>{f.label}</span>
                     {f.kind === "list" ? (
-                      <textarea
-                        rows={3}
-                        placeholder={f.hint}
-                        value={values[f.key] ?? ""}
-                        onChange={(e) => set(f.key, e.target.value)}
-                      />
+                      <textarea rows={3} placeholder={f.hint} value={values[f.key] ?? ""} onChange={(e) => set(f.key, e.target.value)} />
                     ) : (
                       <input
                         type={f.kind === "date" ? "date" : "text"}
@@ -397,15 +337,10 @@ function Console() {
             </div>
           )}
           {results.map((r) => (
-            <article
-              key={r.id}
-              className={`panel console-output${r.ok ? "" : " failed"}`}
-            >
+            <article key={r.id} className={`panel console-output${r.ok ? "" : " failed"}`}>
               <header>
                 <strong>{r.label}</strong>
-                <span className={r.ok ? "tag" : "tag error"}>
-                  {r.ok ? "Done" : "Failed"}
-                </span>
+                <span className={r.ok ? "tag" : "tag error"}>{r.ok ? "Done" : "Failed"}</span>
                 <span className="muted">{r.at}</span>
               </header>
               <pre>{r.output}</pre>
@@ -419,19 +354,16 @@ function Console() {
 
 /** Name + rule for every achievement and challenge: copy (pastes as two columns into Excel / Sheets) or CSV. */
 function AchievementExport() {
-  const list = useApi(getConsoleAchievements, "console-achievements");
+  const [version, setVersion] = useState(0); // an icon change loads the list again
+  const list = useApi(getConsoleAchievements, `console-achievements-${version}`);
+  const [editing, setEditing] = useState<number | null>(null);
   const [q, setQ] = useState("");
   const [copied, setCopied] = useState(false);
   const term = q.trim().toLowerCase();
-  const items = (list.data ?? []).filter(
-    (r) => !term || `${r.name} ${r.rule}`.toLowerCase().includes(term),
-  );
+  const items = (list.data ?? []).filter((r) => !term || `${r.name} ${r.rule}`.toLowerCase().includes(term));
 
   async function copy() {
-    const text = [
-      "Name\tHow to win it",
-      ...items.map((r) => `${r.name}\t${r.rule}`),
-    ].join("\n");
+    const text = ["Name\tHow to win it", ...items.map((r) => `${r.name}\t${r.rule}`)].join("\n");
     await navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -441,48 +373,59 @@ function AchievementExport() {
     <div className="panel console-form">
       <h2>Export achievements and challenges</h2>
       <p className="muted">
-        Every achievement and challenge with the rule to win it, exactly as the
-        website shows it.
+        Every achievement and challenge with the rule to win it, exactly as the website shows it. Click an icon to change it or set it back
+        to the original.
       </p>
       <div className="filters">
-        <input
-          type="search"
-          placeholder="Filter"
-          aria-label="Filter achievements"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-        />
-        <button
-          className="secondary"
-          type="button"
-          disabled={!items.length}
-          onClick={copy}
-        >
+        <input type="search" placeholder="Filter" aria-label="Filter achievements" value={q} onChange={(e) => setQ(e.target.value)} />
+        <button className="secondary" type="button" disabled={!items.length} onClick={copy}>
           {copied ? "Copied" : "Copy"}
         </button>
         <a className="button" href={CONSOLE_ACHIEVEMENTS_CSV} download>
           Download CSV
         </a>
       </div>
+      {editing !== null && list.data?.some((r) => r.id === editing) && (
+        <IconEditor
+          row={list.data.find((r) => r.id === editing)!}
+          onDone={(changed) => {
+            if (changed) setVersion((v) => v + 1);
+            else setEditing(null);
+          }}
+        />
+      )}
       <Status loading={list.loading} error={list.error} />
       {list.data && (
         <>
           <p className="muted">
             {items.length} of {list.data.length}
-            {term &&
-              " (Copy takes the filtered list; the CSV always has all of them)"}
+            {term && " (Copy takes the filtered list; the CSV always has all of them)"}
           </p>
           <TableWrap>
             <table className="stack">
               <thead>
                 <tr>
+                  <th>Icon</th>
                   <th>Name</th>
                   <th>How to win it</th>
                 </tr>
               </thead>
               <tbody>
                 {items.map((r) => (
-                  <tr key={r.name}>
+                  <tr key={r.id}>
+                    <td data-label="Icon">
+                      <button
+                        className="icon-choice"
+                        title="Change icon"
+                        onClick={() => {
+                          setEditing(r.id);
+                          window.scrollTo({ top: 0, behavior: "smooth" });
+                        }}
+                      >
+                        <img src={IMG + (r.icon ?? GENERIC_ICON)} alt={`Change icon for ${r.name}`} />
+                      </button>
+                      {r.icon !== r.default_icon && <span className="tag">changed</span>}
+                    </td>
                     <td data-label="Name">
                       <strong>{r.name}</strong>
                     </td>

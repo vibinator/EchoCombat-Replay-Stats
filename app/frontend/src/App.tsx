@@ -10,6 +10,7 @@ import { HomePage } from "./pages/HomePage";
 import { LeaderboardPage } from "./pages/LeaderboardPage";
 import { MatchPage } from "./pages/MatchPage";
 import { MatchesPage } from "./pages/MatchesPage";
+import { PermissionsPage } from "./pages/PermissionsPage";
 import { PlayerPage } from "./pages/PlayerPage";
 import { PlayersPage } from "./pages/PlayersPage";
 import { useAchievementsAccess } from "./components/AchievementsView";
@@ -114,7 +115,16 @@ function Layout() {
           {menuOpen ? "Close" : "Menu"}
         </button>
         <nav id="main-nav" className={menuOpen ? "open" : ""}>
-          {[...NAV, ...(user?.admin ? ([["/admin", "Admin"]] as const) : []), ...(user?.console ? ([["/console", "Console"]] as const) : [])].map(([to, label]) => (
+          {[
+            ...NAV,
+            ...(user?.admin ? ([["/admin", "Admin"]] as const) : []),
+            ...(user?.console
+              ? ([
+                  ["/console", "Console"],
+                  ["/permissions", "Permissions"],
+                ] as const)
+              : []),
+          ].map(([to, label]) => (
             <NavLink key={to} to={to} end={to === "/"}>
               {label}
               {to === "/achievements" && achievements.visible === false && <span className="tag">soon</span>}
@@ -150,6 +160,7 @@ function Layout() {
           <Route path="/achievements" element={<AchievementsPage />} />
           <Route path="/admin" element={<AdminPage />} />
           <Route path="/console" element={<ConsolePage />} />
+          <Route path="/permissions" element={<PermissionsPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>

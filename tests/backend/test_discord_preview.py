@@ -366,14 +366,7 @@ def test_console_page_for_yaml_preview_roles_only(tmp_path, discord):
         r = client.post("/api/admin/console/find", json={"term": ""}, headers=CONSOLE).json()
         assert not r["ok"] and "Enter a name or id" in r["output"]
         assert client.post("/api/admin/console/nope", json={}, headers=CONSOLE).status_code == 404
-        # who gets access is only shown here, never changed
-        r = client.post("/api/admin/console/preview-roles", json={"term": DB_ROLE}, headers=CONSOLE).json()
-        assert r["ok"] and "Preview roles" in r["output"]
-        r = client.post("/api/admin/console/admin-roles", json={}, headers=CONSOLE).json()
-        assert "none yet" in r["output"] and "All roles in the Discord server" not in r["output"]  # no pick list
-        assert client.post("/api/admin/console/admin-users", json={"user_id": MEMBER}, headers=CONSOLE).json()["ok"]
-        with client.app.state.sessionmaker() as db:
-            assert actions.discord_roles(db, "admin_user") == []
+        assert client.post("/api/admin/console/admin-users", json={}, headers=CONSOLE).status_code == 404  # Permissions page
 
 
 def test_console_page_for_a_user_id_in_the_yaml(tmp_path, discord):
@@ -460,12 +453,102 @@ def test_console_exports_achievement_names_and_rules(tmp_path, discord):
 
         login(client, MEMBER)
         items = client.get("/api/admin/console/achievements").json()
-        assert len(items) == len(RULES) and set(items[0]) == {"name", "rule"}
-        assert items[0] == {"name": RULES[0].name, "rule": RULES[0].description}
+        assert len(items) == len(RULES) and set(items[0]) == {"id", "name", "rule", "icon", "default_icon"}
+        assert items[0]["name"] == RULES[0].name and items[0]["rule"] == RULES[0].description
+        assert items[0]["icon"] == items[0]["default_icon"]
         estimated = next(r for r in RULES if r.estimated)
-        assert {"name": estimated.name, "rule": estimated.description + " (deaths are estimated)"} in items
+        assert next(i for i in items if i["id"] == estimated.id)["rule"] == estimated.description + " (deaths are estimated)"
         r = client.get("/api/admin/console/achievements.csv")
         assert r.headers["content-type"].startswith("text/csv") and "attachment" in r.headers["content-disposition"]
         rows = list(csv.reader(io.StringIO(r.content.decode("utf-8-sig"))))
         assert rows[0] == ["Name", "How to win it"] and rows[1:] == [[i["name"], i["rule"]] for i in items]
         assert "no-store" in r.headers["cache-control"]
+
+
+def test_console_users_change_icons(tmp_path, discord):
+    """Icons can be changed from the console export too (console access, not only admins), and set back."""
+    with app_client(settings(tmp_path)) as client:
+        icon = "/api/admin/achievements/5/icon"
+        login(client, NO_ROLE)  # neither admin nor console
+        assert client.get("/api/admin/icons").status_code == 403
+        assert client.put(icon, json={"icon": "nova.png"}, headers=CONSOLE).status_code == 403
+        assert client.post(icon, content=b"x", headers=CONSOLE | {"Content-Type": "image/png"}).status_code == 403
+
+        login(client, MEMBER)  # console, not admin
+        assert client.get("/api/auth/me").json()["user"]["admin"] is False
+        assert client.get("/api/admin/achievements").status_code == 403  # the Admin tab stays admins only
+        assert "nova.png" in client.get("/api/admin/icons").json()
+        default = next(i for i in client.get("/api/admin/console/achievements").json() if i["id"] == 5)["default_icon"]
+        assert client.put(icon, json={"icon": "nova.png"}, headers=CONSOLE).json()["icon"] == "nova.png"
+        assert next(i for i in client.get("/api/admin/console/achievements").json() if i["id"] == 5)["icon"] == "nova.png"
+        assert client.put(icon, json={"icon": None}, headers=CONSOLE).json()["icon"] == default  # back to the original
+        assert client.put(icon, json={"icon": "nova.png"}).status_code == 405  # no X-EchoVR: read-only
+
+
+PERMS = "/api/admin/permissions"
+
+
+def test_permissions_page(tmp_path, discord):
+    """Console users give / take away Admin, Console and Preview by role or user id; the YAML ids are fixed."""
+    with app_client(settings(tmp_path)) as client:
+        assert client.get(PERMS).status_code == 403  # logged out
+        login(client, NO_ROLE)
+        assert client.get(PERMS).status_code == 403
+        assert client.post(PERMS, json={"permission": "admin", "type": "user", "id": NO_ROLE}, headers=CONSOLE).status_code == 403
+
+        login(client, MEMBER)  # console via the YAML role
+        state = client.get(PERMS).json()
+        assert state["fixed"] == [{"id": ROLE, "name": "?", "type": "user"}]  # 555 is not a role in the fake server
+        assert {r["name"] for r in state["server_roles"]} == {"Preview", "Member"}
+        assert client.post(PERMS, json={"permission": "admin", "type": "user", "id": "123456789012345679"}).status_code == 405
+
+        def change(**kw):
+            return client.post(PERMS, json=kw, headers=CONSOLE)
+
+        # by role: everyone with "Member" (999) gets the preview -> NO_ROLE (who has 999) sees it
+        assert change(permission="preview", type="role", id="999").status_code == 400  # ids are 17-20 digits
+        state = change(permission="preview", type="role", id=DB_ROLE).json()
+        assert state["permissions"]["preview"]["roles"] == [{"id": DB_ROLE, "name": "Preview"}]
+        # by user id: a person, not a role, and the other way round
+        assert "is a role" in change(permission="admin", type="user", id=DB_ROLE).json()["message"]
+        assert "not a role" in change(permission="admin", type="role", id="123456789012345679").json()["message"]
+        uid = "123456789012345679"
+        state = change(permission="console", type="user", id=uid).json()
+        assert state["permissions"]["console"]["users"] == [{"id": uid, "name": "?"}]  # the fake bot has no /users
+        # the YAML ids cannot be removed here
+        assert change(permission="console", type="role", id=ROLE, remove=True).json()["error_code"] == "fixed"
+        state = change(permission="console", type="user", id=uid, remove=True).json()
+        assert state["permissions"]["console"]["users"] == []
+        assert change(permission="nope", type="role", id=DB_ROLE).status_code == 400
+
+
+def test_permissions_give_access(tmp_path, discord):
+    """Each permission works by user id and by role, straight away (no restart)."""
+    with app_client(settings(tmp_path, discord_preview_roles=(MEMBER,))) as client:
+        login(client, MEMBER)  # console by user id in the YAML
+
+        def change(**kw):
+            client.cookies.clear()
+            login(client, MEMBER)
+            assert client.post(PERMS, json=kw, headers=CONSOLE).status_code == 200
+
+        def me(user_id):
+            client.cookies.clear()
+            login(client, user_id)
+            u = client.get("/api/auth/me").json()["user"]
+            return {k for k in ("admin", "console", "preview") if u[k]}
+
+        assert me(DB_MEMBER) == set()
+        change(permission="preview", type="role", id=DB_ROLE)
+        assert me(DB_MEMBER) == {"preview"}
+        person = "123456789012345670"  # in the server with only the Member role
+        assert me(person) == set()
+        change(permission="admin", type="user", id=person)
+        assert me(person) == {"admin", "preview"}
+        change(permission="console", type="user", id=person)
+        assert me(person) == {"admin", "console", "preview"}
+        assert client.get(PERMS).status_code == 200  # a console user given on the page can use it too
+        change(permission="console", type="user", id=person, remove=True)
+        client.cookies.clear()
+        login(client, person)
+        assert client.get(PERMS).status_code == 403  # taken away: refused at once

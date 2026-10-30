@@ -15,11 +15,15 @@ from .models import AppSetting, HiddenReplay, Player, PlayerAlias, PriorityRepla
 
 REPAIRABLE = ("corrupt", "incomplete", "internal", "crashed")  # not: unsupported (not Combat), unreadable (I/O)
 WINDOW_KEYS = ("challenge_start", "challenge_end")
-# Discord role ids, comma-separated: "preview" sees achievements before the launch (D41), "admin" also gets the
-# website's Admin tab (D42)
-# "admin_user": Discord user ids that are admins themselves, whatever their roles (user, 2026-10-30)
-ROLE_KEYS = {"preview": "discord_preview_roles", "admin": "discord_admin_roles", "admin_user": "discord_admin_users"}
-ROLE_LABELS = {"preview": "a preview role", "admin": "an admin role", "admin_user": "an admin user"}
+# Discord ids, comma-separated, per permission (D41, D42, D45; Permissions page, user 2026-10-30): "<permission>" =
+# role ids, "<permission>_user" = people's user ids. preview = achievements before the launch, admin = the Admin
+# tab, console = the Console and Permissions pages. ECHOVR_DISCORD_PREVIEW_ROLES (YAML) adds fixed console ids.
+PERMISSIONS = ("admin", "console", "preview")
+ROLE_KEYS = {"preview": "discord_preview_roles", "admin": "discord_admin_roles", "admin_user": "discord_admin_users",
+             "preview_user": "discord_preview_users", "console": "discord_console_roles",
+             "console_user": "discord_console_users"}
+ROLE_LABELS = {"preview": "a preview role", "admin": "an admin role", "admin_user": "an admin user",
+               "preview_user": "a preview user", "console": "a console role", "console_user": "a console user"}
 
 
 class AdminError(Exception):
