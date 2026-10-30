@@ -19,6 +19,9 @@ Working record of what changed in each release, newest first.
 - **Import page removed** from the public website (admin information): no menu entry, no page, and the import /
   replay lists (`/api/import`, `/api/replays`) are switched off.
 
+- **Long player names** no longer spill out of stat cards, the leaderboard podium or match name chips: they
+  wrap onto the next line inside the box.
+
 ### Admin console
 - **Status** (menu 6, `admin.bat status`) now shows the import progress: % finished, matches, replays being redone
   after an update, speed over the last 10 minutes, time left, last replay finished.

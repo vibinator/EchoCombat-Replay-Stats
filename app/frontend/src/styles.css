@@ -23,6 +23,7 @@
 body {
   margin: 0;
   background: var(--bg);
+  overflow-wrap: break-word; /* a long name with no spaces breaks instead of widening the page */
 }
 
 #root {
@@ -335,9 +336,11 @@ td.num {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  min-width: 0; /* grid cells may shrink below their longest word */
   padding: 12px;
   border-radius: 8px;
   background: var(--panel);
+  overflow-wrap: anywhere; /* long player names wrap inside the card instead of spilling out */
 }
 
 .card strong {
@@ -971,6 +974,8 @@ kbd {
   background: var(--surface-2);
   font-size: 0.72rem;
   border-left: 3px solid var(--muted);
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 .name-chip.blue { border-left-color: var(--blue); }
 .name-chip.orange { border-left-color: var(--orange); }
@@ -1161,6 +1166,7 @@ td.best {
   color: var(--text);
   text-decoration: none;
   text-align: center;
+  min-width: 0;
   overflow-wrap: anywhere;
 }
 .podium-step.place-1 { min-height: 150px; border-top: 4px solid #d4af37; }
