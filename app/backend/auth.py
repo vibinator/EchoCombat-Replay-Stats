@@ -195,3 +195,11 @@ def has_preview(request: Request) -> bool:
 def is_admin(request: Request) -> bool:
     """The visitor has an admin role: the website's Admin tab (D42). Still read-only: changes are made in admin.bat."""
     return _has_role(request, "admin")
+
+
+def has_console(request: Request) -> bool:
+    """The visitor has a role from ECHOVR_DISCORD_PREVIEW_ROLES (the YAML / environment, not the console's preview
+    roles): the website's Console page, admin.bat on the website (D45)."""
+    user = viewer(request)
+    roles = set(request.app.state.settings.discord_preview_roles)
+    return bool(user and roles and roles & member_roles(request.app.state.settings, user["id"]))

@@ -432,7 +432,8 @@ export interface ChallengeWindow {
 export interface Me {
   /** Discord login is set up on this server */
   enabled: boolean;
-  user: { name: string; preview: boolean; admin: boolean } | null;
+  /** console: a role from ECHOVR_DISCORD_PREVIEW_ROLES, the Console page (admin.bat on the website, D45) */
+  user: { name: string; preview: boolean; admin: boolean; console: boolean } | null;
 }
 
 export interface AdminAchievementRow {
@@ -469,6 +470,14 @@ export const uploadIcon = (id: number, file: File) =>
     method: "POST",
     headers: { ...ADMIN_WRITE, "Content-Type": "image/png" },
     body: file,
+  });
+
+/** Console page (D45): runs an admin.bat command on the server; `output` is what it printed. */
+export const runConsole = (command: string, args: Record<string, unknown>) =>
+  send<{ ok: boolean; output: string }>(`/api/admin/console/${command}`, {
+    method: "POST",
+    headers: { ...ADMIN_WRITE, "Content-Type": "application/json" },
+    body: JSON.stringify(args),
   });
 
 export interface AchievementRarity extends AchievementRule {

@@ -76,7 +76,8 @@ def test_preview_role_sees_achievements_before_launch(tmp_path, discord):
 
         done = login(client, MEMBER)
         assert done.status_code == 303 and done.headers["location"] == "/achievements"
-        assert client.get("/api/auth/me").json()["user"] == {"name": f"user{MEMBER}", "preview": True, "admin": False}
+        assert client.get("/api/auth/me").json()["user"] == {"name": f"user{MEMBER}", "preview": True, "admin": False,
+                                                                    "console": True}
         assert client.get("/api/challenges").json()["preview"] is True
         a = client.get(f"/api/players/{BLUE}/achievements").json()
         assert a["games"] == 1 and a["window"] == {"start": None, "end": None}  # whole archive before launch
@@ -93,7 +94,8 @@ def test_preview_role_sees_achievements_before_launch(tmp_path, discord):
 def test_without_the_role_it_stays_coming_soon(tmp_path, discord, user_id):
     with app_client(settings(tmp_path)) as client:
         login(client, user_id)
-        assert client.get("/api/auth/me").json()["user"] == {"name": f"user{user_id}", "preview": False, "admin": False}
+        assert client.get("/api/auth/me").json()["user"] == {"name": f"user{user_id}", "preview": False, "admin": False,
+                                                                    "console": False}
         assert client.get("/api/achievements").status_code == 403
 
 
@@ -185,7 +187,8 @@ def test_admin_tab_and_excel_download(tmp_path, discord):
         assert client.get("/api/admin/achievements.xlsx").status_code == 403
         sessions = console.open_sessions(client.app.state.settings)
         console.cmd_discord_roles(sessions, client.app.state.settings, "admin", add=DB_ROLE)
-        assert client.get("/api/auth/me").json()["user"] == {"name": f"user{DB_MEMBER}", "preview": True, "admin": True}
+        assert client.get("/api/auth/me").json()["user"] == {"name": f"user{DB_MEMBER}", "preview": True, "admin": True,
+                                                                       "console": False}
 
         data = client.get("/api/admin/achievements").json()
         assert len(data["items"]) == 96 and data["columns"][0] == {"key": "id", "label": "ID"}
@@ -322,7 +325,43 @@ def test_admin_users_by_discord_id(tmp_path, discord):
         uid = "463399156866875402"
         console.cmd_admin_users(sessions, st, add=uid)
         login(client, uid)  # not in the server at all: a named admin needs no role
-        assert client.get("/api/auth/me").json()["user"] == {"name": f"user{uid}", "preview": True, "admin": True}
+        assert client.get("/api/auth/me").json()["user"] == {"name": f"user{uid}", "preview": True, "admin": True,
+                                                                "console": False}
         assert client.get("/api/admin/achievements").status_code == 200
         console.cmd_admin_users(sessions, st, remove=uid)
         assert client.get("/api/auth/me").json()["user"]["admin"] is False
+
+
+CONSOLE = {"X-EchoVR": "1"}
+
+
+def test_console_page_for_yaml_preview_roles_only(tmp_path, discord):
+    """D45: admin.bat on the website, only for roles from ECHOVR_DISCORD_PREVIEW_ROLES (not the console's own)."""
+    with app_client(settings(tmp_path)) as client:
+        add(client, {"dyson/0.echoreplay": rf.plain(rf.lines(20))})
+        assert client.post("/api/admin/console/status", json={}, headers=CONSOLE).status_code == 403  # logged out
+        act(client, actions.add_discord_role, "preview", DB_ROLE)
+        login(client, DB_MEMBER)  # preview from the admin console: preview, but no Console page
+        assert client.get("/api/auth/me").json()["user"]["console"] is False
+        assert client.post("/api/admin/console/status", json={}, headers=CONSOLE).status_code == 403
+
+        login(client, MEMBER)  # role from ECHOVR_DISCORD_PREVIEW_ROLES
+        assert client.get("/api/auth/me").json()["user"] == {"name": f"user{MEMBER}", "preview": True, "admin": False,
+                                                            "console": True}
+        assert client.post("/api/admin/console/status", json={}).status_code == 405  # no X-EchoVR: read-only
+        r = client.post("/api/admin/console/status", json={}, headers=CONSOLE).json()
+        assert r["ok"] and "Replays: done 1" in r["output"]
+        r = client.post("/api/admin/console/challenge", json={"start": "2026-01-01"}, headers=CONSOLE).json()
+        assert r["ok"] and "2026-01-01 -> open-ended" in r["output"]
+        assert client.get("/api/challenges").json()["start"] == "2026-01-01"
+        r = client.post("/api/admin/console/challenge", json={"start": "nope"}, headers=CONSOLE).json()
+        assert not r["ok"] and "is not a date" in r["output"]
+        r = client.post("/api/admin/console/find", json={"term": ""}, headers=CONSOLE).json()
+        assert not r["ok"] and "Enter a name or id" in r["output"]
+        assert client.post("/api/admin/console/nope", json={}, headers=CONSOLE).status_code == 404
+        # who gets access is only shown here, never changed
+        r = client.post("/api/admin/console/preview-roles", json={"term": DB_ROLE}, headers=CONSOLE).json()
+        assert r["ok"] and "Preview roles" in r["output"]
+        assert client.post("/api/admin/console/admin-users", json={"user_id": MEMBER}, headers=CONSOLE).json()["ok"]
+        with client.app.state.sessionmaker() as db:
+            assert actions.discord_roles(db, "admin_user") == []

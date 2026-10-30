@@ -27,7 +27,7 @@ npm install
 | `ECHOVR_PUBLIC_URL` | `http://127.0.0.1:8000` | Address people use; Discord sends them back to `<it>/api/auth/callback` |
 | `ECHOVR_DISCORD_CLIENT_SECRET` | – | Discord login (D41). Secret: never in GitHub |
 | `ECHOVR_DISCORD_BOT_TOKEN` | – | Bot that checks the preview role (D41). Secret: never in GitHub |
-| `ECHOVR_DISCORD_PREVIEW_ROLES` | – | Optional: preview role id(s), comma-separated. Easier: admin console option 14 |
+| `ECHOVR_DISCORD_PREVIEW_ROLES` | – | Optional: role id(s), comma-separated. Members get the preview **and the website's Console page (admin.bat on the website, D45)**. For the preview alone use admin console option 14 |
 | `ECHOVR_DISCORD_CLIENT_ID` / `_GUILD_ID` | `1214456381466222683` / `779349159852769310` | Bot application and EchoVR Combat server |
 
 ## Admin console

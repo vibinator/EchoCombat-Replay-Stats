@@ -13,6 +13,25 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 15 — 2026-10-30
+### Website
+- **Console page** (menu: *Console*): `admin.bat` on the website, for Discord members with a role listed in
+  `ECHOVR_DISCORD_PREVIEW_ROLES` (docker-compose.yml / environment). Roles picked as preview roles in the admin
+  console (option 14) do **not** get it. Every admin.bat option, same numbers: find / merge / undo merges, launch and
+  challenge dates, status, repair, hide / show replays, re-process, scan, rescan everything, check a Discord member.
+  The page asks before anything big and shows what the console printed. Changes apply straight away.
+- Who gets the preview / Admin tab (options 14, 15, 17) is only **shown** on the Console page; changing it stays in
+  `admin.bat`, so a console role cannot hand out access.
+- Each command run from the page is written to the server log with the person's Discord name and id.
+
+### Upgrading to Beta 15
+- QNAP: upload Beta 15, wait for the Actions run, Recreate. Put the console role id(s) in
+  `ECHOVR_DISCORD_PREVIEW_ROLES` in docker-compose.yml (several separated by commas) before Recreate.
+- Windows: set `ECHOVR_DISCORD_PREVIEW_ROLES` in settings.local.bat, restart `run.bat`.
+- Members see the Console tab after logging in again (or within 5 minutes).
+
+---
+
 ## Beta 14 — 2026-10-30
 ### Admin console
 - **Option 17, Discord admin users** (`admin.bat admin-users --add <user id>`): make a **person** an admin by

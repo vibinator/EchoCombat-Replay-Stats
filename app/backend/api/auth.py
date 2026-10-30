@@ -33,7 +33,8 @@ def me(request: Request):
     """Whether Discord login is available, and who is logged in (with or without preview access)."""
     user = auth.viewer(request)
     return {"enabled": auth.enabled(request.app.state.settings),
-            "user": user and {"name": user["name"], "preview": auth.has_preview(request), "admin": auth.is_admin(request)}}
+            "user": user and {"name": user["name"], "preview": auth.has_preview(request), "admin": auth.is_admin(request),
+                              "console": auth.has_console(request)}}
 
 
 @router.get("/login")

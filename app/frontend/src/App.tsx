@@ -5,6 +5,7 @@ import { GlobalSearch } from "./components/GlobalSearch";
 import { AchievementsPage } from "./pages/AchievementsPage";
 import { AdminPage } from "./pages/AdminPage";
 import { ComparePage } from "./pages/ComparePage";
+import { ConsolePage } from "./pages/ConsolePage";
 import { HomePage } from "./pages/HomePage";
 import { LeaderboardPage } from "./pages/LeaderboardPage";
 import { MatchPage } from "./pages/MatchPage";
@@ -113,7 +114,7 @@ function Layout() {
           {menuOpen ? "Close" : "Menu"}
         </button>
         <nav id="main-nav" className={menuOpen ? "open" : ""}>
-          {[...NAV, ...(user?.admin ? ([["/admin", "Admin"]] as const) : [])].map(([to, label]) => (
+          {[...NAV, ...(user?.admin ? ([["/admin", "Admin"]] as const) : []), ...(user?.console ? ([["/console", "Console"]] as const) : [])].map(([to, label]) => (
             <NavLink key={to} to={to} end={to === "/"}>
               {label}
               {to === "/achievements" && achievements.visible === false && <span className="tag">soon</span>}
@@ -148,6 +149,7 @@ function Layout() {
           <Route path="/leaderboard" element={<LeaderboardPage />} />
           <Route path="/achievements" element={<AchievementsPage />} />
           <Route path="/admin" element={<AdminPage />} />
+          <Route path="/console" element={<ConsolePage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
