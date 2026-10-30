@@ -13,6 +13,19 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 22 — 2026-10-30
+### Website
+- **Home page rearranged, most useful first**: search, then what is happening now (matches today, this week, how
+  long ago the last match was, most played map), the **latest matches**, **most active this week** next to
+  **players seen in Combat**, then matches per map, popular gear, and finally the **all-time** numbers (totals and
+  global stats together) with the matches-over-time chart at the bottom. Nothing was removed.
+
+### Upgrading to Beta 22
+- QNAP: upload Beta 22, wait for the Actions run, Recreate.
+- Windows: restart `run.bat`.
+
+---
+
 ## Beta 21 — 2026-10-30
 ### Website
 - **The Admin tab is gone.** Everything it did is on the Console page: **Export achievements and challenges**

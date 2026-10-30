@@ -116,6 +116,16 @@ function ActivityChart() {
   );
 }
 
+/** "3 min ago", "5 h ago", "2 days ago" */
+function since(iso: string): string {
+  const min = Math.max(0, (Date.now() - new Date(iso).getTime()) / 60000);
+  if (min < 60) return `${Math.round(min)} min ago`;
+  if (min < 48 * 60) return `${Math.round(min / 60)} h ago`;
+  return `${Math.round(min / 1440)} days ago`;
+}
+
+/** Most useful first: what is happening now (recent matches, who is playing), then maps and gear, then the
+ * all-time numbers and history. */
 export function HomePage() {
   const overview = useApi(getOverview, "overview");
   const o = overview.data;
@@ -141,16 +151,74 @@ export function HomePage() {
           ) : (
             <>
               <div className="cards">
-                <div className="card"><span className="label">Matches</span><strong>{o.matches.toLocaleString()}</strong></div>
-                <div className="card"><span className="label">Players</span><strong>{o.players.toLocaleString()}</strong></div>
-                <div className="card"><span className="label">Recorded replay time</span><strong>{g.recorded_hours.toLocaleString()} h</strong></div>
-                <div className="card"><span className="label">Time played (all players)</span><strong>{o.player_hours.toLocaleString()} h</strong></div>
                 <div className="card"><span className="label">Matches today</span><strong>{o.today.toLocaleString()}</strong></div>
                 <div className="card"><span className="label">This week</span><strong>{o.this_week.toLocaleString()}</strong></div>
+                <div className="card">
+                  <span className="label">Last match</span>
+                  <strong>{o.last_match_at ? since(o.last_match_at) : "–"}</strong>
+                  {o.last_match_at && <span className="muted">{dateTime(o.last_match_at)}</span>}
+                </div>
+                <div className="card">
+                  <span className="label">Most played map</span>
+                  <strong>{o.most_played_map ? <Link to={`/matches?map=${o.most_played_map}`}>{title(o.most_played_map)}</Link> : "–"}</strong>
+                  {o.most_played_map && <span className="muted">{pct(o.by_map[o.most_played_map] / o.matches)} of matches</span>}
+                </div>
               </div>
-              <p className="muted">
-                Archive {o.first_match_at && dateTime(o.first_match_at).slice(0, 10)} – {o.last_match_at && dateTime(o.last_match_at).slice(0, 10)}
-              </p>
+
+              <div className="section-head">
+                <h2>Latest matches</h2>
+                <span>
+                  <Link to="/matches">All matches</Link>
+                </span>
+              </div>
+              <MatchCards matches={o.latest} />
+
+              <div className="two-col">
+                <section className="panel">
+                  <div className="section-head">
+                    <h2>Most active this week</h2>
+                    <span>
+                      <Link to="/leaderboard">Leaderboard</Link>
+                    </span>
+                  </div>
+                  {o.top_this_week.length > 0 ? (
+                    <TableWrap>
+                      <table className="stack">
+                        <thead>
+                          <tr><th>Player</th><th className="num">Matches</th><th className="num">Wins</th></tr>
+                        </thead>
+                        <tbody>
+                          {o.top_this_week.map((p) => (
+                            <tr key={p.user_id}>
+                              <td data-label="Player"><Link to={`/players/${p.user_id}`}>{p.name}</Link></td>
+                              <td data-label="Matches" className="num">{p.games}</td>
+                              <td data-label="Wins" className="num">{p.wins}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </TableWrap>
+                  ) : (
+                    <p className="muted">No matches recorded this week yet.</p>
+                  )}
+                </section>
+                <PlayersSeenChart />
+              </div>
+
+              <h2>Matches per map</h2>
+              <div className="map-cards">
+                {Object.entries(o.by_map)
+                  .sort((a, b) => b[1] - a[1])
+                  .map(([m, n]) => (
+                    <Link key={m} to={`/matches?map=${m}`} className="map-card">
+                      <img src={`/minimaps/${m}_small.png`} alt="" />
+                      <strong>{title(m)}</strong>
+                      <span className="muted">
+                        {n.toLocaleString()} matches · {pct(n / o.matches)}
+                      </span>
+                    </Link>
+                  ))}
+              </div>
 
               <h2>Most popular gear</h2>
               <div className="cards gear-cards">
@@ -159,8 +227,15 @@ export function HomePage() {
                 <GearTop label="Tac mod" items={g.top_tacmods} />
               </div>
 
-              <h2>Global stats</h2>
+              <h2>All time</h2>
+              <p className="muted">
+                Archive {o.first_match_at && dateTime(o.first_match_at).slice(0, 10)} – {o.last_match_at && dateTime(o.last_match_at).slice(0, 10)}
+              </p>
               <div className="cards">
+                <div className="card"><span className="label">Matches</span><strong>{o.matches.toLocaleString()}</strong></div>
+                <div className="card"><span className="label">Players</span><strong>{o.players.toLocaleString()}</strong></div>
+                <div className="card"><span className="label">Recorded replay time</span><strong>{g.recorded_hours.toLocaleString()} h</strong></div>
+                <div className="card"><span className="label">Time played (all players)</span><strong>{o.player_hours.toLocaleString()} h</strong></div>
                 <div className="card"><span className="label">Average match</span><strong>{duration(g.avg_match_s)}</strong></div>
                 <div className="card">
                   <span className="label">Longest match</span>
@@ -197,55 +272,7 @@ export function HomePage() {
                 </div>
               </div>
 
-              <h2>Matches per map</h2>
-              <div className="map-cards">
-                {Object.entries(o.by_map)
-                  .sort((a, b) => b[1] - a[1])
-                  .map(([m, n]) => (
-                    <Link key={m} to={`/matches?map=${m}`} className="map-card">
-                      <img src={`/minimaps/${m}_small.png`} alt="" />
-                      <strong>{title(m)}</strong>
-                      <span className="muted">
-                        {n.toLocaleString()} matches · {pct(n / o.matches)}
-                      </span>
-                    </Link>
-                  ))}
-              </div>
-
-              <div className="two-col">
-                <PlayersSeenChart />
-                <ActivityChart />
-              </div>
-
-              {o.top_this_week.length > 0 && (
-                <>
-                  <h2>Most active this week</h2>
-                  <TableWrap>
-                    <table className="stack">
-                      <thead>
-                        <tr><th>Player</th><th className="num">Matches</th><th className="num">Wins</th></tr>
-                      </thead>
-                      <tbody>
-                        {o.top_this_week.map((p) => (
-                          <tr key={p.user_id}>
-                            <td data-label="Player"><Link to={`/players/${p.user_id}`}>{p.name}</Link></td>
-                            <td data-label="Matches" className="num">{p.games}</td>
-                            <td data-label="Wins" className="num">{p.wins}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </TableWrap>
-                </>
-              )}
-
-              <div className="section-head">
-                <h2>Latest matches</h2>
-                <span>
-                  <Link to="/matches">All matches</Link>
-                </span>
-              </div>
-              <MatchCards matches={o.latest} />
+              <ActivityChart />
             </>
           )}
         </>
