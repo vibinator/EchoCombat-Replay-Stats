@@ -179,6 +179,8 @@ def _has_role(request: Request, kind: str) -> bool:
         return False
     settings = request.app.state.settings
     with request.app.state.sessionmaker() as db:
+        if user["id"] in discord_roles(db, "admin_user"):  # named admin: no role needed
+            return True
         allowed = set(discord_roles(db, "admin"))
         if kind == "preview":  # admins see everything
             allowed |= set(settings.discord_preview_roles) | set(discord_roles(db, "preview"))

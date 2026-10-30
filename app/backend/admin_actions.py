@@ -17,7 +17,9 @@ REPAIRABLE = ("corrupt", "incomplete", "internal", "crashed")  # not: unsupporte
 WINDOW_KEYS = ("challenge_start", "challenge_end")
 # Discord role ids, comma-separated: "preview" sees achievements before the launch (D41), "admin" also gets the
 # website's Admin tab (D42)
-ROLE_KEYS = {"preview": "discord_preview_roles", "admin": "discord_admin_roles"}
+# "admin_user": Discord user ids that are admins themselves, whatever their roles (user, 2026-10-30)
+ROLE_KEYS = {"preview": "discord_preview_roles", "admin": "discord_admin_roles", "admin_user": "discord_admin_users"}
+ROLE_LABELS = {"preview": "a preview role", "admin": "an admin role", "admin_user": "an admin user"}
 
 
 class AdminError(Exception):
@@ -188,7 +190,7 @@ def discord_roles(db: Session, kind: str) -> list[str]:
 def _role_id(value: str) -> str:
     value = value.strip()
     if not (value.isdigit() and 17 <= len(value) <= 20):
-        raise AdminError(f"'{value}' is not a Discord role id (17-20 digits: right-click the role > Copy Role ID)")
+        raise AdminError(f"'{value}' is not a Discord id (17-20 digits: right-click > Copy Role ID / Copy User ID)")
     return value
 
 
@@ -203,7 +205,7 @@ def add_discord_role(db: Session, kind: str, role_id: str) -> list[str]:
 def remove_discord_role(db: Session, kind: str, role_id: str) -> list[str]:
     roles = discord_roles(db, kind)
     if role_id.strip() not in roles:
-        raise AdminError(f"Role {role_id} is not a{'n' if kind == 'admin' else ''} {kind} role")
+        raise AdminError(f"{role_id} is not {ROLE_LABELS[kind]}")
     return _save_discord_roles(db, kind, [r for r in roles if r != role_id.strip()])
 
 

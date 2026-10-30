@@ -13,6 +13,23 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 14 — 2026-10-30
+### Admin console
+- **Option 17, Discord admin users** (`admin.bat admin-users --add <user id>`): make a **person** an admin by
+  their Discord user id (right-click them > Copy User ID). They get the Admin tab and the preview whatever their
+  roles. `--remove <user id>` takes it away.
+- Options 14 / 15 now refuse an id that is not a role in the server (for example a person's id) and say where it
+  belongs; option 17 refuses a role id.
+- `discord-check` shows admin users too.
+
+### Upgrading to Beta 14
+- QNAP: upload Beta 14, wait for the Actions run, Recreate. Then in the container terminal:
+  `python app/admin_console.py admin-users --add <user id>` for each admin, and / or
+  `python app/admin_console.py admin-roles --add <role id>` for an admin role.
+- Windows: restart `run.bat`.
+
+---
+
 ## Beta 13 — 2026-10-30
 ### Admin console
 - **Option 16, check a Discord member's access** (`admin.bat discord-check <discord user id>`): asks Discord what

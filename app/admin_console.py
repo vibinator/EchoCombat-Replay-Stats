@@ -14,6 +14,7 @@ rule and the affected replays are re-processed from the original files, so it ca
     admin.bat challenge [--start YYYY-MM-DD] [--end YYYY-MM-DD] [--clear]
     admin.bat preview-roles [--server] [--add <role id>] [--remove <role id>]   Discord roles: achievements early
     admin.bat admin-roles [--server] [--add <role id>] [--remove <role id>]     Discord roles: website Admin tab
+    admin.bat admin-users [--add <user id>] [--remove <user id>]   Discord users that are admins (no role needed)
     admin.bat discord-check <discord user id>   what the bot sees for one person: in the server, roles, access
     admin.bat status
     admin.bat repair-failed [--yes]
@@ -249,6 +250,11 @@ def cmd_discord_roles(sessions, settings: Settings, kind: str, add: str | None =
     """Discord roles for `kind` ("preview" D41, "admin" D42). Returns the server's roles (numbered as printed) when
     show_server and the bot could list them."""
     heading, gets = ROLE_KINDS[kind]
+    if add:
+        server = _server_roles(settings)
+        if server is not None and add.strip() not in {r["id"] for r in server}:
+            raise ConsoleError(f"{add.strip()} is not a role in the Discord server. A person's id (Copy User ID) goes "
+                               "in admin users instead: option 17 / admin.bat admin-users --add <user id>.")
     with sessions() as db:
         if add:
             actions.add_discord_role(db, kind, add)
@@ -283,6 +289,38 @@ def cmd_discord_roles(sessions, settings: Settings, kind: str, add: str | None =
     return server
 
 
+def _discord_user(settings: Settings, user_id: str) -> str:
+    """Display name of a Discord user via the bot, or '?'."""
+    if not settings.discord_bot_token:
+        return "?"
+    try:
+        r = auth._bot_get(settings, f"/users/{user_id.strip()}")
+        return (r.json().get("global_name") or r.json().get("username") or "?") if r.status_code == 200 else "?"
+    except Exception:
+        return "?"
+
+
+def cmd_admin_users(sessions, settings: Settings, add: str | None = None, remove: str | None = None) -> list[str]:
+    """Discord users that are admins themselves (Admin tab + preview), whatever their roles."""
+    with sessions() as db:
+        if add:
+            server = _server_roles(settings)
+            if server is not None and add.strip() in {r["id"] for r in server}:
+                raise ConsoleError(f"{add.strip()} is a role, not a person: use admin roles (option 15) for it.")
+            actions.add_discord_role(db, "admin_user", add)
+            print(f"Added. {_discord_user(settings, add)} gets the Admin tab at their next page load.")
+        if remove:
+            actions.remove_discord_role(db, "admin_user", remove)
+            print(f"Removed. {remove.strip()} loses the Admin tab at their next page load (unless an admin role gives it).")
+        users = actions.discord_roles(db, "admin_user")
+    print("Admin users (Admin tab and preview, no role needed):")
+    for u in users:
+        print(f"  {_discord_user(settings, u):<28} {u}")
+    if not users:
+        print("  none yet")
+    return users
+
+
 def cmd_discord_check(sessions, settings: Settings, user_id: str) -> dict:
     """Asks Discord (with the bot token) what the website sees for one person, step by step."""
     user_id = user_id.strip()
@@ -310,6 +348,7 @@ def cmd_discord_check(sessions, settings: Settings, user_id: str) -> dict:
     with sessions() as db:
         admin = set(actions.discord_roles(db, "admin"))
         preview = admin | set(actions.discord_roles(db, "preview")) | set(settings.discord_preview_roles)
+        named_admin = user_id in actions.discord_roles(db, "admin_user")
     user = member.get("user", {})
     print(f"{user.get('global_name') or user.get('username', '?')} ({user_id}) is in the server with roles:")
     for role in roles:
@@ -317,10 +356,13 @@ def cmd_discord_check(sessions, settings: Settings, user_id: str) -> dict:
         print(f"  {names.get(role, '?'):<28} {role}{'  [' + ', '.join(tags) + ']' if tags else ''}")
     if not roles:
         print("  none")
-    is_admin, has_preview = bool(admin & set(roles)), bool(preview & set(roles))
+    is_admin = named_admin or bool(admin & set(roles))
+    has_preview = is_admin or bool(preview & set(roles))
+    if named_admin:
+        print("This person is an admin user (option 17): Admin tab whatever their roles.")
     print(f"Admin tab: {'yes' if is_admin else 'NO'}   Preview: {'yes' if has_preview else 'NO'}")
-    if not admin:
-        print("No admin roles are set yet: add one with option 15 (admin.bat admin-roles --server).")
+    if not is_admin and not admin:
+        print("No admin roles are set yet: add a role with option 15, or this person with option 17.")
     if not auth.enabled(settings):
         print("Note: the Discord login is off here (client secret or bot token missing).")
     print("The website re-checks roles every 5 minutes; log out and in again to see the change at once.")
@@ -519,6 +561,7 @@ EchoVR Replay Stats - admin console ({APP_VERSION})
   14 Discord preview roles (see achievements before the launch)
   15 Discord admin roles (website Admin tab: achievement list + Excel)
   16 Check a Discord member's access (why someone does / does not see the Admin tab)
+  17 Discord admin users (people who get the Admin tab, by user id)
   q  Quit"""
 
 
@@ -608,8 +651,15 @@ def interactive(sessions, settings: Settings) -> None:
                 uid = ask("Discord user id (right-click the person > Copy User ID): ")
                 if uid:
                     cmd_discord_check(sessions, settings, uid)
+            elif choice == "17":
+                cmd_admin_users(sessions, settings)
+                pick = ask("Add: user id. Remove: '-' + user id. Enter to go back: ")
+                if pick.startswith("-"):
+                    cmd_admin_users(sessions, settings, remove=pick[1:])
+                elif pick:
+                    cmd_admin_users(sessions, settings, add=pick)
             else:
-                print("Choose 1-16 or q.")
+                print("Choose 1-17 or q.")
         except ConsoleError as e:
             print(f"! {e}")
 
@@ -639,6 +689,9 @@ def main(argv: list[str] | None = None) -> int:
         p.add_argument("--remove", metavar="ROLE_ID", help="remove this role")
         p.add_argument("--server", action="store_true", help="also list every role in the Discord server (needs the bot token)")
     sub.add_parser("discord-check", help="what the bot sees for one Discord member").add_argument("user_id")
+    p = sub.add_parser("admin-users", help="Discord users that are admins (no role needed)")
+    p.add_argument("--add", metavar="USER_ID", help="make this person an admin")
+    p.add_argument("--remove", metavar="USER_ID", help="remove this person")
     sub.add_parser("status", help="import progress, replay and player counts")
     p = sub.add_parser("repair-failed", help="re-process damaged / incomplete replays in repair mode")
     p.add_argument("--yes", action="store_true")
@@ -674,6 +727,8 @@ def main(argv: list[str] | None = None) -> int:
                 cmd_challenge(sessions, args.start, args.end, args.clear)
             case "preview-roles" | "admin-roles":
                 cmd_discord_roles(sessions, settings, args.command.removesuffix("-roles"), args.add, args.remove, args.server)
+            case "admin-users":
+                cmd_admin_users(sessions, settings, args.add, args.remove)
             case "discord-check":
                 cmd_discord_check(sessions, settings, args.user_id)
             case "status":

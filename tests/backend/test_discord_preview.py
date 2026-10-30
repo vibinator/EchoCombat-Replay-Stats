@@ -160,7 +160,7 @@ def test_preview_roles_from_the_admin_console(tmp_path, discord, capsys):
         login(client, DB_MEMBER)
         assert client.get("/api/auth/me").json()["user"]["preview"] is False  # no role set yet
         sessions = console.open_sessions(client.app.state.settings)
-        with pytest.raises(actions.AdminError, match="not a Discord role id"):
+        with pytest.raises(actions.AdminError, match="not a role in the Discord server"):
             console.cmd_discord_roles(sessions, client.app.state.settings, "preview", add="Preview")
         server = console.cmd_discord_roles(sessions, client.app.state.settings, "preview", show_server=True)
         assert [r["name"] for r in server] == ["Preview", "Member"]  # highest first, no @everyone
@@ -295,3 +295,34 @@ def test_new_login_rechecks_roles(tmp_path, discord):
         login(client, DB_MEMBER)
         client.get("/api/auth/me")
         assert sum("/members/" in c.url.path for c in discord) == calls + 1  # a fresh login asks Discord again
+
+
+def test_admin_users_by_discord_id(tmp_path, discord):
+    import admin_console as console
+
+    with app_client(settings(tmp_path)) as client:
+        st = client.app.state.settings
+        sessions = console.open_sessions(st)
+        # a person's id is refused as a role, and a role is refused as a person
+        with pytest.raises(console.ConsoleError, match="not a role in the Discord server"):
+            console.cmd_discord_roles(sessions, st, "admin", add="463399156866875402")
+        with pytest.raises(console.ConsoleError, match="is a role, not a person"):
+            console.cmd_admin_users(sessions, st, add=DB_ROLE)
+
+        login(client, NO_ROLE)  # in the server, no useful role
+        assert client.get("/api/auth/me").json()["user"]["admin"] is False
+        assert console.cmd_admin_users(sessions, st, add=NO_ROLE + "0" * 15) == [NO_ROLE + "0" * 15]  # someone else
+        assert client.get("/api/auth/me").json()["user"]["admin"] is False
+        console.cmd_admin_users(sessions, st, remove=NO_ROLE + "0" * 15)
+
+    (tmp_path / "b").mkdir()
+    with app_client(settings(tmp_path / "b")) as client:
+        st = client.app.state.settings
+        sessions = console.open_sessions(st)
+        uid = "463399156866875402"
+        console.cmd_admin_users(sessions, st, add=uid)
+        login(client, uid)  # not in the server at all: a named admin needs no role
+        assert client.get("/api/auth/me").json()["user"] == {"name": f"user{uid}", "preview": True, "admin": True}
+        assert client.get("/api/admin/achievements").status_code == 200
+        console.cmd_admin_users(sessions, st, remove=uid)
+        assert client.get("/api/auth/me").json()["user"]["admin"] is False
