@@ -54,28 +54,54 @@ application only, labelled with the beta version (`Beta N: <your description>`).
 before anything is sent. Needs Git for Windows (https://git-scm.com/download/win).
 
 ## QNAP NAS (Docker / Container Station)
-The repository has a `Dockerfile` and `docker-compose.yml`: one container that builds the website and runs the server.
-The GitHub repository is private, so the NAS cannot build from the GitHub address directly: clone it onto the NAS first.
-1. Enable SSH on the NAS (Control Panel > Network & File Services > Telnet / SSH), log in, then:
-   ```
-   mkdir -p /share/Container/echovr-replay-stats/data
-   cd /share/Container/echovr-replay-stats
-   git clone https://github.com/vibinator/EchoCombat-Replay-Stats.git
-   ```
-   Git asks for your GitHub user name and a personal access token (GitHub > Settings > Developer settings >
-   Personal access tokens, read access to this repository) as the password. If `git` is missing on the NAS, use
-   `docker run --rm -it -v "$PWD":/git alpine/git clone https://github.com/vibinator/EchoCombat-Replay-Stats.git`.
-2. Check the paths in `docker-compose.yml`: `build` (the clone), the replay share (mounted read-only) and `data`.
-   QNAP shared folders live under `/share/<shared folder name>/...`. Set `ECHOVR_WORKERS` to about the NAS's core count.
-3. Container Station > Applications > Create, paste `docker-compose.yml`, or in the clone folder:
-   `docker compose up -d --build`.
-4. Open `http://<nas address>:8000`. The first import of all replays takes longer than on the PC.
+`docker-compose.yml` is the whole deployment: Container Station downloads the app from GitHub, builds it (`Dockerfile`:
+website + server in one container) and starts it. No SSH or manual clone needed.
+1. Upload the current version with `upload_to_github.bat` (the NAS builds whatever is on GitHub's `main`).
+2. The repository is private, so make a read-only token: GitHub > Settings > Developer settings > Personal access
+   tokens > Fine-grained tokens > Generate. Repository access: only `EchoCombat-Replay-Stats`; Permissions:
+   Contents = Read-only. Copy the token (starts with `github_pat_`).
+3. Open `docker-compose.yml`, replace `YOUR_GITHUB_TOKEN` with the token, and check the two NAS folders under
+   `volumes`: the replay share (read-only; QNAP shared folders are `/share/<shared folder name>/...`) and `data`.
+   Set `ECHOVR_WORKERS` to about the NAS's core count.
+4. Container Station > Applications > Create, name it `echovr-replay-stats`, paste the edited YAML, Create. The first
+   build takes several minutes.
+5. Open `http://<nas address>:8000`. The first import of all replays takes longer than on the PC.
 
-Update to a new beta: `cd /share/Container/echovr-replay-stats/EchoCombat-Replay-Stats && git pull && docker compose
-up -d --build` (or Recreate the application in Container Station). The `data` folder is outside the clone and is kept.
+Keep the token only in the copy pasted into Container Station: `upload_to_github.bat` stops if a token is in any file
+it would upload. If the repository is made public, delete `vibinator:YOUR_GITHUB_TOKEN@` from the address instead.
 
-Admin console in the container: `docker exec -it echovr-replay-stats python app/admin_console.py` (add a command,
-e.g. `status`). The website has no login (read-only), so keep port 8000 on your home network, not forwarded to the internet.
+Update to a new beta: upload it to GitHub, then in Container Station open the application and Recreate / redeploy it
+so it builds again (over SSH: `docker compose build --no-cache && docker compose up -d`). The `data` folder is kept.
+
+Admin console: Container Station > Containers > echovr-replay-stats > Terminal (or `docker exec -it echovr-replay-stats
+sh`), then `python app/admin_console.py` (add a command, e.g. `status`). The website has no login (read-only), so keep
+port 8000 on your home network, not forwarded to the internet.
+
+## Public website: echocombat.com (Cloudflare Tunnel)
+The NAS reaches out to Cloudflare (the `cloudflared` container in `docker-compose.yml`); visitors go to Cloudflare,
+which passes requests down that connection. No ports are opened on the router, the home IP address is never shown,
+Cloudflare provides HTTPS and blocks attacks. Free plan. The domain stays registered (and renewed) at GoDaddy; only its
+DNS moves to Cloudflare.
+1. **Cloudflare account**: sign up at https://dash.cloudflare.com, *Add a domain* > `echocombat.com` > Free plan.
+   It copies the existing DNS records from GoDaddy: keep any email (MX / TXT) records, delete old `A` / `CNAME`
+   records for `echocombat.com` and `www` (the tunnel replaces them). Cloudflare shows two nameservers.
+2. **GoDaddy**: My Products > echocombat.com > DNS. If DNSSEC is on, turn it off first. Nameservers > Change >
+   *I'll use my own nameservers* > enter Cloudflare's two > Save. Cloudflare emails when the domain is active
+   (minutes, at most 24 hours).
+3. **Tunnel**: Cloudflare > Zero Trust > Networks > Tunnels > Create a tunnel > Cloudflared > name `echocombat`.
+   On the install page choose Docker and copy only the token (the long value after `--token`, starts with `eyJ`).
+4. **Public hostnames** (next page of the tunnel): `echocombat.com` > Service HTTP, URL `echovr-replay-stats:8000`;
+   add a second one for `www.echocombat.com` with the same service.
+5. **NAS**: put the token in `docker-compose.yml` (`YOUR_CLOUDFLARE_TUNNEL_TOKEN`), then recreate the application in
+   Container Station. The tunnel page shows *Healthy*; open https://echocombat.com.
+6. **Cloudflare settings** for echocombat.com: SSL/TLS > Edge Certificates > *Always Use HTTPS* on and
+   *Minimum TLS version* 1.2; Security > Bots > *Bot Fight Mode* on. Optional, Security > WAF > Rate limiting rule:
+   URI path contains `/api/`, 100 requests per 10 seconds per IP > Block (heatmaps, playback and exports are the
+   heaviest requests).
+7. **Router / NAS**: no port forwarding for 8000 (or 80 / 443 to the NAS). Keep the NAS's own admin pages off the
+   internet (myQNAPcloud / UPnP port forwarding off) - only the website is public, through the tunnel.
+
+The website stays read-only to everyone: changes are only possible from the admin console in the container.
 
 ## Run (single server)
 ```

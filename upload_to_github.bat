@@ -77,6 +77,19 @@ if not "!BLOCKED_SIZE!"=="0" (
   goto :fail
 )
 
+rem GitHub and Cloudflare tunnel tokens (e.g. pasted into docker-compose.yml for the NAS) never go to GitHub.
+git grep --cached -I -l -E "ghp_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|eyJhIjoi[A-Za-z0-9+/=]{20,}" > "%BLOCKED%" 2>nul
+set "BLOCKED_SIZE=0"
+for %%F in ("%BLOCKED%") do set "BLOCKED_SIZE=%%~zF"
+if not "!BLOCKED_SIZE!"=="0" (
+  echo.
+  echo  STOPPED: these files contain a GitHub or Cloudflare token ^(put the YOUR_..._TOKEN placeholder back^):
+  type "%BLOCKED%"
+  git reset -q
+  echo  Nothing was uploaded.
+  goto :fail
+)
+
 rem --- commit, labelled with the beta version (app\backend\version.py) ----------------------------
 set "BETA=?"
 for /f "tokens=3" %%v in ('findstr /B /C:"BETA = " app\backend\version.py') do set "BETA=%%v"

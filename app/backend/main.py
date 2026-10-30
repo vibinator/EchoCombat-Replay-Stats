@@ -63,6 +63,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                                 status_code=405)
         return await call_next(request)
 
+    @app.middleware("http")
+    async def security_headers(request, call_next):
+        """Public site (echocombat.com): no sniffing, no framing by other sites, no full URLs leaked to other sites."""
+        response = await call_next(request)
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+        response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+        return response
+
     app.include_router(replays.router)
     app.include_router(matches.router)
     app.include_router(players.router)

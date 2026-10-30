@@ -13,16 +13,32 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 4 — 2026-10-30
+### Website
+- Ready to be public at **https://echocombat.com**: `docker-compose.yml` now also runs a Cloudflare Tunnel
+  (`cloudflared`), so the NAS needs no open router ports and the home IP stays hidden. Steps in Setup.MD
+  (Public website: echocombat.com).
+- Every page is sent with basic browser security headers (no content sniffing, no framing by other sites,
+  limited referrer).
+- `upload_to_github.bat` also stops if a Cloudflare tunnel token is in a file to upload.
+
+### Upgrading to Beta 4
+- Windows: nothing to do; restart `run.bat` to see "Beta 4" in the footer.
+- QNAP / echocombat.com: upload Beta 4 to GitHub, set up Cloudflare (Setup.MD), add the tunnel token to the YAML,
+  recreate the application.
+
+---
+
 ## Beta 3 — 2026-10-30
 ### Server
-- Can run on a QNAP NAS (or any Docker host): new `Dockerfile`, `docker-compose.yml` and `.dockerignore`. The
-  container builds the website itself; replays are mounted read-only, the database lives in a mounted `data` folder.
-  Steps in Setup.MD (QNAP NAS).
+- Can run on a QNAP NAS (or any Docker host): new `Dockerfile`, `docker-compose.yml` and `.dockerignore`. Pasting
+  `docker-compose.yml` into Container Station downloads the app from GitHub, builds it and starts it; replays are
+  mounted read-only, the database lives in a NAS `data` folder that survives updates.
+- `upload_to_github.bat` also stops if any file to upload contains a GitHub token.
 
 ### Upgrading to Beta 3
 - Windows: nothing to do; restart `run.bat` to see "Beta 3" in the footer.
-- QNAP: clone the repository onto the NAS, check the folder paths in `docker-compose.yml`, then create the
-  application (see Setup.MD).
+- QNAP: upload Beta 3 to GitHub, then follow Setup.MD (QNAP NAS): token, folder paths, paste into Container Station.
 
 ---
 

@@ -1,14 +1,19 @@
-# EchoVR Replay Stats on a QNAP NAS (Container Station > Applications > Create), or `docker compose up -d --build`.
-# Expects the GitHub repository cloned to /share/Container/echovr-replay-stats/EchoCombat-Replay-Stats.
-# Check the paths under "build" and "volumes" match your NAS before deploying. See docs/Setup.MD (QNAP).
+# EchoVR Replay Stats on a QNAP NAS: Container Station > Applications > Create, paste this file, Create.
+# It downloads the app from GitHub and builds it on the NAS - no SSH or manual clone needed. See docs/Setup.MD (QNAP).
+# Public at https://echocombat.com through a Cloudflare Tunnel: no router ports opened, home IP hidden (Setup.MD).
+# Before deploying replace YOUR_GITHUB_TOKEN and YOUR_CLOUDFLARE_TUNNEL_TOKEN, and check the NAS folders under "volumes".
+# Never upload this file to GitHub with real tokens in it (upload_to_github.bat refuses).
 services:
   echovr-replay-stats:
-    build: /share/Container/echovr-replay-stats/EchoCombat-Replay-Stats   # the clone (full path, so pasting into Container Station works)
+    build:
+      # Private repository: YOUR_GITHUB_TOKEN = a read-only GitHub token for this repository (Setup.MD says how to make one).
+      # Public repository: delete "vibinator:YOUR_GITHUB_TOKEN@".
+      context: https://vibinator:YOUR_GITHUB_TOKEN@github.com/vibinator/EchoCombat-Replay-Stats.git#main
     image: echovr-replay-stats:latest
     container_name: echovr-replay-stats
     restart: unless-stopped
     ports:
-      - "8000:8000"   # website at http://<nas address>:8000 (change the left number if 8000 is taken on the NAS)
+      - "8000:8000"   # home network only: http://<nas address>:8000. Do NOT forward this port on the router.
     environment:
       ECHOVR_DATA_DIR: /data
       ECHOVR_REPLAY_SOURCE: /replays
@@ -17,5 +22,17 @@ services:
     volumes:
       # Replay folder on the NAS, read-only: the app never writes to it
       - /share/ECRanked/Replays:/replays:ro
-      # Database and processed files: outside the clone, so updates (git pull) never touch them
+      # Database and processed files: kept when the app is updated (created automatically if missing)
       - /share/Container/echovr-replay-stats/data:/data
+
+  # Connects echocombat.com to the app above (outgoing connection only). In Cloudflare, point the tunnel's public
+  # hostnames echocombat.com and www.echocombat.com at http://echovr-replay-stats:8000.
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: echovr-cloudflared
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: YOUR_CLOUDFLARE_TUNNEL_TOKEN   # Cloudflare Zero Trust > Networks > Tunnels (the long "eyJ..." value)
+    depends_on:
+      - echovr-replay-stats
