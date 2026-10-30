@@ -358,15 +358,20 @@ def cmd_discord_check(sessions, settings: Settings, user_id: str) -> dict:
         print("  none")
     is_admin = named_admin or bool(admin & set(roles))
     has_preview = is_admin or bool(preview & set(roles))
+    yaml_ids = set(settings.discord_preview_roles)
+    has_console = user_id in yaml_ids or bool(yaml_ids & set(roles))
     if named_admin:
         print("This person is an admin user (option 17): Admin tab whatever their roles.")
-    print(f"Admin tab: {'yes' if is_admin else 'NO'}   Preview: {'yes' if has_preview else 'NO'}")
+    print(f"Admin tab: {'yes' if is_admin else 'NO'}   Preview: {'yes' if has_preview else 'NO'}   "
+          f"Console page: {'yes' if has_console else 'NO'}")
+    if not yaml_ids:
+        print("Console page: ECHOVR_DISCORD_PREVIEW_ROLES is not set here, so nobody gets it.")
     if not is_admin and not admin:
         print("No admin roles are set yet: add a role with option 15, or this person with option 17.")
     if not auth.enabled(settings):
         print("Note: the Discord login is off here (client secret or bot token missing).")
     print("The website re-checks roles every 5 minutes; log out and in again to see the change at once.")
-    return {"member": True, "admin": is_admin, "preview": has_preview}
+    return {"member": True, "admin": is_admin, "preview": has_preview, "console": has_console}
 
 
 RATE_WINDOW_MIN = 10

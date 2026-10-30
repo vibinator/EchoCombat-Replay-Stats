@@ -198,8 +198,11 @@ def is_admin(request: Request) -> bool:
 
 
 def has_console(request: Request) -> bool:
-    """The visitor has a role from ECHOVR_DISCORD_PREVIEW_ROLES (the YAML / environment, not the console's preview
-    roles): the website's Console page, admin.bat on the website (D45)."""
+    """The visitor is named in ECHOVR_DISCORD_PREVIEW_ROLES (the YAML / environment, not the console's preview
+    roles), by a role they have or by their own Discord user id: the website's Console page, admin.bat on the
+    website (D45)."""
     user = viewer(request)
-    roles = set(request.app.state.settings.discord_preview_roles)
-    return bool(user and roles and roles & member_roles(request.app.state.settings, user["id"]))
+    ids = set(request.app.state.settings.discord_preview_roles)
+    if not user or not ids:
+        return False
+    return user["id"] in ids or bool(ids & member_roles(request.app.state.settings, user["id"]))

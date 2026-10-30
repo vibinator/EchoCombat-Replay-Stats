@@ -13,6 +13,21 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 16 — 2026-10-30
+### Website
+- Console page: `ECHOVR_DISCORD_PREVIEW_ROLES` may also hold a **person's Discord user id** (right-click them >
+  Copy User ID), not only role ids: that person gets the Console tab whatever their roles.
+
+### Admin console
+- Option 16 (`discord-check`) also says whether the person gets the Console page, and warns when
+  `ECHOVR_DISCORD_PREVIEW_ROLES` is not set.
+
+### Upgrading to Beta 16
+- QNAP: upload Beta 16, wait for the Actions run, Recreate (this also brings Beta 15's Console page live).
+- Windows: restart `run.bat`.
+
+---
+
 ## Beta 15 — 2026-10-30
 ### Website
 - **Console page** (menu: *Console*): `admin.bat` on the website, for Discord members with a role listed in

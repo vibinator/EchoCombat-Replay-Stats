@@ -275,10 +275,12 @@ def test_discord_check_explains_access(tmp_path, discord, capsys):
         st = client.app.state.settings
         sessions = console.open_sessions(st)
         assert console.cmd_discord_check(sessions, st, OUTSIDER) == {"member": False}
-        assert console.cmd_discord_check(sessions, st, DB_MEMBER) == {"member": True, "admin": False, "preview": False}
+        assert console.cmd_discord_check(sessions, st, DB_MEMBER) == {"member": True, "admin": False, "preview": False,
+                                                                          "console": False}
         assert "No admin roles are set yet" in capsys.readouterr().out
         console.cmd_discord_roles(sessions, st, "admin", add=DB_ROLE)
-        assert console.cmd_discord_check(sessions, st, DB_MEMBER) == {"member": True, "admin": True, "preview": True}
+        assert console.cmd_discord_check(sessions, st, DB_MEMBER) == {"member": True, "admin": True, "preview": True,
+                                                                          "console": False}
         with pytest.raises(console.ConsoleError, match="refused the bot token"):
             console.cmd_discord_check(sessions, st, BROKEN)
         with pytest.raises(console.ConsoleError, match="bot token is not set"):
@@ -365,3 +367,13 @@ def test_console_page_for_yaml_preview_roles_only(tmp_path, discord):
         assert client.post("/api/admin/console/admin-users", json={"user_id": MEMBER}, headers=CONSOLE).json()["ok"]
         with client.app.state.sessionmaker() as db:
             assert actions.discord_roles(db, "admin_user") == []
+
+
+def test_console_page_for_a_user_id_in_the_yaml(tmp_path, discord):
+    """A person's own Discord id in ECHOVR_DISCORD_PREVIEW_ROLES works too (D44: one was put there)."""
+    with app_client(settings(tmp_path, discord_preview_roles=(NO_ROLE,))) as client:
+        login(client, NO_ROLE)
+        assert client.get("/api/auth/me").json()["user"]["console"] is True
+        assert client.post("/api/admin/console/status", json={}, headers=CONSOLE).json()["ok"]
+        login(client, MEMBER)
+        assert client.get("/api/auth/me").json()["user"]["console"] is False
