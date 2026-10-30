@@ -1,41 +1,31 @@
-"""Admin tab (D42): Discord members with an admin role. Read-only like the rest of the website: changes are still
-made in admin.bat. Built from the achievement rules on every request, so the list and the Excel file are always
-current. The one change made here instead of admin.bat: achievement icons (D43), for admins only."""
+"""Staff endpoints under /api/admin: the Status page (admins and console users) and achievement icons (D43, changed
+from the Console page's achievement export). The old Admin tab (achievement list + Excel) was removed (user,
+2026-10-30): the Console export replaces it."""
 
 from fastapi import APIRouter, Request
-from fastapi.responses import Response
 from pydantic import BaseModel
 
 from .. import auth, icons
-from ..achievement_sheet import COLUMNS, rows, workbook_bytes
 from ..errors import ApiError
-from ..version import APP_VERSION
+from .achievements import ranking_state
+from .imports import import_status
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
-XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-
-
-def require_admin(request: Request) -> None:
-    if not auth.is_admin(request):
-        raise ApiError(403, "admin_only", "Admins only: log in with Discord with an admin role")
 
 
 def require_icon_editor(request: Request) -> None:
-    """Icons are changed from the Admin tab (admins) or the Console page's achievement export (console access,
-    asked from Discord every time, D45)."""
-    if not (auth.is_admin(request) or auth.has_console(request, fresh=True)):
-        raise ApiError(403, "admin_only", "Only admins and console users can change icons")
+    """Icons are changed from the Console page's achievement export: console access, asked from Discord every time."""
+    if not auth.has_console(request, fresh=True):
+        raise ApiError(403, "console_only", "Only console users can change icons")
 
 
-@router.get("/achievements")
-def achievement_list(request: Request):
-    """Every achievement / challenge with how to get it (the same rows as the Excel file)."""
-    require_admin(request)
-    with request.app.state.sessionmaker() as db:
-        chosen = icons.overrides(db)
-    items = [r | {"default_icon": icons.default(r["id"]), "icon": chosen.get(r["id"], icons.default(r["id"]))}
-             for r in rows()]
-    return {"columns": [{"key": k, "label": label} for k, label, _ in COLUMNS], "items": items}
+@router.get("/status")
+def status(request: Request):
+    """Status page (admins and console users): live progress of replay processing and everything built from it
+    (match stats, players, timeline events, position tracks / heatmaps, leaderboard, achievements)."""
+    if not (auth.is_admin(request) or auth.has_console(request)):
+        raise ApiError(403, "admin_only", "Only admins and console users can see the status")
+    return import_status(request) | {"achievement_ranking": ranking_state(request.app.state.sessionmaker)}
 
 
 @router.get("/icons")
@@ -73,10 +63,3 @@ async def upload_icon(request: Request, rule_id: int):
     except icons.IconError as e:
         raise ApiError(400, "bad_icon", str(e)) from None
     return {"id": rule_id, "icon": icon}
-
-
-@router.get("/achievements.xlsx")
-def achievement_workbook(request: Request):
-    require_admin(request)
-    return Response(workbook_bytes(APP_VERSION), media_type=XLSX,
-                    headers={"Content-Disposition": 'attachment; filename="EchoVR-Achievements.xlsx"'})

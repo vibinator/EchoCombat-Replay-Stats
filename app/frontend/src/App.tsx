@@ -13,6 +13,7 @@ import { MatchesPage } from "./pages/MatchesPage";
 import { PermissionsPage } from "./pages/PermissionsPage";
 import { PlayerPage } from "./pages/PlayerPage";
 import { PlayersPage } from "./pages/PlayersPage";
+import { StatusPage } from "./pages/StatusPage";
 import { useAchievementsAccess } from "./components/AchievementsView";
 import { useApi } from "./useApi";
 
@@ -118,6 +119,7 @@ function Layout() {
           {[
             ...NAV,
             ...(user?.admin ? ([["/admin", "Admin"]] as const) : []),
+            ...(user?.admin || user?.console ? ([["/status", "Status"]] as const) : []),
             ...(user?.console
               ? ([
                   ["/console", "Console"],
@@ -161,6 +163,7 @@ function Layout() {
           <Route path="/admin" element={<AdminPage />} />
           <Route path="/console" element={<ConsolePage />} />
           <Route path="/permissions" element={<PermissionsPage />} />
+          <Route path="/status" element={<StatusPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>

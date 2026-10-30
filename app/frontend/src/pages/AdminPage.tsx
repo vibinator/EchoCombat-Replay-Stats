@@ -45,6 +45,13 @@ export function IconEditor({ row, onDone }: { row: IconRow; onDone: (changed: bo
   const choices = useApi(getIconChoices, `icon-choices-${row.icon}`); // an upload adds a choice
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [dragging, setDragging] = useState(false);
+
+  function upload(file: File | undefined) {
+    if (!file) return;
+    if (file.type !== "image/png") return setError("Only PNG files can be used as icons.");
+    run(() => uploadIcon(row.id, file));
+  }
 
   async function run(change: () => Promise<unknown>) {
     setBusy(true);
@@ -71,25 +78,29 @@ export function IconEditor({ row, onDone }: { row: IconRow; onDone: (changed: bo
         </button>
       </div>
       <p className="muted">
-        Current: <img className="icon-thumb" src={IMG + (row.icon ?? GENERIC_ICON)} alt="" /> Click an icon to use it, or upload a PNG (at most
-        512 KB, 1024 x 1024). The change shows on the website straight away.
+        Current: <img className="icon-thumb" src={IMG + (row.icon ?? GENERIC_ICON)} alt="" /> The change shows on the website straight away.
       </p>
-      <div className="filters">
-        <label className="button secondary">
-          Upload PNG…
-          <input
-            type="file"
-            accept="image/png"
-            hidden
-            disabled={busy}
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) run(() => uploadIcon(row.id, file));
-            }}
-          />
-        </label>
+      <label
+        className={`upload-drop${dragging ? " dragging" : ""}${busy ? " busy" : ""}`}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragging(true);
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragging(false);
+          upload(e.dataTransfer.files?.[0]);
+        }}
+      >
+        <span className="upload-drop-title">{busy ? "Uploading…" : "Upload your own icon"}</span>
+        <span className="muted">Click to choose a PNG file, or drop it here. At most 512 KB and 1024 × 1024 pixels.</span>
+        <input type="file" accept="image/png" hidden disabled={busy} onChange={(e) => upload(e.target.files?.[0])} />
+      </label>
+      <div className="section-head">
+        <h3>Or pick a built-in badge</h3>
         <button className="secondary" disabled={busy || row.icon === row.default_icon} onClick={() => run(() => setIcon(row.id, null))}>
-          Reset to default
+          Reset to original
         </button>
       </div>
       {error && <p className="error">{error}</p>}

@@ -1572,3 +1572,90 @@ tr.me td {
   flex: 1 1 160px;
   min-width: 0;
 }
+
+/* Icon editor: upload box (click or drop a PNG) */
+.upload-drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin: 12px 0 16px;
+  padding: 20px 16px;
+  border: 2px dashed var(--orange);
+  border-radius: 8px;
+  background: var(--surface-2);
+  text-align: center;
+  cursor: pointer;
+}
+.upload-drop:hover,
+.upload-drop.dragging {
+  background: var(--bg);
+  border-style: solid;
+}
+.upload-drop.busy {
+  opacity: 0.6;
+  cursor: default;
+}
+.upload-drop-title {
+  color: var(--orange);
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+.icon-editor h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+/* Status page: progress tiles, stage meters, folder facts */
+.status-tiles {
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  margin: 16px 0;
+}
+.meter {
+  height: 6px;
+  min-width: 60px;
+  border-radius: 3px;
+  background: var(--line);
+  overflow: hidden;
+}
+.meter div {
+  height: 100%;
+  border-radius: 3px;
+  background: var(--chart-1);
+  transition: width 0.4s;
+}
+.stage-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.stage-list p {
+  margin: 4px 0 0;
+  font-size: 0.85rem;
+}
+.stage-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+  margin-bottom: 6px;
+}
+.stage-head .tag {
+  margin-left: 8px;
+}
+.status-facts {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 6px 16px;
+  margin: 0;
+}
+.status-facts dt {
+  color: var(--muted);
+}
+.status-facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}

@@ -552,3 +552,20 @@ def test_permissions_give_access(tmp_path, discord):
         client.cookies.clear()
         login(client, person)
         assert client.get(PERMS).status_code == 403  # taken away: refused at once
+
+
+def test_status_page_for_admins_and_console_users(tmp_path, discord):
+    with app_client(settings(tmp_path)) as client:
+        add(client, {"dyson/0.echoreplay": rf.plain(rf.lines(20))})
+        assert client.get("/api/admin/status").status_code == 403  # logged out
+        login(client, NO_ROLE)
+        assert client.get("/api/admin/status").status_code == 403
+        login(client, MEMBER)  # console
+        d = client.get("/api/admin/status").json()
+        assert d["counts"]["done"] == 1 and {s["key"] for s in d["stages"]} >= {"replays", "tracks", "heatmaps", "achievements"}
+        assert set(d["achievement_ranking"]) == {"calculating", "calculated", "up_to_date", "age_s"}
+        assert "no-store" in client.get("/api/admin/status").headers["cache-control"]
+        act(client, actions.add_discord_role, "admin", DB_ROLE)
+        client.cookies.clear()
+        login(client, DB_MEMBER)  # admin, not console
+        assert client.get("/api/admin/status").status_code == 200

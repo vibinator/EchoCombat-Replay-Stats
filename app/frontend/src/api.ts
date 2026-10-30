@@ -496,6 +496,37 @@ export interface ConsoleAchievement extends IconRow {
 export const getConsoleAchievements = () => send<ConsoleAchievement[]>("/api/admin/console/achievements");
 export const CONSOLE_ACHIEVEMENTS_CSV = "/api/admin/console/achievements.csv";
 
+/** Status page (admins and console users): live replay processing progress. Never cached. */
+export interface ProcessingStatus {
+  source_dir: string;
+  workers: number;
+  busy: number;
+  counts: { queued: number; processing: number; done: number; failed: number };
+  hidden_failed: number;
+  redo: number;
+  versions: { parser: string; stats: string };
+  rate_per_min: number;
+  eta_min: number | null;
+  matches_by_map: Record<string, number>;
+  throughput: { minute: string; replays: number }[];
+  by_year: { year: string; queued: number; processing: number; done: number; failed: number }[];
+  stages: { key: string; label: string; done: number; total: number | null; detail: string }[];
+  current: { replay_id: number; source_path: string; seconds: number }[];
+  scan: {
+    reachable: boolean | null;
+    scanning: boolean;
+    last_scan_at: string | null;
+    last_scan_s: number | null;
+    files: number;
+    settling: number;
+    added: number;
+    changed: number;
+    error: string | null;
+  };
+  achievement_ranking: { calculating: boolean; calculated: boolean; up_to_date: boolean; age_s: number | null };
+}
+export const getProcessingStatus = () => send<ProcessingStatus>("/api/admin/status");
+
 /** Permissions page: who gets the Admin tab, the Console and the Preview, by Discord role or user id. */
 export type Permission = "admin" | "console" | "preview";
 export interface DiscordEntry {

@@ -189,6 +189,17 @@ def _refresh_in_background(sessions, key: tuple) -> None:
     threading.Thread(target=run, name="achievements-refresh", daemon=True).start()
 
 
+def ranking_state(sessions) -> dict:
+    """For the Status page: is the everyone-ranking (leaderboard, rarity, recent unlocks) being recalculated, and
+    does the last result match the current data?"""
+    with _lock:
+        calculating = id(sessions) in _refreshing
+    cached = _cache.get(id(sessions))
+    return {"calculating": calculating, "calculated": cached is not None,
+            "up_to_date": bool(cached) and cached[0] == _key(sessions),
+            "age_s": round(time.monotonic() - cached[1]) if cached else None}
+
+
 def _key(sessions) -> tuple:
     """(data stamp, challenge window)."""
     with sessions() as db:

@@ -13,6 +13,23 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 20 — 2026-10-30
+### Website
+- **Status page** (menu: *Status*, for admins and Console users): live progress of replay processing, updated
+  every 10 seconds. Tiles for finished %, waiting, speed, time left and failed; a progress bar per stage (replays
+  read, match stats, players, timeline events, position tracks, **heatmaps**, leaderboard, achievements) and whether
+  the achievement leaderboard is being recalculated; the files being processed right now; the replay folder (reachable,
+  last scan, new / changed files); replays finished per minute over the last hour; progress per year; matches per map.
+- **Icon editor**: "Upload PNG" is now a large upload box at the top ("Upload your own icon"): click it to choose a
+  PNG or drop the file on it. Below it: "Or pick a built-in badge" and **Reset to original**. (Before, the upload
+  link looked like plain text.)
+
+### Upgrading to Beta 20
+- QNAP: upload Beta 20, wait for the Actions run, Recreate.
+- Windows: restart `run.bat`.
+
+---
+
 ## Beta 19 — 2026-10-30
 ### Website
 - **Permissions page** (menu: *Permissions*, for Console users): give or take away the **Admin tab**, the
