@@ -99,7 +99,7 @@ def player_achievements(request: Request, user_id: str):
         window = counted_window(db)  # part of the cache key: an admin period change shows at once
     result = cached(request, "achievements", (user_id, window), lambda: _player_achievements(request, user_id))
     with request.app.state.sessionmaker() as db:
-        return result | {"items": icons.apply(db, result["items"])}  # icons chosen in the Admin tab (D43)
+        return result | {"items": icons.apply(db, result["items"])}  # icons chosen on the Console page (D43)
 
 
 def _player_achievements(request: Request, user_id: str) -> dict:

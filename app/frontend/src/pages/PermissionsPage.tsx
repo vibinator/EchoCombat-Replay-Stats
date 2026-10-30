@@ -7,8 +7,8 @@ import { useApi } from "../useApi";
 const PERMISSIONS: { key: Permission; title: string; gives: string }[] = [
   {
     key: "admin",
-    title: "Admin tab",
-    gives: "The Admin tab: every achievement with how to get it, the Excel download and achievement icons. Includes the Preview.",
+    title: "Admin",
+    gives: "The Status page: live progress of replay processing. Includes the Preview.",
   },
   {
     key: "console",
@@ -18,7 +18,7 @@ const PERMISSIONS: { key: Permission; title: string; gives: string }[] = [
   { key: "preview", title: "Preview", gives: "Achievements and challenges before the launch date." },
 ];
 
-/** Who gets the Admin tab, the Console and the Preview, by Discord role or user id. Console users only; the server
+/** Who gets Admin, the Console and the Preview, by Discord role or user id. Console users only; the server
  * checks every change. */
 export function PermissionsPage() {
   const me = useApi(getMe, "me");

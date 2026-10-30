@@ -175,38 +175,26 @@ def test_preview_roles_from_the_admin_console(tmp_path, discord, capsys):
             console.cmd_discord_roles(sessions, client.app.state.settings, "preview", remove=DB_ROLE)
 
 
-def test_admin_tab_and_excel_download(tmp_path, discord):
-    import io
-
+def test_admin_role_gets_status_not_the_old_admin_tab(tmp_path, discord):
     import admin_console as console
-    from openpyxl import load_workbook
 
     with app_client(settings(tmp_path)) as client:
         login(client, DB_MEMBER)
-        assert client.get("/api/admin/achievements").status_code == 403
-        assert client.get("/api/admin/achievements.xlsx").status_code == 403
+        assert client.get("/api/admin/status").status_code == 403
         sessions = console.open_sessions(client.app.state.settings)
         console.cmd_discord_roles(sessions, client.app.state.settings, "admin", add=DB_ROLE)
         assert client.get("/api/auth/me").json()["user"] == {"name": f"user{DB_MEMBER}", "preview": True, "admin": True,
                                                                        "console": False}
-
-        data = client.get("/api/admin/achievements").json()
-        assert len(data["items"]) == 96 and data["columns"][0] == {"key": "id", "label": "ID"}
-        assert all(row["how"].startswith(row["requirement"].removesuffix(" *")) for row in data["items"])
-
-        r = client.get("/api/admin/achievements.xlsx")
-        assert r.status_code == 200 and "EchoVR-Achievements.xlsx" in r.headers["content-disposition"]
-        wb = load_workbook(io.BytesIO(r.content))
-        assert wb.sheetnames == ["Achievements", "How it works", "Summary"]
-        sheet = wb["Achievements"]
-        assert sheet.max_row == 97 and sheet["B2"].value == data["items"][0]["name"]
-        assert wb["Summary"]["B2"].value.startswith("=COUNTIFS(")
+        assert client.get("/api/admin/status").status_code == 200
+        for gone in ("/api/admin/achievements", "/api/admin/achievements.xlsx"):  # Admin tab removed
+            assert client.get(gone).status_code == 404
+        assert client.get("/api/admin/icons").status_code == 403  # icons: console users only
 
         # a preview role is not an admin role
         console.cmd_discord_roles(sessions, client.app.state.settings, "admin", remove=DB_ROLE)
         console.cmd_discord_roles(sessions, client.app.state.settings, "preview", add=DB_ROLE)
         assert client.get("/api/auth/me").json()["user"]["admin"] is False
-        assert client.get("/api/admin/achievements").status_code == 403
+        assert client.get("/api/admin/status").status_code == 403
 
 
 def _png(width=64, height=64) -> bytes:
@@ -221,18 +209,15 @@ def _png(width=64, height=64) -> bytes:
             + chunk(b"IDAT", zlib.compress(raw)) + chunk(b"IEND", b""))
 
 
-def test_admin_changes_achievement_icons(tmp_path, discord):
-    import admin_console as console
-
+def test_console_changes_achievement_icons(tmp_path, discord):
     headers = {"X-EchoVR": "1"}
     with app_client(settings(tmp_path)) as client:
         add(client, {"dyson/0.echoreplay": rf.plain(rf.lines(20))})
         act(client, actions.set_challenge_window, "2026-01-01", None)
-        login(client, DB_MEMBER)
-        # not an admin yet: refused (and without the header the site stays read-only)
+        login(client, NO_ROLE)
+        # no console access: refused (and without the header the site stays read-only)
         assert client.put("/api/admin/achievements/5/icon", json={"icon": "nova.png"}, headers=headers).status_code == 403
-        sessions = console.open_sessions(client.app.state.settings)
-        console.cmd_discord_roles(sessions, client.app.state.settings, "admin", add=DB_ROLE)
+        login(client, MEMBER)
         assert client.put("/api/admin/achievements/5/icon", json={"icon": "nova.png"}).status_code == 405
 
         choices = client.get("/api/admin/icons").json()
@@ -244,8 +229,8 @@ def test_admin_changes_achievement_icons(tmp_path, discord):
         def icon_everywhere(rule_id):
             player = {a["id"]: a["icon"] for a in client.get(f"/api/players/{BLUE}/achievements").json()["items"]}
             catalogue = {a["id"]: a["icon"] for a in client.get("/api/achievements").json()}
-            admin = {a["id"]: a["icon"] for a in client.get("/api/admin/achievements").json()["items"]}
-            assert player[rule_id] == catalogue[rule_id] == admin[rule_id]
+            export = {a["id"]: a["icon"] for a in client.get("/api/admin/console/achievements").json()}
+            assert player[rule_id] == catalogue[rule_id] == export[rule_id]
             return player[rule_id]
 
         assert icon_everywhere(5) == "nova.png"
@@ -279,7 +264,7 @@ def test_discord_check_explains_access(tmp_path, discord, capsys):
         assert console.cmd_discord_check(sessions, st, DB_MEMBER) == {"member": True, "admin": False, "preview": False,
                                                                           "console": False}
         out = capsys.readouterr().out
-        assert "  Admin tab     no\n  Preview       no\n  Console page  no" in out
+        assert "  Admin         no\n  Preview       no\n  Console page  no" in out
         assert "Member" not in out and "999" not in out  # permissions only, not the person's Discord roles
         yaml_user = console.cmd_discord_check(sessions, st.__class__(**(st.__dict__ | {"discord_preview_roles": (OUTSIDER,)})), OUTSIDER)
         assert yaml_user == {"member": False, "admin": False, "preview": True, "console": True}  # user id in the YAML
@@ -334,7 +319,7 @@ def test_admin_users_by_discord_id(tmp_path, discord):
         login(client, uid)  # not in the server at all: a named admin needs no role
         assert client.get("/api/auth/me").json()["user"] == {"name": f"user{uid}", "preview": True, "admin": True,
                                                                 "console": False}
-        assert client.get("/api/admin/achievements").status_code == 200
+        assert client.get("/api/admin/status").status_code == 200
         console.cmd_admin_users(sessions, st, remove=uid)
         assert client.get("/api/auth/me").json()["user"]["admin"] is False
 
@@ -476,7 +461,6 @@ def test_console_users_change_icons(tmp_path, discord):
 
         login(client, MEMBER)  # console, not admin
         assert client.get("/api/auth/me").json()["user"]["admin"] is False
-        assert client.get("/api/admin/achievements").status_code == 403  # the Admin tab stays admins only
         assert "nova.png" in client.get("/api/admin/icons").json()
         default = next(i for i in client.get("/api/admin/console/achievements").json() if i["id"] == 5)["default_icon"]
         assert client.put(icon, json={"icon": "nova.png"}, headers=CONSOLE).json()["icon"] == "nova.png"

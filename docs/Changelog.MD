@@ -13,6 +13,21 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 21 — 2026-10-30
+### Website
+- **The Admin tab is gone.** Everything it did is on the Console page: **Export achievements and challenges**
+  lists every achievement with its rule and icon, changes icons and downloads a CSV (the Excel download is
+  replaced by the CSV). Icons can now only be changed by Console users.
+- The **Admin** permission (Permissions page, admin.bat options 15 / 17) now gives the **Status page** and the
+  Preview. "Check a member's access" shows *Admin*, *Preview* and *Console page*.
+- Fixes Beta 20, which was uploaded halfway through this change: its Admin tab showed an error.
+
+### Upgrading to Beta 21
+- QNAP: upload Beta 21, wait for the Actions run, Recreate.
+- Windows: run `run.bat` (it no longer needs openpyxl).
+
+---
+
 ## Beta 20 — 2026-10-30
 ### Website
 - **Status page** (menu: *Status*, for admins and Console users): live progress of replay processing, updated

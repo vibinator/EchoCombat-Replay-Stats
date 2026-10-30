@@ -226,7 +226,7 @@ def has_preview(request: Request) -> bool:
 
 
 def is_admin(request: Request) -> bool:
-    """The website's Admin tab (D42)."""
+    """Admin: the Status page (and the preview)."""
     return _has(request, "admin")
 
 

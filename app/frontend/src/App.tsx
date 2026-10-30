@@ -3,7 +3,6 @@ import { BrowserRouter, Link, NavLink, Route, Routes, useLocation } from "react-
 import { getHealth, getMe, getProcessing, loginUrl, LOGOUT_URL } from "./api";
 import { GlobalSearch } from "./components/GlobalSearch";
 import { AchievementsPage } from "./pages/AchievementsPage";
-import { AdminPage } from "./pages/AdminPage";
 import { ComparePage } from "./pages/ComparePage";
 import { ConsolePage } from "./pages/ConsolePage";
 import { HomePage } from "./pages/HomePage";
@@ -118,7 +117,6 @@ function Layout() {
         <nav id="main-nav" className={menuOpen ? "open" : ""}>
           {[
             ...NAV,
-            ...(user?.admin ? ([["/admin", "Admin"]] as const) : []),
             ...(user?.admin || user?.console ? ([["/status", "Status"]] as const) : []),
             ...(user?.console
               ? ([
@@ -160,7 +158,6 @@ function Layout() {
           <Route path="/compare" element={<ComparePage />} />
           <Route path="/leaderboard" element={<LeaderboardPage />} />
           <Route path="/achievements" element={<AchievementsPage />} />
-          <Route path="/admin" element={<AdminPage />} />
           <Route path="/console" element={<ConsolePage />} />
           <Route path="/permissions" element={<PermissionsPage />} />
           <Route path="/status" element={<StatusPage />} />

@@ -13,7 +13,7 @@ rule and the affected replays are re-processed from the original files, so it ca
     admin.bat unmerge <merged id> [--yes]
     admin.bat challenge [--start YYYY-MM-DD] [--end YYYY-MM-DD] [--clear]
     admin.bat preview-roles [--server] [--add <role id>] [--remove <role id>]   Discord roles: achievements early
-    admin.bat admin-roles [--server] [--add <role id>] [--remove <role id>]     Discord roles: website Admin tab
+    admin.bat admin-roles [--server] [--add <role id>] [--remove <role id>]     Discord roles: admins (Status page)
     admin.bat admin-users [--add <user id>] [--remove <user id>]   Discord users that are admins (no role needed)
     admin.bat discord-check <discord user id>   what the bot sees for one person: in the server, roles, access
     admin.bat status
@@ -241,7 +241,7 @@ def _server_roles(settings: Settings) -> list[dict] | None:
 
 ROLE_KINDS = {  # kind -> (heading, what the members get)
     "preview": ("Preview roles", "see achievements and challenges before the launch date"),
-    "admin": ("Admin roles", "get the website's Admin tab (achievement list + Excel download) and the preview"),
+    "admin": ("Admin roles", "get the Status page and the preview"),
 }
 
 
@@ -294,19 +294,19 @@ def _discord_user(settings: Settings, user_id: str) -> str:
 
 
 def cmd_admin_users(sessions, settings: Settings, add: str | None = None, remove: str | None = None) -> list[str]:
-    """Discord users that are admins themselves (Admin tab + preview), whatever their roles."""
+    """Discord users that are admins themselves (Status page + preview), whatever their roles."""
     with sessions() as db:
         if add:
             server = _server_roles(settings)
             if server is not None and add.strip() in {r["id"] for r in server}:
                 raise ConsoleError(f"{add.strip()} is a role, not a person: use admin roles (option 15) for it.")
             actions.add_discord_role(db, "admin_user", add)
-            print(f"Added. {_discord_user(settings, add)} gets the Admin tab at their next page load.")
+            print(f"Added. {_discord_user(settings, add)} is an admin (Status page) at their next page load.")
         if remove:
             actions.remove_discord_role(db, "admin_user", remove)
-            print(f"Removed. {remove.strip()} loses the Admin tab at their next page load (unless an admin role gives it).")
+            print(f"Removed. {remove.strip()} is no longer an admin at their next page load (unless an admin role gives it).")
         users = actions.discord_roles(db, "admin_user")
-    print("Admin users (Admin tab and preview, no role needed):")
+    print("Admin users (Status page and preview, no role needed):")
     for u in users:
         print(f"  {_discord_user(settings, u):<28} {u}")
     if not users:
@@ -339,7 +339,7 @@ def cmd_discord_check(sessions, settings: Settings, user_id: str) -> dict:
     user = (member or {}).get("user", {})
     name = user.get("global_name") or user.get("username") or _discord_user(settings, user_id)
     print(f"{name} ({user_id})" + ("" if member else ": not in the Discord server"))
-    for label, ok in (("Admin tab", is_admin), ("Preview", has_preview), ("Console page", has_console)):
+    for label, ok in (("Admin", is_admin), ("Preview", has_preview), ("Console page", has_console)):
         print(f"  {label:<14}{'yes' if ok else 'no'}")
     if not auth.enabled(settings):
         print("Note: the Discord login is off here (client secret or bot token missing).")
@@ -537,9 +537,9 @@ EchoVR Replay Stats - admin console ({APP_VERSION})
   12 Scan the replay folder now
   13 Rescan and re-process every replay
   14 Discord preview roles (see achievements before the launch)
-  15 Discord admin roles (website Admin tab: achievement list + Excel)
-  16 Check a Discord member's access (why someone does / does not see the Admin tab)
-  17 Discord admin users (people who get the Admin tab, by user id)
+  15 Discord admin roles (Status page)
+  16 Check a Discord member's access (Admin, Preview, Console)
+  17 Discord admin users (admins by user id)
   q  Quit"""
 
 
@@ -661,7 +661,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--end", help="YYYY-MM-DD, or '' for no limit")
     p.add_argument("--clear", action="store_true", help="remove both dates")
     for kind, help_ in (("preview", "Discord roles that see achievements before the launch date"),
-                        ("admin", "Discord roles that get the website's Admin tab")):
+                        ("admin", "Discord roles that are admins (Status page)")):
         p = sub.add_parser(f"{kind}-roles", help=help_)
         p.add_argument("--add", metavar="ROLE_ID", help="add this role")
         p.add_argument("--remove", metavar="ROLE_ID", help="remove this role")

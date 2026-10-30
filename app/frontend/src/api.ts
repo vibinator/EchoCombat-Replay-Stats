@@ -24,7 +24,7 @@ function request<T>(path: string, init?: RequestInit): Promise<T> {
   return value;
 }
 
-/** After a change (Admin tab icons): ask the server again instead of reusing answers. */
+/** After a change (icons, Console): ask the server again instead of reusing answers. */
 export function forgetResponses(): void {
   responses.clear();
 }
@@ -436,27 +436,7 @@ export interface Me {
   user: { name: string; preview: boolean; admin: boolean; console: boolean } | null;
 }
 
-export interface AdminAchievementRow {
-  id: number;
-  name: string;
-  category: string;
-  theme: string;
-  timeframe: string;
-  requirement: string;
-  how: string;
-  progress: string;
-  notes: string;
-  icon: string | null;
-  default_icon: string | null;
-  [key: string]: string | number | null;
-}
-
-export const getAdminAchievements = () =>
-  request<{ columns: { key: string; label: string }[]; items: AdminAchievementRow[] }>("/api/admin/achievements");
-/** Always generated from the live rules (D42). */
-export const ADMIN_XLSX_URL = "/api/admin/achievements.xlsx";
-
-// Icon changes (D43): the only writes the website accepts, from admins; X-EchoVR marks this site's own pages.
+// Writes (icons, Console, Permissions): X-EchoVR marks this site's own pages.
 const ADMIN_WRITE = { "X-EchoVR": "1" };
 export const getIconChoices = () => request<string[]>("/api/admin/icons");
 export const setIcon = (id: number, icon: string | null) =>
@@ -480,7 +460,7 @@ export const runConsole = (command: string, args: Record<string, unknown>) =>
     body: JSON.stringify(args),
   });
 
-/** What the icon picker needs (Admin tab and Console export). */
+/** What the icon picker needs (Console export). */
 export interface IconRow {
   id: number;
   name: string;
@@ -527,7 +507,7 @@ export interface ProcessingStatus {
 }
 export const getProcessingStatus = () => send<ProcessingStatus>("/api/admin/status");
 
-/** Permissions page: who gets the Admin tab, the Console and the Preview, by Discord role or user id. */
+/** Permissions page: who gets Admin, the Console and the Preview, by Discord role or user id. */
 export type Permission = "admin" | "console" | "preview";
 export interface DiscordEntry {
   id: string;

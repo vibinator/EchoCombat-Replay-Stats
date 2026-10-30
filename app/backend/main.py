@@ -60,7 +60,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.middleware("http")
     async def read_only(request, call_next):
         """The website never changes data: every change is made in the admin console (admin.bat). Exceptions:
-        achievement icons in the Admin tab (D43), for Discord admins, and the Console page (D45, admin.bat itself), for
+        achievement icons (D43), and the Console page (D45, admin.bat itself), for
         ECHOVR_DISCORD_PREVIEW_ROLES members, and the Permissions page (console users); the X-EchoVR header proves the request comes from this site's own pages
         (other sites cannot send it without a CORS preflight, which is refused)."""
         if (request.method in ("PUT", "POST") and request.url.path.startswith(("/api/admin/achievements/", "/api/admin/console/", "/api/admin/permissions"))
@@ -102,7 +102,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/achievements/custom/{name}")
     def custom_icon(name: str):
-        """Icons uploaded in the Admin tab (D43). Before the site mount, which serves the built-in ones."""
+        """Icons uploaded on the Console page (D43). Before the site mount, which serves the built-in ones."""
         path = icons.custom_dir(settings) / name
         if not icons.CUSTOM_NAME.match(name) or not path.is_file():
             raise HTTPException(404)

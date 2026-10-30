@@ -1,4 +1,4 @@
-"""Permissions page (user, 2026-10-30): console users give or take away the Admin tab, the Console and the Preview,
+"""Permissions page (user, 2026-10-30): console users give or take away Admin (the Status page), the Console and the Preview,
 by Discord role or by a person's user id. Stored in app_settings (kept across rebuilds), the same lists admin.bat
 options 14, 15 and 17 edit. The ids in ECHOVR_DISCORD_PREVIEW_ROLES (YAML) are shown as fixed: they always give
 the console and cannot be removed here, so nobody can lock the owner out."""

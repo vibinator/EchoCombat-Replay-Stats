@@ -1,4 +1,4 @@
-"""Achievement icons chosen in the website's Admin tab (D43): an existing badge image or an uploaded PNG. The choice is
+"""Achievement icons chosen on the Console page (D43): an existing badge image or an uploaded PNG. The choice is
 in app_settings and uploads in <data>/icons, so both survive updates and database rebuilds. Applied when an answer
 is sent (never stored in cached results), so a change shows everywhere at once."""
 

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { CONSOLE_ACHIEVEMENTS_CSV, forgetResponses, getConsoleAchievements, getMe, loginUrl, runConsole } from "../api";
 import { Status, TableWrap } from "../components/common";
 import { EmptyState } from "../components/ui";
-import { GENERIC_ICON, IconEditor, IMG } from "./AdminPage";
+import { GENERIC_ICON, IconEditor, IMG } from "../components/IconEditor";
 import { useApi } from "../useApi";
 
 type Field = {
@@ -29,7 +29,7 @@ const lines = (text = "") =>
     .map((s) => s.trim())
     .filter(Boolean);
 
-/** The admin.bat menu. Who gets the preview / Admin tab is only shown here: changing it stays in admin.bat. */
+/** The admin.bat menu. Who gets access is managed on the Permissions page. */
 const GROUPS: { title: string; commands: Command[] }[] = [
   {
     title: "Replays",
@@ -172,7 +172,7 @@ const GROUPS: { title: string; commands: Command[] }[] = [
       {
         name: "discord-check",
         label: "Check a member's access",
-        help: "Whether one person gets the Admin tab, the Preview and the Console page. To change who gets what, use the Permissions page.",
+        help: "Whether one person is an Admin, gets the Preview and the Console page. To change who gets what, use the Permissions page.",
         fields: [{ key: "user_id", label: "Discord user id", hint: "In Discord: right-click the person > Copy User ID" }],
       },
     ],
