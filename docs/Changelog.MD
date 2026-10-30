@@ -31,6 +31,8 @@ Working record of what changed in each release, newest first.
   (at most 512 KB and 1024 x 1024), or reset to the default. The new icon shows everywhere on the site at once and
   is kept across updates. This is the only change that can be made on the website; everything else stays in the
   admin console.
+- **Log in with Discord** button in the top-right corner of the menu bar on every page (when the Discord login is set
+  up). Logging in brings you back to the page you were on; logged in, the corner shows your name and *Log out*.
 - Admins also see achievements before the launch, like previewers.
 - Discord login only needs the client secret and bot token; who gets the preview comes from the admin console.
   `ECHOVR_DISCORD_PREVIEW_ROLES` still works but is optional.
