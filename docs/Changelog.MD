@@ -13,6 +13,27 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 25 — 2026-10-30
+### Website
+- **Protection against scrapers** (D48). Visitors notice nothing; the website's data now only goes to the website
+  itself:
+  - Scripts that call the data API directly (Python, curl, scraping tools, headless browsers) get "Automated access
+    to this site's data is not allowed".
+  - AI crawlers (GPTBot, ClaudeBot, CCBot, Bytespider, …) are refused on every page; a new `robots.txt` asks them to
+    stay away and keeps search engines out of the data API (the pages can still be found on Google).
+  - Each visitor can make 60 data requests a minute, bursts up to 120 (heatmaps, playback, compare and downloads
+    count 5). Beyond that the site answers "Too many requests" for a few seconds. Change it with
+    `ECHOVR_RATE_LIMIT_PER_MIN` in `docker-compose.yml` (0 = off).
+
+### Upgrading to Beta 25
+- QNAP: upload Beta 25, wait for the Actions run, Recreate. Optional: add the `ECHOVR_RATE_LIMIT_PER_MIN` line from
+  the new `docker-compose.yml` to yours (60 is the default without it).
+- Cloudflare (recommended): Security > Bots > turn on *Block AI bots* as well as *Bot Fight Mode* (Setup.MD,
+  Public website step 6).
+- Windows: restart `run.bat`.
+
+---
+
 ## Beta 24 — 2026-10-30
 ### Website
 - **Player profiles**: the **This is me / Not me** button and the **Export CSV · JSON** links are gone (user,

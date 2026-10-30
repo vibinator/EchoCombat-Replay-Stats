@@ -51,6 +51,7 @@ GET /api/... ← React pages (home, matches, match, players, player, import stat
 | `backend/achievements.py` | 75 rules (old `stat.js` ids 5–79), `evaluate(games)` = best game / day / week / all-time progress, tiers. Pure functions. |
 | `backend/api/achievements.py`, `imports.py` | Achievements API + achievement ranking (reused for ≤ 10 min while importing); Import status with per-stage breakdown. |
 | `backend/api/` | Routes only; pydantic response schemas. |
+| `backend/guard.py` | Scraper protection (D48): AI crawlers refused, `/api` only with the `X-EchoVR` header (sent by `api.ts`) and a browser user agent, per-visitor rate limit. Middleware in `main.py` |
 
 ## Validation (import)
 | Check | Rule | Result |

@@ -16,6 +16,7 @@ services:
       ECHOVR_REPLAY_SOURCE: /replays
       ECHOVR_WORKERS: "4"            # parallel import processes: about the NAS's CPU core count
       ECHOVR_SCAN_INTERVAL_S: "300"  # seconds between scans of the replay folder
+      ECHOVR_RATE_LIMIT_PER_MIN: "60"  # scraper protection: data requests per visitor per minute (0 = no limit)
       # Discord login: people with the preview role see achievements before their launch (Setup.MD, Discord login).
       # Leave the YOUR_... placeholders and the login stays off. Never upload real values to GitHub.
       ECHOVR_PUBLIC_URL: https://echocombat.com

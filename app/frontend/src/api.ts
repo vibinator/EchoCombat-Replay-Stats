@@ -4,7 +4,8 @@ function errorMessage(body: unknown, status: number): string {
 }
 
 async function send<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(path, init);
+  // X-EchoVR: the server answers /api only to this site's own pages (scraper protection, D48)
+  const res = await fetch(path, { ...init, headers: { "X-EchoVR": "1", ...init?.headers } });
   if (!res.ok) throw new Error(errorMessage(await res.json().catch(() => null), res.status));
   return (res.status === 204 ? undefined : await res.json()) as T;
 }

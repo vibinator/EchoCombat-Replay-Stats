@@ -28,6 +28,7 @@ npm install
 | `ECHOVR_DISCORD_CLIENT_SECRET` | – | Discord login (D41). Secret: never in GitHub |
 | `ECHOVR_DISCORD_BOT_TOKEN` | – | Bot that checks the preview role (D41). Secret: never in GitHub |
 | `ECHOVR_DISCORD_PREVIEW_ROLES` | – | Optional: role id(s) and / or Discord user id(s), comma-separated. Those people get the preview **and the website's Console page (admin.bat on the website, D45)**. For the preview alone use admin console option 14 |
+| `ECHOVR_RATE_LIMIT_PER_MIN` | `60` | Scraper protection (D48): website data requests per visitor per minute, bursts up to twice that; heatmaps, playback, compare and downloads count 5. `0` = no limit |
 | `ECHOVR_DISCORD_CLIENT_ID` / `_GUILD_ID` | `1214456381466222683` / `779349159852769310` | Bot application and EchoVR Combat server |
 
 ## Admin console
@@ -102,9 +103,10 @@ DNS moves to Cloudflare.
    add a second one for `www.echocombat.com` with the same service.
 5. **NAS**: the tunnel token goes in `docker-compose.yml` (`YOUR_CLOUDFLARE_TUNNEL_TOKEN`, QNAP NAS step 4). The tunnel page shows *Healthy*; open https://echocombat.com.
 6. **Cloudflare settings** for echocombat.com: SSL/TLS > Edge Certificates > *Always Use HTTPS* on and
-   *Minimum TLS version* 1.2; Security > Bots > *Bot Fight Mode* on. Optional, Security > WAF > Rate limiting rule:
-   URI path contains `/api/`, 100 requests per 10 seconds per IP > Block (heatmaps, playback and exports are the
-   heaviest requests).
+   *Minimum TLS version* 1.2; Security > Bots > *Bot Fight Mode* on and *Block AI bots* (AI Scrapers and Crawlers)
+   on. Optional, Security > WAF > Rate limiting rule: URI path contains `/api/`, 100 requests per 10 seconds per IP
+   > Block (heatmaps, playback and exports are the heaviest requests). The app has its own limits behind these
+   (scraper protection, D48), so these settings stop most bots before they reach the NAS at all.
 7. **Router / NAS**: no port forwarding for 8000 (or 80 / 443 to the NAS). Keep the NAS's own admin pages off the
    internet (myQNAPcloud / UPnP port forwarding off) - only the website is public, through the tunnel.
 

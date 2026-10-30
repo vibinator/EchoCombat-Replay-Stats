@@ -32,6 +32,9 @@ class Settings:
     discord_bot_token: str = ""
     discord_guild_id: str = DISCORD_GUILD_ID
     discord_preview_roles: tuple[str, ...] = ()  # role ids; any one of them gives preview access
+    # Scraper protection (D48, guard.py): /api only for the site's own pages, no bots; tests turn it off
+    scraper_guard: bool = True
+    rate_limit_per_min: int = 60  # /api requests per visitor per minute (bursts up to 2x); 0 = no limit
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -46,6 +49,7 @@ class Settings:
             discord_client_secret=_secret(env("ECHOVR_DISCORD_CLIENT_SECRET")),
             discord_bot_token=_secret(env("ECHOVR_DISCORD_BOT_TOKEN")),
             discord_guild_id=env("ECHOVR_DISCORD_GUILD_ID", DISCORD_GUILD_ID),
+            rate_limit_per_min=int(env("ECHOVR_RATE_LIMIT_PER_MIN", 60)),
             discord_preview_roles=tuple(r.strip() for r in _secret(env("ECHOVR_DISCORD_PREVIEW_ROLES")).split(",") if r.strip()),
         )
 

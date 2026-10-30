@@ -8,7 +8,7 @@ from starlette.exceptions import HTTPException
 
 from parser import PARSER_VERSION
 
-from . import auth, icons
+from . import auth, guard, icons
 from .api import achievements, admin, auth as auth_api, console, imports, leaderboard, matches, overview, permissions, players, replays
 from .config import PROJECT_ROOT, Settings
 from .db import open_db
@@ -58,6 +58,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # heatmaps / playback are 100s of KB of JSON. Level 4: 12x faster than the default 9 for 8 % more bytes
     app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=4)
 
+    per_min = settings.rate_limit_per_min
+    limiter = guard.RateLimiter(per_min, 2 * per_min) if per_min > 0 else None
+
+    @app.middleware("http")
+    async def scraper_guard(request, call_next):
+        """Bots and scripts are turned away before any work is done (D48, guard.py)."""
+        if settings.scraper_guard and (refusal := guard.check(request, limiter)):
+            return refusal
+        return await call_next(request)
+
     @app.middleware("http")
     async def read_only(request, call_next):
         """The website never changes data: every change is made in the admin console (admin.bat). Exceptions:
@@ -79,6 +89,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
         response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
         response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+        if request.url.path.startswith("/api/"):
+            response.headers["X-Robots-Tag"] = "noindex, nofollow"  # data, not pages: keep it out of search results
         if request.url.path.startswith(PER_VISITOR):  # differs per logged-in visitor (D41): never shared by a cache
             response.headers["Cache-Control"] = "private, no-store"
         elif (request.url.path.startswith("/assets/") and response.status_code == 200
