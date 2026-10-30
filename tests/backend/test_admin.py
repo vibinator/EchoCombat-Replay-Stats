@@ -121,18 +121,21 @@ def test_unreadable_reprocess_keeps_previous_results(client):
 
 
 def test_challenge_period(client):
-    assert client.get("/api/challenges").json() == {"start": None, "end": None, "updated_at": None, "active": True}
+    assert client.get("/api/challenges").json() == {"start": None, "end": None, "updated_at": None, "launched": False,
+                                                    "active": False}
+    assert client.get("/api/players/100/achievements").status_code == 403  # coming soon
+    act(client, actions.set_challenge_window, "2026-01-01", None)
     before = client.get("/api/players/100/achievements").json()
     assert before["games"] == 2
 
     with pytest.raises(actions.AdminError, match="on or before"):
         act(client, actions.set_challenge_window, "2026-11-02", "2026-11-01")
-    assert act(client, actions.set_challenge_window, "2026-11-01", "2026-11-30") == ("2026-11-01", "2026-11-30")
+    assert act(client, actions.set_challenge_window, "2026-01-01", "2026-01-31") == ("2026-01-01", "2026-01-31")
     after = client.get("/api/players/100/achievements").json()
     assert after["games"] == 0 and after["overall"] == 0  # sample matches are on 2026-10-28
-    assert after["window"] == {"start": "2026-11-01", "end": "2026-11-30"}
+    assert after["window"] == {"start": "2026-01-01", "end": "2026-01-31"}
 
-    act(client, actions.set_challenge_window, None, None)
+    act(client, actions.set_challenge_window, "2026-01-01", None)
     assert client.get("/api/players/100/achievements").json()["games"] == 2
 
 
@@ -158,6 +161,7 @@ def test_settings_and_merges_survive_database_rebuild(tmp_path):
 
 
 def test_rarity_and_recent(client):
+    act(client, actions.set_challenge_window, "2026-01-01", None)
     rules = client.get("/api/achievements").json()
     assert len(rules) == 96 and "unlocked_share" in rules[0]
     recent = client.get("/api/achievements/recent").json()

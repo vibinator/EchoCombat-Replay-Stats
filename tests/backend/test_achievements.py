@@ -2,8 +2,9 @@ from datetime import date
 
 import pytest
 import replay_factory as rf
-from app_helpers import add, app_client, make_settings
+from app_helpers import act, add, app_client, make_settings
 
+from backend import admin_actions as actions
 from backend.achievements import RULES, Game, evaluate, icon_file, overall, tier
 
 BLUE = str(rf.BIG_USER_ID)
@@ -71,6 +72,7 @@ def test_old_replays_without_loadouts():
 def test_api_and_leaderboard(tmp_path):
     with app_client(make_settings(tmp_path)) as client:
         add(client, {f"dyson/{i}.echoreplay": rf.plain(rf.lines(20)) for i in range(2)})
+        act(client, actions.set_challenge_window, "2026-01-01", None)
         a = client.get(f"/api/players/{BLUE}/achievements").json()
         assert a["total"] == 96 and len(a["items"]) == 96 and 0 <= a["overall"] <= 1
         assert client.get("/api/players/nobody/achievements").status_code == 404
@@ -78,6 +80,25 @@ def test_api_and_leaderboard(tmp_path):
         board = client.get("/api/leaderboard", params={"stat": "achievements", "min_games": 1}).json()
         assert {r["name"] for r in board["items"]} == {"Player", "Other"}
         assert board["label"] == "Achievements (overall %)"
+
+
+def test_coming_soon_until_the_start_date(tmp_path):
+    with app_client(make_settings(tmp_path)) as client:
+        add(client, {"dyson/0.echoreplay": rf.plain(rf.lines(20))})
+        paths = [f"/api/players/{BLUE}/achievements", "/api/achievements", "/api/achievements/recent",
+                 "/api/leaderboard?stat=achievements"]
+
+        def hidden():
+            stats = {s["key"] for s in client.get("/api/leaderboard/stats").json()}
+            codes = {client.get(p).status_code for p in paths}
+            return not client.get("/api/challenges").json()["launched"] and "achievements" not in stats and codes == {403}
+
+        assert hidden()  # no start date
+        act(client, actions.set_challenge_window, "2999-01-01", None)
+        assert hidden()  # start date still to come
+        act(client, actions.set_challenge_window, "2026-01-01", None)
+        assert client.get("/api/challenges").json()["launched"]
+        assert {client.get(p).status_code for p in paths} == {200}
 
 
 def test_logic_follows_the_text():

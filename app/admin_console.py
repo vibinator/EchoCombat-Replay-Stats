@@ -214,7 +214,15 @@ def cmd_challenge(sessions, start: str | None, end: str | None, clear: bool) -> 
             new = (None, None) if clear else (current[0] if start is None else start, current[1] if end is None else end)
             current = actions.set_challenge_window(db, *new)
             print("Saved. The website uses the new period straight away.")
-    print(f"Flamingo Challenge period: {current[0] or 'beginning'} -> {current[1] or 'open-ended'}")
+    print(f"Flamingo Challenge period: {current[0] or 'no start date'} -> {current[1] or 'open-ended'}")
+    with sessions() as db:
+        launched = actions.achievements_launched(db)
+    if launched:
+        print(f"Website: achievements and challenges are live, counting matches from {current[0]}.")
+    elif current[0]:
+        print(f"Website: \"Coming soon\" until {current[0]}; from that day they go live and count matches from it.")
+    else:
+        print("Website: \"Coming soon\". Set a start date to launch achievements and challenges.")
 
 
 RATE_WINDOW_MIN = 10
@@ -397,7 +405,7 @@ EchoVR Replay Stats - admin console ({APP_VERSION})
   2  Merge player records
   3  List merges
   4  Undo a merge
-  5  Flamingo Challenge period
+  5  Achievements launch / Flamingo Challenge period
   6  Status and import progress
   7  Repair failed replays
   8  Replays that cannot be repaired (hide them)
@@ -449,7 +457,8 @@ def interactive(sessions, settings: Settings) -> None:
                         cmd_unmerge(sessions, alias, yes=False)
             elif choice == "5":
                 cmd_challenge(sessions, None, None, False)
-                print("New dates: YYYY-MM-DD, '-' for no limit, Enter to keep.")
+                print("New dates: YYYY-MM-DD, '-' to clear, Enter to keep. Start = launch date: achievements and")
+                print("challenges are \"Coming soon\" on the website until then and only count matches from it.")
                 start, end = ask("Start: "), ask("End: ")
                 if start or end:
                     cmd_challenge(sessions, None if not start else ("" if start == "-" else start),

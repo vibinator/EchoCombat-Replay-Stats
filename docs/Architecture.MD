@@ -92,7 +92,7 @@ All JSON. No upload, delete or replay-download endpoints: replays come only from
 | GET | /api/players/{user_id}/achievements | `{overall, completed, total, items[{id, name, description, period, icon, estimated, progress, tier}]}` (D31) | 8 |
 | GET | /api/achievements | Catalogue + rarity (`unlocked_share`, `completed_share` of players with 10+ games) | 8, D37 |
 | GET | /api/achievements/recent | Latest completions (players active in the archive's last 30 days) | D37 |
-| GET | /api/challenges | Flamingo Challenge period `{start, end, active}` | D33 |
+| GET | /api/challenges | Flamingo Challenge period `{start, end, launched, active}`; `launched` = start date reached. Before it the achievement endpoints (and `stat=achievements`) answer 403 `coming_soon` | D33, D40 |
 | GET | /api/matches/{id}/export?format=csv\|json | Match download: CSV = one row per player; JSON = match detail | 7 |
 | GET | /api/players/{user_id}/export?format=csv\|json | Every match of the player, one row each | 7 |
 
@@ -134,7 +134,7 @@ Heatmap response: `{map, image: "/minimaps/<map>.png", cols, rows, cell_m, match
 | Players / Player | `/players`, `/players/:userId` | Profile header (level, seen, main loadout, favourite map, form), "This is me", stat cards with ⓘ help, trends (small multiples), teammates / opponents, heatmap (settings in URL), achievements summary, recent matches |
 | Compare | `/compare?players=a,b,…` | Up to 4 players, best value highlighted, head-to-head, heatmaps side by side |
 | Leaderboard | `/leaderboard` | Podium, rank change vs previous period, your rank pinned |
-| Achievements | `/achievements[?player=]` | Challenge-period banner, rarity, recently completed, closest-to-complete sort |
+| Achievements | `/achievements[?player=]` | "Coming soon" until the start date (D40); then challenge-period banner, rarity, recently completed, closest-to-complete sort |
 | Import | `/import` | Stages, throughput chart, progress per year, live files, failed files with **Repair** / Repair all |
 
 Layout: sticky top bar (ECRanked background) with nav (Matches, Players, Leaderboard, Achievements, Compare, Import; collapsible on phones), global search (`/` to focus), light/dark toggle; footer with Admin link. Tables with `class="stack"` become cards under 760 px + footer credit line. No login, upload, delete or replay-download UI.

@@ -13,6 +13,25 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 10 — 2026-10-30
+### Website
+- **Achievements and challenges are "Coming soon"** until their start date. The Achievements page shows a
+  "Coming soon" message (with the start date once one is set), the menu entry gets a "soon" tag, player pages show
+  "Achievements — coming soon" instead of progress, and "Achievements" is left out of the leaderboard's stat list.
+  Nothing about achievements can be read from the site before then (the API answers `coming_soon`).
+- From the start date on they go live by themselves and **only count matches played from that date**.
+
+### Admin console
+- Option 5 is now **Achievements launch / Flamingo Challenge period**. The start date is the launch date; the
+  console says whether the website currently shows "Coming soon" or is live. Command line:
+  `admin.bat challenge --start YYYY-MM-DD` (end date optional).
+
+### Upgrading to Beta 10
+- Windows: restart `run.bat`. Achievements are hidden until you set a start date with `admin.bat` (option 5).
+- QNAP: upload Beta 10, wait for the Actions run, then Recreate the application in Container Station.
+
+---
+
 ## Beta 9 — 2026-10-30
 ### Website
 - **Processing indicator**: while replays are still being read in the background, a small spinning wheel with

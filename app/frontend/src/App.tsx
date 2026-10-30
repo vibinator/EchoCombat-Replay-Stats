@@ -10,6 +10,7 @@ import { MatchPage } from "./pages/MatchPage";
 import { MatchesPage } from "./pages/MatchesPage";
 import { PlayerPage } from "./pages/PlayerPage";
 import { PlayersPage } from "./pages/PlayersPage";
+import { useAchievementsLaunched } from "./components/AchievementsView";
 import { useApi } from "./useApi";
 
 type Theme = "dark" | "light";
@@ -93,6 +94,7 @@ function Layout() {
   const [theme, toggleTheme] = useTheme();
   const version = useApi(getHealth, "health").data?.version;
   const pending = usePendingReplays();
+  const achievementsLaunched = useAchievementsLaunched().launched;
   const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
   useEffect(() => setMenuOpen(false), [location.pathname]);
@@ -111,6 +113,7 @@ function Layout() {
           {NAV.map(([to, label]) => (
             <NavLink key={to} to={to} end={to === "/"}>
               {label}
+              {to === "/achievements" && achievementsLaunched === false && <span className="tag">soon</span>}
             </NavLink>
           ))}
         </nav>

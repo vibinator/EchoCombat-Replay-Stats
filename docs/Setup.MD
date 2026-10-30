@@ -34,7 +34,7 @@ Replays it queues go to the front of the queue: a running server picks them up w
 |---|---|
 | `admin.bat find <name or id>` | Find players |
 | `admin.bat merge <keep> <other>...` / `merges` / `unmerge <merged id>` | Merge duplicate player records, list them, undo one |
-| `admin.bat challenge --start 2026-01-01 --end 2026-01-31` (`--clear`) | Flamingo Challenge period |
+| `admin.bat challenge --start 2026-01-01 --end 2026-01-31` (`--clear`) | Flamingo Challenge period. The start date is the launch date: achievements and challenges are "Coming soon" on the website until then (D40) |
 | `admin.bat reprocess <replay id or path>` | Read one replay again |
 | `admin.bat repair <replay id or path>` / `repair-failed` | Repair (salvage) damaged replays |
 | `admin.bat cannot-repair [--hide]` / `hidden [--unhide <path> \| --unhide-all]` | Replays repair cannot fix: list, hide from the Import page, show again |

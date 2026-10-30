@@ -417,6 +417,8 @@ export interface ChallengeWindow {
   start: string | null;
   end: string | null;
   updated_at: string | null;
+  /** false until the admin-set start date: achievements and challenges are "Coming soon" */
+  launched: boolean;
   active: boolean;
 }
 

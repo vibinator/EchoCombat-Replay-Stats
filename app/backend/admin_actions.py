@@ -176,8 +176,16 @@ def challenge_window(db: Session) -> tuple[str | None, str | None]:
     return values.get("challenge_start"), values.get("challenge_end")
 
 
+def achievements_launched(db: Session) -> bool:
+    """Achievements and challenges are public from the challenge start date on (user, 2026-10-30). No start date,
+    or one still to come: the website shows "Coming soon" and the API returns none of their data."""
+    start = challenge_window(db)[0]
+    return bool(start) and start <= date.today().isoformat()
+
+
 def set_challenge_window(db: Session, start: str | None, end: str | None) -> tuple[str | None, str | None]:
-    """The Flamingo Challenge period (D33): only matches inside it count. None = no limit on that side."""
+    """The Flamingo Challenge period (D33): only matches inside it count. start = launch date (achievements are
+    "Coming soon" on the website until then, see achievements_launched); end None = open-ended."""
     for value in (start, end):
         if value:
             try:

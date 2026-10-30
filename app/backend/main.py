@@ -8,7 +8,8 @@ from starlette.exceptions import HTTPException
 
 from parser import PARSER_VERSION
 
-from .api import achievements, imports, leaderboard, matches, overview, players, replays
+from . import auth
+from .api import achievements, auth as auth_api, imports, leaderboard, matches, overview, players, replays
 from .config import PROJECT_ROOT, Settings
 from .db import open_db
 from .errors import ApiError, api_error_handler
@@ -18,6 +19,7 @@ from .scanner import Scanner
 from .worker import Worker
 
 FRONTEND_DIST = PROJECT_ROOT / "app" / "frontend" / "dist"
+PER_VISITOR = ("/api/auth", "/api/challenges", "/api/achievements", "/api/players", "/api/leaderboard")
 
 
 class SinglePageApp(StaticFiles):
@@ -43,7 +45,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.worker.start()
         if settings.auto_scan:
             app.state.scanner.start()
-            achievements.warm(app.state.sessionmaker)
+            achievements.warm(app.state.sessionmaker, previews=auth.enabled(settings))
         yield
         if settings.auto_scan:
             app.state.scanner.stop()
@@ -70,6 +72,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
         response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
         response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+        if request.url.path.startswith(PER_VISITOR):  # differs per logged-in visitor (D41): never shared by a cache
+            response.headers["Cache-Control"] = "private, no-store"
         return response
 
     if settings.import_api:
@@ -80,6 +84,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(leaderboard.router)
     app.include_router(achievements.router)
     app.include_router(overview.router)
+    app.include_router(auth_api.router)
 
     @app.get("/api/health")
     def health():

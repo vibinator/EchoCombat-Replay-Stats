@@ -4,6 +4,7 @@ import { getAchievements, getChallenges, type Achievement, type AchievementRarit
 import { pct } from "../format";
 import { useApi } from "../useApi";
 import { Status } from "./common";
+import { EmptyState } from "./ui";
 
 // Old ecranked.com badge art (app/images -> public/achievements). Tier frames = progress levels
 // 25 / 50 / 75 / 100 % (white / bronze / silver / gold); the lock emblem = below 25 %.
@@ -122,7 +123,42 @@ export function Badge({ a }: { a: AchievementRule & Partial<Pick<Achievement, "p
 }
 
 /** Small summary for the player page; the full list lives on /achievements. */
+/** Whether achievements and challenges are public yet (null while loading). */
+export function useAchievementsLaunched(): { launched: boolean | null; start: string | null } {
+  const d = useApi(getChallenges, "challenge").data;
+  return { launched: d ? d.launched : null, start: d?.start ?? null };
+}
+
+export function ComingSoon({ start }: { start: string | null }) {
+  return (
+    <EmptyState title="Coming soon">
+      Achievements and Flamingo Challenges are on their way
+      {start ? (
+        <>
+          {" "}
+          — they start on <strong>{start}</strong>. Only matches from that day on count.
+        </>
+      ) : (
+        ". Only matches played after they start will count."
+      )}
+    </EmptyState>
+  );
+}
+
 export function AchievementsSummary({ userId }: { userId: string }) {
+  const { launched } = useAchievementsLaunched();
+  return launched ? (
+    <LaunchedSummary userId={userId} />
+  ) : launched === false ? (
+    <div className="section-head">
+      <h2>
+        Achievements <span className="tag">coming soon</span>
+      </h2>
+    </div>
+  ) : null;
+}
+
+function LaunchedSummary({ userId }: { userId: string }) {
   const result = useApi(() => getAchievements(userId), userId);
   const d = result.data;
   if (!d) return null;
@@ -170,10 +206,10 @@ export function AchievementsSummary({ userId }: { userId: string }) {
 export function ChallengeBanner() {
   const w = useApi(getChallenges, "challenge");
   const d = w.data;
-  if (!d || (!d.start && !d.end)) return null;
+  if (!d || !d.launched) return null;
   return (
     <p className={`note${d.active ? "" : " ended"}`}>
-      Flamingo Challenge period: <strong>{d.start ?? "the beginning"}</strong> to <strong>{d.end ?? "open-ended"}</strong>
+      Flamingo Challenge period: <strong>{d.start}</strong> to <strong>{d.end ?? "open-ended"}</strong>
       {d.active ? "" : " (not running now)"} — only matches inside it count.
     </p>
   );

@@ -9,7 +9,7 @@ from ..cache import cached
 from ..errors import ApiError
 from ..gear import ORDNANCES, TACMODS, WEAPONS
 from ..models import Match, MatchPlayer, MatchPlayerLoadout, Player
-from .achievements import achievement_ranking
+from .achievements import achievement_ranking, require_launched, visible
 from .derived import PERIODS, gear, period_start, ratio
 
 router = APIRouter(prefix="/api/leaderboard", tags=["leaderboard"])
@@ -104,11 +104,11 @@ def _rank(values, higher: bool, min_games: int) -> list[tuple[int, int, float]]:
 
 
 @router.get("/stats")
-def list_stats():
+def list_stats(request: Request):
+    launched = visible(request)
     return [{"key": k, "label": label, "higher_is_better": hib} for k, (label, hib, _) in STATS.items()] + [
         {"key": "loadout", "label": "Loadout time (hours)", "higher_is_better": True},
-        {"key": "achievements", "label": "Achievements (overall %)", "higher_is_better": True},
-    ]
+    ] + ([{"key": "achievements", "label": "Achievements (overall %)", "higher_is_better": True}] if launched else [])
 
 
 @router.get("")
@@ -131,6 +131,7 @@ def leaderboard(
         raise ApiError(400, "unknown_stat", f"Unknown stat '{stat}'")
     params = (stat, period, map, private, min_games, weapon, tacmod, ordnance, player, compare, limit, offset)
     if stat == "achievements":  # has its own background-refreshed cache
+        require_launched(request)
         return _leaderboard(request, *params)
     return cached(request, "leaderboard", params, lambda: _leaderboard(request, *params))
 

@@ -9,8 +9,9 @@ from datetime import date, timedelta
 from fastapi import APIRouter, Query, Request
 from sqlalchemy import func, select
 
+from .. import auth
 from ..achievements import RULES, Game, evaluate, icon_file, in_window, overall, unlock_dates
-from ..admin_actions import WINDOW_KEYS, challenge_window
+from ..admin_actions import WINDOW_KEYS, achievements_launched, challenge_window
 from ..cache import cached, data_stamp
 from ..errors import ApiError
 from ..models import AppSetting, Match, MatchPlayer, MatchPlayerLoadout, Player
@@ -27,15 +28,36 @@ def _window_info(db) -> dict:
     start, end = challenge_window(db)
     updated = db.scalar(select(func.max(AppSetting.updated_at)).where(AppSetting.key.in_(WINDOW_KEYS)))
     today = date.today().isoformat()
-    return {"start": start, "end": end, "updated_at": updated,
-            "active": (not start or start <= today) and (not end or today <= end)}
+    launched = achievements_launched(db)
+    return {"start": start, "end": end, "updated_at": updated, "launched": launched,
+            "active": launched and (not end or today <= end)}
+
+
+def visible(request: Request) -> bool:
+    """Public from the start date on; before it only to Discord members with a preview role (D41)."""
+    with request.app.state.sessionmaker() as db:
+        launched = achievements_launched(db)
+    return launched or auth.has_preview(request)
+
+
+def require_launched(request: Request) -> None:
+    """Before the start date achievements and challenges are private: "Coming soon" on the website."""
+    if not visible(request):
+        raise ApiError(403, "coming_soon", "Achievements and challenges are coming soon")
+
+
+def counted_window(db) -> tuple[str | None, str | None]:
+    """Matches that count. Before the launch only previewers see anything, and they get every match in the
+    archive (user, 2026-10-30): a start date still to come would show everyone at 0 %."""
+    return challenge_window(db) if achievements_launched(db) else (None, None)
 
 
 @router.get("/api/challenges")
 def get_challenges(request: Request):
-    """The Flamingo Challenge period: only matches inside it count. Open-ended when a date is empty."""
+    """The Flamingo Challenge period: only matches inside it count. No start date = not launched yet."""
     with request.app.state.sessionmaker() as db:
-        return _window_info(db)
+        info = _window_info(db)
+    return info | {"preview": not info["launched"] and auth.has_preview(request)}
 
 
 # --- data ---------------------------------------------------------------------------------
@@ -72,8 +94,9 @@ def _games(db, player_ids: list[int] | None = None) -> dict[int, list[Game]]:
 
 @router.get("/api/players/{user_id}/achievements")
 def player_achievements(request: Request, user_id: str):
+    require_launched(request)
     with request.app.state.sessionmaker() as db:
-        window = challenge_window(db)  # part of the cache key: an admin period change shows at once
+        window = counted_window(db)  # part of the cache key: an admin period change shows at once
     return cached(request, "achievements", (user_id, window), lambda: _player_achievements(request, user_id))
 
 
@@ -82,7 +105,7 @@ def _player_achievements(request: Request, user_id: str) -> dict:
         player = db.scalar(select(Player).where(Player.user_id == user_id))
         if player is None:
             raise ApiError(404, "not_found", f"Player {user_id} not found")
-        start, end = challenge_window(db)
+        start, end = counted_window(db)
         games = in_window(_games(db, [player.id]).get(player.id, []), start, end)
     results = evaluate(games)
     unlocked = unlock_dates(games)
@@ -167,11 +190,14 @@ def _refresh_in_background(sessions, key: tuple) -> None:
 def _key(sessions) -> tuple:
     """(data stamp, challenge window)."""
     with sessions() as db:
-        return data_stamp(db), challenge_window(db)
+        return data_stamp(db), counted_window(db)
 
 
-def warm(sessions) -> None:
+def warm(sessions, previews: bool = False) -> None:
     """Fill the cache at startup so the first achievements / leaderboard visit does not wait."""
+    with sessions() as db:
+        if not achievements_launched(db) and not previews:
+            return  # nobody can see anything before the start date
     _refresh_in_background(sessions, _key(sessions))
 
 
@@ -199,6 +225,7 @@ def achievement_ranking(request: Request) -> list[tuple[int, int, float]]:
 @router.get("/api/achievements")
 def list_achievements(request: Request):
     """The rule catalogue with rarity: share of players (10+ games) who unlocked (25 %+) / completed each."""
+    require_launched(request)
     data = _everyone(request)
     eligible = [data["progress"][pid] for pid, games, _ in data["rows"] if games >= RARITY_MIN_GAMES]
     out = []
@@ -214,4 +241,5 @@ def list_achievements(request: Request):
 @router.get("/api/achievements/recent")
 def recent_unlocks(request: Request, limit: int = Query(20, ge=1, le=100)):
     """Latest 100 % completions by players active in the last 30 days of the archive."""
+    require_launched(request)
     return _everyone(request)["recent"][:limit]

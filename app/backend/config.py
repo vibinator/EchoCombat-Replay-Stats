@@ -4,6 +4,9 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_SOURCE = r"Z:\ECRanked\Replays"
+# Discord login for achievement previews (D41): the bot's application and the EchoVR Combat server (user, 2026-10-30)
+DISCORD_CLIENT_ID = "1214456381466222683"
+DISCORD_GUILD_ID = "779349159852769310"
 
 
 @dataclass(frozen=True)
@@ -17,6 +20,13 @@ class Settings:
     # /api/import and /api/replays: off on the website, import progress is only in the admin console (user,
     # 2026-10-30); tests turn it on to inspect replays
     import_api: bool = False
+    # Discord login (D41): on only when the secret, bot token and preview role(s) are all set
+    public_url: str = "http://127.0.0.1:8000"  # Discord sends people back to <public_url>/api/auth/callback
+    discord_client_id: str = DISCORD_CLIENT_ID
+    discord_client_secret: str = ""
+    discord_bot_token: str = ""
+    discord_guild_id: str = DISCORD_GUILD_ID
+    discord_preview_roles: tuple[str, ...] = ()  # role ids; any one of them gives preview access
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -26,6 +36,12 @@ class Settings:
             source_dir=Path(env("ECHOVR_REPLAY_SOURCE", DEFAULT_SOURCE)),
             workers=int(env("ECHOVR_WORKERS", 8)),
             scan_interval_s=float(env("ECHOVR_SCAN_INTERVAL_S", 300)),
+            public_url=env("ECHOVR_PUBLIC_URL", "http://127.0.0.1:8000"),
+            discord_client_id=env("ECHOVR_DISCORD_CLIENT_ID", DISCORD_CLIENT_ID),
+            discord_client_secret=env("ECHOVR_DISCORD_CLIENT_SECRET", ""),
+            discord_bot_token=env("ECHOVR_DISCORD_BOT_TOKEN", ""),
+            discord_guild_id=env("ECHOVR_DISCORD_GUILD_ID", DISCORD_GUILD_ID),
+            discord_preview_roles=tuple(r.strip() for r in env("ECHOVR_DISCORD_PREVIEW_ROLES", "").split(",") if r.strip()),
         )
 
     @property

@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Link, useSearchParams } from "react-router";
 import { getAchievements, getLeaderboard, getRarity, getRecentUnlocks, searchPlayers } from "../api";
-import { AchievementsView, ChallengeBanner, GroupedBadges, JumpToNew } from "../components/AchievementsView";
+import { AchievementsView, ChallengeBanner, ComingSoon, GroupedBadges, JumpToNew, useAchievementsLaunched } from "../components/AchievementsView";
 import { Status, TableWrap } from "../components/common";
 import { pct } from "../format";
 import { useApi } from "../useApi";
@@ -113,6 +113,19 @@ function Catalogue() {
 }
 
 export function AchievementsPage() {
+  const { launched, start } = useAchievementsLaunched();
+  if (launched === null) return null;
+  if (!launched)
+    return (
+      <section>
+        <h1>Achievements</h1>
+        <ComingSoon start={start} />
+      </section>
+    );
+  return <LaunchedAchievementsPage />;
+}
+
+function LaunchedAchievementsPage() {
   const [params] = useSearchParams();
   const player = params.get("player");
   const name = useApi(() => (player ? getAchievements(player) : Promise.resolve(null)), player ?? "");
