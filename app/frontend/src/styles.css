@@ -1265,9 +1265,6 @@ td.best {
   font-size: 1.6rem;
   font-weight: 700;
 }
-tr.me td {
-  background: var(--surface-2);
-}
 .rank-up { color: var(--ok); font-size: 0.75rem; }
 .rank-down { color: var(--bad); font-size: 0.75rem; }
 .rank-same, .rank-new { color: var(--muted); font-size: 0.75rem; }

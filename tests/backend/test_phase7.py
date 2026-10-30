@@ -104,6 +104,47 @@ def test_rasterise_draws_lines_but_not_jumps():
     assert len(counts) == 2
 
 
+
+def test_rasterise_matches_to_cell_on_every_map():
+    """rasterise writes the to_cell mapping out in its loop (speed): both must give the same cells."""
+    import math
+    import random
+
+    def reference(layout, path, cell_m):
+        counts, prev = Counter(), None
+        for point in path:
+            if point is None:
+                prev = None
+                continue
+            x, z = point
+            if prev is not None:
+                px, pz = prev
+                dist = math.hypot(x - px, z - pz)
+                if dist <= heatmaps.MAX_STEP_M:
+                    steps = max(1, int(dist / (cell_m / 2)))
+                    for i in range(1, steps):
+                        t = i / steps
+                        cell = heatmaps.to_cell(layout, px + (x - px) * t, pz + (z - pz) * t, cell_m)
+                        if cell:
+                            counts[cell] += 1
+            cell = heatmaps.to_cell(layout, x, z, cell_m)
+            if cell:
+                counts[cell] += 1
+            prev = point
+        return counts
+
+    rng = random.Random(7)
+    for layout in HEATMAP_LAYOUTS.values():
+        for cell_m in heatmaps.CELL_SIZES:
+            path = [None if rng.random() < 0.05 else
+                    (rng.uniform(layout.x_min - 5, layout.x_max + 5), rng.uniform(layout.z_min - 5, layout.z_max + 5))
+                    for _ in range(300)]
+            path += [(layout.x_min, layout.z_min), (layout.x_max, layout.z_max), (layout.x_max, layout.z_min)]
+            got = Counter()
+            heatmaps.rasterise(layout, path, got, cell_m)
+            want = reference(layout, path, cell_m)
+            assert list(got.items()) == list(want.items())  # same counts, same order (response cell order)
+
 # --- endpoints ---------------------------------------------------------------------------
 
 def test_match_heatmap(client):
@@ -180,8 +221,6 @@ def test_leaderboard(tmp_path):
         assert c.get("/api/leaderboard", params={"stat": "wins", "min_games": 4}).json()["total"] == 0
         ping = c.get("/api/leaderboard", params={"stat": "avg_ping", "min_games": 1}).json()
         assert ping["higher_is_better"] is False
-        mine = c.get("/api/leaderboard", params={"stat": "games", "min_games": 1, "player": "42"}).json()
-        assert mine["player"]["name"] == "Other"
         lo = c.get("/api/leaderboard", params={"stat": "loadout", "weapon": "assault", "min_games": 1}).json()
         assert lo["items"][0]["value"] > 0 and lo["loadout"]["weapon"]["name"] == "Pulsar"
         assert c.get("/api/leaderboard", params={"stat": "nope"}).json()["error_code"] == "unknown_stat"
@@ -198,11 +237,3 @@ def test_match_export(client):
     assert next(row for row in rows if row["name"] == "Player")["main_weapon"] == "Pulsar"
     data = json.loads(client.get(f"/api/matches/{mid}/export", params={"format": "json"}).content)
     assert data["id"] == mid and data["teams"]["blue"][0]["user_id"] == BLUE
-
-
-def test_player_export(client):
-    rows = list(csv.DictReader(io.StringIO(
-        client.get(f"/api/players/{BLUE}/export").content.decode("utf-8-sig"))))
-    assert len(rows) == 1 and rows[0]["map"] == "dyson" and rows[0]["deaths_est"] == "1"
-    data = json.loads(client.get(f"/api/players/{BLUE}/export", params={"format": "json"}).content)
-    assert data["user_id"] == BLUE and len(data["matches"]) == 1

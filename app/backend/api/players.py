@@ -15,8 +15,7 @@ from ..gear import lookup as gear_lookup
 from ..models import Event, Match, MatchPlayer, MatchPlayerLoadout, Player, PlayerAlias
 from ..stats.maps import HEATMAP_LAYOUTS
 from .derived import PERIODS, dominant_arm, loadout, match_summary, period_start, ratio
-from .downloads import download_csv, download_json
-from .matches import EXPORT_COLUMNS, player_row
+from .downloads import json_response
 
 router = APIRouter(prefix="/api/players", tags=["players"])
 
@@ -258,45 +257,8 @@ def get_player_heatmap(
     settings = request.app.state.settings
     with request.app.state.sessionmaker() as db:
         user_ids = frozenset(ids_of(db, user_id))
-    return _player_heatmap(request.app.state.sessionmaker, str(settings.processed_dir), player.id, user_ids,
-                           map, mode, period, last, cell, stamp + (len(user_ids),))
-
-
-PLAYER_EXPORT_COLUMNS = ["match_id", "started_at", "map", "mode", "result"] + EXPORT_COLUMNS
-
-
-@router.get("/{user_id}/export")
-def export_player(request: Request, user_id: str, format: str = Query("csv", pattern="^(csv|json)$")):
-    """Every match of the player, one row per match."""
-    with request.app.state.sessionmaker() as db:
-        player = db.scalar(select(Player).where(Player.user_id == user_id))
-        if player is None:
-            raise ApiError(404, "not_found", f"Player {user_id} not found")
-        rows = db.execute(
-            select(Match, MatchPlayer).join(MatchPlayer, MatchPlayer.match_id == Match.id)
-            .where(MatchPlayer.player_id == player.id).order_by(Match.started_at.desc())
-        ).all()
-        loadouts: dict[int, list] = {}
-        for lo in db.scalars(select(MatchPlayerLoadout).where(MatchPlayerLoadout.player_id == player.id)):
-            loadouts.setdefault(lo.match_id, []).append(lo)
-    out = []
-    for m, mp in rows:
-        stats = player_row(mp, user_id, loadouts.get(m.id, []))
-        result = None if m.winner is None else ("win" if m.winner == mp.team else "loss")
-        out.append({"match_id": m.id, "started_at": m.started_at, "map": m.map, "mode": m.mode, "result": result} | stats)
-    name = f"player-{player.name}-{user_id}"
-    if format == "json":
-        return download_json({"user_id": user_id, "name": player.name, "matches": out}, name)
-    return download_csv([r | _flat_loadout(r) for r in out], PLAYER_EXPORT_COLUMNS, name)
-
-
-def _flat_loadout(row: dict) -> dict:
-    main = row["loadouts"][0] if row["loadouts"] else None
-    return {
-        "main_weapon": main and main["weapon"]["name"],
-        "main_ordnance": main and main["ordnance"]["name"],
-        "main_tacmod": main and main["tacmod"]["name"],
-    }
+    return json_response(_player_heatmap(request.app.state.sessionmaker, str(settings.processed_dir), player.id, user_ids,
+                                        map, mode, period, last, cell, stamp + (len(user_ids),)))
 
 
 @router.get("/{user_id}/trends")

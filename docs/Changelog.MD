@@ -13,6 +13,44 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 24 — 2026-10-30
+### Website
+- **Player profiles**: the **This is me / Not me** button and the **Export CSV · JSON** links are gone (user,
+  2026-10-30). With "This is me" goes what it did: your own rank is no longer pinned above the leaderboard or
+  highlighted in it, and Compare no longer adds "you" automatically. The player download
+  (`/api/players/{user_id}/export`) and the leaderboard's `player` option are removed too. Match downloads stay.
+
+### Upgrading to Beta 24
+- QNAP: upload Beta 24, wait for the Actions run, Recreate.
+- Windows: restart `run.bat`.
+
+---
+
+## Beta 23 — 2026-10-30
+Speed-ups only: every number, heatmap and achievement is the same as in Beta 22 (checked by comparing the old and
+new results on the full database and on real replays).
+
+### Importing
+- **Reading replays is about twice as fast** (58 MB replay: 1.04 s → 0.54 s of processing): frames are parsed with
+  `orjson`, timestamps without `strptime`, and files are read from the share in 1 MB chunks instead of line by line
+  (fewer network round trips). No re-read: parser and stats versions are unchanged.
+
+### Website
+- **Player heatmaps**: first view 1.9 s → 0.85 s (last 200 matches), 22.5 s → 11 s (last 5000); opening one again
+  328 ms → 25 ms. Match heatmaps 78 ms → 39 ms.
+- **Achievements ranking** (rarity, recently completed, achievement leaderboard): after a new replay only the
+  players in it are recalculated (3 s instead of 15 s). This ran in the web server, so the whole site was slower
+  during those 15 s after every new replay.
+- **Smaller first download**: each page's code loads when it is first opened (initial script 372 KB → 297 KB), and
+  the browser keeps the site's script / style files instead of asking for them again.
+- Compression is quicker (level 4 instead of 9: 12x faster for 8 % more bytes on the largest answers).
+
+### Upgrading to Beta 23
+- QNAP: upload Beta 23, wait for the Actions run, Recreate (installs the new `orjson` package).
+- Windows: restart `run.bat` (installs `orjson` automatically).
+
+---
+
 ## Beta 22 — 2026-10-30
 ### Website
 - **Home page rearranged, most useful first**: search, then what is happening now (matches today, this week, how

@@ -125,3 +125,43 @@ def test_real_samples_parse(name):
     assert replay.frame_count > 1000 and replay.warnings == []
     assert any(f.blue or f.orange for f in frames)
     assert (frames[-1].payload is not None) == ("fission" in name or "surge" in name)
+
+
+@pytest.mark.parametrize("raw", [
+    b'2026-10-28 20:45:44.123\t{"a": 1.5, "b": "\xc3\xa9", "c": [1, 2e3, null, true]}\n',
+    b'2026/10/28 20:45:44\t{"n": NaN, "i": -Infinity}\n',  # orjson refuses NaN: falls back to json
+    # user id beyond 64 bits: orjson would make it a float
+    b'2026-10-28 20:45:44.5\t{"teams": [{"players": [{"userid": 123456789012345678901234567890}]}, {}]}\n',
+    b'2026-10-28 20:45:44.5\t{"teams": [{"players": [{"userid": 18446744073709551615}]}]}\n',  # u64 max
+    b'2026-10-28 20:45:44.5\t{"s": "\ud800"}\n',  # lone surrogate
+    b' 2026-1-28 20:45:44.5 \t{}',  # 1-digit month: strptime path
+])
+def test_fast_json_path_matches_json(raw):
+    from parser.frames import split_line, split_raw
+
+    assert split_raw(raw) == split_line(raw.decode("utf-8"))
+
+
+@pytest.mark.parametrize("raw, error", [
+    (b'2026-10-28 20:45:44\t[1, 2]', TypeError), (b'2026-10-28 20:45:44\t{"a": "\xff"}', ValueError),
+    (b'2026-10-28 20:45:44\t{"a": ', ValueError), (b'2026-13-28 20:45:44\t{}', ValueError),
+])
+def test_fast_json_path_rejects_the_same_lines(raw, error):
+    from parser.frames import split_line, split_raw
+
+    with pytest.raises(error):
+        split_line(raw.decode("utf-8"))  # the old path: decode, then json
+    with pytest.raises(error):
+        split_raw(raw)
+
+
+def test_chunked_lines_match_file_iteration():
+    import random
+
+    from parser.reader import _chunk_lines
+
+    rng = random.Random(3)
+    for _ in range(500):
+        data = bytes(rng.choice(b"ab\n\r\t") for _ in range(rng.randint(0, 60)))
+        for size in (1, 2, 5, 64):
+            assert list(_chunk_lines(io.BytesIO(data), size)) == list(io.BytesIO(data))

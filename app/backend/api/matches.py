@@ -13,7 +13,7 @@ from ..gear import lookup as gear_lookup
 from ..stats.maps import HEATMAP_LAYOUTS
 from ..models import Event, Match, MatchPlayer, MatchPlayerLoadout, Player
 from .derived import dominant_arm, loadout, match_summary, ratio
-from .downloads import download_csv, download_json
+from .downloads import download_csv, download_json, json_response
 
 router = APIRouter(prefix="/api/matches", tags=["matches"])
 
@@ -237,9 +237,9 @@ def get_match_heatmap(
         layers = {uid: found.pop(uid) for uid, _, _ in roster if uid in found} | found  # roster order first
         labels = {uid: name for uid, name, _ in roster}
         teams = {uid: team for uid, _, team in roster}
-        return heatmaps.response(match.map, layers, labels, matches=1, cell_m=cell, mode=mode, teams=teams)
+        return json_response(heatmaps.response(match.map, layers, labels, matches=1, cell_m=cell, mode=mode, teams=teams))
     layers, labels = heatmaps.build_layers(layout, [data], wanted, mode, cell)
-    return heatmaps.response(match.map, layers, labels, matches=1, cell_m=cell, mode=mode)
+    return json_response(heatmaps.response(match.map, layers, labels, matches=1, cell_m=cell, mode=mode))
 
 
 EXPORT_COLUMNS = [
@@ -286,13 +286,14 @@ def get_playback(request: Request, match_id: int):
     header, players = _tracks(request, match)
     layout = HEATMAP_LAYOUTS[match.map]
     cols, rows = heatmaps.grid_size(layout)
+    cell_of = heatmaps.cell_mapper(layout)
     out = []
     for uid, t in players.items():
         points = []
         for i, team in enumerate(t["team"]):
-            cell = heatmaps.to_cell(layout, t["x"][i] / 10, t["z"][i] / 10) if team else None
+            cell = cell_of(t["x"][i] / 10, t["z"][i] / 10) if team else None
             points.append(None if cell is None else [round((cell[0] + 0.5) / cols, 4), round((cell[1] + 0.5) / rows, 4), team])
         main = aliases.get(uid, uid)
         out.append({"user_id": main, "name": names.get(main, uid), "points": points})
-    return {"map": match.map, "image": f"/minimaps/{match.map}.png", "hz": header["hz"], "samples": header["samples"],
-            "players": out}
+    return json_response({"map": match.map, "image": f"/minimaps/{match.map}.png", "hz": header["hz"], "samples": header["samples"],
+                          "players": out})

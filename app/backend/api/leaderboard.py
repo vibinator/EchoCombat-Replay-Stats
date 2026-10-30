@@ -122,21 +122,20 @@ def leaderboard(
     weapon: str | None = None,
     tacmod: str | None = None,
     ordnance: str | None = None,
-    player: str | None = Query(None, description="user_id: also return this player's rank"),
     compare: bool = Query(False, description="add previous_rank: same board one period earlier"),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
 ):
     if stat not in STATS and stat not in ("loadout", "achievements"):
         raise ApiError(400, "unknown_stat", f"Unknown stat '{stat}'")
-    params = (stat, period, map, private, min_games, weapon, tacmod, ordnance, player, compare, limit, offset)
+    params = (stat, period, map, private, min_games, weapon, tacmod, ordnance, compare, limit, offset)
     if stat == "achievements":  # has its own background-refreshed cache
         require_launched(request)
         return _leaderboard(request, *params)
     return cached(request, "leaderboard", params, lambda: _leaderboard(request, *params))
 
 
-def _leaderboard(request, stat, period, map, private, min_games, weapon, tacmod, ordnance, player, compare, limit, offset):
+def _leaderboard(request, stat, period, map, private, min_games, weapon, tacmod, ordnance, compare, limit, offset):
     with request.app.state.sessionmaker() as db:
         names = dict(db.execute(select(Player.id, Player.name)).all())
         user_ids = dict(db.execute(select(Player.id, Player.user_id)).all())
@@ -154,7 +153,6 @@ def _leaderboard(request, stat, period, map, private, min_games, weapon, tacmod,
     result = {
         "stat": stat, "label": label, "higher_is_better": higher, "period": period, "map": map,
         "min_games": min_games, "total": len(ranked), "items": ranked[offset : offset + limit],
-        "player": next((r for r in ranked if r["user_id"] == player), None) if player else None,
     }
     if stat == "loadout":
         result["loadout"] = {

@@ -1,7 +1,13 @@
 """Raw line / JSON -> typed frame. Raises ValueError, KeyError or TypeError for a bad line."""
 
 import json
+import re
 from datetime import datetime
+
+try:  # 3-4x faster than json; optional, json gives the same result
+    import orjson
+except ImportError:  # pragma: no cover
+    orjson = None
 
 from .models import Frame, PayloadState, PlayerFrame, ReplayMeta, Vec3
 
@@ -34,7 +40,19 @@ def gear_code(value) -> str:
 TIMESTAMP_FORMATS = ("%Y-%m-%d %H:%M:%S.%f", "%Y/%m/%d %H:%M:%S.%f", "%Y-%m-%d %H:%M:%S", "%Y/%m/%d %H:%M:%S")
 
 
+# Fast path for the usual stamp; anything else (1-digit fields etc.) goes through strptime as before.
+_TIMESTAMP = re.compile(r"([0-9]{4})([-/])([0-9]{2})\2([0-9]{2}) ([0-9]{2}):([0-9]{2}):([0-9]{2})(?:\.([0-9]{1,6}))?")
+
+
 def parse_timestamp(text: str) -> datetime:
+    m = _TIMESTAMP.fullmatch(text)
+    if m:
+        year, _, month, day, hour, minute, second, fraction = m.groups()
+        try:
+            return datetime(int(year), int(month), int(day), int(hour), int(minute), int(second),
+                            int(fraction.ljust(6, "0")) if fraction else 0)
+        except ValueError:
+            pass
     for fmt in TIMESTAMP_FORMATS:
         try:
             return datetime.strptime(text, fmt)
@@ -49,6 +67,37 @@ def split_line(line: str) -> tuple[datetime, dict]:
     if not isinstance(data, dict):
         raise TypeError("frame is not a JSON object")
     return parse_timestamp(stamp.strip()), data
+
+
+def split_raw(raw: bytes) -> tuple[datetime, dict]:
+    """split_line(raw.decode("utf-8")) without decoding the line first. orjson refuses a few things json accepts
+    (NaN, lone surrogates): those lines go through split_line, so the result is the same. orjson turns integers
+    beyond 64 bits into floats instead; only the user id must stay exact (other such values would be nonsense
+    either way), so a float user id also goes through split_line."""
+    if orjson is None:
+        return split_line(raw.decode("utf-8"))
+    stamp, _, body = raw.partition(b"\t")
+    try:
+        data = orjson.loads(body)
+    except orjson.JSONDecodeError:
+        return split_line(raw.decode("utf-8"))
+    if not isinstance(data, dict):
+        raise TypeError("frame is not a JSON object")
+    if _float_user_id(data):
+        return split_line(raw.decode("utf-8"))
+    return parse_timestamp(stamp.decode("utf-8").strip()), data
+
+
+def _float_user_id(data: dict) -> bool:
+    teams = data.get("teams")
+    if type(teams) is not list:
+        return False
+    for team in teams:
+        if type(team) is dict:
+            for p in team.get("players") or ():
+                if type(p) is dict and type(p.get("userid")) is float:
+                    return True
+    return False
 
 
 def _vec(v) -> Vec3:

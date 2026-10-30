@@ -1,20 +1,23 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { BrowserRouter, Link, NavLink, Route, Routes, useLocation } from "react-router";
 import { getHealth, getMe, getProcessing, loginUrl, LOGOUT_URL } from "./api";
 import { GlobalSearch } from "./components/GlobalSearch";
-import { AchievementsPage } from "./pages/AchievementsPage";
-import { ComparePage } from "./pages/ComparePage";
-import { ConsolePage } from "./pages/ConsolePage";
 import { HomePage } from "./pages/HomePage";
-import { LeaderboardPage } from "./pages/LeaderboardPage";
-import { MatchPage } from "./pages/MatchPage";
-import { MatchesPage } from "./pages/MatchesPage";
-import { PermissionsPage } from "./pages/PermissionsPage";
-import { PlayerPage } from "./pages/PlayerPage";
-import { PlayersPage } from "./pages/PlayersPage";
-import { StatusPage } from "./pages/StatusPage";
 import { useAchievementsAccess } from "./components/AchievementsView";
+import { Skeleton } from "./components/ui";
 import { useApi } from "./useApi";
+
+// Pages other than home load on first visit: the first page view downloads less.
+const AchievementsPage = lazy(() => import("./pages/AchievementsPage").then((m) => ({ default: m.AchievementsPage })));
+const ComparePage = lazy(() => import("./pages/ComparePage").then((m) => ({ default: m.ComparePage })));
+const ConsolePage = lazy(() => import("./pages/ConsolePage").then((m) => ({ default: m.ConsolePage })));
+const LeaderboardPage = lazy(() => import("./pages/LeaderboardPage").then((m) => ({ default: m.LeaderboardPage })));
+const MatchPage = lazy(() => import("./pages/MatchPage").then((m) => ({ default: m.MatchPage })));
+const MatchesPage = lazy(() => import("./pages/MatchesPage").then((m) => ({ default: m.MatchesPage })));
+const PermissionsPage = lazy(() => import("./pages/PermissionsPage").then((m) => ({ default: m.PermissionsPage })));
+const PlayerPage = lazy(() => import("./pages/PlayerPage").then((m) => ({ default: m.PlayerPage })));
+const PlayersPage = lazy(() => import("./pages/PlayersPage").then((m) => ({ default: m.PlayersPage })));
+const StatusPage = lazy(() => import("./pages/StatusPage").then((m) => ({ default: m.StatusPage })));
 
 type Theme = "dark" | "light";
 const THEME_KEY = "echovr-theme";
@@ -149,6 +152,7 @@ function Layout() {
         )}
       </header>
       <main>
+        <Suspense fallback={<Skeleton lines={4} />}>
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/matches" element={<MatchesPage />} />
@@ -163,6 +167,7 @@ function Layout() {
           <Route path="/status" element={<StatusPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
+        </Suspense>
       </main>
       <footer>
         Inspired by ECRanked, the original Echo Combat stats site. · Press <kbd>/</kbd> to search

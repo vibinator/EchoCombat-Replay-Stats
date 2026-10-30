@@ -246,7 +246,6 @@ export interface Leaderboard {
   higher_is_better: boolean;
   total: number;
   items: LeaderboardRow[];
-  player: LeaderboardRow | null;
 }
 
 export interface StatOption {
@@ -281,7 +280,6 @@ export interface LeaderboardQuery {
   ordnance?: string;
   offset?: number;
   limit?: number;
-  player?: string;
   compare?: boolean;
 }
 
@@ -293,9 +291,6 @@ export const getLeaderboardStats = () => request<StatOption[]>("/api/leaderboard
 export const getGear = () => request<GearList>("/api/leaderboard/gear");
 
 export const matchExportUrl = (id: number, format: "csv" | "json") => `/api/matches/${id}/export?format=${format}`;
-
-export const playerExportUrl = (userId: string, format: "csv" | "json") =>
-  `/api/players/${encodeURIComponent(userId)}/export?format=${format}`;
 
 export interface AchievementRule {
   id: number;
@@ -571,21 +566,3 @@ export const getMatchHeatmapBy = (id: number, mode: HeatmapLayerMode | "player",
   request<Heatmap>(`/api/matches/${id}/heatmap${query({ mode, cell, player })}`);
 export const getPlayerHeatmapBy = (userId: string, map: string, mode: HeatmapLayerMode | "deaths", period: Period, last: number, cell: number) =>
   request<Heatmap>(`/api/players/${encodeURIComponent(userId)}/heatmap${query({ map, mode, period, last, cell })}`);
-
-// "My player" (per-browser convenience): pins your own rank on the leaderboard.
-const ME_KEY = "echovr-me";
-export function myPlayer(): { user_id: string; name: string } | null {
-  try {
-    return JSON.parse(localStorage.getItem(ME_KEY) ?? "null");
-  } catch {
-    return null;
-  }
-}
-export function setMyPlayer(value: { user_id: string; name: string } | null) {
-  try {
-    if (value) localStorage.setItem(ME_KEY, JSON.stringify(value));
-    else localStorage.removeItem(ME_KEY);
-  } catch {
-    /* storage unavailable */
-  }
-}

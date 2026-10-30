@@ -170,3 +170,24 @@ def test_hex_gear_codes_are_normalised():
 
     assert gear_code("0xE32DC7C9DA8051A4") == "scout" and gear_code("0xe32dc7c9da8051a4") == "scout"
     assert gear_code("rifle") == "rifle" and gear_code(None) == "" and gear_code("0xDEADBEEF") == "0xDEADBEEF"
+
+
+def test_ranking_only_re_evaluates_changed_players(tmp_path, monkeypatch):
+    """The everyone-ranking keeps each player's results while their games are unchanged (a new replay changes
+    ~8 players of 8k); the result must equal a full evaluation."""
+    from backend.api import achievements as api
+
+    with app_client(make_settings(tmp_path)) as client:
+        sessions = client.app.state.sessionmaker
+        add(client, {"dyson/0.echoreplay": rf.plain(rf.lines(20))})
+        first = api._compute(sessions, (None, None))
+        evaluated = []
+        real = api.evaluate
+        monkeypatch.setattr(api, "evaluate", lambda games: evaluated.append(len(games)) or real(games))
+        assert api._compute(sessions, (None, None)) == first and evaluated == []  # nothing changed
+        assert api._compute(sessions, ("2030-01-01", None))["rows"] == [] and evaluated == []  # no games in window
+        add(client, {"dyson/1.echoreplay": rf.plain(rf.lines(20))})
+        again = api._compute(sessions, (None, None))
+        assert evaluated == [2, 2]  # both players gained a game
+        api._evaluated.clear()
+        assert api._compute(sessions, (None, None)) == again

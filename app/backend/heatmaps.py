@@ -3,7 +3,8 @@
 
 import math
 from collections import Counter
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
+from functools import lru_cache
 
 from .stats.maps import HEATMAP_LAYOUTS, HeatmapLayout
 
@@ -18,41 +19,65 @@ def grid_size(layout: HeatmapLayout, cell_m: float = CELL_M) -> tuple[int, int]:
     return math.ceil(width_m / cell_m), math.ceil(height_m / cell_m)
 
 
-def to_cell(layout: HeatmapLayout, x: float, z: float, cell_m: float = CELL_M) -> tuple[int, int] | None:
-    if not (layout.x_min <= x <= layout.x_max and layout.z_min <= z <= layout.z_max):
-        return None
-    if layout.u_axis == "z":
-        u, u_min, u_max, v, v_min, v_max = z, layout.z_min, layout.z_max, x, layout.x_min, layout.x_max
-    else:
-        u, u_min, u_max, v, v_min, v_max = x, layout.x_min, layout.x_max, z, layout.z_min, layout.z_max
-    col = (u_max - u) if layout.u_flip else (u - u_min)
-    row = (v - v_min) if layout.v_flip else (v_max - v)
+@lru_cache(maxsize=64)
+def _geometry(layout: HeatmapLayout, cell_m: float) -> tuple:
+    """Layout worked out once per (layout, cell size): heatmaps map millions of points."""
+    x_min, x_max, z_min, z_max = layout.x_min, layout.x_max, layout.z_min, layout.z_max
+    swap = layout.u_axis == "z"
+    u_min, u_max, v_min, v_max = (z_min, z_max, x_min, x_max) if swap else (x_min, x_max, z_min, z_max)
     cols, rows = grid_size(layout, cell_m)
-    return min(int(col / cell_m), cols - 1), min(int(row / cell_m), rows - 1)
+    return x_min, x_max, z_min, z_max, swap, u_min, u_max, v_min, v_max, layout.u_flip, layout.v_flip, cols - 1, rows - 1
+
+
+def cell_mapper(layout: HeatmapLayout, cell_m: float = CELL_M) -> Callable[[float, float], tuple[int, int] | None]:
+    """to_cell for one layout and cell size."""
+    x_min, x_max, z_min, z_max, swap, u_min, u_max, v_min, v_max, u_flip, v_flip, last_col, last_row =         _geometry(layout, cell_m)
+
+    def cell_of(x: float, z: float) -> tuple[int, int] | None:
+        if not (x_min <= x <= x_max and z_min <= z <= z_max):
+            return None
+        u, v = (z, x) if swap else (x, z)
+        col = (u_max - u) if u_flip else (u - u_min)
+        row = (v - v_min) if v_flip else (v_max - v)
+        return min(int(col / cell_m), last_col), min(int(row / cell_m), last_row)
+
+    return cell_of
+
+
+def to_cell(layout: HeatmapLayout, x: float, z: float, cell_m: float = CELL_M) -> tuple[int, int] | None:
+    return cell_mapper(layout, cell_m)(x, z)
 
 
 def rasterise(layout: HeatmapLayout, path: Iterable[tuple[float, float] | None], into: Counter,
               cell_m: float = CELL_M) -> None:
-    """Add one player's path (metres; None = gap) to `into` as cell counts."""
+    """Add one player's path (metres; None = gap) to `into` as cell counts. Same mapping as to_cell, written
+    out in the loop (the 5000-match player heatmap maps ~18 million points)."""
+    x_min, x_max, z_min, z_max, swap, u_min, u_max, v_min, v_max, u_flip, v_flip, last_col, last_row =         _geometry(layout, cell_m)
+    half_cell = cell_m / 2
+    count = into.get
     prev = None
     for point in path:
         if point is None:
             prev = None
             continue
-        x, z = point
+        points = (point,)
         if prev is not None:
             px, pz = prev
-            dist = math.hypot(x - px, z - pz)
+            x, z = point
+            dx, dz = x - px, z - pz
+            dist = math.hypot(dx, dz)
             if dist <= MAX_STEP_M:
-                steps = max(1, int(dist / (cell_m / 2)))
-                for i in range(1, steps):
-                    t = i / steps
-                    cell = to_cell(layout, px + (x - px) * t, pz + (z - pz) * t, cell_m)
-                    if cell:
-                        into[cell] += 1
-        cell = to_cell(layout, x, z, cell_m)
-        if cell:
-            into[cell] += 1
+                steps = max(1, int(dist / half_cell))
+                if steps > 1:
+                    points = [(px + dx * (i / steps), pz + dz * (i / steps)) for i in range(1, steps)]
+                    points.append(point)
+        for x, z in points:
+            if x_min <= x <= x_max and z_min <= z <= z_max:
+                u, v = (z, x) if swap else (x, z)
+                col = int(((u_max - u) if u_flip else (u - u_min)) / cell_m)
+                row = int(((v - v_min) if v_flip else (v_max - v)) / cell_m)
+                cell = (col if col < last_col else last_col, row if row < last_row else last_row)
+                into[cell] = count(cell, 0) + 1
         prev = point
 
 

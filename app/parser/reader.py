@@ -8,7 +8,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from .errors import CorruptReplay, IncompleteReplay, UnsupportedReplay
-from .frames import build_frame, build_meta, split_line
+from .frames import build_frame, build_meta, split_raw
 from .models import Frame, ReplayMeta
 
 ZIP_MAGIC = b"PK\x03\x04"
@@ -28,6 +28,28 @@ def _limited(lines: Iterator[bytes], max_bytes: int) -> Iterator[bytes]:
         if total > max_bytes:
             raise CorruptReplay(f"Replay content exceeds {max_bytes // 1024**2} MB uncompressed")
         yield line
+
+
+READ_CHUNK = 1024 * 1024  # few large reads: the replays live on a network share
+META_CHUNK = 64 * 1024  # the metadata is in the first line only
+
+
+def _chunk_lines(fh, chunk_size: int = READ_CHUNK) -> Iterator[bytes]:
+    """Same lines as iterating the file (each ends with b"\n" except perhaps the last), read in big chunks."""
+    pending: list[bytes] = []  # pieces of the unfinished line (a list: a very long line is not copied per chunk)
+    while chunk := fh.read(chunk_size):
+        end = chunk.rfind(b"\n") + 1
+        if not end:
+            pending.append(chunk)
+            continue
+        pending.append(chunk[:end])
+        lines = b"".join(pending).split(b"\n")
+        lines.pop()  # empty piece after the last newline
+        for line in lines:
+            yield line + b"\n"
+        pending = [chunk[end:]] if end < len(chunk) else []
+    if pending:
+        yield b"".join(pending)
 
 
 LOCAL_HEADER = struct.Struct("<4sHHHHHIIIHH")  # zip local file header (30 bytes)
@@ -85,13 +107,14 @@ def _salvage_zip_lines(path: Path, max_bytes: int, notes: list[str]) -> Iterator
 
 
 @contextmanager
-def _open_lines(path: Path, max_bytes: int, repair: bool = False, notes: list[str] | None = None):
+def _open_lines(path: Path, max_bytes: int, repair: bool = False, notes: list[str] | None = None,
+                chunk_size: int = READ_CHUNK):
     """Yield (container, iterator of raw byte lines)."""
     with path.open("rb") as fh:
         is_zip = fh.read(4) == ZIP_MAGIC
     if not is_zip:
-        with path.open("rb") as fh:
-            yield "plain", _limited(iter(fh), max_bytes)
+        with path.open("rb", buffering=0) as fh:
+            yield "plain", _limited(_chunk_lines(fh, chunk_size), max_bytes)
         return
     if repair:
         yield "zip", _salvage_zip_lines(path, max_bytes, notes if notes is not None else [])
@@ -105,7 +128,7 @@ def _open_lines(path: Path, max_bytes: int, repair: bool = False, notes: list[st
             if entry.file_size > max_bytes:
                 raise CorruptReplay(f"Replay content exceeds {max_bytes // 1024**2} MB uncompressed")
             with zf.open(entry) as fh:
-                yield "zip", _limited(iter(fh), max_bytes)
+                yield "zip", _limited(_chunk_lines(fh, chunk_size), max_bytes)
     except (zipfile.BadZipFile, zlib.error, EOFError) as e:
         raise CorruptReplay(f"Damaged zip file: {e}") from e
 
@@ -125,12 +148,12 @@ class ParsedReplay:
 
     def _read_meta(self) -> ReplayMeta:
         skipped = 0
-        with _open_lines(self.path, self.max_bytes, self.repair) as (container, lines):
+        with _open_lines(self.path, self.max_bytes, self.repair, chunk_size=META_CHUNK) as (container, lines):
             for raw in lines:
                 if not raw.strip():
                     continue
                 try:
-                    timestamp, data = split_line(raw.decode("utf-8"))
+                    timestamp, data = split_raw(raw)
                     meta = build_meta(timestamp, data, container)
                     break
                 except BAD_LINE_ERRORS:
@@ -159,7 +182,7 @@ class ParsedReplay:
                     if not self.repair and bad_lines > _allowed_bad_lines(lines_read):
                         raise CorruptReplay(f"Too many unreadable lines ({bad_lines} of {lines_read})")
                 try:
-                    timestamp, data = split_line(raw.decode("utf-8"))
+                    timestamp, data = split_raw(raw)
                     frame = build_frame(index, timestamp, data)
                 except BAD_LINE_ERRORS:
                     last_line_bad = True

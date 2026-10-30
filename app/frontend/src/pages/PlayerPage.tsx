@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router";
 import {
-  getCompanions, getPlayer, getPlayerHeatmapBy, getTrends, myPlayer, playerExportUrl, setMyPlayer,
+  getCompanions, getPlayer, getPlayerHeatmapBy, getTrends,
   type Companion, type HeatmapLayerMode, type Period, type PlayerProfile, type PlayerStats,
 } from "../api";
 import { AchievementsSummary } from "../components/AchievementsView";
@@ -46,8 +46,6 @@ function cards(s: PlayerStats): [string, string, string?][] {
 }
 
 function ProfileHeader({ p }: { p: PlayerProfile }) {
-  const [me, setMe] = useState(myPlayer());
-  const isMe = me?.user_id === p.user_id;
   const main = p.loadouts[0];
   const favourite = Object.entries(p.stats.games_by_map).sort((a, b) => b[1] - a[1])[0];
   const form = p.recent_matches.slice(0, 10);
@@ -56,7 +54,6 @@ function ProfileHeader({ p }: { p: PlayerProfile }) {
       <div>
         <h1>
           {p.name}
-          {isMe && <span className="tag">you</span>}
         </h1>
         <p className="muted">
           {p.level != null && `Level ${p.level} · `}First seen {dateTime(p.first_seen_at).slice(0, 10)} · last seen {dateTime(p.last_seen_at).slice(0, 10)}
@@ -86,23 +83,9 @@ function ProfileHeader({ p }: { p: PlayerProfile }) {
         </div>
       </div>
       <div className="profile-actions">
-        <button
-          className="secondary"
-          onClick={() => {
-            const next = isMe ? null : { user_id: p.user_id, name: p.name };
-            setMyPlayer(next);
-            setMe(next);
-          }}
-          title="Remembered in this browser: pins your rank on the leaderboard"
-        >
-          {isMe ? "Not me" : "This is me"}
-        </button>
-        <Link className="button secondary" to={`/compare?players=${p.user_id}${me && !isMe ? `,${me.user_id}` : ""}`}>
+        <Link className="button secondary" to={`/compare?players=${p.user_id}`}>
           Compare
         </Link>
-        <span className="muted">
-          Export <a href={playerExportUrl(p.user_id, "csv")}>CSV</a> · <a href={playerExportUrl(p.user_id, "json")}>JSON</a>
-        </span>
       </div>
     </div>
   );

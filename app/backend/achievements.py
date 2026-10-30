@@ -69,10 +69,11 @@ class Game:
     @cached_property
     def _shares(self) -> dict[str, dict[str, float]]:
         """slot -> code -> share of loadout time (computed once; rules ask hundreds of times)."""
-        frames: dict[str, Counter] = {slot: Counter() for slot in SLOTS}
+        frames: dict[str, dict[str, int]] = {slot: {} for slot in SLOTS}  # plain dicts: built for every game
         for key, n in self.loadouts.items():
             for slot, i in SLOTS.items():
-                frames[slot][key[i]] += n
+                counts = frames[slot]
+                counts[key[i]] = counts.get(key[i], 0) + n
         total = sum(self.loadouts.values())
         return {slot: {c: n / total for c, n in counts.items()} if total else {} for slot, counts in frames.items()}
 

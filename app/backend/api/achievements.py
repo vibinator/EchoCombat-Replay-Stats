@@ -62,9 +62,14 @@ def get_challenges(request: Request):
 
 # --- data ---------------------------------------------------------------------------------
 
-def _games(db, player_ids: list[int] | None = None) -> dict[int, list[Game]]:
+FINGERPRINT_MASK = (1 << 64) - 1
+
+
+def _games(db, player_ids: list[int] | None = None, fingerprints: dict[int, int] | None = None) -> dict[int, list[Game]]:
     """player_id -> Game list (all matches). None = every player. Plain column rows, not ORM objects
-    (the full archive is 200k+ appearances)."""
+    (the full archive is 200k+ appearances). `fingerprints` is filled with player_id -> a hash of every row the
+    player's games are built from: equal fingerprints = equal games."""
+    fp = fingerprints if fingerprints is not None else {}
     query = select(
         MatchPlayer.player_id, MatchPlayer.match_id, Match.started_at, Match.map, Match.mode, Match.private_match,
         MatchPlayer.play_time_s, MatchPlayer.deaths_est, MatchPlayer.frames_in_bounds, MatchPlayer.frames_near_mate,
@@ -78,11 +83,15 @@ def _games(db, player_ids: list[int] | None = None) -> dict[int, list[Game]]:
         query = query.where(MatchPlayer.player_id.in_(player_ids))
         lo_query = lo_query.where(MatchPlayerLoadout.player_id.in_(player_ids))
     loadouts: dict[tuple[int, int], dict] = defaultdict(dict)
-    for match_id, player_id, weapon, tacmod, ordnance, frames in db.execute(lo_query):
+    for row in db.execute(lo_query):
+        match_id, player_id, weapon, tacmod, ordnance, frames = row = tuple(row)
         loadouts[(match_id, player_id)][(weapon, tacmod, ordnance)] = frames
+        fp[player_id] = (fp.get(player_id, 0) + hash(row)) & FINGERPRINT_MASK
     games: dict[int, list[Game]] = defaultdict(list)
-    for (pid, mid, started, map_, mode, private, play, deaths, bounds, mate, enemy, upside, speed, top, hz,
-         team, winner, attacking, blue_rounds, orange_rounds, push, block, emotes) in db.execute(query):
+    for row in db.execute(query):
+        (pid, mid, started, map_, mode, private, play, deaths, bounds, mate, enemy, upside, speed, top, hz,
+         team, winner, attacking, blue_rounds, orange_rounds, push, block, emotes) = row = tuple(row)
+        fp[pid] = (fp.get(pid, 0) + hash(row)) & FINGERPRINT_MASK
         games[pid].append(Game(
             started_at=started, map=map_, mode=mode, private=private, play_time_s=play, deaths=deaths,
             in_bounds=bounds, near_mate=mate, near_enemy=enemy, upside=upside, speed_sum=speed, top_speed=top,
@@ -133,22 +142,36 @@ _refreshing: set[int] = set()
 _lock = threading.Lock()
 
 
+# id(sessions) -> player_id -> [(fingerprint, window), progress per rule, overall, unlock dates or None]. A new
+# replay changes the games of ~8 players: only those are evaluated again (all 8k players take ~15 s).
+_evaluated: dict[int, dict[int, list]] = {}
+
+
 def _compute(sessions, window: tuple) -> dict:
+    fingerprints: dict[int, int] = {}
     with sessions() as db:
-        games = {pid: in_window(gs, *window) for pid, gs in _games(db).items()}
+        games = {pid: in_window(gs, *window) for pid, gs in _games(db, fingerprints=fingerprints).items()}
         latest = db.scalar(select(func.max(Match.started_at)))
         people = {pid: (uid, name) for pid, uid, name in db.execute(select(Player.id, Player.user_id, Player.name))}
+    previous = _evaluated.get(id(sessions), {})
+    evaluated: dict[int, list] = {}
     rows, progress = [], {}
     for pid, gs in games.items():
         if not gs:
             continue
-        results = evaluate(gs)
-        progress[pid] = [r["progress"] for r in results]
-        rows.append((pid, len(gs), overall(results)))
-    return {"rows": rows, "progress": progress, "recent": _recent(games, latest, people)}
+        key = (fingerprints[pid], window)
+        entry = previous.get(pid)
+        if entry is None or entry[0] != key:
+            results = evaluate(gs)
+            entry = [key, [r["progress"] for r in results], overall(results), None]
+        evaluated[pid] = entry
+        progress[pid] = entry[1]
+        rows.append((pid, len(gs), entry[2]))
+    _evaluated[id(sessions)] = evaluated
+    return {"rows": rows, "progress": progress, "recent": _recent(games, latest, people, evaluated)}
 
 
-def _recent(games: dict[int, list[Game]], latest: str | None, people: dict) -> list[dict]:
+def _recent(games: dict[int, list[Game]], latest: str | None, people: dict, evaluated: dict[int, list]) -> list[dict]:
     """Every 100 % completion in the last RECENT_DAYS of the archive, newest first."""
     if not latest:
         return []
@@ -158,7 +181,10 @@ def _recent(games: dict[int, list[Game]], latest: str | None, people: dict) -> l
     for pid, gs in games.items():
         if not gs or max(g.started_at for g in gs)[:10] < cutoff:
             continue
-        for rule_id, day in unlock_dates(gs).items():
+        entry = evaluated[pid]
+        if entry[3] is None:
+            entry[3] = unlock_dates(gs)
+        for rule_id, day in entry[3].items():
             if day >= cutoff:
                 uid, name = people[pid]
                 events.append({"date": day, "user_id": uid, "name": name, "id": rule_id,

@@ -1,5 +1,5 @@
 import { Link, useSearchParams } from "react-router";
-import { getGear, getLeaderboard, getLeaderboardStats, myPlayer, type LeaderboardRow, type Period } from "../api";
+import { getGear, getLeaderboard, getLeaderboardStats, type LeaderboardRow, type Period } from "../api";
 import { Status, TableWrap } from "../components/common";
 import { EmptyState, FitText, Skeleton } from "../components/ui";
 import { MAPS, duration, num, pct, title } from "../format";
@@ -34,7 +34,6 @@ export function LeaderboardPage() {
   const ordnance = params.get("ordnance") ?? "";
   const tacmod = params.get("tacmod") ?? "";
 
-  const me = myPlayer();
   const stats = useApi(getLeaderboardStats, "stats");
   const gear = useApi(getGear, "gear");
   const board = useApi(
@@ -42,7 +41,7 @@ export function LeaderboardPage() {
       getLeaderboard({
         stat, period, map: map || undefined, min_games: minGames, offset, limit: PAGE_SIZE,
         weapon: weapon || undefined, ordnance: ordnance || undefined, tacmod: tacmod || undefined,
-        player: me?.user_id, compare: stat !== "achievements",
+        compare: stat !== "achievements",
       }),
     params.toString(),
   );
@@ -148,13 +147,6 @@ export function LeaderboardPage() {
                 })}
               </div>
             )}
-            {board.data.player && (
-              <p className="note pinned">
-                You ({board.data.player.name}): rank <strong>{board.data.player.rank}</strong> of {total} · {formatValue(stat, board.data.player.value)}{" "}
-                <RankChange r={board.data.player} />
-              </p>
-            )}
-            {me && !board.data.player && <p className="muted">You ({me.name}) are not ranked here yet.</p>}
             <TableWrap>
               <table className="stack">
                 <thead>
@@ -167,7 +159,7 @@ export function LeaderboardPage() {
                 </thead>
                 <tbody>
                   {board.data.items.map((r) => (
-                    <tr key={r.user_id} className={r.user_id === me?.user_id ? "me" : ""}>
+                    <tr key={r.user_id}>
                       <td data-label="#" className="num">
                         {r.rank} <RankChange r={r} />
                       </td>
@@ -183,7 +175,7 @@ export function LeaderboardPage() {
             </TableWrap>
             <p className="muted footnote">
               {board.data.higher_is_better ? "Highest first" : "Lowest first"} · {total} ranked players · Arrows compare with one period earlier
-              (all time: with 7 days ago) · mark yourself with "This is me" on your player page to pin your rank.
+              (all time: with 7 days ago).
             </p>
             {total > PAGE_SIZE && (
               <div className="pager">

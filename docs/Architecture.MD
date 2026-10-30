@@ -1,13 +1,13 @@
 # Architecture
 
-Last updated: 2026-10-30 — import from the replay share (D25) replaces uploads.
+Last updated: 2026-10-30 — Beta 23 speed-ups (orjson parsing, faster heatmaps, incremental achievement ranking).
 
 ## Stack
 | Layer | Choice |
 |---|---|
 | Frontend | React + TypeScript + Vite (`app/frontend`) |
 | Backend/API | Python 3.12+, FastAPI, Uvicorn (`app/backend`) |
-| Parser | Pure Python package, stdlib only (`app/parser`) |
+| Parser | Pure Python package (`app/parser`); stdlib plus `orjson` for speed (optional: falls back to `json`, same result) |
 | Storage | Replay originals: read-only share (`Z:\ECRanked\Replays`, D25). SQLite cache via SQLAlchemy 2.x under `data/` |
 | Tests | pytest (backend/parser), Vitest (frontend, later) |
 
@@ -33,7 +33,7 @@ GET /api/... ← React pages (home, matches, match, players, player, import stat
 ## Modules
 | Module | Responsibility |
 |---|---|
-| `parser/` | `open(path) -> ParsedReplay` (meta + frame iterator). Detects zip/plain, Combat vs other. Raises `UnsupportedReplay`, `CorruptReplay`, `IncompleteReplay`. `PARSER_VERSION`. No DB or web imports. |
+| `parser/` | `open(path) -> ParsedReplay` (meta + frame iterator). Detects zip/plain, Combat vs other. Raises `UnsupportedReplay`, `CorruptReplay`, `IncompleteReplay`. `PARSER_VERSION`. No DB or web imports. Reads in 1 MB chunks (network share); lines orjson refuses, or with a user id beyond 64 bits, are parsed by `json`. |
 | `parser/models.py` | Typed dataclasses: `Frame` (blue/orange player lists), `PlayerFrame`, `PayloadState`, `ReplayMeta` — only fields in ReplayData.MD. |
 | `parser/frames.py` | Line → `(timestamp, dict)` → `Frame`/`ReplayMeta`. New API fields are added here + models.py. |
 | `parser/reader.py` | Zip/plain detection, streaming, bad-line thresholds, size limit. `ParsedReplay.frames()` re-reads the file each call; `warnings` and `frame_count` are set when iteration ends. |
@@ -79,7 +79,7 @@ All JSON. No upload, delete or replay-download endpoints: replays come only from
 | GET | /api/matches/{id}/events | Timeline; filter `type` | 6 |
 | GET | /api/players | Search; `q` (name contains, case-insensitive), paging; items include games, last_seen_at | 6 |
 | GET | /api/players/{user_id} | Profile stat set (DataModel; `period`=day\|week\|month\|all, `map`) + wins/losses + level + loadout usage + 20 recent matches (with team, result) | 6 |
-| GET | /api/leaderboard | Rank players by `stat` (see `/stats`; `loadout` + `weapon`/`ordnance`/`tacmod` = hours used); `period`, `map`, `private`, `min_games` (default 10), `player` (also return their rank), paging. Lower-is-better stats (ping, deaths, idle) sort ascending | 7 |
+| GET | /api/leaderboard | Rank players by `stat` (see `/stats`; `loadout` + `weapon`/`ordnance`/`tacmod` = hours used); `period`, `map`, `private`, `min_games` (default 10), paging. Lower-is-better stats (ping, deaths, idle) sort ascending | 7 |
 | GET | /api/leaderboard/stats | Selectable stats `[{key, label, higher_is_better}]` | 7 |
 | GET | /api/leaderboard/gear | Loadout codes + names (released first, then cut) | 7 |
 | GET | /api/matches/{id}/timeline | `{hz, duration_s, series{blue_points, orange_points \| payload_distance}, events}`; series empty for old-format replays | 7 |
@@ -98,7 +98,6 @@ All JSON. No upload, delete or replay-download endpoints: replays come only from
 | GET | /api/auth/me, /login, /callback, /logout | Discord login for previews: `{enabled, user: {name, preview}}`; login / callback / logout redirect | D41 |
 | GET | /api/challenges | Flamingo Challenge period `{start, end, launched, preview, active}`; `preview` = this visitor has the Discord preview role; `launched` = start date reached. Before it the achievement endpoints (and `stat=achievements`) answer 403 `coming_soon` | D33, D40 |
 | GET | /api/matches/{id}/export?format=csv\|json | Match download: CSV = one row per player; JSON = match detail | 7 |
-| GET | /api/players/{user_id}/export?format=csv\|json | Every match of the player, one row each | 7 |
 
 Heatmap response: `{map, image: "/minimaps/<map>.png", cols, rows, cell_m, matches, layers: [{key, label, cells: [[col, row, count]], max}]}` — cells are in minimap image space (layout per map in `stats/maps.py`, ReplayData).
 
@@ -135,9 +134,9 @@ Heatmap response: `{map, image: "/minimaps/<map>.png", cols, rows, cell_m, match
 | Home dashboard | `/` | Totals, most popular gear, global stats, matches per map (thumbnails), players seen (24 h / 7 d / 1 month), activity per month / year, most active this week, latest match cards |
 | Matches | `/matches` | Cards or list; filters map, mode, result, public/private, min players, dates, player name (all in the URL) |
 | Match | `/matches/:id?tab=` | Scoreboard (teams side by side), highlights, tabs Players / Timeline / Heatmap (mode, player, detail; zoom, opacity, side by side) / Playback; CSV/JSON export |
-| Players / Player | `/players`, `/players/:userId` | Profile header (level, seen, main loadout, favourite map, form), "This is me", stat cards with ⓘ help, trends (small multiples), teammates / opponents, heatmap (settings in URL), achievements summary, recent matches |
+| Players / Player | `/players`, `/players/:userId` | Profile header (level, seen, main loadout, favourite map, form), Compare, stat cards with ⓘ help, trends (small multiples), teammates / opponents, heatmap (settings in URL), achievements summary, recent matches |
 | Compare | `/compare?players=a,b,…` | Up to 4 players, best value highlighted, head-to-head, heatmaps side by side |
-| Leaderboard | `/leaderboard` | Podium, rank change vs previous period, your rank pinned |
+| Leaderboard | `/leaderboard` | Podium, rank change vs previous period |
 | Achievements | `/achievements[?player=]` | "Coming soon" until the start date (D40); then challenge-period banner, rarity, recently completed, closest-to-complete sort |
 | Import | `/import` | Stages, throughput chart, progress per year, live files, failed files with **Repair** / Repair all |
 
@@ -145,7 +144,7 @@ Layout: sticky top bar (ECRanked background) with nav (Matches, Players, Leaderb
 
 Charts: `TimelineView` (SVG line chart, crosshair tooltip, legend for 2 series, key-moment markers; series colours `#12a6c4` / `#d96a1a` pass the dataviz validator on `#1f2228`), `HeatmapView` (canvas over the minimap, one hue per layer with log-scaled alpha, layer toggles, hover counts, table view). Weapon layer colours = validated dark categorical order, fixed per weapon code. Minimaps served from `app/frontend/public/minimaps/<map>.png` (low-res copies).
 
-Dev: Vite on :5173 proxies `/api` to Uvicorn on :8000. Production: FastAPI mounts `app/frontend/dist` at `/` when it exists.
+Dev: Vite on :5173 proxies `/api` to Uvicorn on :8000. Production: FastAPI mounts `app/frontend/dist` at `/` when it exists. Pages other than home are loaded on first visit (`React.lazy`); `/assets/*` (hashed names) are sent with a 1-year immutable cache header. Responses are gzipped at level 4; heatmaps / playback skip FastAPI's `jsonable_encoder` (`json_response`).
 
 Frontend code (`app/frontend/src`): `api.ts` (typed API client), one component file per page, `styles.css` (plain CSS, team colours as variables). Import page polls every 5 s. Routing: `react-router` (`App.tsx`); pages in `src/pages/`, shared table/badge/gear components in `src/components/`, `useApi.ts` (fetch hook), `format.ts` (display formatting). FastAPI serves `index.html` for any non-API path so deep links work (`SinglePageApp` in `main.py`).
 
