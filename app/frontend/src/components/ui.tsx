@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useLayoutEffect, useRef, type ReactNode } from "react";
 
 /** Plain-language explanations shown as tooltips next to stat names. */
 export const STAT_HELP: Record<string, string> = {
@@ -41,6 +41,40 @@ export function Skeleton({ lines = 3, cards = 0 }: { lines?: number; cards?: num
         <div key={i} className="skel-line" style={{ width: `${90 - i * 12}%` }} />
       ))}
     </div>
+  );
+}
+
+const FIT_MIN_PX = 10;
+
+/** One line, always: shrinks the font until the text fits its box (long player names in cards). Below
+ *  FIT_MIN_PX it stops shrinking and cuts the end off with "…"; the full text is in the tooltip. */
+export function FitText({ children, title }: { children: ReactNode; title?: string }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    let width = -1;
+    const fit = () => {
+      const box = el.parentElement?.clientWidth ?? 0;
+      if (box === width) return; // only the width matters; ignore height changes caused by fitting
+      width = box;
+      el.style.fontSize = "";
+      const full = parseFloat(getComputedStyle(el).fontSize);
+      if (el.scrollWidth > el.clientWidth && el.clientWidth > 0) {
+        const size = Math.max(FIT_MIN_PX, Math.floor(((full * el.clientWidth) / el.scrollWidth) * 0.97 * 10) / 10);
+        el.style.fontSize = `${size}px`;
+      }
+    };
+    fit();
+    const observer = new ResizeObserver(fit);
+    if (el.parentElement) observer.observe(el.parentElement);
+    document.fonts?.ready.then(() => ((width = -1), fit()));
+    return () => observer.disconnect();
+  }, [children]);
+  return (
+    <span ref={ref} className="fit-text" title={title}>
+      {children}
+    </span>
   );
 }
 

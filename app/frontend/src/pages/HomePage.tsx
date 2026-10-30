@@ -4,7 +4,7 @@ import { getActivity, getOverview, getPlayersSeen, type GearShare, type PlayersS
 import { BarChart } from "../components/charts";
 import { MatchCards } from "../components/MatchCards";
 import { PlayerSearch } from "../components/PlayerSearch";
-import { Skeleton, EmptyState } from "../components/ui";
+import { EmptyState, FitText, Skeleton } from "../components/ui";
 import { Status, TableWrap } from "../components/common";
 import { dateTime, duration, num, pct, title } from "../format";
 import { useApi } from "../useApi";
@@ -170,12 +170,12 @@ export function HomePage() {
                 <div className="card" title="Estimated from players leaving the play area"><span className="label">Deaths (est.)</span><strong>{g.deaths_est.toLocaleString()}</strong></div>
                 <div className="card">
                   <span className="label">Fastest player</span>
-                  <strong>{g.fastest ? <Link to={`/players/${g.fastest.user_id}`}>{g.fastest.name}</Link> : "–"}</strong>
+                  <strong>{g.fastest ? <FitText title={g.fastest.name}><Link to={`/players/${g.fastest.user_id}`}>{g.fastest.name}</Link></FitText> : "–"}</strong>
                   {g.fastest && <span className="muted">{num(g.fastest.top_speed)} m/s</span>}
                 </div>
                 <div className="card">
                   <span className="label">Most matches</span>
-                  <strong>{g.most_active ? <Link to={`/players/${g.most_active.user_id}`}>{g.most_active.name}</Link> : "–"}</strong>
+                  <strong>{g.most_active ? <FitText title={g.most_active.name}><Link to={`/players/${g.most_active.user_id}`}>{g.most_active.name}</Link></FitText> : "–"}</strong>
                   {g.most_active && <span className="muted">{g.most_active.games.toLocaleString()} matches</span>}
                 </div>
                 <div className="card">

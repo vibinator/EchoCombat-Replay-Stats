@@ -8,7 +8,7 @@ import { LoadoutText, Status, TableWrap } from "../components/common";
 import { CELL_SIZES, HEATMAP_MODES, HeatmapView } from "../components/HeatmapView";
 import { PlaybackView } from "../components/PlaybackView";
 import { TimelineView } from "../components/TimelineView";
-import { InfoTip, STAT_HELP, Skeleton } from "../components/ui";
+import { FitText, InfoTip, STAT_HELP, Skeleton } from "../components/ui";
 import { dateTime, duration, modeLabel, num, pct, teamLabel, title } from "../format";
 import { useApi } from "../useApi";
 
@@ -95,7 +95,7 @@ function Highlights({ m }: { m: MatchDetail }) {
       {shown.map((h) => (
         <div key={h.label} className={`card team-${h.player.team}`} title={h.hint}>
           <span className="label">{h.label}</span>
-          <strong><Link to={`/players/${h.player.user_id}`}>{h.player.name}</Link></strong>
+          <strong><FitText title={h.player.name}><Link to={`/players/${h.player.user_id}`}>{h.player.name}</Link></FitText></strong>
           <span className="muted">{h.value}</span>
         </div>
       ))}

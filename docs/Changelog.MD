@@ -13,6 +13,19 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 8 — 2026-10-30
+### Website
+- **Long player names stay on one line**: in stat cards (home page Global stats, match page highlights) and on the
+  leaderboard podium the name's text gets smaller until it fits the box. Extremely long names stop shrinking at a
+  readable size and end in "…"; hover for the full name.
+- **Match page highlights** (Fastest, Most mobile, …) stretch across the row, so long names fit at a normal size.
+
+### Upgrading to Beta 8
+- Windows: restart `run.bat`.
+- QNAP: upload Beta 8, wait for the Actions run, then Recreate the application in Container Station.
+
+---
+
 ## Beta 7 — 2026-10-30
 ### Website
 - **Global stats** is back on the home page (https://echocombat.com), between "Most popular gear" and "Matches per

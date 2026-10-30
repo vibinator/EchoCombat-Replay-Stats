@@ -347,6 +347,16 @@ td.num {
   font-size: 1.25rem;
 }
 
+/* FitText (components/ui.tsx): one line, font shrunk to fit */
+.fit-text {
+  display: block;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  overflow-wrap: normal;
+}
+
 .tag {
   margin-left: 6px;
   padding: 1px 6px;
@@ -1033,6 +1043,8 @@ kbd {
   background: var(--ok);
   color: #111;
 }
+/* few cards, each with a player name: stretch them across the row so long names fit (FitText) */
+.cards.highlights { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
 .highlights .card.team-blue { border-top: 3px solid var(--blue); }
 .highlights .card.team-orange { border-top: 3px solid var(--orange); }
 

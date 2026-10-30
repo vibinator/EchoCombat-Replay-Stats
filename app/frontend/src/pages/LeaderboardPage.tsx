@@ -1,7 +1,7 @@
 import { Link, useSearchParams } from "react-router";
 import { getGear, getLeaderboard, getLeaderboardStats, myPlayer, type LeaderboardRow, type Period } from "../api";
 import { Status, TableWrap } from "../components/common";
-import { EmptyState, Skeleton } from "../components/ui";
+import { EmptyState, FitText, Skeleton } from "../components/ui";
 import { MAPS, duration, num, pct, title } from "../format";
 import { useApi } from "../useApi";
 
@@ -140,7 +140,7 @@ export function LeaderboardPage() {
                   return (
                     <Link key={r.user_id} to={`/players/${r.user_id}`} className={`podium-step place-${r.rank}`}>
                       <span className="podium-rank">{r.rank}</span>
-                      <strong>{r.name}</strong>
+                      <strong><FitText title={r.name}>{r.name}</FitText></strong>
                       <span>{formatValue(stat, r.value)}</span>
                       <span className="muted">{r.games} games</span>
                     </Link>
