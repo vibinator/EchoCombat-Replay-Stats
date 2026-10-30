@@ -6,6 +6,7 @@ import base64
 import hashlib
 import hmac
 import json
+import logging
 import secrets
 import threading
 import time
@@ -28,6 +29,7 @@ ROLE_RETRY_S = 30  # Discord unreachable: keep the last answer, ask again soon
 
 _roles: dict[str, tuple[float, frozenset[str]]] = {}  # discord user id -> (valid until, their role ids in the server)
 _roles_lock = threading.Lock()
+log = logging.getLogger("uvicorn.error")
 
 
 def http_client() -> httpx.Client:
@@ -132,6 +134,12 @@ def user_from_code(settings: Settings, code: str) -> dict:
     return {"id": user["id"], "name": user.get("global_name") or user["username"]}
 
 
+def forget_roles(user_id: str) -> None:
+    """A fresh login asks Discord again (a role just given shows at once)."""
+    with _roles_lock:
+        _roles.pop(user_id, None)
+
+
 def member_roles(settings: Settings, user_id: str) -> frozenset[str]:
     """The user's role ids in the server, asked with the bot token; remembered for ROLE_CHECK_S."""
     now = time.monotonic()
@@ -146,7 +154,8 @@ def member_roles(settings: Settings, user_id: str) -> frozenset[str]:
         else:
             r.raise_for_status()
             roles, until = frozenset(r.json().get("roles", [])), now + ROLE_CHECK_S
-    except (httpx.HTTPError, ValueError):
+    except (httpx.HTTPError, ValueError) as e:  # bad bot token, bot not in the server, Discord down
+        log.warning("Discord role check for %s failed: %s", user_id, e)
         roles, until = (hit[1] if hit else frozenset()), now + ROLE_RETRY_S
     with _roles_lock:
         _roles[user_id] = (until, roles)

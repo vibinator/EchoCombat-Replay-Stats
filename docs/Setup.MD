@@ -42,6 +42,7 @@ Replays it queues go to the front of the queue: a running server picks them up w
 | `admin.bat challenge --start 2026-01-01 --end 2026-01-31` (`--clear`) | Flamingo Challenge period. The start date is the launch date: achievements and challenges are "Coming soon" on the website until then (D40) |
 | `admin.bat preview-roles [--server] [--add <role id>] [--remove <role id>]` | Discord roles whose members see achievements before the launch (menu option 14 lists the server's roles to pick from; needs the bot token) |
 | `admin.bat admin-roles [--server] [--add <role id>] [--remove <role id>]` | Discord roles that get the website's **Admin** tab: achievement list + Excel download, and changing achievement icons (menu option 15) |
+| `admin.bat discord-check <discord user id>` | What the bot sees for one person: in the server or not, their roles, whether they get the Admin tab / preview, and what is wrong (bad bot token, bot not in the server, no admin role set). Menu option 16 |
 | `admin.bat reprocess <replay id or path>` | Read one replay again |
 | `admin.bat repair <replay id or path>` / `repair-failed` | Repair (salvage) damaged replays |
 | `admin.bat cannot-repair [--hide]` / `hidden [--unhide <path> \| --unhide-all]` | Replays repair cannot fix: list, hide from the Import page, show again |

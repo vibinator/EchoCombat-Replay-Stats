@@ -65,6 +65,7 @@ def callback(request: Request, code: str | None = None, state: str | None = None
         except (httpx.HTTPError, KeyError, ValueError):
             response = RedirectResponse(f"{target}{sep}login=failed", status_code=303)
         else:
+            auth.forget_roles(user["id"])
             response = RedirectResponse(target, status_code=303)
             response.set_cookie(auth.SESSION_COOKIE, auth.sign(settings, user, auth.SESSION_DAYS * 86400),
                                 max_age=auth.SESSION_DAYS * 86400, httponly=True, samesite="lax",

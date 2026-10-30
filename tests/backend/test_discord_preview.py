@@ -13,6 +13,7 @@ from backend import auth
 BLUE = str(rf.BIG_USER_ID)  # player in rf.plain
 ROLE, MEMBER, OUTSIDER, NO_ROLE = "555", "42", "43", "44"
 DB_ROLE, DB_MEMBER = "123456789012345678", "45"  # role set in the admin console
+BROKEN = "46"  # Discord refuses the bot token for this lookup
 
 
 @pytest.fixture
@@ -41,7 +42,10 @@ def discord(monkeypatch):
             uid = path.rsplit("/", 1)[1]
             if uid == OUTSIDER:
                 return httpx.Response(404)
-            return httpx.Response(200, json={"roles": {MEMBER: [ROLE], DB_MEMBER: [DB_ROLE]}.get(uid, ["999"])})
+            if uid == BROKEN:
+                return httpx.Response(401, json={"message": "401: Unauthorized"})
+            return httpx.Response(200, json={"roles": {MEMBER: [ROLE], DB_MEMBER: [DB_ROLE]}.get(uid, ["999"]),
+                                             "user": {"id": uid, "username": f"user{uid}"}})
         return httpx.Response(404)
 
     monkeypatch.setattr(auth, "http_client", lambda: httpx.Client(transport=httpx.MockTransport(handle)))
@@ -259,3 +263,35 @@ def test_admin_changes_achievement_icons(tmp_path, discord):
 
         assert client.put("/api/admin/achievements/5/icon", json={"icon": None}, headers=headers).json()["icon"] == "pulsar_daily.png"
         assert icon_everywhere(5) == "pulsar_daily.png"
+
+
+def test_discord_check_explains_access(tmp_path, discord, capsys):
+    import admin_console as console
+
+    with app_client(settings(tmp_path)) as client:
+        st = client.app.state.settings
+        sessions = console.open_sessions(st)
+        assert console.cmd_discord_check(sessions, st, OUTSIDER) == {"member": False}
+        assert console.cmd_discord_check(sessions, st, DB_MEMBER) == {"member": True, "admin": False, "preview": False}
+        assert "No admin roles are set yet" in capsys.readouterr().out
+        console.cmd_discord_roles(sessions, st, "admin", add=DB_ROLE)
+        assert console.cmd_discord_check(sessions, st, DB_MEMBER) == {"member": True, "admin": True, "preview": True}
+        with pytest.raises(console.ConsoleError, match="refused the bot token"):
+            console.cmd_discord_check(sessions, st, BROKEN)
+        with pytest.raises(console.ConsoleError, match="bot token is not set"):
+            console.cmd_discord_check(sessions, make_settings(tmp_path), DB_MEMBER)  # no bot token
+
+
+def test_new_login_rechecks_roles(tmp_path, discord):
+    import admin_console as console
+
+    with app_client(settings(tmp_path)) as client:
+        login(client, DB_MEMBER)
+        assert client.get("/api/auth/me").json()["user"]["admin"] is False
+        sessions = console.open_sessions(client.app.state.settings)
+        console.cmd_discord_roles(sessions, client.app.state.settings, "admin", add=DB_ROLE)
+        assert client.get("/api/auth/me").json()["user"]["admin"] is True  # role ids from the console apply at once
+        calls = sum("/members/" in c.url.path for c in discord)
+        login(client, DB_MEMBER)
+        client.get("/api/auth/me")
+        assert sum("/members/" in c.url.path for c in discord) == calls + 1  # a fresh login asks Discord again

@@ -13,6 +13,23 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 13 — 2026-10-30
+### Admin console
+- **Option 16, check a Discord member's access** (`admin.bat discord-check <discord user id>`): asks Discord what
+  the website sees for one person: whether they are in the server, their roles (by name, marked admin / preview),
+  and whether they get the Admin tab and the preview. Says what is wrong when the bot token is refused, the bot is
+  not in the server, or no admin role has been set.
+
+### Website
+- Logging in again re-checks your Discord roles straight away (before: up to 5 minutes).
+- A failed role check (bad bot token, bot not in the server) is now written to the server log.
+
+### Upgrading to Beta 13
+- QNAP: upload Beta 13, wait for the Actions run, Recreate.
+- Windows: restart `run.bat`.
+
+---
+
 ## Beta 12 — 2026-10-30
 ### Admin console
 - **Option 14, Discord preview roles**: lists the roles in your Discord server (by name, via the bot) and marks the

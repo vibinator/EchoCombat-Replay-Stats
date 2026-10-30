@@ -14,6 +14,7 @@ rule and the affected replays are re-processed from the original files, so it ca
     admin.bat challenge [--start YYYY-MM-DD] [--end YYYY-MM-DD] [--clear]
     admin.bat preview-roles [--server] [--add <role id>] [--remove <role id>]   Discord roles: achievements early
     admin.bat admin-roles [--server] [--add <role id>] [--remove <role id>]     Discord roles: website Admin tab
+    admin.bat discord-check <discord user id>   what the bot sees for one person: in the server, roles, access
     admin.bat status
     admin.bat repair-failed [--yes]
     admin.bat cannot-repair [--hide] [--yes]   failed replays repair cannot fix; --hide hides them on the website
@@ -282,6 +283,50 @@ def cmd_discord_roles(sessions, settings: Settings, kind: str, add: str | None =
     return server
 
 
+def cmd_discord_check(sessions, settings: Settings, user_id: str) -> dict:
+    """Asks Discord (with the bot token) what the website sees for one person, step by step."""
+    user_id = user_id.strip()
+    if not settings.discord_bot_token:
+        raise ConsoleError("The bot token is not set here (ECHOVR_DISCORD_BOT_TOKEN), so Discord cannot be asked. "
+                           "On the NAS run this in the container; on Windows put it in settings.local.bat.")
+    try:
+        r = auth._bot_get(settings, f"/guilds/{settings.discord_guild_id}/members/{user_id}")
+    except Exception as e:
+        raise ConsoleError(f"Discord could not be reached: {e}") from None
+    if r.status_code == 401:
+        raise ConsoleError("Discord refused the bot token (401): it is wrong or was reset. Copy it again from the "
+                           "Developer Portal > Bot, put it in ECHOVR_DISCORD_BOT_TOKEN and restart / Recreate.")
+    if r.status_code == 403:
+        raise ConsoleError(f"The bot is not in server {settings.discord_guild_id} (403): invite it to the server.")
+    if r.status_code == 404:
+        print(f"{user_id} is not a member of server {settings.discord_guild_id} (or not a Discord user id): "
+              "no preview, no admin.")
+        return {"member": False}
+    if r.status_code != 200:
+        raise ConsoleError(f"Discord answered {r.status_code}: {r.text[:200]}")
+    member = r.json()
+    names = {x["id"]: x["name"] for x in (_server_roles(settings) or [])}
+    roles = member.get("roles", [])
+    with sessions() as db:
+        admin = set(actions.discord_roles(db, "admin"))
+        preview = admin | set(actions.discord_roles(db, "preview")) | set(settings.discord_preview_roles)
+    user = member.get("user", {})
+    print(f"{user.get('global_name') or user.get('username', '?')} ({user_id}) is in the server with roles:")
+    for role in roles:
+        tags = [t for t, ok in (("admin", role in admin), ("preview", role in preview)) if ok]
+        print(f"  {names.get(role, '?'):<28} {role}{'  [' + ', '.join(tags) + ']' if tags else ''}")
+    if not roles:
+        print("  none")
+    is_admin, has_preview = bool(admin & set(roles)), bool(preview & set(roles))
+    print(f"Admin tab: {'yes' if is_admin else 'NO'}   Preview: {'yes' if has_preview else 'NO'}")
+    if not admin:
+        print("No admin roles are set yet: add one with option 15 (admin.bat admin-roles --server).")
+    if not auth.enabled(settings):
+        print("Note: the Discord login is off here (client secret or bot token missing).")
+    print("The website re-checks roles every 5 minutes; log out and in again to see the change at once.")
+    return {"member": True, "admin": is_admin, "preview": has_preview}
+
+
 RATE_WINDOW_MIN = 10
 
 
@@ -473,6 +518,7 @@ EchoVR Replay Stats - admin console ({APP_VERSION})
   13 Rescan and re-process every replay
   14 Discord preview roles (see achievements before the launch)
   15 Discord admin roles (website Admin tab: achievement list + Excel)
+  16 Check a Discord member's access (why someone does / does not see the Admin tab)
   q  Quit"""
 
 
@@ -558,8 +604,12 @@ def interactive(sessions, settings: Settings) -> None:
                         cmd_discord_roles(sessions, settings, kind, remove=value)
                     else:
                         cmd_discord_roles(sessions, settings, kind, add=value)
+            elif choice == "16":
+                uid = ask("Discord user id (right-click the person > Copy User ID): ")
+                if uid:
+                    cmd_discord_check(sessions, settings, uid)
             else:
-                print("Choose 1-15 or q.")
+                print("Choose 1-16 or q.")
         except ConsoleError as e:
             print(f"! {e}")
 
@@ -588,6 +638,7 @@ def main(argv: list[str] | None = None) -> int:
         p.add_argument("--add", metavar="ROLE_ID", help="add this role")
         p.add_argument("--remove", metavar="ROLE_ID", help="remove this role")
         p.add_argument("--server", action="store_true", help="also list every role in the Discord server (needs the bot token)")
+    sub.add_parser("discord-check", help="what the bot sees for one Discord member").add_argument("user_id")
     sub.add_parser("status", help="import progress, replay and player counts")
     p = sub.add_parser("repair-failed", help="re-process damaged / incomplete replays in repair mode")
     p.add_argument("--yes", action="store_true")
@@ -623,6 +674,8 @@ def main(argv: list[str] | None = None) -> int:
                 cmd_challenge(sessions, args.start, args.end, args.clear)
             case "preview-roles" | "admin-roles":
                 cmd_discord_roles(sessions, settings, args.command.removesuffix("-roles"), args.add, args.remove, args.server)
+            case "discord-check":
+                cmd_discord_check(sessions, settings, args.user_id)
             case "status":
                 cmd_status(sessions)
             case "repair-failed":
