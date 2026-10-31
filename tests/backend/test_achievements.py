@@ -166,7 +166,7 @@ def test_new_result_challenges():
     streak = [played(f"2026-10-{d:02d}", True) for d in range(1, 5)]
     streak.insert(2, Game(**{**game("2026-10-02").__dict__, "team": "blue", "winner": None}))  # no result: skipped
     r = by_id(evaluate(streak))
-    assert (r[90]["count"], r[90]["tier"], r[91]["tier"]) == (4, "silver", "bronze")  # On a Roll 2/3/5/8/12, Unstoppable 4/6/10/14/18
+    assert (r[90]["count"], r[90]["tier"], r[91]["tier"]) == (4, "silver", "bronze")  # On a Roll 2/3/5/8/12, Unstoppable 4/6/8/10/12
     streak.append(played("2026-10-05", True))
     r = by_id(evaluate(streak))
     assert (r[90]["tier"], r[91]["tier"]) == ("gold", "bronze")

@@ -13,6 +13,19 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 58 — 2026-10-31
+### Achievements: every top medal reachable within a 4-month challenge window
+Checked against a window of about 120 days / 17 weeks. Medals recalculate by themselves; nothing has to be re-read.
+- **Regular** (days played): 5 / 15 / 30 / 60 / 100 (was up to 300 days).
+- **Loyal Bot** (different weeks played): 3 / 6 / 9 / 12 / 15 (was up to 100 weeks).
+- **Frequent Flyer** (games played): 10 / 50 / 200 / 750 / 2000 (was up to 5000).
+- **Time Well Wasted** (hours played): 1 / 5 / 20 / 100 / 300 (was up to 500).
+- **Overtime** (games of 10+ minutes): 5 / 20 / 50 / 150 / 500 (was up to 1000).
+- **Unstoppable** (wins in a row): 4 / 6 / 8 / 10 / 12 (was up to 18).
+- **Hot Day** (wins in one day): 3 / 5 / 8 / 12 / 16 (was up to 20).
+
+---
+
 ## Beta 57 — 2026-10-31
 ### Achievements page loads fast
 - **Cause:** the page asks for three things at once (the list, the recent unlocks, the top players) and every one of them

@@ -438,7 +438,7 @@ def _build_rules() -> list[Rule]:
         Rule(89, "Tac Mod Tinkerer", "Use Repair Matrix, Threat Scanner, Energy Barrier and Phase Shift in one game", "game",
              None, _all_used("tacmod", {c for c, _, _ in TACMODS}), new=True, group="Gear mastery"),
         _ladder(90, "On a Roll", "Wins in a row (games without a result are skipped)", None, _win_streak, (2, 3, 5, 8, 12), new=True, group="Wins"),
-        _ladder(91, "Unstoppable", "Wins in a row (games without a result are skipped)", None, _win_streak, (4, 6, 10, 14, 18), new=True, group="Wins"),
+        _ladder(91, "Unstoppable", "Wins in a row (games without a result are skipped)", None, _win_streak, (4, 6, 8, 10, 12), new=True, group="Wins"),
         _tiered(92, "Centurion", "Win games", None, lambda g: g.won, (5, 10, 30, 100, 500), new=True, group="Wins"),
         # the attacking team wins exactly when the payload reaches the end (stats/payload.py)
         _tiered(93, "Clean Sweep", "Win Capture Point games 2-0", "capture_point",
@@ -483,14 +483,14 @@ def _build_rules() -> list[Rule]:
 
     # New challenges from the 2026-10-31 review (113+). Targets chosen from the archive (docs/Achievement-Tiers-Proposal.MD).
     rules += [
-        _ladder(113, "Frequent Flyer", "Games played", None, len, (10, 50, 200, 1000, 5000), new=True, group="Activity"),
-        _ladder(114, "Regular", "Different days played", None, lambda gs: len({g.day for g in gs}), (5, 15, 40, 100, 300), new=True, group="Activity"),
-        _ladder(115, "Loyal Bot", "Different weeks played", None, lambda gs: len({g.week for g in gs}), (3, 8, 20, 50, 100), new=True, group="Activity"),
+        _ladder(113, "Frequent Flyer", "Games played", None, len, (10, 50, 200, 750, 2000), new=True, group="Activity"),
+        _ladder(114, "Regular", "Different days played", None, lambda gs: len({g.day for g in gs}), (5, 15, 30, 60, 100), new=True, group="Activity"),
+        _ladder(115, "Loyal Bot", "Different weeks played", None, lambda gs: len({g.week for g in gs}), (3, 6, 9, 12, 15), new=True, group="Activity"),
         _ladder(116, "Daily Grind", "Days in a row with at least one game played", None, _day_streak, (3, 5, 7, 14, 30), new=True, group="Activity"),
-        _ladder(117, "Time Well Wasted", "Hours played", None, lambda gs: sum(g.play_time_s for g in gs) / 3600, (1, 5, 20, 100, 500), "all", " h",
+        _ladder(117, "Time Well Wasted", "Hours played", None, lambda gs: sum(g.play_time_s for g in gs) / 3600, (1, 5, 20, 100, 300), "all", " h",
                 new=True, group="Activity"),
-        _tiered(118, "Overtime", "Games of 10 minutes or longer", None, lambda g: g.play_time_s >= 600, (5, 20, 50, 250, 1000), new=True, group="Activity"),
-        _tiered(119, "Hot Day", "Win games in one day: the most in a single day counts", None, lambda g: g.won, (3, 5, 8, 12, 20), "day", new=True, group="Wins"),
+        _tiered(118, "Overtime", "Games of 10 minutes or longer", None, lambda g: g.play_time_s >= 600, (5, 20, 50, 150, 500), new=True, group="Activity"),
+        _tiered(119, "Hot Day", "Win games in one day: the most in a single day counts", None, lambda g: g.won, (3, 5, 8, 12, 16), "day", new=True, group="Wins"),
         _tiered(120, "Point Taker", "Win Capture Point games", "capture_point", lambda g: _capture(g) and g.won, (5, 10, 30, 100, 250), new=True, group="Capture Point"),
         _tiered(121, "Cargo Hauler", "Win Payload games", "payload", lambda g: _payload(g) and g.won, (5, 10, 30, 100, 250), new=True, group="Payload"),
         _ladder(122, "Grand Tour", "Wins on each of the 4 maps (the map with the fewest wins counts)", None, _fewest_wins, (1, 3, 8, 25, 75),
