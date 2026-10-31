@@ -166,8 +166,8 @@ Profile also: avg_packet_loss = SUM(packet_loss_sum) / SUM(frames_present); emot
 
 Leaderboard = the same aggregates grouped by player, ranked in Python by the chosen stat (lower-is-better: ping, deaths/game, idle), players with < `min_games` excluded; optional `private_match` filter (old app had none). Loadout stat = SUM(frames / matches.frame_rate_hz) / 3600 for matching weapon/ordnance/tacmod.
 
-### Achievements (Phase 8, D17, D31)
-No table: computed from `match_players` + loadouts + `matches` on request (`backend/achievements.py`). 75 rules = old `stat.js` ids 5–79 (rule text thresholds). Progress per rule = best over its period groups — each game (≥ 3 min played), each calendar day / week (recorder local, Monday start) or all time — capped at 1; overall = mean of the 75. Tier: white ≥ 25 %, bronze ≥ 50 %, silver ≥ 75 %, gold 100 %. Leaderboard `stat=achievements` ranks overall % (all time).
+### Achievements (Phase 8, D17, D31, D52)
+No table: computed from `match_players` + loadouts + `matches` on request (`backend/achievements.py`). 122 rules (ids 5-126). Almost all are medal ladders (D52): `levels` = targets for bronze, silver, gold, platinum, diamond; `count` is evaluated per period group (game / day / week / all time) and the best group counts; progress = 20 % per medal. Single-step rules (Pew Pew Proof, gear sets) keep white 25 / bronze 50 / silver 75 / gold 100 %. Overall = mean progress; Medal Collector (id 126) counts gold-or-better medals of the others. Leaderboard `stat=achievements` ranks overall % (all time).
 
 ## Kept across rebuilds (not derived from the share)
 | Table | Columns | Purpose |

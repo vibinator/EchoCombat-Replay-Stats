@@ -13,6 +13,38 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 46 — 2026-10-31
+### Achievements: medal ladders for (almost) everything
+- **Every achievement is now its own bronze / silver / gold / platinum / diamond ladder** (114 of 122; the yes / no
+  ones such as Jack of All Trades, Forbidden Arsenal and Pew Pew Proof keep their single step). Each stays a separate
+  achievement: daily, weekly and all-time versions of the same gear are still different entries.
+- Period ladders count your **best day / best week / best game** (e.g. "Play games using only Pulsar in one day":
+  3 / 6 / 10 / 15 / 20). The description lists every target, with units (%, m/s, min).
+- The targets come from the real archive (docs/Achievement-Tiers-Proposal.MD): bronze is reachable for roughly a
+  quarter to a half of active players, diamond for about 1 %. Hard old targets (35 m/s, 35 pubs a day, ...) are now the
+  top steps; trivial ones ("near an enemy 2 %") got real steps. Clean Sweep / Special Delivery diamond is now 100.
+- **Changed meaning:** Versatile Bot counts days on which you used all 12 equipables; My Other Chassis Is a Toaster
+  counts games with 3 or fewer deaths; Hold the Line counts Payload defence wins; Centurion and the other counts are
+  ladders. Anyone who completed an old rule is now gold (60 %) on it, with platinum and diamond above.
+- **14 new challenges:** Frequent Flyer, Regular, Loyal Bot, Daily Grind, Time Well Wasted, Overtime (new "Activity"
+  section), Hot Day, Point Taker, Cargo Hauler, Grand Tour, Weapons Master, Loadout Scholar, Wall of Steel, and
+  **Medal Collector** (gold medals or better across all others: 5 / 10 / 25 / 50 / 75).
+- No data is stored for achievements, so nothing has to be re-read.
+- **Going back:** `version.bat beta-45` returns to the previous version, `version.bat latest` comes back (see below).
+
+### Home page speed
+- The two charts' data is now requested together with the overview instead of after it (was one request after the
+  other); the Twitch player loads only once the page has settled and is on screen; map images load lazily.
+- The server prepares the home page numbers at startup and caches the "players seen" chart; the heavy achievements
+  ranking now starts only after them. The achievements calculation is back to the speed of Beta 45 (it was 50 % slower
+  with the first ladders).
+
+### Going back to an earlier version
+- `version.bat` lists the versions, `version.bat beta-45` switches to Beta 45, `version.bat latest` returns to the
+  newest. It refuses to switch while there are unsaved changes. Start the site with `run.bat` afterwards.
+
+---
+
 ## Beta 45 — 2026-10-31
 ### Achievements
 - **Name and status take the colour of the medal reached** (white, bronze, silver, gold, platinum, diamond), in both themes.

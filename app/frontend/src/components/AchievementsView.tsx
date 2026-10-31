@@ -23,6 +23,7 @@ export const NEW_GROUPS: [string, string][] = [
   ["Gear mastery", "All four weapons, ordnances or tac mods in one game"],
   ["Wins", "Results: streaks, totals, sweeps, attack and defence"],
   ["Payload", "Time pushing or blocking the payload"],
+  ["Activity", "How often and how long you play"],
   ["Emotes", ""],
 ];
 
@@ -110,10 +111,10 @@ function TierSteps({ a }: { a: Achievement & AchievementRule }) {
 
 /** A rule with a player's progress, or just the catalogue entry when `progress` is absent. */
 /** Tiered achievements: "12 / 25 for platinum", or the top medal once every target is reached. */
-function levelText(count: number, levels: number[]): string {
+function levelText(count: number, levels: number[], unit = ""): string {
   const next = levels.findIndex((need) => count < need);
-  if (next < 0) return `${count.toLocaleString()} · ${LEVELS[levels.length - 1]} (max)`;
-  return `${count.toLocaleString()} / ${levels[next].toLocaleString()} for ${LEVELS[next]}`;
+  if (next < 0) return `${count.toLocaleString()}${unit} · ${LEVELS[levels.length - 1]} (max)`;
+  return `${count.toLocaleString()} / ${levels[next].toLocaleString()}${unit} for ${LEVELS[next]}`;
 }
 
 export function Badge({ a }: { a: AchievementRule & Partial<Pick<Achievement, "progress" | "tier" | "unlocked_at" | "count">> & Partial<Pick<AchievementRarity, "unlocked_share" | "completed_share">> }) {
@@ -141,7 +142,7 @@ export function Badge({ a }: { a: AchievementRule & Partial<Pick<Achievement, "p
             <span className="muted">
               {a.levels && a.count != null ? (
                 <>
-                  {levelText(a.count, a.levels)}
+                  {levelText(a.count, a.levels, a.unit)}
                   {tier && a.progress! < 1 && <b className="tier-name"> · {tier}</b>}
                 </>
               ) : (
@@ -317,7 +318,7 @@ function LaunchedSummary({ userId }: { userId: string }) {
   const result = useApi(() => getAchievements(userId), userId);
   const d = result.data;
   if (!d) return null;
-  const gold = d.items.filter((a) => a.progress >= 1).length; // gold, or diamond for tiered ones
+  const gold = d.items.filter((a) => a.progress >= 1).length; // diamond for ladders, 100 % for single-step ones
   const unlocked = d.items.filter((a) => a.tier).length;
   const added = d.items.filter((a) => a.new);
   return (
@@ -332,7 +333,7 @@ function LaunchedSummary({ userId }: { userId: string }) {
           <strong>{pct(d.overall)}</strong>
         </div>
         <div className="card">
-          <span className="label">Completed (gold / diamond)</span>
+          <span className="label">Completed (diamond)</span>
           <strong>
             {gold} / {d.total}
           </strong>
@@ -438,8 +439,10 @@ export function AchievementsView({ userId }: { userId: string }) {
             <GroupedBadges items={data.items.filter((a) => show === "all" || (show === "earned" ? a.tier : !a.tier))} />
           )}
           <p className="muted footnote">
-            Progress is the best ever reached (best game, best calendar day or week, or all-time total). Tiers: white 25%,
-            bronze 50%, silver 75%, gold 100%. Tiered challenges (e.g. Clean Sweep) give a medal per target instead: bronze, silver, gold, platinum, diamond. "Use only" an item = 95%+ of that game's loadout time; "use" = 5%+. Days are
+            Almost every challenge is a ladder of medals (bronze, silver, gold, platinum, diamond): the bar has one step per medal, the
+            colour of a name is the medal reached, and the number under each step is its target. Progress is the best ever reached (best game,
+            best calendar day or week, or all-time total). A few single-step challenges keep white 25%, bronze 50%, silver 75%, gold 100%.
+            "Use only" an item = 95%+ of that game's loadout time; "use" = 5%+. Days are
             calendar days, weeks start on Monday. * Based on estimated deaths.
           </p>
         </>

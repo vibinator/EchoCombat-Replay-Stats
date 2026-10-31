@@ -302,7 +302,8 @@ def list_achievements(request: Request):
         values = [p[i] for p in eligible]
         out.append({"id": r.id, "name": r.name, "description": r.description, "period": r.period,
                     "icon": icon_file(r), "estimated": r.estimated, "new": r.new, "group": r.group,
-                    "levels": list(r.levels) or None,  # tiered: count targets for bronze ... diamond
+                    "levels": list(r.levels) or None,  # ladder: targets for bronze ... diamond
+                    "unit": r.unit,
                     "unlocked_share": round(sum(v >= unlock_threshold(r) for v in values) / len(values), 4) if values else None,
                     "completed_share": round(sum(v >= 1 for v in values) / len(values), 4) if values else None})
     with request.app.state.sessionmaker() as db:

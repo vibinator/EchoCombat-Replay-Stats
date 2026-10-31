@@ -204,6 +204,11 @@ def players_seen(request: Request, range: str = Query("7d", pattern="^(24h|7d|30
                  anchor: str = Query("now", pattern="^(now|latest)$")):
     """Distinct players seen in Combat per hour (24 h) or per day (7 / 30 days), plus the distinct total.
     `anchor=latest` ends the range at the newest recorded match instead of now (the archive may stop earlier)."""
+    stamp = datetime.now().strftime("%Y-%m-%dT%H") if range == "24h" else ""  # a 24 h window moves every hour
+    return cached(request, "players-seen", (range, anchor, stamp), lambda: _players_seen(request, range, anchor))
+
+
+def _players_seen(request: Request, range: str, anchor: str) -> dict:
     span, unit = RANGES[range]
     with request.app.state.sessionmaker() as db:
         end = datetime.now()
@@ -239,3 +244,16 @@ def players_seen(request: Request, range: str = Query("7d", pattern="^(24h|7d|30
         cursor += step
     return {"range": range, "unit": unit, "anchor": anchor, "start": start.isoformat(timespec="minutes"),
             "end": end.isoformat(timespec="minutes"), "unique_players": unique, "matches": matches, "items": items}
+
+
+def warm(app) -> None:
+    """Fill the home page caches at startup (in the background) so the first visit does not wait for the archive-wide
+    queries. A new replay still invalidates them like any other result (cache.py)."""
+    from types import SimpleNamespace
+
+    request = SimpleNamespace(app=app)
+    for call in (lambda: overview(request), lambda: activity(request, "month"), lambda: players_seen(request, "7d", "now")):
+        try:
+            call()
+        except Exception:  # noqa: BLE001 - warming is best effort; the real request recomputes and reports errors
+            pass

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { getActivity, getOverview, getPlayersSeen, type GearShare, type PlayersSeen } from "../api";
 import { BarChart, StackedBarChart } from "../components/charts";
@@ -126,10 +126,30 @@ const TWITCH_CHANNEL = "combat_stream_bot";
  * is the hostname of the page showing them (and only over HTTPS, apart from localhost). Muted autoplay, so the
  * page does not start making sound. */
 function LiveStream() {
+  // The player is several MB of third-party script and video: load it once the page has settled and the box is on
+  // screen, so it does not compete with the numbers (user, 2026-10-31: the home page was slow).
+  const box = useRef<HTMLDivElement>(null);
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    let timer = 0;
+    const seen = new IntersectionObserver(([e]) => {
+      if (e.isIntersecting) {
+        timer = window.setTimeout(() => setShow(true), 1200);
+        seen.disconnect();
+      }
+    });
+    seen.observe(el);
+    return () => {
+      seen.disconnect();
+      window.clearTimeout(timer);
+    };
+  }, []);
   const src = `https://player.twitch.tv/?channel=${TWITCH_CHANNEL}&parent=${encodeURIComponent(window.location.hostname)}&muted=true`;
   return (
-    <div className="twitch-embed">
-      <iframe src={src} title="Live Echo Combat spectator bot on Twitch" allowFullScreen />
+    <div className="twitch-embed" ref={box}>
+      {show && <iframe src={src} title="Live Echo Combat spectator bot on Twitch" allowFullScreen />}
     </div>
   );
 }
@@ -146,6 +166,11 @@ function since(iso: string): string {
  * all-time numbers and history. */
 export function HomePage() {
   const overview = useApi(getOverview, "overview");
+  // the two charts are only drawn once the overview is there; ask for their data now instead of afterwards
+  useEffect(() => {
+    getActivity("month").catch(() => undefined);
+    getPlayersSeen("7d", "now").catch(() => undefined);
+  }, []);
   const o = overview.data;
   const g = o?.global;
 
@@ -248,7 +273,7 @@ export function HomePage() {
                   .sort((a, b) => b[1] - a[1])
                   .map(([m, n]) => (
                     <Link key={m} to={`/matches?map=${m}`} className="map-card">
-                      <img src={`/minimaps/${m}_small.png`} alt="" />
+                      <img src={`/minimaps/${m}_small.png`} alt="" loading="lazy" decoding="async" />
                       <strong>{title(m)}</strong>
                       <span className="muted">
                         {n.toLocaleString()} matches · {pct(n / o.matches)}

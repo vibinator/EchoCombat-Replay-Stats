@@ -318,6 +318,7 @@ export interface AchievementRule {
   estimated: boolean;
   new: boolean; // added in this app (80+), not on the original ECRanked site
   group: string | null; // theme of a new achievement
+  unit?: string; // ladder targets are in this unit ("%", " m/s", " min"); empty = a count
   levels?: number[] | null; // tiered achievements: count targets for bronze, silver, gold, platinum, diamond
 }
 
@@ -574,12 +575,23 @@ export const getMe = () => request<Me>("/api/auth/me");
 export const loginUrl = (next: string) => `/api/auth/login?next=${encodeURIComponent(next)}`;
 export const LOGOUT_URL = "/api/auth/logout";
 export const getHealth = () => request<{ version: string }>("/api/health");
-export const getOverview = () => request<Overview>("/api/overview");
+const SHARE_MS = 15000;
+const inflight = new Map<string, { at: number; promise: Promise<unknown> }>();
+/** One request for identical calls made within SHARE_MS: the home page starts every request at once, the charts reuse them. */
+function shared<T>(key: string, load: () => Promise<T>): Promise<T> {
+  const hit = inflight.get(key);
+  if (hit && Date.now() - hit.at < SHARE_MS) return hit.promise as Promise<T>;
+  const promise = load();
+  inflight.set(key, { at: Date.now(), promise });
+  promise.catch(() => inflight.delete(key));
+  return promise;
+}
+export const getOverview = () => shared("overview", () => request<Overview>("/api/overview"));
 export const getProcessing = () => request<{ pending: number }>("/api/overview/processing");
 export const getActivity = (bucket: "day" | "week" | "month" | "year") =>
-  request<{ bucket: string; items: { period: string; matches: number; hours: number; maps: Record<string, number> }[] }>(`/api/overview/activity?bucket=${bucket}`);
+  shared(`activity|${bucket}`, () => request<{ bucket: string; items: { period: string; matches: number; hours: number; maps: Record<string, number> }[] }>(`/api/overview/activity?bucket=${bucket}`));
 export const getPlayersSeen = (range: PlayersSeen["range"], anchor: PlayersSeen["anchor"]) =>
-  request<PlayersSeen>(`/api/overview/players-seen?range=${range}&anchor=${anchor}`);
+  shared(`seen|${range}|${anchor}`, () => request<PlayersSeen>(`/api/overview/players-seen?range=${range}&anchor=${anchor}`));
 export const search = (q: string) => request<SearchResult>(`/api/search${query({ q })}`);
 export const getPlayback = (id: number) => request<Playback>(`/api/matches/${id}/playback`);
 export const getTrends = (userId: string, bucket: "week" | "month" | "year") =>

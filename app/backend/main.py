@@ -1,3 +1,4 @@
+import threading
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -48,7 +49,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.worker.start()
         if settings.auto_scan:
             app.state.scanner.start()
-            achievements.warm(app.state.sessionmaker, previews=auth.enabled(settings))
+
+            def warm_caches():  # the home page first (the first thing people open), then the heavy achievements ranking
+                overview.warm(app)
+                achievements.warm(app.state.sessionmaker, previews=auth.enabled(settings))
+
+            threading.Thread(target=warm_caches, name="warm-caches", daemon=True).start()
         yield
         if settings.auto_scan:
             app.state.scanner.stop()
