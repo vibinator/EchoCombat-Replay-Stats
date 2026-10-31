@@ -1,6 +1,8 @@
 """Player merges, challenge period, reprocess: run from the admin console (backend.admin_actions); the website
 only reads."""
 
+from datetime import timedelta
+
 import pytest
 import replay_factory as rf
 from app_helpers import act, add, app_client, make_settings, replay_by_path, sync
@@ -64,7 +66,8 @@ def test_merge_then_undo_restores_everything(client):
     before = snapshot(client)
     assert set(before) == {"100", "200", "300"}
 
-    assert len(act(client, actions.merge_players, "100", ["200"])) == 1
+    result = act(client, actions.merge_players, "100", ["200"])
+    assert (len(result.moved), result.requeued) == (1, [])  # the alt never played with the main: no re-read
     wait(client)
     merged = snapshot(client)
     assert set(merged) == {"100", "300"}  # the alt no longer shows as its own player
@@ -101,9 +104,34 @@ def test_merge_survives_rebuild(client):
     assert client.get("/api/players/100").json()["stats"]["games"] == 3
 
 
+def reprocess_everything(client):
+    for r in client.get("/api/replays").json()["items"]:
+        act(client, actions.reprocess, r["id"])
+    wait(client)
+
+
+def test_in_place_merge_matches_a_full_reprocess(client):
+    """The fast path must store exactly what re-reading the files would (later start times, so the main player's
+    shown name, the one from their latest match, does not depend on processing order)."""
+    later = rf.START + timedelta(days=1)
+    add(client, {"surge/4.echoreplay": match([rf.player(400, "Alt2")], [rf.player(300, "Mate", 1)], payload=True,
+                                             start=later + timedelta(hours=1)),
+                 "dyson/5.echoreplay": match([rf.player(200, "Alt")], [rf.player(400, "Alt2", 1)], start=later)})
+    act(client, actions.merge_players, "200", ["400"])  # 400 played with 200: re-read
+    wait(client)
+    result = act(client, actions.merge_players, "100", ["200"])  # 400 follows 200 into 100
+    assert len(result.moved) == 2 and len(result.requeued) == 1  # dyson/5 has two of the ids: re-read
+    wait(client)
+    in_place = snapshot(client)
+    assert set(in_place) == {"100", "300"}
+    reprocess_everything(client)
+    assert snapshot(client) == in_place
+
+
 def test_alias_and_main_in_same_match_stay_separate(client):
     add(client, {"dyson/4.echoreplay": match([rf.player(100, "Main")], [rf.player(200, "Alt", 1)])})
-    act(client, actions.merge_players, "100", ["200"])
+    result = act(client, actions.merge_players, "100", ["200"])
+    assert len(result.requeued) == 1  # both ids in one match: re-read from the file
     wait(client)
     m = client.get("/api/matches", params={"player": "100"}).json()["total"]
     assert m == 4  # 3 own + the alt's match

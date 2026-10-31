@@ -9,6 +9,7 @@ from sqlalchemy import and_, delete, or_, select, update
 from sqlalchemy.orm import Session, sessionmaker
 
 from . import aliases
+from .cache import bump_generation
 from .config import Settings
 from .db import utcnow
 from .models import AppSetting, HiddenReplay, Player, PlayerAlias, PriorityReplay, RepairRequest, Replay
@@ -149,8 +150,9 @@ def unhide(db: Session, paths: list[str] | None) -> int:
 
 # --- players -------------------------------------------------------------------------------------
 
-def merge_players(db: Session, main: str, others: list[str]) -> list[int]:
-    """Merge `others` into `main` (D34: same person, several player ids). Returns the replays re-queued."""
+def merge_players(db: Session, main: str, others: list[str]) -> aliases.MergeResult:
+    """Merge `others` into `main` (D34: same person, several player ids). Most matches are updated at once; the
+    result also lists the replays re-queued (ones where several of the player's ids played together)."""
     others = [u for u in dict.fromkeys(others) if u and u != main]
     if not others:
         raise AdminError("Choose at least one other player")
@@ -162,10 +164,11 @@ def merge_players(db: Session, main: str, others: list[str]) -> list[int]:
     unknown = set(others) - set(db.scalars(select(Player.user_id).where(Player.user_id.in_(others))))
     if unknown:
         raise AdminError(f"Player(s) not found: {', '.join(sorted(unknown))}")
-    replay_ids = aliases.merge(db, main, others)
-    prioritise(db, replay_ids)
+    result = aliases.merge(db, main, others)
+    prioritise(db, result.requeued)
     db.commit()
-    return replay_ids
+    bump_generation()  # a server running this (Console page) recomputes cached pages at once
+    return result
 
 
 def unmerge_player(db: Session, alias_user_id: str) -> list[int]:

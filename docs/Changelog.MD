@@ -13,6 +13,28 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 40 — 2026-10-31
+### Home page
+- **Live stream in Latest matches:** the Echo Combat spectator bot
+  ([twitch.tv/combat_stream_bot](https://www.twitch.tv/combat_stream_bot)) plays muted on the left, the newest
+  matches are on the right (as many as fit beside the video, none cut off), with a "Live on Twitch" link. On narrow
+  screens the video sits above one row of matches. Twitch only shows embeds on HTTPS pages (or localhost), so it
+  works on the public site but not when opened by a plain-http LAN address.
+- Nothing to do: restart the server to serve the new pages.
+
+## Beta 39 — 2026-10-31
+### Player merges
+- **Merging players is now near-instant.** In every match where only one of the player's ids played (the usual
+  case for an alt), the records are moved to the main player straight away instead of the replay being re-read from
+  the share. Only matches where two of the player's ids played together are still re-processed. The result is the
+  same as a full re-read (a test checks this). The console now shows "N replays updated now" and, if any,
+  "M queued for re-processing".
+- **Fixed:** two merged ids of the same player in one match (e.g. two alts, without the main) made that match fail to
+  save, so it disappeared. They now stay separate in that match, like a main + alias already did.
+- Undo is unchanged: it still re-reads the main player's replays, as the database alone can't tell which id a row
+  came from.
+- Nothing to do: no re-read needed after updating.
+
 ## Beta 38 — 2026-10-31
 ### Achievements
 - **12 new achievements for the formerly unreleased gear (101-112), now 108 in total.** Found by scanning the 84

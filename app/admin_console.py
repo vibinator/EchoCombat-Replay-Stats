@@ -169,13 +169,17 @@ def cmd_merge(sessions, main_term: str, other_terms: list[str], yes: bool, inter
             moved = db.scalars(select(PlayerAlias.alias_user_id).where(PlayerAlias.main_user_id == o.user_id)).all()
             if moved:
                 print(f"        (its own merged records follow it: {', '.join(moved)})")
-        affected = {main.user_id} | {u for o in others for u in aliases.ids_of(db, o.user_id)}
-        print(f"About {len(aliases._replays_of(db, affected))} replays will be re-processed.")
+        affected = {u for o in others for u in aliases.ids_of(db, o.user_id)}
+        print(f"{len(aliases._replays_of(db, affected))} replays will be updated.")
         if not confirm(f"Merge {len(others)} record(s) into {main.name}?", yes):
             print("Nothing changed.")
             return
-        replay_ids = actions.merge_players(db, main.user_id, [o.user_id for o in others])
-    print(f"Merged. {len(replay_ids)} replays queued for re-processing. {when_applied()}")
+        result = actions.merge_players(db, main.user_id, [o.user_id for o in others])
+    print(f"Merged. {len(result.moved)} replays updated now.", end=" ")
+    if result.requeued:  # several of the player's ids in one match: read again from the file
+        print(f"{len(result.requeued)} queued for re-processing. {when_applied()}")
+    else:
+        print()
 
 
 def list_merges(db: Session) -> list[PlayerAlias]:

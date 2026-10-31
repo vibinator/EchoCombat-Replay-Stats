@@ -120,6 +120,20 @@ function ActivityChart() {
   );
 }
 
+const TWITCH_CHANNEL = "combat_stream_bot";
+
+/** The live Echo Combat spectator bot (offline: Twitch's offline screen). Twitch only plays embeds whose `parent`
+ * is the hostname of the page showing them (and only over HTTPS, apart from localhost). Muted autoplay, so the
+ * page does not start making sound. */
+function LiveStream() {
+  const src = `https://player.twitch.tv/?channel=${TWITCH_CHANNEL}&parent=${encodeURIComponent(window.location.hostname)}&muted=true`;
+  return (
+    <div className="twitch-embed">
+      <iframe src={src} title="Live Echo Combat spectator bot on Twitch" allowFullScreen />
+    </div>
+  );
+}
+
 /** "3 min ago", "5 h ago", "2 days ago" */
 function since(iso: string): string {
   const min = Math.max(0, (Date.now() - new Date(iso).getTime()) / 60000);
@@ -172,10 +186,18 @@ export function HomePage() {
               <div className="section-head">
                 <h2>Latest matches</h2>
                 <span>
+                  <a href={`https://www.twitch.tv/${TWITCH_CHANNEL}`} target="_blank" rel="noopener noreferrer">Live on Twitch</a>
+                  {" · "}
                   <Link to="/matches">All matches</Link>
                 </span>
               </div>
-              <MatchCards matches={o.latest} />
+              {/* live video left, the newest matches right (as many as fit beside it); stacked on narrow screens */}
+              <div className="live-latest">
+                <LiveStream />
+                <div className="live-latest-matches">
+                  <MatchCards matches={o.latest} fit />
+                </div>
+              </div>
 
               <div className="two-col">
                 <section className="panel">

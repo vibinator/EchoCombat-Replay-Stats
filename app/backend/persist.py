@@ -1,6 +1,7 @@
 """MatchStats -> database rows. Callers commit, so a match is stored completely or not at all."""
 
 import json
+from collections import Counter
 from dataclasses import replace
 from datetime import datetime
 
@@ -74,11 +75,12 @@ def save_match(db: Session, replay_id: int, meta: ReplayMeta, stats: MatchStats,
     db.flush()
 
     aliases = alias_map(db)
+    ids_per_main = Counter(aliases.get(q.user_id, q.user_id) for q in stats.players)
     player_ids: dict[str, int] = {}
     for p in stats.players:
         main_id = aliases.get(p.user_id, p.user_id)
-        in_match = {q.user_id for q in stats.players}
-        if main_id != p.user_id and main_id not in in_match:  # merged (D34); both present = keep separate
+        # merged (D34); two ids of the same person in one match (main + alias, or two aliases) stay separate
+        if main_id != p.user_id and ids_per_main[main_id] == 1:
             p = replace(p, user_id=main_id)
         player_ids[p.user_id] = player_id = _upsert_player(db, p, started_at).id
         fields = {k: v for k, v in vars(p).items() if k not in ("user_id", "loadouts")}
