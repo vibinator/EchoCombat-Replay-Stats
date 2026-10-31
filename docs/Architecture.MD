@@ -14,9 +14,12 @@ Last updated: 2026-10-30 — Beta 23 speed-ups (orjson parsing, faster heatmaps,
 ## Data flow
 ```
 Replay share (read-only)  Z:\ECRanked\Replays\<map>\*.echoreplay   (~29k files, ~527 GB)
-  │  Scanner thread: on startup + every 5 min (os.scandir, ~8 s for 29k files)
+  │  Scanner thread: full scan on startup + every 5 min (os.scandir, ~4-8 s for 29k files)
+  │    between full scans: every 15 s stat only the folders (~16 ms); a folder's modified time changed
+  │      (file added / removed / renamed) → full scan now
   │    new path → insert replays row (queued); size/mtime changed → re-queue
-  │    modified < 2 min ago → skip until settled; share unreachable → change nothing
+  │    written < 2 min ago (modified, or created / changed: copies keep the old modified time) → skip until
+  │      settled, full scan again as soon as the first one is old enough; share unreachable → change nothing
   ▼
 Worker thread: claims queued rows, newest file first, up to N at a time (default 8)
   └─ ProcessPoolExecutor: analyse(path) = parser.open_replay + stats.compute (streaming, one pass)

@@ -19,7 +19,8 @@ class Settings:
     data_dir: Path
     source_dir: Path  # read-only replay share (D25); never written to
     workers: int = 8  # parallel processes for parsing; 0 = run in a thread (tests)
-    scan_interval_s: float = 300.0
+    scan_interval_s: float = 300.0  # full scan (lists every file)
+    quick_check_s: float = 15.0  # between full scans: stat only the folders, full scan when one changed; 0 = off
     settle_s: float = 120.0  # skip files modified more recently (may still be recording / copying)
     auto_scan: bool = True  # tests turn this off and call scan_once() themselves
     # /api/import and /api/replays: off on the website, import progress is only in the admin console (user,
@@ -47,6 +48,7 @@ class Settings:
             source_dir=Path(env("ECHOVR_REPLAY_SOURCE", DEFAULT_SOURCE)),
             workers=int(env("ECHOVR_WORKERS", 8)),
             scan_interval_s=float(env("ECHOVR_SCAN_INTERVAL_S", 300)),
+            quick_check_s=float(env("ECHOVR_QUICK_CHECK_S", 15)),
             public_url=env("ECHOVR_PUBLIC_URL", "http://127.0.0.1:8000"),
             discord_client_id=env("ECHOVR_DISCORD_CLIENT_ID", DISCORD_CLIENT_ID),
             discord_client_secret=_secret(env("ECHOVR_DISCORD_CLIENT_SECRET")),

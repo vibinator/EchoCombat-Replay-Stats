@@ -8,7 +8,7 @@ from app_helpers import act, add, app_client, make_settings, replay_by_path, syn
 from backend import admin_actions as actions
 
 from backend.models import Replay
-from backend.scanner import ScanState, scan_once
+from backend.scanner import Scanner, ScanState, Snapshot, dirs_changed, scan_once
 
 
 @pytest.fixture
@@ -69,6 +69,52 @@ def test_recently_modified_files_wait_to_settle(tmp_path):
         assert sync(client) == 0
         assert client.app.state.scanner.state.settling == 1
         assert client.get("/api/replays").json()["total"] == 0
+
+
+def test_copied_in_file_waits_to_settle_even_with_old_modified_time(tmp_path):
+    # Explorer / robocopy keep the original modified time; the copy (creation / change) time counts too
+    settings = make_settings(tmp_path, settle_s=3600)
+    write(settings, {"dyson/copied.echoreplay": rf.plain(rf.lines(3))})
+    old = time.time() - 86400
+    os.utime(settings.source_dir / "dyson" / "copied.echoreplay", (old, old))
+    with app_client(settings) as client:
+        assert sync(client) == 0
+        assert client.app.state.scanner.state.settling == 1
+
+
+def test_settling_file_sets_when_to_scan_again(tmp_path):
+    settings = make_settings(tmp_path, settle_s=60)
+    write(settings, {"dyson/live.echoreplay": rf.plain(rf.lines(3))})
+    with app_client(settings) as client:
+        snapshot = Snapshot()
+        scan_once(client.app.state.sessionmaker, settings, ScanState(), snapshot)
+        assert snapshot.settle_due == pytest.approx(time.time() + 60, abs=5)
+
+
+def test_new_file_changes_the_folder_snapshot(client, settings):
+    add(client, {"dyson/a.echoreplay": rf.plain(rf.lines(3))})
+    snapshot = Snapshot()
+    scan_once(client.app.state.sessionmaker, settings, ScanState(), snapshot)
+    assert str(settings.source_dir) in snapshot.dirs and str(settings.source_dir / "dyson") in snapshot.dirs
+    assert snapshot.settle_due is None and not dirs_changed(snapshot.dirs)
+    time.sleep(0.05)  # coarse folder timestamps on some file systems
+    write(settings, {"dyson/b.echoreplay": rf.plain(rf.lines(3))})
+    assert dirs_changed(snapshot.dirs)
+
+
+def test_scanner_picks_up_new_file_without_waiting_for_the_interval(tmp_path):
+    settings = make_settings(tmp_path, auto_scan=True, scan_interval_s=3600, quick_check_s=0.05)
+    write(settings, {"dyson/a.echoreplay": rf.plain(rf.lines(3))})
+    with app_client(settings) as client:
+        client.app.state.worker.wait_idle()
+        time.sleep(0.2)  # first full scan done, scanner now on quick checks
+        write(settings, {"surge/b.echoreplay": rf.plain(rf.lines(3))})
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline and client.get("/api/replays").json()["total"] < 2:
+            time.sleep(0.05)
+        client.app.state.worker.wait_idle()
+        statuses = {r["source_path"]: r["status"] for r in client.get("/api/replays").json()["items"]}
+    assert statuses == {"dyson/a.echoreplay": "done", "surge/b.echoreplay": "done"}
 
 
 def test_unreachable_share_keeps_existing_data(client, settings, tmp_path):

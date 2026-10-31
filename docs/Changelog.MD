@@ -13,6 +13,23 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 30 — 2026-10-31
+### Import
+- **New replays reach the site within ~2-3 minutes** instead of up to ~7. Between the full scans (every 5 min) the
+  server now checks the replay folders every 15 s (~16 ms on the share, vs ~4 s for a full scan); when a file is
+  added, removed or renamed, the folder's modified time changes and a full scan runs straight away.
+- A replay that is still settling (written in the last 2 minutes) is scanned again as soon as it is old enough,
+  instead of waiting for the next full scan.
+- Replays copied into the folder are no longer read half-copied: Explorer / robocopy keep the original modified time,
+  so the copy time now counts towards the 2-minute wait too.
+- Full scans read only the columns they compare from the database, so the more frequent scans stay cheap.
+- New setting `ECHOVR_QUICK_CHECK_S` (default 15; 0 = off). No re-import.
+
+### Upgrading to Beta 30
+- QNAP: upload Beta 30, wait for the Actions run, Recreate. Windows: restart `run.bat`.
+
+---
+
 ## Beta 29 — 2026-10-30
 ### Import
 - **Reading a replay takes ~12 % less processor time** (parser and stats; same results, checked on 13 replays:

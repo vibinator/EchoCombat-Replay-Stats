@@ -23,7 +23,8 @@ npm install
 | `ECHOVR_DATA_DIR` | `<project>\data` | Database and processed files |
 | `ECHOVR_REPLAY_SOURCE` | `Z:\ECRanked\Replays` | Read-only replay share (D25). Use the share's network (UNC) path, e.g. `\\<server>\<share>\Replays`, if `Z:` is not mapped for the account running the app |
 | `ECHOVR_WORKERS` | `8` | Parallel processes for the import (PC has 24 cores) |
-| `ECHOVR_SCAN_INTERVAL_S` | `300` | Seconds between scans of the share |
+| `ECHOVR_SCAN_INTERVAL_S` | `300` | Seconds between full scans of the share |
+| `ECHOVR_QUICK_CHECK_S` | `15` | Seconds between quick checks of the share's folders; a new file starts a full scan straight away (0 = off, full scans only) |
 | `ECHOVR_PUBLIC_URL` | `http://127.0.0.1:8000` | Address people use; Discord sends them back to `<it>/api/auth/callback` |
 | `ECHOVR_DISCORD_CLIENT_SECRET` | – | Discord login (D41). Secret: never in GitHub |
 | `ECHOVR_DISCORD_BOT_TOKEN` | – | Bot that checks the preview role (D41). Secret: never in GitHub |
