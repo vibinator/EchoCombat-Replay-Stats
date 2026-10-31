@@ -62,7 +62,7 @@ def test_all_time_and_overall():
     r = by_id(evaluate(games))
     assert (r[68]["tier"], r[68]["count"]) == ("gold", 1000)  # 1000 deaths
     assert (r[59]["tier"], r[59]["count"]) == ("gold", 100)  # 100 games with Detonator (ordnance id 59)
-    assert (r[67]["tier"], r[67]["count"]) == (None, 1)  # one loadout combination, ladder 8 / 16 / ...
+    assert (r[67]["tier"], r[67]["count"]) == (None, 1)  # one loadout combination, ladder 6 / 12 / ...
     assert 0 < overall(list(r.values())) < 1
 
 
@@ -120,14 +120,14 @@ def test_logic_follows_the_text():
 def test_average_unlock_date_is_when_first_reached():
     from backend.achievements import unlock_dates
 
-    # Inverted 60%+ (platinum) over 50+ games: reached on day 2 (games 1-50 are 90 % inverted), then diluted, still above 60%
+    # Inverted 40%+ (platinum) over 50+ games: reached on day 2 (games 1-50 are 90 % inverted), then diluted, still above 40%
     games = [game("2026-10-01", upside=900)] * 25 + [game("2026-10-02", upside=900)] * 25 + [game("2026-10-20")] * 20
     assert by_id(evaluate(games))[74]["progress"] == 1.0
     assert unlock_dates(games)[74] == "2026-10-02"
 
 
 def test_teammate_proximity_targets():
-    """Tech Support: ladder 22 / 27 / 32 / 40 / 55 % over a week; Robot Wrecking Squad: 14 / 16 / 19 / 22 / 25 % all-time
+    """Tech Support: ladder 22 / 27 / 32 / 40 / 55 % over a week; Robot Wrecking Squad: 14 / 15.5 / 17 / 19.5 / 22.5 % all-time
     over 50+ games."""
     r = by_id(evaluate([game(mate=250)] * 5))
     assert (r[46]["tier"], r[46]["count"]) == ("bronze", 25) and r[71]["count"] == 0  # 5 games: the all-time one needs 50
@@ -153,7 +153,7 @@ def test_now_public_gear_challenges():
     quark_day = [game("2026-10-31", loadout=("smg", "buff", "loc"))] * 10
     r = by_id(evaluate(quark_day))
     assert r[103]["tier"] == "gold" and r[104]["tier"] == "gold"  # only Quark / only Translocator, 10 in one day
-    assert r[107]["tier"] == "bronze" and r[112]["tier"] == "diamond"  # 10 Quark games; 10 Overcharge games (1/3/5/10/25)
+    assert r[107]["tier"] == "gold" and r[112]["tier"] == "diamond"  # 10 Quark games (1/3/10/25/60); 10 Overcharge games (1/3/5/10/25)
     assert r[101]["progress"] == 0.0 and r[109]["progress"] == 0.5  # no Starburst; Translocator without Dot Field
     both = Game(**{**game().__dict__, "loadouts": {("assault", "heal", "loc"): 500, ("assault", "heal", "dot"): 500}})
     assert by_id(evaluate([both]))[109]["progress"] == 1.0

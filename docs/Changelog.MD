@@ -13,6 +13,24 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 53 — 2026-10-31
+### Achievements
+- **The "All time" medals are easier to reach** (the original all-time section, ids 55-79):
+  - Gear Veterans (games using it): 5 / 15 / 50 / 150 / 500 (was 10 / 30 / 100 / 300 / 1000)
+  - 5th Loadout when? (different loadouts): 6 / 12 / 24 / 40 / 56 (was 8 / 16 / 32 / 48 / 64)
+  - Pixel Party (deaths): 100 / 300 / 750 / 2,500 / 10,000
+  - King of the Hill, Feed the Flamingo (games): 10 / 25 / 50 / 150 / 500
+  - The four map achievements (games on a map): 5 / 10 / 25 / 75 / 250
+  - King/Queen of Pubs: 25 / 75 / 150 / 350 / 1,000
+  - Averages (50+ games): near a teammate 14 / 15.5 / 17 / 19.5 / 22.5 %, near an enemy 6 / 8 / 10 / 12.5 / 15 %, speed
+    2.8 / 2.95 / 3.1 / 3.3 / 3.6 m/s, inverted 2 / 4 / 8 / 20 / 40 %
+  Example: Pulsar Veteran gold goes from 7 % to 15 % of players.
+- **Protostar, Quark and Translocator Veteran** (young gear) are 1 / 3 / 10 / 25 / 60 games (was 10 / 30 / 100 / 300 /
+  1000): about 10-14 % of players reach bronze and 2-3 % gold (it was 2 % bronze, 0.1-0.2 % gold). Starburst Veteran
+  is unchanged. Medals recalculate by themselves; nothing has to be re-read.
+
+---
+
 ## Beta 52 — 2026-10-31
 ### Achievements
 - **Medal order corrected:** bronze, silver, gold, **diamond, then platinum** (platinum is the top medal, it was the

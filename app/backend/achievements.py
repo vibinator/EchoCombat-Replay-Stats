@@ -388,26 +388,26 @@ def _build_rules() -> list[Rule]:
     i = 55
     for slot, items in (("weapon", WEAPONS), ("ordnance", ORDNANCES), ("tacmod", TACMODS)):
         for code, label, icon in items:
-            rules.append(_ladder(i, f"{label} Veteran", f"Play games using {label}", icon, _games_using(slot, code), (10, 30, 100, 300, 1000)))
+            rules.append(_ladder(i, f"{label} Veteran", f"Play games using {label}", icon, _games_using(slot, code), (5, 15, 50, 150, 500)))
             i += 1
     rules += [
-        _ladder(67, "5th Loadout when? \"Soon™\"", "Different loadout combinations used, 3+ minutes each (of 64)", None, _loadouts_used, (8, 16, 32, 48, 64)),
-        _ladder(68, "Pixel Party!", "Die in total", "deaths", lambda gs: sum(g.deaths for g in gs), (100, 500, 1000, 5000, 20000), estimated=True),
-        _tiered(69, "King of the Hill", "Play Capture Point games", "capture_point", _capture, (10, 25, 50, 250, 1000)),
-        _tiered(70, "Feed the Flamingo", "Play Payload games", "payload", _payload, (10, 25, 50, 250, 1000)),
+        _ladder(67, "5th Loadout when? \"Soon™\"", "Different loadout combinations used, 3+ minutes each (of 64)", None, _loadouts_used, (6, 12, 24, 40, 56)),
+        _ladder(68, "Pixel Party!", "Die in total", "deaths", lambda gs: sum(g.deaths for g in gs), (100, 300, 750, 2500, 10000), estimated=True),
+        _tiered(69, "King of the Hill", "Play Capture Point games", "capture_point", _capture, (10, 25, 50, 150, 500)),
+        _tiered(70, "Feed the Flamingo", "Play Payload games", "payload", _payload, (10, 25, 50, 150, 500)),
         _ladder(71, "Robot Wrecking Squad", "Time near a teammate, all-time average (50+ games)", None,
-                _AvgValue("near_mate", 100.0, SEASON_MIN_GAMES), (14, 16, 19, 22, 25), "all", "%"),
+                _AvgValue("near_mate", 100.0, SEASON_MIN_GAMES), (14, 15.5, 17, 19.5, 22.5), "all", "%"),
         _ladder(72, "Roboticide", "Time near an enemy, all-time average (50+ games)", None,
-                _AvgValue("near_enemy", 100.0, SEASON_MIN_GAMES), (6, 9, 12, 14, 15.5), "all", "%"),
+                _AvgValue("near_enemy", 100.0, SEASON_MIN_GAMES), (6, 8, 10, 12.5, 15), "all", "%"),
         _ladder(73, "Cyberkinetic Enhancements", "Average speed, all-time average (50+ games)", None,
-                _AvgValue("speed_sum", 1.0, SEASON_MIN_GAMES), (2.9, 3.1, 3.3, 3.5, 3.7), "all", " m/s"),
+                _AvgValue("speed_sum", 1.0, SEASON_MIN_GAMES), (2.8, 2.95, 3.1, 3.3, 3.6), "all", " m/s"),
         _ladder(74, "toB taB m'I", "Time spent inverted, all-time average (50+ games)", None,
-                _AvgValue("upside", 100.0, SEASON_MIN_GAMES), (2, 4, 8, 30, 60), "all", "%"),
+                _AvgValue("upside", 100.0, SEASON_MIN_GAMES), (2, 4, 8, 20, 40), "all", "%"),
     ]
     for rid, name, m in ((75, "Brute Force Attack", "dyson"), (76, "Molten Mechanical Mayhem", "combustion"),
                          (77, "George and I Go Way Back", "fission"), (78, "Good ol' George", "surge")):
-        rules.append(_tiered(rid, name, f"Play games of {m.title()}", m, lambda g, m=m: g.map == m, (5, 15, 40, 150, 500)))
-    rules.append(_tiered(79, "King/Queen of Pubs", "Play Combat pubs", None, _pub, (25, 100, 250, 550, 2000)))
+        rules.append(_tiered(rid, name, f"Play games of {m.title()}", m, lambda g, m=m: g.map == m, (5, 10, 25, 75, 250)))
+    rules.append(_tiered(79, "King/Queen of Pubs", "Play Combat pubs", None, _pub, (25, 75, 150, 350, 1000)))
 
     # New (80+): data the old site never used.
     starts = {"rifle": ("Starburst Beta Tester", (1, 5, 25, 100, 300)), "magnum": ("Protostar Prototype", (1, 5, 25, 100, 250)),
@@ -461,7 +461,8 @@ def _build_rules() -> list[Rule]:
         rules.append(_ladder(i, name, f"Play games using only {label} in one day: the most in a single day counts", None,
                              _only_games(slot, code), (2, 5, 10, 15, 20), "day", new=True, group="Experimental gear"))
     for i, (slot, code, label, _) in enumerate(now_public, 105):
-        rules.append(_ladder(i, f"{label} Veteran", f"Play games using {label}", None, _games_using(slot, code), (10, 30, 100, 300, 1000),
+        rules.append(_ladder(i, f"{label} Veteran", f"Play games using {label}", None, _games_using(slot, code),
+                             (10, 30, 100, 300, 1000) if code == "rifle" else (1, 3, 10, 25, 60),  # young gear: low (user, 2026-10-31)
                              new=True, group="Experimental gear"))
     rules += [
         Rule(109, "Beam Me Up", "Use Translocator and Dot Field in one game", "game", None,
