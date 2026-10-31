@@ -13,6 +13,16 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 45 — 2026-10-31
+### Achievements
+- **Name and status take the colour of the medal reached** (white, bronze, silver, gold, platinum, diamond), in both themes.
+- **Progress to every medal is visible:** the bar is split into one segment per medal, each filled in that medal's
+  colour with its target underneath (e.g. 1 / 5 / 10 / 25 / 50 games, or 25 / 50 / 75 / 100 %). Reached medals are
+  highlighted. Display only; no re-read needed.
+- Proposal for tiering all other achievements and adding new ones: docs/Achievement-Tiers-Proposal.MD (not applied yet).
+
+---
+
 ## Beta 44 — 2026-10-31
 ### Gear use (match and player pages)
 - **New "Gear use" section** for every weapon, ordnance and tac mod: **times picked** (switched to it, including

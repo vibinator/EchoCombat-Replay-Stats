@@ -80,6 +80,34 @@ export function JumpToNew({ ready }: { ready: boolean }) {
   );
 }
 
+/** Percentage-tiered rules: medals at 25 / 50 / 75 / 100 % of the way. */
+const PERCENT_STEPS = [{ medal: "white", at: 0.25 }, { medal: "bronze", at: 0.5 }, { medal: "silver", at: 0.75 }, { medal: "gold", at: 1 }];
+
+/** One segment per medal, each filled in its own colour with the target underneath, so the progress to every
+ *  tier is visible (user, 2026-10-31). Tiered rules segment by count, the others by percentage. */
+function TierSteps({ a }: { a: Achievement & AchievementRule }) {
+  const steps =
+    a.levels && a.count != null
+      ? a.levels.map((need, i) => {
+          const prev = i ? a.levels![i - 1] : 0;
+          return { medal: LEVELS[i], label: need.toLocaleString(), fill: Math.max(0, Math.min(1, (a.count! - prev) / (need - prev))) };
+        })
+      : PERCENT_STEPS.map((s, i) => {
+          const prev = i ? PERCENT_STEPS[i - 1].at : 0;
+          return { medal: s.medal, label: `${Math.round(s.at * 100)}%`, fill: Math.max(0, Math.min(1, (a.progress - prev) / (s.at - prev))) };
+        });
+  return (
+    <div className="tier-steps" role="progressbar" aria-valuenow={Math.round(a.progress * 100)} aria-label={a.name}>
+      {steps.map((s) => (
+        <div key={s.medal} className={`step t-${s.medal}${s.fill >= 1 ? " done" : ""}`} title={`${s.medal}: ${s.label}`}>
+          <div className="seg"><div style={{ width: `${s.fill * 100}%` }} /></div>
+          <span>{s.label}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /** A rule with a player's progress, or just the catalogue entry when `progress` is absent. */
 /** Tiered achievements: "12 / 25 for platinum", or the top medal once every target is reached. */
 function levelText(count: number, levels: number[]): string {
@@ -93,7 +121,7 @@ export function Badge({ a }: { a: AchievementRule & Partial<Pick<Achievement, "p
   const catalogue = a.progress === undefined;
   const frame = tier ? `${tier}.png` : "white_lock.png";
   return (
-    <div className={`badge-card${tier || catalogue ? "" : " locked"}`} title={`${a.description}${a.estimated ? " (estimated)" : ""}`}>
+    <div className={`badge-card${tier || catalogue ? "" : " locked"}${tier ? ` t-${tier}` : ""}`} title={`${a.description}${a.estimated ? " (estimated)" : ""}`}>
       <div className="badge-art">
         <img className="icon" src={IMG + (a.icon ?? GENERIC_ICON)} alt="" />
         {!catalogue && <img className="tier" src={IMG + frame} alt={tier ?? "locked"} />}
@@ -109,19 +137,17 @@ export function Badge({ a }: { a: AchievementRule & Partial<Pick<Achievement, "p
         </span>
         {!catalogue && (
           <>
-            <div className="bar" role="progressbar" aria-valuenow={Math.round(a.progress! * 100)} aria-label={a.name}>
-              <div style={{ width: `${a.progress! * 100}%` }} />
-            </div>
+            <TierSteps a={a as Achievement & AchievementRule} />
             <span className="muted">
               {a.levels && a.count != null ? (
                 <>
                   {levelText(a.count, a.levels)}
-                  {tier && a.progress! < 1 && ` · ${tier}`}
+                  {tier && a.progress! < 1 && <b className="tier-name"> · {tier}</b>}
                 </>
               ) : (
                 <>
                   {pct(a.progress)}
-                  {tier && ` · ${tier}`}
+                  {tier && <b className="tier-name"> · {tier}</b>}
                 </>
               )}
               {a.unlocked_at && ` · completed ${a.unlocked_at}`}

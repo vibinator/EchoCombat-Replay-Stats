@@ -1,4 +1,10 @@
 :root {
+  --tier-white: #c4c9d2;
+  --tier-bronze: #d08a4b;
+  --tier-silver: #b9c2d0;
+  --tier-gold: #f0c230;
+  --tier-platinum: #5fd6c8;
+  --tier-diamond: #6cb8ff;
   --bg: #16181c;
   --panel: #1f2228;
   --line: #30343c;
@@ -676,6 +682,55 @@ svg .crosshair {
   background: var(--blue);
 }
 
+.t-white { --tier: var(--tier-white); }
+.t-bronze { --tier: var(--tier-bronze); }
+.t-silver { --tier: var(--tier-silver); }
+.t-gold { --tier: var(--tier-gold); }
+.t-platinum { --tier: var(--tier-platinum); }
+.t-diamond { --tier: var(--tier-diamond); }
+
+/* the medal reached colours the name and the status */
+.badge-card[class*="t-"] .badge-text strong,
+.badge-card .tier-name {
+  color: var(--tier);
+}
+
+.badge-card .tier-name {
+  text-transform: capitalize;
+}
+
+/* one segment per medal, filled in that medal's colour, target underneath */
+.tier-steps {
+  display: flex;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.tier-steps .step {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+.tier-steps .seg {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.tier-steps .seg div {
+  height: 100%;
+  background: var(--tier);
+}
+
+.tier-steps .done {
+  color: var(--tier);
+  font-weight: 700;
+}
+
 .badges {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -757,6 +812,12 @@ nav {
 
 /* ---- light theme (chart colours validated on #ffffff with the dataviz validator) ---- */
 :root[data-theme="light"] {
+  --tier-white: #7d8594;
+  --tier-bronze: #a9611f;
+  --tier-silver: #6b7586;
+  --tier-gold: #b58500;
+  --tier-platinum: #0e8f82;
+  --tier-diamond: #1769c4;
   --bg: #f4f5f7;
   --panel: #ffffff;
   --line: #d9dce1;
