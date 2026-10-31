@@ -410,7 +410,7 @@ def _build_rules() -> list[Rule]:
     rules.append(_tiered(79, "King/Queen of Pubs", "Play Combat pubs", None, _pub, (25, 75, 150, 350, 1000)))
 
     # New (80+): data the old site never used.
-    starts = {"rifle": ("Starburst Beta Tester", (1, 5, 25, 100, 300)), "magnum": ("Protostar Prototype", (1, 5, 25, 100, 250)),
+    starts = {"rifle": ("Starburst Beta Tester", (1, 5, 25, 50, 100)), "magnum": ("Protostar Prototype", (1, 5, 25, 50, 100)),
               "smg": ("Quantum of Quark", (1, 5, 25, 50, 100)), "chain": ("Blazar of Glory", (1, 2, 5, 10, 15))}
     i = 80
     for code, label in UNRELEASED_WEAPONS:
@@ -421,7 +421,7 @@ def _build_rules() -> list[Rule]:
     rules += [
         _ladder(84, "Now You See Me", "Play games using Translocator (unreleased ordnance)", None, _games_using("ordnance", "loc"), (1, 5, 25, 50, 100),
                 new=True, group="Experimental gear"),
-        _ladder(85, "Connect the Dots", "Play games using Dot Field (unreleased ordnance)", None, _games_using("ordnance", "dot"), (1, 2, 5, 10, 20),
+        _ladder(85, "Connect the Dots", "Play games using Dot Field (unreleased ordnance)", None, _games_using("ordnance", "dot"), (1, 2, 5, 10, 15),
                 new=True, group="Experimental gear"),
         Rule(86, "Forbidden Arsenal", "Use all 4 unreleased weapons: Starburst, Protostar, Quark and Blazar", "all", None,
              _all_used("weapon", {c for c, _ in UNRELEASED_WEAPONS}), new=True, group="Experimental gear"),
@@ -440,7 +440,7 @@ def _build_rules() -> list[Rule]:
         _tiered(94, "Special Delivery", "Deliver the payload to the end: win Payload games as the attacking team", "payload",
                 lambda g: _payload(g) and g.won and g.attacking_team == g.team, (1, 5, 10, 25, 100), new=True, group="Payload"),
         _tiered(95, "Hold the Line", "Win Payload games as the defending team", "payload",
-                lambda g: _payload(g) and g.won and g.attacking_team not in (None, g.team), (1, 5, 15, 50, 200), new=True, group="Payload"),
+                lambda g: _payload(g) and g.won and g.attacking_team not in (None, g.team), (1, 5, 10, 25, 100), new=True, group="Payload"),
         _ladder(96, "Pedal to the Metal", "Time pushing the payload in one game: your best game counts", "payload",
                 lambda gs: gs[0].push_s / 60, (1, 2, 3, 4, 6), "game", " min", estimated=True, new=True, group="Payload"),
         _ladder(97, "Immovable Object", "Time blocking the payload in one game: your best game counts", "payload",
@@ -459,10 +459,10 @@ def _build_rules() -> list[Rule]:
                   ("weapon", "smg", "Quark", "Quark Storm"), ("ordnance", "loc", "Translocator", "Here, There and Everywhere"))
     for i, (slot, code, label, name) in enumerate(now_public, 101):
         rules.append(_ladder(i, name, f"Play games using only {label} in one day: the most in a single day counts", None,
-                             _only_games(slot, code), (2, 5, 10, 15, 20), "day", new=True, group="Experimental gear"))
+                             _only_games(slot, code), (3, 6, 10, 15, 20), "day", new=True, group="Experimental gear"))
     for i, (slot, code, label, _) in enumerate(now_public, 105):
         rules.append(_ladder(i, f"{label} Veteran", f"Play games using {label}", None, _games_using(slot, code),
-                             (10, 30, 100, 300, 1000) if code == "rifle" else (1, 3, 10, 25, 60),  # young gear: low (user, 2026-10-31)
+                             (1, 3, 10, 25, 60),  # young gear: one low ladder for all four (user, 2026-10-31)
                              new=True, group="Experimental gear"))
     rules += [
         Rule(109, "Beam Me Up", "Use Translocator and Dot Field in one game", "game", None,
@@ -485,12 +485,12 @@ def _build_rules() -> list[Rule]:
                 new=True, group="Activity"),
         _tiered(118, "Overtime", "Games of 10 minutes or longer", None, lambda g: g.play_time_s >= 600, (5, 20, 50, 250, 1000), new=True, group="Activity"),
         _tiered(119, "Hot Day", "Win games in one day: the most in a single day counts", None, lambda g: g.won, (3, 5, 8, 12, 20), "day", new=True, group="Wins"),
-        _tiered(120, "Point Taker", "Win Capture Point games", "capture_point", lambda g: _capture(g) and g.won, (3, 10, 30, 100, 400), new=True, group="Capture Point"),
-        _tiered(121, "Cargo Hauler", "Win Payload games", "payload", lambda g: _payload(g) and g.won, (3, 10, 30, 100, 400), new=True, group="Payload"),
+        _tiered(120, "Point Taker", "Win Capture Point games", "capture_point", lambda g: _capture(g) and g.won, (5, 10, 30, 100, 250), new=True, group="Capture Point"),
+        _tiered(121, "Cargo Hauler", "Win Payload games", "payload", lambda g: _payload(g) and g.won, (5, 10, 30, 100, 250), new=True, group="Payload"),
         _ladder(122, "Grand Tour", "Wins on each of the 4 maps (the map with the fewest wins counts)", None, _fewest_wins, (1, 3, 8, 25, 75),
                 new=True, group="Wins"),
         _ladder(123, "Weapons Master", "Games with your least-used weapon of Pulsar, Nova, Comet and Meteor", None, _least_used("weapon", WEAPONS),
-                (1, 5, 15, 50, 150), new=True, group="Gear mastery"),
+                (1, 5, 15, 50, 100), new=True, group="Gear mastery"),
         _ladder(124, "Loadout Scholar", "Games with your least-used equipable of all 12 weapons, ordnances and tac mods", None, _least_used_equipable,
                 (1, 5, 15, 50, 100), new=True, group="Gear mastery"),
         _ladder(125, "Wall of Steel", "Time blocking the payload in total", "payload", lambda gs: sum(g.block_s for g in gs) / 60, (2, 10, 30, 60, 120),
