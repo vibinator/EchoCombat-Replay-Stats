@@ -23,8 +23,8 @@ def by_id(results):
 
 def test_catalogue():
     ids = [r.id for r in RULES]
-    assert ids == list(range(5, 101)) and len(set(ids)) == 96  # 75 original + 21 new (80-100)
-    assert [r.id for r in RULES if r.new] == list(range(80, 101))
+    assert ids == list(range(5, 113)) and len(set(ids)) == 108  # 75 original + 33 new (80-112)
+    assert [r.id for r in RULES if r.new] == list(range(80, 113))
     assert icon_file(next(r for r in RULES if r.id == 7)) == "comet_daily.png"
     assert icon_file(next(r for r in RULES if r.id == 32)) == "comet_weekly.png"
     assert icon_file(next(r for r in RULES if r.id == 57)) == "comet.png"
@@ -74,9 +74,9 @@ def test_api_and_leaderboard(tmp_path):
         add(client, {f"dyson/{i}.echoreplay": rf.plain(rf.lines(20)) for i in range(2)})
         act(client, actions.set_challenge_window, "2026-01-01", None)
         a = client.get(f"/api/players/{BLUE}/achievements").json()
-        assert a["total"] == 96 and len(a["items"]) == 96 and 0 <= a["overall"] <= 1
+        assert a["total"] == len(RULES) and len(a["items"]) == len(RULES) and 0 <= a["overall"] <= 1
         assert client.get("/api/players/nobody/achievements").status_code == 404
-        assert len(client.get("/api/achievements").json()) == 96
+        assert len(client.get("/api/achievements").json()) == len(RULES)
         board = client.get("/api/leaderboard", params={"stat": "achievements", "min_games": 1}).json()
         assert {r["name"] for r in board["items"]} == {"Player", "Other"}
         assert board["label"] == "Achievements (overall %)"
@@ -143,6 +143,18 @@ def test_new_gear_challenges():
                                                       ("scout", "shield", "arc"): 250, ("rocket", "wraith", "burst"): 250}})
     r = by_id(evaluate([one_game]))
     assert r[87]["progress"] == r[88]["progress"] == r[89]["progress"] == 1.0
+    assert r[110]["progress"] == pytest.approx(4 / 6, abs=1e-4) and r[111]["progress"] == 4 / 5
+
+
+def test_now_public_gear_challenges():
+    """101-112 (user, 2026-10-31): the unreleased gear now seen in everyday games."""
+    quark_day = [game("2026-10-31", loadout=("smg", "buff", "loc"))] * 10
+    r = by_id(evaluate(quark_day))
+    assert r[103]["progress"] == 1.0 and r[104]["progress"] == 1.0  # only Quark / only Translocator, 10 in one day
+    assert r[107]["progress"] == 0.1 and r[112]["progress"] == 1.0  # 10 of 100 Quark games; 5+ Overcharge
+    assert r[101]["progress"] == 0.0 and r[109]["progress"] == 0.5  # no Starburst; Translocator without Dot Field
+    both = Game(**{**game().__dict__, "loadouts": {("assault", "heal", "loc"): 500, ("assault", "heal", "dot"): 500}})
+    assert by_id(evaluate([both]))[109]["progress"] == 1.0
 
 
 def test_new_result_challenges():

@@ -245,9 +245,30 @@ export function ComingSoon({ start, total, peek }: { start: string | null; total
 }
 
 export function AchievementsSummary({ userId }: { userId: string }) {
-  const { visible } = useAchievementsAccess();
-  // Hidden on profiles until the Flamingo Challenge start date set in the console (previewers excepted)
-  return visible ? <LaunchedSummary userId={userId} /> : null;
+  const { visible, start, total } = useAchievementsAccess();
+  if (visible) return <LaunchedSummary userId={userId} />;
+  if (visible === null) return null;
+  // Before the Flamingo Challenge start date set in the console: the section, but no personal progress (previewers excepted)
+  return (
+    <>
+      <div className="section-head">
+        <h2>
+          Achievements <span className="tag">Coming soon</span>
+        </h2>
+        <Link to="/achievements">Sneak peek</Link>
+      </div>
+      <p className="muted">
+        {total ? `${total} achievements` : "Achievements"} and Flamingo Challenges.{" "}
+        {start ? (
+          <>
+            This player's progress shows from <strong>{start}</strong>, counting matches from that day on.
+          </>
+        ) : (
+          "This player's progress shows once the challenges start."
+        )}
+      </p>
+    </>
+  );
 }
 
 function LaunchedSummary({ userId }: { userId: string }) {

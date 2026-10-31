@@ -13,6 +13,28 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 38 — 2026-10-31
+### Achievements
+- **12 new achievements for the formerly unreleased gear (101-112), now 108 in total.** Found by scanning the 84
+  new replays of 30-31 Oct: no gear codes the site did not already know, but Quark is now in 75 of 84 games,
+  Translocator in 74, Starburst in 72, Protostar in 72, and Overcharge shows up for the first time (8 games).
+  - Unreleased gear: Starburst Stream / Protostar Power Trip / Quark Storm / Here, There and Everywhere — use
+    only Starburst / Protostar / Quark / Translocator for 10+ games in one day; Starburst / Protostar / Quark /
+    Translocator Veteran — play 100 games using it; Beam Me Up — use Translocator and Dot Field in one game;
+    Overclocked — play 5+ games using Overcharge.
+  - Gear mastery: Arsenal Overload — use 6 different weapons in one game; Ordnance Overload — use 5 different
+    ordnances in one game.
+  - Targets checked against the new replays (D51). Attack Drone, Umbral Veil and Neutron are still not in any.
+### Website
+- **Player profiles show the Achievements section again before the start date**, tagged "Coming soon" with a
+  "Sneak peek" link: the number of achievements and the start date (or "once the challenges start"), but none of
+  the player's progress. Progress appears from the start date set in the console (previewers see it already).
+
+### Upgrading to Beta 38
+- QNAP: upload Beta 38, wait for the Actions run, Recreate. Windows: restart `run.bat`. No re-import.
+
+---
+
 ## Beta 37 — 2026-10-31
 ### Website
 - **Five achievements revealed early** in the sneak peek on the "Coming soon" page, in full (badge, name,

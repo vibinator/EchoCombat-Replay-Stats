@@ -15,8 +15,8 @@ WEAPONS = [("assault", "Pulsar", "pulsar"), ("blaster", "Nova", "nova"), ("scout
 ORDNANCES = [("det", "Detonator", "detonator"), ("stun", "Stun Field", "stun_field"), ("arc", "Arc Mine", "arcmine"), ("burst", "Instant Repair", "instant_repair")]
 TACMODS = [("heal", "Repair Matrix", "repair_matrix"), ("sensor", "Threat Scanner", "threat_scanner"), ("shield", "Energy Barrier", "energy_barrier"), ("wraith", "Phase Shift", "phaseshift")]
 SLOTS = {"weapon": 0, "tacmod": 1, "ordnance": 2}  # index into the (weapon, tacmod, ordnance) loadout key
-# Unreleased gear seen in recent replays. Attack Drone, Overcharge, Umbral Veil and Neutron are left out: each
-# appears in 35 games or fewer in the 2026 archive, so a challenge for them could hardly be reached.
+# Unreleased gear seen in recent replays. Attack Drone, Umbral Veil and Neutron are left out: each appears in 35
+# games or fewer in the 2026 archive and in none of the 30-31 Oct 2026 replays. Overcharge got a low target (112).
 UNRELEASED_WEAPONS = [("rifle", "Starburst"), ("magnum", "Protostar"), ("smg", "Quark"), ("chain", "Blazar")]
 
 ONLY_SHARE = 0.95  # "use only X": X is at least 95 % of the game's loadout time
@@ -362,6 +362,27 @@ def _build_rules() -> list[Rule]:
         Rule(99, "Showboat", "Emote 10+ times in one game", "game", None, lambda gs: gs[0].emotes / 10, new=True, group="Emotes"),
         Rule(100, "Dance Floor Legend", "Emote 500+ times in total", "all", None, lambda gs: sum(g.emotes for g in gs) / 500,
              new=True, group="Emotes"),
+    ]
+
+    # Unreleased gear, now in everyday use (user, 2026-10-31): the replays of 30-31 Oct 2026 show Quark in 75 of 84
+    # games and Translocator in 74. Targets checked against them: one day of only Translocator reached 8 games.
+    now_public = (("weapon", "rifle", "Starburst", "Starburst Stream"), ("weapon", "magnum", "Protostar", "Protostar Power Trip"),
+                  ("weapon", "smg", "Quark", "Quark Storm"), ("ordnance", "loc", "Translocator", "Here, There and Everywhere"))
+    for i, (slot, code, label, name) in enumerate(now_public, 101):
+        rules.append(Rule(i, name, f"Use only {label} for 10+ games in one day", "day", None, _only(slot, code, 10),
+                          new=True, group="Unreleased gear"))
+    for i, (slot, code, label, _) in enumerate(now_public, 105):
+        rules.append(Rule(i, f"{label} Veteran", f"Play 100 games using {label}", "all", None,
+                          _games_using(slot, code, 100), new=True, group="Unreleased gear"))
+    rules += [
+        Rule(109, "Beam Me Up", "Use Translocator and Dot Field in one game", "game", None,
+             _all_used("ordnance", {"loc", "dot"}), new=True, group="Unreleased gear"),
+        Rule(110, "Arsenal Overload", "Use 6 different weapons in one game", "game", None,
+             lambda gs: len(gs[0].used("weapon")) / 6, new=True, group="Gear mastery"),
+        Rule(111, "Ordnance Overload", "Use 5 different ordnances in one game", "game", None,
+             lambda gs: len(gs[0].used("ordnance")) / 5, new=True, group="Gear mastery"),
+        Rule(112, "Overclocked", "Play 5+ games using Overcharge (unreleased tac mod)", "all", None,
+             _games_using("tacmod", "buff", 5), new=True, group="Unreleased gear"),
     ]
     return rules
 
