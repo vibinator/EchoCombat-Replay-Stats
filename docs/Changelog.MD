@@ -13,6 +13,14 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 48 — 2026-10-31
+### Achievements
+- **Every section can be folded away:** In one day / week / game / All time, the New challenges block and each of its
+  themes. Click a heading (the count of achievements is shown), or use **Expand all / Collapse all**. Your choice is
+  remembered in this browser. Display only.
+
+---
+
 ## Beta 47 — 2026-10-31
 ### Achievements
 - **Completed achievements move to a "Completed" tab** (diamond for ladders, 100 % for single-step ones). The page

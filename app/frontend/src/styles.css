@@ -1904,3 +1904,32 @@ td.best {
 @media (max-width: 480px) {
   .active-row { gap: 10px; padding: 8px 10px; grid-template-columns: 28px minmax(0, 1fr) auto auto; }
 }
+
+/* collapsible achievement sections */
+.fold-head {
+  margin: 16px 0 8px;
+}
+
+.fold-head button {
+  all: unset;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.fold-head button:hover,
+.fold-head button:focus-visible {
+  color: var(--blue);
+}
+
+.fold-head .chevron {
+  width: 1em;
+  color: var(--muted);
+}
+
+.fold-all {
+  display: flex;
+  gap: 6px;
+  margin: 8px 0;
+}

@@ -29,39 +29,90 @@ export const NEW_GROUPS: [string, string][] = [
 
 type AnyBadge = Parameters<typeof Badge>[0]["a"];
 
-/** Original achievements by period, then the new ones by theme. */
+const COLLAPSED_KEY = "achievements-collapsed";
+
+/** Which sections are folded away; remembered in this browser (localStorage may be unavailable: then it just is not kept). */
+function useCollapsed() {
+  const [folded, setFolded] = useState<Set<string>>(() => {
+    try {
+      return new Set<string>(JSON.parse(localStorage.getItem(COLLAPSED_KEY) ?? "[]"));
+    } catch {
+      return new Set<string>();
+    }
+  });
+  const save = (next: Set<string>) => {
+    setFolded(next);
+    try {
+      localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...next]));
+    } catch {
+      /* not remembered */
+    }
+  };
+  return {
+    folded,
+    toggle: (id: string) => save(new Set(folded.has(id) ? [...folded].filter((x) => x !== id) : [...folded, id])),
+    setAll: (ids: string[], collapsed: boolean) => save(new Set(collapsed ? ids : [])),
+  };
+}
+
+type Collapse = ReturnType<typeof useCollapsed>;
+
+/** A heading that folds its badges away; shows how many achievements are inside. */
+function Fold({ id, c, level = 3, title, count, children }: { id: string; c: Collapse; level?: 2 | 3; title: React.ReactNode; count: number; children: React.ReactNode }) {
+  const open = !c.folded.has(id);
+  const Heading = `h${level}` as "h2" | "h3";
+  return (
+    <div className="fold">
+      <Heading className="fold-head">
+        <button type="button" aria-expanded={open} onClick={() => c.toggle(id)}>
+          <span className="chevron" aria-hidden="true">{open ? "▾" : "▸"}</span> {title} <span className="muted hint">({count})</span>
+        </button>
+      </Heading>
+      {open && children}
+    </div>
+  );
+}
+
+/** Original achievements by period, then the new ones by theme. Every section can be folded away. */
 export function GroupedBadges<T extends AnyBadge>({ items }: { items: T[] }) {
+  const c = useCollapsed();
   const original = items.filter((a) => !a.new);
   const added = items.filter((a) => a.new);
+  const inNamed = (name: string) =>
+    added.filter((a) => (NEW_GROUPS.some(([n]) => n === name) ? a.group === name : !NEW_GROUPS.some(([n]) => n === a.group)));
+  const ids = [
+    ...GROUPS.filter(([period]) => original.some((a) => a.period === period)).map(([period]) => `p-${period}`),
+    ...(added.length > 0 ? ["new"] : []),
+    ...[...NEW_GROUPS.map(([n]) => n), "More"].filter((name) => inNamed(name).length > 0).map((name) => `n-${name}`),
+  ];
   return (
     <>
+      <div className="fold-all">
+        <button type="button" className="tab" onClick={() => c.setAll(ids, false)}>Expand all</button>
+        <button type="button" className="tab" onClick={() => c.setAll(ids, true)}>Collapse all</button>
+      </div>
       {GROUPS.map(([period, label]) => {
         const group = original.filter((a) => a.period === period);
         return group.length === 0 ? null : (
-          <div key={period}>
-            <h3>{label}</h3>
+          <Fold key={period} id={`p-${period}`} c={c} title={label} count={group.length}>
             <div className="badges">{group.map((a) => <Badge key={a.id} a={a} />)}</div>
-          </div>
+          </Fold>
         );
       })}
       {added.length > 0 && (
         <section className="new-challenges" id="new">
-          <h2>
-            New challenges <span className="tag">new</span>
-          </h2>
-          <p className="muted">Not on the original ECRanked site: they use replay data it never read. More being developed.</p>
-          {[...NEW_GROUPS, ["More", ""] as [string, string]].map(([name, hint]) => {
-            const known = NEW_GROUPS.some(([n]) => n === name);
-            const group = added.filter((a) => (known ? a.group === name : !NEW_GROUPS.some(([n]) => n === a.group)));
-            return group.length === 0 ? null : (
-              <div key={name}>
-                <h3>
-                  {name} {hint && <span className="muted hint">· {hint}</span>}
-                </h3>
-                <div className="badges">{group.map((a) => <Badge key={a.id} a={a} />)}</div>
-              </div>
-            );
-          })}
+          <Fold id="new" c={c} level={2} count={added.length} title={<>New challenges <span className="tag">new</span></>}>
+            <p className="muted">Not on the original ECRanked site: they use replay data it never read. More being developed.</p>
+            {[...NEW_GROUPS, ["More", ""] as [string, string]].map(([name, hint]) => {
+              const known = NEW_GROUPS.some(([n]) => n === name);
+              const group = added.filter((a) => (known ? a.group === name : !NEW_GROUPS.some(([n]) => n === a.group)));
+              return group.length === 0 ? null : (
+                <Fold key={name} id={`n-${name}`} c={c} count={group.length} title={<>{name} {hint && <span className="muted hint">· {hint}</span>}</>}>
+                  <div className="badges">{group.map((a) => <Badge key={a.id} a={a} />)}</div>
+                </Fold>
+              );
+            })}
+          </Fold>
         </section>
       )}
     </>
