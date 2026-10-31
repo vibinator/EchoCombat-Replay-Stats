@@ -942,6 +942,16 @@ kbd {
   border-radius: 8px;
   background: var(--panel);
 }
+/* player page: weapon / ordnance / tac mod use side by side, stacked when narrow */
+.gear-use {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+.gear-use .table-wrap table {
+  min-width: 0; /* 4 short columns: fit a third of the page (wrapped tables are 560px+ by default) */
+}
 /* home page news line under the site description */
 .announcement {
   max-width: 760px;

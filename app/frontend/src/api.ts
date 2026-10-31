@@ -68,6 +68,19 @@ export interface Loadout {
   share: number | null;
 }
 
+/** One weapon / ordnance / tac mod: times picked (switched to it), games used (player totals only), time share. */
+export interface GearUse extends GearItem {
+  picks: number;
+  games?: number;
+  share: number | null;
+}
+
+export interface GearUseSet {
+  weapons: GearUse[];
+  ordnances: GearUse[];
+  tacmods: GearUse[];
+}
+
 export interface MatchPlayer {
   user_id: string;
   name: string;
@@ -90,6 +103,7 @@ export interface MatchPlayer {
   avg_packet_loss: number | null;
   emote_count: number;
   loadouts: Loadout[];
+  gear: GearUseSet;
 }
 
 export interface MatchDetail extends MatchSummary {
@@ -161,6 +175,7 @@ export interface PlayerProfile {
   map: string | null;
   stats: PlayerStats;
   loadouts: Loadout[];
+  gear: GearUseSet;
   recent_matches: PlayerMatch[];
 }
 
@@ -303,12 +318,16 @@ export interface AchievementRule {
   estimated: boolean;
   new: boolean; // added in this app (80+), not on the original ECRanked site
   group: string | null; // theme of a new achievement
+  levels?: number[] | null; // tiered achievements: count targets for bronze, silver, gold, platinum, diamond
 }
+
+export const LEVELS = ["bronze", "silver", "gold", "platinum", "diamond"] as const;
 
 export interface Achievement extends AchievementRule {
   progress: number;
-  tier: "white" | "bronze" | "silver" | "gold" | null;
+  tier: "white" | "bronze" | "silver" | "gold" | "platinum" | "diamond" | null;
   unlocked_at: string | null;
+  count?: number; // tiered achievements: games counted so far
 }
 
 export interface PlayerAchievements {

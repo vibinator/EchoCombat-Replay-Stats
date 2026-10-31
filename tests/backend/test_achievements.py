@@ -168,13 +168,37 @@ def test_new_result_challenges():
     assert by_id(evaluate(streak))[90]["progress"] == 1.0
     assert by_id(evaluate(streak + [played("2026-10-06", False)]))[90]["progress"] == 1.0  # best run kept
 
-    assert by_id(evaluate([played("2026-10-01", True, rounds_lost=0)]))[93]["progress"] == 1.0
+    sweep = by_id(evaluate([played("2026-10-01", True, rounds_lost=0)]))[93]  # tiered: 1 game = bronze
+    assert (sweep["tier"], sweep["count"], sweep["progress"]) == ("bronze", 1, 0.2)
     assert by_id(evaluate([played("2026-10-01", True, rounds_lost=1)]))[93]["progress"] == 0
     attack = played("2026-10-01", True, mode="payload", map="fission", attacking_team="blue", push_s=200.0)
     defend = played("2026-10-01", True, mode="payload", map="fission", attacking_team="orange", block_s=30.0)
     r = by_id(evaluate([attack, defend]))
-    assert (r[94]["progress"], r[95]["progress"], r[96]["progress"]) == (1.0, 1.0, 1.0)
+    assert (r[94]["tier"], r[94]["count"], r[95]["progress"], r[96]["progress"]) == ("bronze", 1, 1.0, 1.0)
     assert r[97]["progress"] == 0.5 and r[96]["estimated"]
+
+
+def test_tiered_achievements():
+    """Clean Sweep / Special Delivery (user, 2026-10-31): bronze 1, silver 5, gold 10, platinum 25, diamond 50
+    games; progress 20 % per medal, partial in between; the text lists every target (website text is the spec)."""
+    from backend.achievements import unlock_threshold
+
+    def sweeps(n):
+        return [Game(**{**game(f"2026-10-{1 + i % 28:02d}").__dict__, "team": "blue", "winner": "blue", "rounds_lost": 0})
+                for i in range(n)]
+
+    expected = {0: (None, 0.0), 1: ("bronze", 0.2), 3: ("bronze", 0.3), 5: ("silver", 0.4), 10: ("gold", 0.6),
+                25: ("platinum", 0.8), 49: ("platinum", 0.992), 50: ("diamond", 1.0), 60: ("diamond", 1.0)}
+    for n, (medal, progress) in expected.items():
+        r = by_id(evaluate(sweeps(n)))[93]
+        assert (r["tier"], r["count"], r["levels"]) == (medal, n, [1, 5, 10, 25, 50]), n
+        assert r["progress"] == pytest.approx(progress), n
+    rule = next(r for r in RULES if r.id == 93)
+    assert "1 bronze, 5 silver, 10 gold, 25 platinum, 50 diamond" in rule.description
+    assert unlock_threshold(rule) == 0.2 and unlock_threshold(next(r for r in RULES if r.id == 90)) == 0.25
+    delivery = next(r for r in RULES if r.id == 94)
+    assert "Deliver the payload to the end" in delivery.description and delivery.levels == (1, 5, 10, 25, 50)
+    assert "count" not in by_id(evaluate(sweeps(1)))[90]  # untiered rules unchanged
 
 
 def test_hex_gear_codes_are_normalised():

@@ -5,7 +5,7 @@ from datetime import date, timedelta
 from fastapi import APIRouter, Query, Request
 from sqlalchemy import func, select
 
-from .. import heatmaps, tracks
+from .. import gear_use, heatmaps, tracks
 from ..aliases import alias_map, ids_of
 from ..duplicates import counted
 from ..errors import ApiError
@@ -86,7 +86,7 @@ def list_matches(
     return {"items": items, "total": total}
 
 
-def player_row(mp: MatchPlayer, user_id: str, loadouts: list[MatchPlayerLoadout]) -> dict:
+def player_row(mp: MatchPlayer, user_id: str, loadouts: list[MatchPlayerLoadout], picks=None) -> dict:
     in_bounds = mp.frames_in_bounds
     return {
         "user_id": user_id,
@@ -113,6 +113,8 @@ def player_row(mp: MatchPlayer, user_id: str, loadouts: list[MatchPlayerLoadout]
             (loadout(lo.weapon, lo.tacmod, lo.ordnance, lo.frames, in_bounds) for lo in loadouts),
             key=lambda x: -x["frames"],
         ),
+        # per weapon / ordnance / tac mod: times picked and share of time held in this match
+        "gear": gear_use.summarize([picks or gear_use.count_picks([])], loadouts, games=False),
     }
 
 
@@ -134,9 +136,11 @@ def get_match(request: Request, match_id: int):
         copies = db.scalars(select(DuplicateMatch.match_id).where(DuplicateMatch.counted_match_id == root)).all()
         also = sorted({root, *copies} - {match_id})
 
+        picks = gear_use.picks_in_match(db, match_id)
         teams: dict[str, list] = {"blue": [], "orange": []}
         for mp, user_id in rows:
-            teams.setdefault(mp.team, []).append(player_row(mp, user_id, loadouts.get(mp.player_id, [])))
+            teams.setdefault(mp.team, []).append(
+                player_row(mp, user_id, loadouts.get(mp.player_id, []), picks.get(mp.player_id)))
         for players in teams.values():
             players.sort(key=lambda p: -p["play_time_s"])
 

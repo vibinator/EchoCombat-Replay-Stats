@@ -10,7 +10,7 @@ from fastapi import APIRouter, Query, Request
 from sqlalchemy import func, select
 
 from .. import auth, icons
-from ..achievements import RULES, Game, evaluate, icon_file, in_window, overall, unlock_dates
+from ..achievements import RULES, Game, evaluate, icon_file, in_window, overall, unlock_dates, unlock_threshold
 from ..admin_actions import WINDOW_KEYS, achievements_launched, challenge_window
 from ..cache import cached, data_stamp
 from ..duplicates import counted
@@ -293,7 +293,7 @@ def achievement_ranking(request: Request) -> list[tuple[int, int, float]]:
 
 @router.get("/api/achievements")
 def list_achievements(request: Request):
-    """The rule catalogue with rarity: share of players (10+ games) who unlocked (25 %+) / completed each."""
+    """The rule catalogue with rarity: share of players (10+ games) who unlocked (25 %+, tiered: bronze) / completed each."""
     require_launched(request)
     data = _everyone(request)
     eligible = [data["progress"][pid] for pid, games, _ in data["rows"] if games >= RARITY_MIN_GAMES]
@@ -302,7 +302,8 @@ def list_achievements(request: Request):
         values = [p[i] for p in eligible]
         out.append({"id": r.id, "name": r.name, "description": r.description, "period": r.period,
                     "icon": icon_file(r), "estimated": r.estimated, "new": r.new, "group": r.group,
-                    "unlocked_share": round(sum(v >= 0.25 for v in values) / len(values), 4) if values else None,
+                    "levels": list(r.levels) or None,  # tiered: count targets for bronze ... diamond
+                    "unlocked_share": round(sum(v >= unlock_threshold(r) for v in values) / len(values), 4) if values else None,
                     "completed_share": round(sum(v >= 1 for v in values) / len(values), 4) if values else None})
     with request.app.state.sessionmaker() as db:
         return icons.apply(db, out)

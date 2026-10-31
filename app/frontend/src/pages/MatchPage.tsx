@@ -1,10 +1,9 @@
-import { useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router";
 import {
-  getMatch, getMatchHeatmapBy, getPlayback, getTimeline, matchExportUrl,
-  type HeatmapLayerMode, type MatchDetail, type MatchPlayer, type Team,
+  getMatch, getMatchHeatmapBy, getPlayback, getTimeline,
+  type GearUse, type HeatmapLayerMode, type MatchDetail, type MatchPlayer, type Team,
 } from "../api";
-import { LoadoutText, Status, TableWrap } from "../components/common";
+import { GearName, LoadoutText, Status, TableWrap } from "../components/common";
 import { CELL_SIZES, HEATMAP_MODES, HeatmapView } from "../components/HeatmapView";
 import { PlaybackView } from "../components/PlaybackView";
 import { TimelineView } from "../components/TimelineView";
@@ -161,6 +160,53 @@ function TeamTable({ team, players, payload }: { team: Team; players: MatchPlaye
   );
 }
 
+/** "Pulsar ×2 75% · Nova ×1 25%": times picked and share of time held, most held first. */
+function GearList({ items }: { items: GearUse[] }) {
+  if (items.length === 0) return <span className="muted">–</span>;
+  return (
+    <span className="gear-list">
+      {items.map((g, i) => (
+        <span key={g.code} className="nowrap">
+          {i > 0 && " · "}
+          <GearName item={g} /> <span title="Times picked">×{g.picks}</span> <span className="muted">{pct(g.share)}</span>
+        </span>
+      ))}
+    </span>
+  );
+}
+
+/** Every player's weapons, ordnance and tac mods in this match (replays have no shot counts, only what is held). */
+function GearUseTable({ m }: { m: MatchDetail }) {
+  const players = [...(m.teams.blue ?? []), ...(m.teams.orange ?? [])];
+  if (!players.some((p) => p.gear && (p.gear.weapons.length || p.gear.ordnances.length || p.gear.tacmods.length))) return null;
+  return (
+    <>
+      <h2>Gear use</h2>
+      <TableWrap>
+        <table className="stack">
+          <thead>
+            <tr><th>Player</th><th>Weapons</th><th>Ordnance</th><th>Tac mods</th></tr>
+          </thead>
+          <tbody>
+            {players.map((p) => (
+              <tr key={p.user_id}>
+                <td data-label="Player"><Link to={`/players/${p.user_id}`} className={`team-text ${p.team}`}>{p.name}</Link></td>
+                <td data-label="Weapons"><GearList items={p.gear.weapons} /></td>
+                <td data-label="Ordnance"><GearList items={p.gear.ordnances} /></td>
+                <td data-label="Tac mods"><GearList items={p.gear.tacmods} /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </TableWrap>
+      <p className="muted footnote">
+        ×N = times picked (switched to it, including the first one held); % = share of the time held. Replays do not
+        record shots or ordnance / tac mod uses, so those cannot be counted.
+      </p>
+    </>
+  );
+}
+
 type Tab = "players" | "timeline" | "heatmap" | "playback";
 const TABS: [Tab, string][] = [
   ["players", "Stats per player"],
@@ -242,7 +288,6 @@ export function MatchPage() {
   const [params, setParams] = useSearchParams();
   const tab = (params.get("tab") as Tab) || "players";
   const setTab = (t: Tab) => setParams(t === "players" ? {} : { tab: t }, { replace: true });
-  const [exportOpen, setExportOpen] = useState(false);
 
   return (
     <section>
@@ -254,14 +299,6 @@ export function MatchPage() {
             <h1>
               {title(m.map)} <span className="muted">· {modeLabel(m.mode)} · #{m.id}</span>
             </h1>
-            <span className="muted">
-              <button className="link" onClick={() => setExportOpen(!exportOpen)}>Export</button>
-              {exportOpen && (
-                <>
-                  {" "}<a href={matchExportUrl(m.id, "csv")}>CSV</a> · <a href={matchExportUrl(m.id, "json")}>JSON</a>
-                </>
-              )}
-            </span>
           </div>
           <p className="muted">
             {dateTime(m.started_at)} · {duration(m.duration_s)} · {m.player_count} players · contested {duration(m.contested_s)}
@@ -305,6 +342,7 @@ export function MatchPage() {
               <p className="muted footnote">
                 * Estimated. Percentages count time inside the map bounds only. Hover ⓘ for what each column means.
               </p>
+              <GearUseTable m={m} />
             </>
           )}
           {tab === "timeline" && <TimelineTab id={m.id} />}

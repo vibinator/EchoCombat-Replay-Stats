@@ -13,6 +13,34 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 44 — 2026-10-31
+### Gear use (match and player pages)
+- **New "Gear use" section** for every weapon, ordnance and tac mod: **times picked** (switched to it, including
+  the first one held; a blank gap such as a respawn is not a new pick), **games used** (player page) and **share
+  of the time held**. The match page lists it per player; the player page has one table per gear type, following
+  the period / map filters.
+- Replays do not record shots, throws or tac mod uses (checked on a 31 Oct 2026 replay; noted in
+  docs/ReplayData.MD), so those cannot be counted; the pages say so.
+- Counted from data already stored (the loadout-change events): no re-read of the archive needed.
+
+### Achievements
+- **Tiered achievements:** Clean Sweep (win Capture Point games 2-0) and Special Delivery (deliver the payload to
+  the end: win Payload games as the attacking team) now have five medals: **1 bronze, 5 silver, 10 gold,
+  25 platinum, 50 diamond** games. The badge shows e.g. "14 / 25 for platinum"; progress is 20 % per medal and
+  diamond counts as completed. New platinum and diamond medal frames. In the archive 62 % of players (10+ games)
+  have a Clean Sweep bronze and 3 % would have diamond; 50 % / 2 % for Special Delivery.
+- "Completed" on profiles now means 100 % (gold, or diamond for tiered ones); rarity counts tiered ones as
+  unlocked from bronze.
+
+### Matches
+- **Removed the Export link** (CSV / JSON) from match pages.
+
+### Player merges
+- **Newest matches first:** replays a merge (or undo / repair) queues for re-reading are processed newest match
+  first, so a merged player's latest games are right first.
+
+- Nothing to do: restart the server.
+
 ## Beta 43 — 2026-10-31
 ### Home page
 - **Announcement under the site description:** "Echo Combat has been released to Quest Standalone as of Oct 30th

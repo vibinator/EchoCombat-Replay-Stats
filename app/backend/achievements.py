@@ -106,6 +106,43 @@ class Rule:
     estimated: bool = False
     new: bool = False  # not on the original ECRanked site
     group: str | None = None  # theme of a new rule (its own section on the website)
+    # Tiered (progression) rules: all-time count targets for bronze, silver, gold, platinum, diamond (LEVELS).
+    # The medal is the highest target reached instead of the percentage tiers; diamond = completed.
+    levels: tuple[int, ...] = ()
+    count: Callable[[list[Game]], int] | None = None
+
+
+# Tiered rules (user, 2026-10-31). Platinum below diamond, as usual for medal ladders.
+LEVELS = ("bronze", "silver", "gold", "platinum", "diamond")
+
+
+def _levelled(count, levels: tuple[int, ...]):
+    """Progress spread evenly over the medals: bronze 20 %, silver 40 %, ... diamond 100 %, partial in between."""
+    def score(games):
+        n, prev = count(games), 0
+        for i, need in enumerate(levels):
+            if n < need:
+                return (i + (n - prev) / (need - prev)) / len(levels)
+            prev = need
+        return 1.0
+    return score
+
+
+def level_tier(n: int, levels: tuple[int, ...]) -> str | None:
+    reached = sum(n >= need for need in levels)
+    return LEVELS[reached - 1] if reached else None
+
+
+def unlock_threshold(rule: "Rule") -> float:
+    """Progress at which a rule counts as unlocked (rarity): the first medal."""
+    return 1 / len(rule.levels) if rule.levels else TIERS[-1][0]
+
+
+def _tiered(id_: int, name: str, what: str, icon: str | None, pred, levels: tuple[int, ...], **kw) -> "Rule":
+    """All-time count of games matching `pred`, with a medal per target. The text lists every target."""
+    count = lambda games: sum(1 for g in games if pred(g))  # noqa: E731
+    targets = ", ".join(f"{n} {medal}" for n, medal in zip(levels, LEVELS))
+    return Rule(id_, name, f"{what} ({targets})", "all", icon, _levelled(count, levels), levels=levels, count=count, **kw)
 
 
 def clamp(v: float) -> float:
@@ -346,10 +383,11 @@ def _build_rules() -> list[Rule]:
         Rule(90, "On a Roll", "Win 5 games in a row (games without a result are skipped)", "all", None, _win_streak(5), new=True, group="Wins"),
         Rule(91, "Unstoppable", "Win 10 games in a row (games without a result are skipped)", "all", None, _win_streak(10), new=True, group="Wins"),
         Rule(92, "Centurion", "Win 100 games", "all", None, _count(lambda g: g.won, 100), new=True, group="Wins"),
-        Rule(93, "Clean Sweep", "Win a Capture Point game 2-0", "game", "capture_point",
-             lambda gs: 1.0 if _capture(gs[0]) and gs[0].won and gs[0].rounds_lost == 0 else 0.0, new=True, group="Wins"),
-        Rule(94, "Special Delivery", "Win a Payload game as the attacking team", "game", "payload",
-             lambda gs: 1.0 if _payload(gs[0]) and gs[0].won and gs[0].attacking_team == gs[0].team else 0.0, new=True, group="Wins"),
+        # tiered (user, 2026-10-31); the attacking team wins exactly when the payload reaches the end (stats/payload.py)
+        _tiered(93, "Clean Sweep", "Win Capture Point games 2-0", "capture_point",
+                lambda g: _capture(g) and g.won and g.rounds_lost == 0, (1, 5, 10, 25, 50), new=True, group="Wins"),
+        _tiered(94, "Special Delivery", "Deliver the payload to the end: win Payload games as the attacking team", "payload",
+                lambda g: _payload(g) and g.won and g.attacking_team == g.team, (1, 5, 10, 25, 50), new=True, group="Wins"),
         Rule(95, "Hold the Line", "Win a Payload game as the defending team", "game", "payload",
              lambda gs: 1.0 if _payload(gs[0]) and gs[0].won and gs[0].attacking_team not in (None, gs[0].team) else 0.0,
              new=True, group="Wins"),
@@ -421,10 +459,14 @@ def evaluate(games: list[Game]) -> list[dict]:
     for rule in RULES:
         best = max((rule.score(g) for g in groups[rule.period] if g), default=0.0)
         progress = round(clamp(best), 4)
-        out.append({
+        entry = {
             "id": rule.id, "name": rule.name, "description": rule.description, "period": rule.period,
             "icon": icon_file(rule), "estimated": rule.estimated, "new": rule.new, "group": rule.group, "progress": progress, "tier": tier(progress),
-        })
+        }
+        if rule.levels:  # tiered: medal by count; the website shows "12 / 25 for platinum"
+            n = rule.count(games)
+            entry |= {"tier": level_tier(n, rule.levels), "count": n, "levels": list(rule.levels)}
+        out.append(entry)
     return out
 
 

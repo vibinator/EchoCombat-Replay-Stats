@@ -198,10 +198,14 @@ class Worker:
 
     def _claim(self, count: int) -> list[tuple[int, str]]:
         with self.sessions() as db:
-            # admin console merges / repairs first (priority_replays), then the backlog, newest file first
+            # admin console merges / repairs first (priority_replays), then the backlog, newest file first. Priority
+            # replays go newest match first (user, 2026-10-31: a merged player's latest games are right first);
+            # ones without a match yet (e.g. repairs) by newest file.
             replays = db.scalars(
                 select(Replay).join(PriorityReplay, PriorityReplay.replay_id == Replay.id)
-                .where(Replay.status == "queued").limit(count)
+                .outerjoin(Match, Match.replay_id == Replay.id)
+                .where(Replay.status == "queued")
+                .order_by(Match.started_at.desc().nulls_last(), Replay.source_mtime.desc()).limit(count)
             ).all()
             db.execute(delete(PriorityReplay).where(or_(
                 PriorityReplay.replay_id.in_([r.id for r in replays]),

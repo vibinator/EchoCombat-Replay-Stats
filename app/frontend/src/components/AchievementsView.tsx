@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router";
-import { getAchievements, getChallenges, getMe, loginUrl, type Achievement, type AchievementPeek, type AchievementRarity, type AchievementRule } from "../api";
+import { LEVELS, getAchievements, getChallenges, getMe, loginUrl, type Achievement, type AchievementPeek, type AchievementRarity, type AchievementRule } from "../api";
 import { pct } from "../format";
 import { useApi } from "../useApi";
 import { Status } from "./common";
@@ -81,7 +81,14 @@ export function JumpToNew({ ready }: { ready: boolean }) {
 }
 
 /** A rule with a player's progress, or just the catalogue entry when `progress` is absent. */
-export function Badge({ a }: { a: AchievementRule & Partial<Pick<Achievement, "progress" | "tier" | "unlocked_at">> & Partial<Pick<AchievementRarity, "unlocked_share" | "completed_share">> }) {
+/** Tiered achievements: "12 / 25 for platinum", or the top medal once every target is reached. */
+function levelText(count: number, levels: number[]): string {
+  const next = levels.findIndex((need) => count < need);
+  if (next < 0) return `${count.toLocaleString()} · ${LEVELS[levels.length - 1]} (max)`;
+  return `${count.toLocaleString()} / ${levels[next].toLocaleString()} for ${LEVELS[next]}`;
+}
+
+export function Badge({ a }: { a: AchievementRule & Partial<Pick<Achievement, "progress" | "tier" | "unlocked_at" | "count">> & Partial<Pick<AchievementRarity, "unlocked_share" | "completed_share">> }) {
   const tier = a.tier ?? null;
   const catalogue = a.progress === undefined;
   const frame = tier ? `${tier}.png` : "white_lock.png";
@@ -106,8 +113,17 @@ export function Badge({ a }: { a: AchievementRule & Partial<Pick<Achievement, "p
               <div style={{ width: `${a.progress! * 100}%` }} />
             </div>
             <span className="muted">
-              {pct(a.progress)}
-              {tier && ` · ${tier}`}
+              {a.levels && a.count != null ? (
+                <>
+                  {levelText(a.count, a.levels)}
+                  {tier && a.progress! < 1 && ` · ${tier}`}
+                </>
+              ) : (
+                <>
+                  {pct(a.progress)}
+                  {tier && ` · ${tier}`}
+                </>
+              )}
               {a.unlocked_at && ` · completed ${a.unlocked_at}`}
             </span>
           </>
@@ -275,7 +291,7 @@ function LaunchedSummary({ userId }: { userId: string }) {
   const result = useApi(() => getAchievements(userId), userId);
   const d = result.data;
   if (!d) return null;
-  const gold = d.items.filter((a) => a.tier === "gold").length;
+  const gold = d.items.filter((a) => a.progress >= 1).length; // gold, or diamond for tiered ones
   const unlocked = d.items.filter((a) => a.tier).length;
   const added = d.items.filter((a) => a.new);
   return (
@@ -290,7 +306,7 @@ function LaunchedSummary({ userId }: { userId: string }) {
           <strong>{pct(d.overall)}</strong>
         </div>
         <div className="card">
-          <span className="label">Completed (gold)</span>
+          <span className="label">Completed (gold / diamond)</span>
           <strong>
             {gold} / {d.total}
           </strong>
@@ -305,7 +321,7 @@ function LaunchedSummary({ userId }: { userId: string }) {
           <Link className="card link-card" to={`/achievements?player=${encodeURIComponent(userId)}#new`}>
             <span className="label">New challenges</span>
             <strong>
-              {added.filter((a) => a.tier === "gold").length} / {added.length}
+              {added.filter((a) => a.progress >= 1).length} / {added.length}
             </strong>
             <span className="muted">gear, wins, payload, emotes</span>
           </Link>
@@ -397,7 +413,7 @@ export function AchievementsView({ userId }: { userId: string }) {
           )}
           <p className="muted footnote">
             Progress is the best ever reached (best game, best calendar day or week, or all-time total). Tiers: white 25%,
-            bronze 50%, silver 75%, gold 100%. "Use only" an item = 95%+ of that game's loadout time; "use" = 5%+. Days are
+            bronze 50%, silver 75%, gold 100%. Tiered challenges (e.g. Clean Sweep) give a medal per target instead: bronze, silver, gold, platinum, diamond. "Use only" an item = 95%+ of that game's loadout time; "use" = 5%+. Days are
             calendar days, weeks start on Monday. * Based on estimated deaths.
           </p>
         </>

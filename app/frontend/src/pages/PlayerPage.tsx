@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, Navigate, useParams, useSearchParams } from "react-router";
 import {
   getCompanions, getPlayer, getPlayerHeatmapBy, getTrends,
-  type Companion, type HeatmapLayerMode, type Period, type PlayerProfile, type PlayerStats,
+  type Companion, type GearUse, type GearUseSet, type HeatmapLayerMode, type Period, type PlayerProfile, type PlayerStats,
 } from "../api";
 import { AchievementsSummary } from "../components/AchievementsView";
 import { LineChart } from "../components/charts";
@@ -88,6 +88,49 @@ function ProfileHeader({ p }: { p: PlayerProfile }) {
         </Link>
       </div>
     </div>
+  );
+}
+
+function GearUseTable({ heading, items }: { heading: string; items: GearUse[] }) {
+  return (
+    <TableWrap>
+      <table className="stack">
+        <thead>
+          <tr><th>{heading}</th><th className="num">Picked</th><th className="num">Games</th><th className="num">Time held</th></tr>
+        </thead>
+        <tbody>
+          {items.length === 0 && (
+            <tr><td colSpan={4} className="muted">–</td></tr>
+          )}
+          {items.map((g) => (
+            <tr key={g.code}>
+              <td data-label={heading}><GearName item={g} /></td>
+              <td data-label="Picked" className="num">{g.picks.toLocaleString()}</td>
+              <td data-label="Games" className="num">{(g.games ?? 0).toLocaleString()}</td>
+              <td data-label="Time held" className="num">{pct(g.share)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </TableWrap>
+  );
+}
+
+/** Per weapon / ordnance / tac mod: times picked, games used, share of time held (no shot counts exist). */
+function GearUseSection({ gear }: { gear: GearUseSet }) {
+  return (
+    <>
+      <h2>Gear use</h2>
+      <div className="gear-use">
+        <GearUseTable heading="Weapon" items={gear.weapons} />
+        <GearUseTable heading="Ordnance" items={gear.ordnances} />
+        <GearUseTable heading="Tac mod" items={gear.tacmods} />
+      </div>
+      <p className="muted footnote">
+        Picked = times switched to it (including the first one held in a match); Games = matches it was used in. Replays
+        do not record shots or ordnance / tac mod uses, so those cannot be counted.
+      </p>
+    </>
   );
 }
 
@@ -310,6 +353,8 @@ export function PlayerPage() {
                   </tbody>
                 </table>
               </TableWrap>
+
+              {p.gear && <GearUseSection gear={p.gear} />}
             </>
           )}
 

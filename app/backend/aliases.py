@@ -121,6 +121,7 @@ def _touch_main_player(db: Session, main_pid: int, rows) -> None:
 
 
 def _requeue_list(db: Session, replay_ids: list[int]) -> list[int]:
+    """Re-queue for a re-read; the worker takes merge replays newest match first (worker._claim)."""
     _requeue(db, replay_ids)
     return replay_ids
 

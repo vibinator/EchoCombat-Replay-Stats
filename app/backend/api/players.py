@@ -6,7 +6,7 @@ from pathlib import Path
 from fastapi import APIRouter, Query, Request
 from sqlalchemy import and_, case, func, select
 
-from .. import heatmaps, tracks
+from .. import gear_use, heatmaps, tracks
 from ..aliases import ids_of
 from ..cache import cached, data_stamp
 from ..duplicates import counted
@@ -180,6 +180,8 @@ def _get_player(request: Request, user_id: str, period: str, map: str | None) ->
             .order_by(func.sum(MatchPlayerLoadout.frames).desc())
         ).all()
         total_frames = sum(r.frames for r in loadout_rows)
+        matches_in_view = (select(MatchPlayer.match_id).join(Match, Match.id == MatchPlayer.match_id).where(where))
+        gear = gear_use.summarize(gear_use.picks_of_player(db, player.id, matches_in_view), loadout_rows)
 
         recent = db.execute(
             select(Match, MatchPlayer).join(MatchPlayer, MatchPlayer.match_id == Match.id)
@@ -197,6 +199,7 @@ def _get_player(request: Request, user_id: str, period: str, map: str | None) ->
         "map": map,
         "stats": stats,
         "loadouts": [loadout(r.weapon, r.tacmod, r.ordnance, r.frames, total_frames) for r in loadout_rows],
+        "gear": gear,  # per weapon / ordnance / tac mod: times picked, games used, share of time held
         "recent_matches": [
             match_summary(m) | {
                 "team": mp.team,

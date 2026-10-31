@@ -78,6 +78,7 @@ Sources inspected (read-only): `ECRanked/Replays/{combustion,dyson,fission,surge
 | Arm | C | High | `Left` / `Right` (dominant arm) |
 | is_emote_playing | C | High | bool |
 | Kills / deaths / damage / health / stuns | C (absent) | — | **Not in the API.** No per-player combat stats exist. |
+| Shots fired / ordnance thrown / tac mod used | C (absent, checked 2026-10-31 on a 2026-10-31 file) | — | **Not in the API.** No trigger, ammo, cooldown or ability-use field per player; `Weapon` / `TacMod` / `Ordnance` only say what is equipped. Top-level `last_throw` and `*_shoulder_pressed*` are the recording client's own Arena leftovers, not players. So shot / use counts per gear cannot be computed. |
 
 ### Payload semantics (C from 2 plain + 3 other payload samples; meaning of counts is A)
 | Field | Observed |

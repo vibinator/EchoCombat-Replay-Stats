@@ -147,6 +147,29 @@ def test_newest_files_are_processed_first(client, settings):
     assert [p.rsplit(os.sep, 1)[-1] for _, p, _ in claimed] == ["new.echoreplay", "mid.echoreplay", "old.echoreplay"]
 
 
+def test_priority_replays_newest_match_first(client, settings):
+    """Merge / undo re-reads (priority_replays) go newest match first, whatever the file dates."""
+    from datetime import timedelta
+
+    from sqlalchemy import select, update
+
+    from backend.admin_actions import prioritise
+    from backend.models import Replay
+
+    add(client, {f"dyson/{name}.echoreplay": rf.plain(rf.lines(3, start=rf.START + timedelta(days=days)))
+                 for name, days in (("early", 0), ("late", 2), ("middle", 1))})
+    now = time.time()
+    for name, age in (("early", 100), ("middle", 200), ("late", 300)):  # files dated the other way round
+        os.utime(settings.source_dir / "dyson" / f"{name}.echoreplay", (now - age, now - age))
+    with client.app.state.sessionmaker() as db:
+        ids = list(db.scalars(select(Replay.id)))
+        db.execute(update(Replay).values(status="queued"))
+        prioritise(db, ids)
+        db.commit()
+    claimed = client.app.state.worker._claim(3)
+    assert [p.rsplit(os.sep, 1)[-1] for _, p, _ in claimed] == ["late.echoreplay", "middle.echoreplay", "early.echoreplay"]
+
+
 def test_no_download(client):
     add(client, {"dyson/a.echoreplay": rf.plain(rf.lines(3))})
     assert client.get("/api/replays/1/file").status_code == 404
