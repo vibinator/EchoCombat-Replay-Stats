@@ -217,7 +217,8 @@ export function LineChart({ data, title, format = (v: number) => v.toLocaleStrin
   min?: number;
 }) {
   const [hover, setHover] = useState<number | null>(null);
-  const pad = { left: 44, right: 10, top: 10, bottom: 22 };
+  const W = 400; // drawn at about its real size (small multiples are ~1/3 of the page), so axis text stays readable
+  const pad = { left: 44, right: 12, top: 10, bottom: 24 };
   const values = data.map((d) => d.value).filter((v): v is number => v != null);
   if (values.length === 0) return null;
   const lo = min ?? Math.min(...values);
@@ -243,7 +244,7 @@ export function LineChart({ data, title, format = (v: number) => v.toLocaleStrin
     setHover(i >= 0 && i < data.length ? i : null);
   }
 
-  const labelEvery = Math.max(1, Math.ceil(data.length / 6));
+  const labelEvery = Math.max(1, Math.ceil(data.length / 3));
   return (
     <figure className="chart">
       <figcaption className="chart-title">{title}</figcaption>

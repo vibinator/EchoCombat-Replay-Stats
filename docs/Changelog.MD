@@ -13,6 +13,16 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 65 — 2026-10-31
+- **All tables are easier to read:** every table on the site now sits in its own panel (border, padding), headings are
+  small muted capitals, rows highlight on hover, and side-by-side tables (teammates / opponents, status, gear use) have
+  a wider gap so they no longer run together.
+- **Checked in a browser** (desktop light/dark, phone width): trend charts now draw at their real size so axis labels are
+  readable and sit in panels, gear use panels are equal height, long table headings wrap so the match stats table needs
+  far less sideways scrolling, phone rows are cards inside the table panel, and the teammates "Time frame" label lines up.
+
+---
+
 ## Beta 64 — 2026-10-31
 - **Gear use is easier to read:** weapon, ordnance and tac mod tables on the player page are now separate panels with
   more space between them instead of running together.

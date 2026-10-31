@@ -262,9 +262,40 @@ textarea {
   color: var(--text);
 }
 
+/* every table sits in its own panel, so side-by-side tables never run into each other */
 .table-wrap {
   width: 100%;
   overflow-x: auto;
+  padding: 6px 14px 4px;
+  border: 1px solid var(--surface-2);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.table-wrap th {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  vertical-align: bottom;
+}
+
+/* wide stat tables (match page has 13 columns): tighter cells so they fit without sideways scrolling */
+.table-wrap th,
+.table-wrap td {
+  padding: 8px 6px;
+}
+
+.table-wrap th.num {
+  white-space: normal; /* long headings wrap instead of widening the table */
+}
+
+.table-wrap tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.table-wrap tbody tr:hover {
+  background: var(--surface-2);
 }
 
 .table-wrap table {
@@ -1008,14 +1039,7 @@ kbd {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
   gap: 20px;
-  align-items: start;
-}
-/* each gear type is its own panel so the three tables do not run into each other */
-.gear-use .table-wrap {
-  padding: 8px 14px 6px;
-  border-radius: 8px;
-  background: var(--panel);
-  border: 1px solid var(--surface-2);
+  align-items: stretch; /* equal-height panels */
 }
 .gear-use .table-wrap table {
   min-width: 0; /* 4 short columns: fit a third of the page (wrapped tables are 560px+ by default) */
@@ -1105,12 +1129,29 @@ kbd {
 .two-col {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 16px;
+  gap: 20px;
+}
+.two-col h3 {
+  margin: 0 0 8px;
+  font-size: 1rem;
 }
 .small-multiples {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 12px;
+  gap: 16px;
+}
+.small-multiples .chart {
+  padding: 4px 14px 10px;
+  border: 1px solid var(--surface-2);
+  border-radius: 8px;
+  background: var(--panel);
+}
+.section-head label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.8rem;
 }
 .inline-check {
   display: inline-flex;
@@ -1524,7 +1565,7 @@ td.best {
     margin-bottom: 8px;
     padding: 8px;
     border-radius: 8px;
-    background: var(--panel);
+    background: var(--surface-2); /* each row is a card inside the table panel */
   }
   table.stack td {
     display: flex;
