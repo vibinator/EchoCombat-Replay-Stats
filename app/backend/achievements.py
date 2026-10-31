@@ -372,7 +372,7 @@ def _build_rules() -> list[Rule]:
         Rule(43, "Pew Pew Proof", "Average fewer than 5 deaths per game over a week (25+ games)", "week", "deaths", _pew_pew_proof, estimated=True),
         _tiered(44, "I'd Rather Be on Kronos II", "Play Capture Point games in one week: the most in a single week counts", "capture_point", _capture, (10, 18, 25, 40, 50), "week"),
         _tiered(45, "Sakura's Dancing Flamingo", "Play Payload games in one week: the most in a single week counts", "payload", _payload, (10, 18, 25, 40, 50), "week"),
-        _ladder(46, "Tech Support w/RAD_Natalie", "Time near a teammate over one week: your best week counts", None, _pct("near_mate"), (25, 30, 35, 45, 60), "week", "%"),
+        _ladder(46, "Tech Support w/RAD_Natalie", "Time near a teammate over one week: your best week counts", None, _pct("near_mate"), (22, 27, 32, 40, 55), "week", "%"),
         _ladder(47, "Hug Your Frenemy", "Time near an enemy over one week: your best week counts", None, _pct("near_enemy"), (10, 15, 20, 30, 50), "week", "%"),
         _ladder(48, "The Wings of RAD_Wyvern", "Average speed over one week: your best week counts", None, _AvgValue("speed_sum", 1.0), (3.5, 4, 4.5, 5, 6), "week", " m/s"),
         _ladder(49, "I’ɯ ꓭɐʇ ꓭoʇ", "Time spent inverted over one week: your best week counts", None, _pct("upside"), (5, 10, 15, 30, 50), "week", "%"),

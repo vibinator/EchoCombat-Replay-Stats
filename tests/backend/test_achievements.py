@@ -127,11 +127,11 @@ def test_average_unlock_date_is_when_first_reached():
 
 
 def test_teammate_proximity_targets():
-    """Tech Support: ladder 25 / 30 / 35 / 45 / 60 % over a week; Robot Wrecking Squad: 14 / 16 / 19 / 22 / 25 % all-time
+    """Tech Support: ladder 22 / 27 / 32 / 40 / 55 % over a week; Robot Wrecking Squad: 14 / 16 / 19 / 22 / 25 % all-time
     over 50+ games."""
     r = by_id(evaluate([game(mate=250)] * 5))
     assert (r[46]["tier"], r[46]["count"]) == ("bronze", 25) and r[71]["count"] == 0  # 5 games: the all-time one needs 50
-    assert by_id(evaluate([game(mate=240)] * 5))[46]["tier"] is None
+    assert by_id(evaluate([game(mate=210)] * 5))[46]["tier"] is None
     assert by_id(evaluate([game(mate=140)] * 50))[71]["tier"] == "bronze"
     assert by_id(evaluate([game(mate=130)] * 50))[71]["tier"] is None
 

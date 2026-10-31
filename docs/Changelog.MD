@@ -13,6 +13,14 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 51 — 2026-10-31
+### Achievements
+- **Tech Support w/RAD_Natalie is easier:** time near a teammate over one week is now 22 / 27 / 32 / 40 / 55 % for
+  bronze / silver / gold / platinum / diamond (was 25 / 30 / 35 / 45 / 60). In the archive about 56 % of players
+  (10+ games) reach bronze, 37 % silver, 24 % gold (was 19 %), 13 % platinum and 3 % diamond. Nothing has to be re-read.
+
+---
+
 ## Beta 50 — 2026-10-31
 ### Achievements
 - **Super Ultra Hyper Turbo is a little easier:** top speed in one game is now 13 / 17 / 21 / 25 / 30 m/s for bronze /
