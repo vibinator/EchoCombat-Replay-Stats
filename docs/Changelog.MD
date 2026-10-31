@@ -13,6 +13,12 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 41 — 2026-10-31
+### Home page
+- **Fixed:** the latest-match cards beside the live video were squashed to thin strips (every card shown, each
+  cut to a sliver of minimap). Cards keep their full size again; only the ones that fit beside the video show.
+- Nothing to do: refresh the page (restart the server if it was not restarted after Beta 40).
+
 ## Beta 40 — 2026-10-31
 ### Home page
 - **Live stream in Latest matches:** the Echo Combat spectator bot

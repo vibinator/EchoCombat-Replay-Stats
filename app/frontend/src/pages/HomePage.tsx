@@ -191,11 +191,12 @@ export function HomePage() {
                   <Link to="/matches">All matches</Link>
                 </span>
               </div>
-              {/* live video left, the newest matches right (as many as fit beside it); stacked on narrow screens */}
+              {/* live video left, the newest matches right (compact, scrolls within the video's height); stacked on
+                  narrow screens */}
               <div className="live-latest">
                 <LiveStream />
                 <div className="live-latest-matches">
-                  <MatchCards matches={o.latest} fit />
+                  <MatchCards matches={o.latest} compact />
                 </div>
               </div>
 
