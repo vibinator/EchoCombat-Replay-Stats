@@ -388,7 +388,7 @@ export function ChallengeBanner() {
 
 export function AchievementsView({ userId }: { userId: string }) {
   const result = useApi(() => getAchievements(userId), userId);
-  const [show, setShow] = useState<"all" | "earned" | "open">("all");
+  const [show, setShow] = useState<"open" | "done" | "all">("open"); // completed ones are tucked away by default
   const [sort, setSort] = useState<"group" | "closest">("group");
   const data = result.data;
 
@@ -411,9 +411,9 @@ export function AchievementsView({ userId }: { userId: string }) {
             <div className="tabs" role="tablist">
               {(
                 [
+                  ["open", `In progress (${data.total - data.completed})`],
+                  ["done", `Completed (${data.completed})`],
                   ["all", "All"],
-                  ["earned", "Unlocked (25%+)"],
-                  ["open", "Locked"],
                 ] as const
               ).map(([value, label]) => (
                 <button key={value} role="tab" aria-selected={show === value} className={show === value ? "tab active" : "tab"} onClick={() => setShow(value)}>
@@ -430,13 +430,15 @@ export function AchievementsView({ userId }: { userId: string }) {
           {sort === "closest" && (
             <div className="badges">
               {data.items
-                .filter((a) => a.progress < 1 && (show === "all" || (show === "earned" ? a.tier : !a.tier)))
+                .filter((a) => a.progress < 1 && show !== "done")
                 .sort((a, b) => b.progress - a.progress)
                 .map((a) => <Badge key={a.id} a={a} />)}
             </div>
           )}
+          {show === "done" && data.completed === 0 && <p className="muted">Nothing completed yet: a challenge lands here once it reaches diamond (or 100 %).</p>}
+          {show === "open" && data.completed === data.total && <p className="muted">Everything is completed. Look under Completed.</p>}
           {sort === "group" && (
-            <GroupedBadges items={data.items.filter((a) => show === "all" || (show === "earned" ? a.tier : !a.tier))} />
+            <GroupedBadges items={data.items.filter((a) => show === "all" || (show === "done") === a.progress >= 1)} />
           )}
           <p className="muted footnote">
             Almost every challenge is a ladder of medals (bronze, silver, gold, platinum, diamond): the bar has one step per medal, the

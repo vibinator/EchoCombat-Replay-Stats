@@ -13,6 +13,14 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 47 — 2026-10-31
+### Achievements
+- **Completed achievements move to a "Completed" tab** (diamond for ladders, 100 % for single-step ones). The page
+  opens on **In progress**, so only what is still to do is shown; **All** shows everything. The tabs show their counts.
+  Replaces the old Unlocked / Locked filter. Display only.
+
+---
+
 ## Beta 46 — 2026-10-31
 ### Achievements: medal ladders for (almost) everything
 - **Every achievement is now its own bronze / silver / gold / platinum / diamond ladder** (114 of 122; the yes / no
