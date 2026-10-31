@@ -13,6 +13,18 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 33 — 2026-10-31
+### Website
+- **"Matches recorded over time" has a "Per day" tab** next to per month / per year. It shows the 90 days up to the
+  newest recorded match (the archive may stop before today), one bar per day split by map, with days without
+  matches left empty rather than skipped. Labels read "28 Oct", tooltips "28 October 2026". The whole archive per
+  day would be ~1,600 bars, too thin to read.
+
+### Upgrading to Beta 33
+- QNAP: upload Beta 33, wait for the Actions run, Recreate. Windows: restart `run.bat`. No re-import.
+
+---
+
 ## Beta 32 — 2026-10-31
 ### Stats
 - **A match recorded twice now counts once.** The archive has 426 matches saved in two (or more) files: same

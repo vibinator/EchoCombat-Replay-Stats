@@ -89,14 +89,14 @@ function PlayersSeenChart() {
 }
 
 function ActivityChart() {
-  const [bucket, setBucket] = useState<"month" | "year">("month");
+  const [bucket, setBucket] = useState<"day" | "month" | "year">("month");
   const activity = useApi(() => getActivity(bucket), bucket);
   return (
     <section className="panel">
       <div className="section-head">
         <h2>Matches recorded over time</h2>
         <div className="tabs" role="tablist">
-          {(["month", "year"] as const).map((b) => (
+          {(["day", "month", "year"] as const).map((b) => (
             <button key={b} role="tab" aria-selected={bucket === b} className={bucket === b ? "tab active" : "tab"} onClick={() => setBucket(b)}>
               Per {b}
             </button>
@@ -106,7 +106,7 @@ function ActivityChart() {
       {!activity.data && <Skeleton lines={2} />}
       {activity.data && activity.data.items.length > 0 && (
         <StackedBarChart
-          title={`Matches per ${bucket}, by map`}
+          title={bucket === "day" ? "Matches per day, by map (last 90 days of recordings)" : `Matches per ${bucket}, by map`}
           unit=" matches"
           series={MAPS.map((m) => ({ key: m, label: title(m), color: `var(--map-${m})` }))}
           data={activity.data.items.map((i) => ({

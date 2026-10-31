@@ -1,6 +1,6 @@
 """Home dashboard, archive activity and global search."""
 
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Query, Request
 from sqlalchemy import case, func, select
@@ -68,8 +68,13 @@ def processing(request: Request):
 
 @router.get("/api/overview/activity")
 def activity(request: Request, bucket: str = Query("month", pattern="^(day|week|month|year)$")):
-    """Matches per period over the whole archive (recorder-local dates), split by map for the stacked chart."""
+    """Matches per period over the whole archive (recorder-local dates), split by map for the stacked chart.
+    `day`: only the last DAY_WINDOW days up to the newest match, empty days included (a bar per day of the whole
+    archive would be too thin to read)."""
     return cached(request, "activity", (bucket,), lambda: _activity(request, bucket))
+
+
+DAY_WINDOW = 90  # days shown by the per-day activity chart
 
 
 def _activity(request: Request, bucket: str) -> dict:
@@ -79,12 +84,20 @@ def _activity(request: Request, bucket: str) -> dict:
         "month": func.substr(Match.started_at, 1, 7),
         "year": func.substr(Match.started_at, 1, 4),
     }[bucket]
+    where = [counted(Match.id)]
+    days: list[str] = []
     with request.app.state.sessionmaker() as db:
+        if bucket == "day":
+            newest = db.scalar(select(func.max(Match.started_at)).where(*where))
+            if newest:  # the archive may stop before today: count back from its newest match
+                last = date.fromisoformat(newest[:10])
+                days = [(last - timedelta(days=n)).isoformat() for n in range(DAY_WINDOW - 1, -1, -1)]
+                where.append(Match.started_at >= days[0])
         rows = db.execute(
             select(expr.label("period"), Match.map, func.count(), func.sum(Match.duration_s))
-            .where(counted(Match.id)).group_by("period", Match.map).order_by("period")
+            .where(*where).group_by("period", Match.map).order_by("period")
         ).all()
-    items: dict[str, dict] = {}
+    items: dict[str, dict] = {d: {"period": d, "matches": 0, "hours": 0.0, "maps": {}} for d in days}
     for period, map_, n, s in rows:
         item = items.setdefault(period, {"period": period, "matches": 0, "hours": 0.0, "maps": {}})
         item["matches"] += n

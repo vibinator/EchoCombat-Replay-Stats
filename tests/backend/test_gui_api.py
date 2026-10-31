@@ -58,9 +58,14 @@ def test_processing_is_zero_once_everything_is_read(client):
 
 def test_activity_and_players_seen(client):
     a = client.get("/api/overview/activity", params={"bucket": "day"}).json()
-    assert a["items"] == [{"period": "2026-10-28", "matches": 3, "hours": a["items"][0]["hours"],
-                           "maps": a["items"][0]["maps"]}]
-    assert sum(a["items"][0]["maps"].values()) == 3
+    # per day: the 90 days up to the newest match, empty days included
+    assert len(a["items"]) == 90 and (a["items"][0]["period"], a["items"][-1]["period"]) == ("2026-07-31", "2026-10-28")
+    assert a["items"][-1] == {"period": "2026-10-28", "matches": 3, "hours": a["items"][-1]["hours"],
+                              "maps": a["items"][-1]["maps"]}
+    assert sum(a["items"][-1]["maps"].values()) == 3
+    assert all(i["matches"] == 0 and i["maps"] == {} for i in a["items"][:-1])
+    month = client.get("/api/overview/activity", params={"bucket": "month"}).json()["items"]
+    assert [i["period"] for i in month] == ["2026-10"]  # other buckets: whole archive, only periods with matches
     seen = client.get("/api/overview/players-seen", params={"range": "24h", "anchor": "latest"}).json()
     assert seen["unique_players"] == 2 and seen["matches"] == 3 and len(seen["items"]) in (24, 25)
     assert max(i["players"] for i in seen["items"]) == 2

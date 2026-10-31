@@ -27,15 +27,17 @@ export function dateTime(iso: string): string {
 const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September",
   "October", "November", "December"];
 
-/** Chart periods from the API ("2026-10" month, "2026-43" week, "2026" year) as "Oct 2026" / "Week 43 2026";
- *  `long` spells the month out ("October 2026"), for tooltips. */
+/** Chart periods from the API ("2026-10-31" day, "2026-10" month, "2026-43" week, "2026" year) as "31 Oct" /
+ *  "Oct 2026" / "Wk 43 2026"; `long` spells it out ("31 October 2026", "October 2026"), for tooltips. */
 export function periodLabel(period: string, bucket: string, long = false): string {
-  const [year, part] = period.split("-");
+  const [year, part, day] = period.split("-");
   if (!part) return period;
   if (bucket === "week") return `${long ? "Week" : "Wk"} ${Number(part)} ${year}`;
-  if (bucket !== "month") return period;
+  if (bucket !== "month" && bucket !== "day") return period;
   const name = MONTH_NAMES[Number(part) - 1] ?? part;
-  return `${long ? name : name.slice(0, 3)} ${year}`;
+  const month = long ? name : name.slice(0, 3);
+  if (bucket === "day") return long ? `${Number(day)} ${month} ${year}` : `${Number(day)} ${month}`;
+  return `${month} ${year}`;
 }
 
 export function title(word: string): string {
