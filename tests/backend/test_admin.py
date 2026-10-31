@@ -9,6 +9,7 @@ from sqlalchemy import select
 
 from backend import admin_actions as actions
 from backend.achievements import RULES
+from backend.api.achievements import REVEALED_IDS
 from backend.models import PlayerAlias
 
 
@@ -139,9 +140,13 @@ def test_challenge_period(client):
     peek = info.pop("peek")
     assert info == {"start": None, "end": None, "updated_at": None, "launched": False, "active": False, "preview": False,
                     "total": len(RULES)}
-    # the sneak peek gives counts and pictures, never names or descriptions
+    # the sneak peek gives counts and pictures; only the revealed few have names and descriptions
     assert sum(peek["periods"].values()) + sum(peek["new"].values()) == len(RULES) and peek["icons"]
-    assert not any(r.name in str(peek) or r.description in str(peek) for r in RULES)
+    assert [a["id"] for a in peek["revealed"]] == list(REVEALED_IDS)
+    hidden = str(peek["periods"]) + str(peek["new"]) + str(peek["icons"])
+    assert not any(r.name in hidden or r.description in hidden for r in RULES)
+    rest = [r for r in RULES if r.id not in REVEALED_IDS]
+    assert not any(r.name in str(peek) or r.description in str(peek) for r in rest)
     assert client.get("/api/players/100/achievements").status_code == 403  # coming soon
     act(client, actions.set_challenge_window, "2026-01-01", None)
     before = client.get("/api/players/100/achievements").json()

@@ -13,6 +13,22 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 37 — 2026-10-31
+### Website
+- **Five achievements revealed early** in the sneak peek on the "Coming soon" page, in full (badge, name,
+  description): Yeet and Delete (in one day), Sakura's Dancing Flamingo (in one week), My Other Chassis Is a
+  Toaster (in one game), Feed the Flamingo (all time) and Clean Sweep (new challenge). The rest stay hidden as
+  blurred "???" badges. The five are set in `REVEALED_IDS` in `app/backend/api/achievements.py`; icons chosen on
+  the Console page apply to them.
+- **"More being developed."** under New challenges, in the sneak peek and on the launched achievements page.
+- **"Unreleased gear" is marked "Now public"**: on its card in the sneak peek and in its section hint on the
+  launched achievements page.
+
+### Upgrading to Beta 37
+- QNAP: upload Beta 37, wait for the Actions run, Recreate. Windows: restart `run.bat`. No re-import.
+
+---
+
 ## Beta 36 — 2026-10-31
 ### Website
 - **Sneak peek on the "Coming soon" achievements page.** Below the Coming soon message, visitors see six mystery

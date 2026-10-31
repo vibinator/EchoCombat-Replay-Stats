@@ -58,13 +58,18 @@ def get_challenges(request: Request):
     """The Flamingo Challenge period: only matches inside it count. No start date = not launched yet."""
     with request.app.state.sessionmaker() as db:
         info = _window_info(db)
-    # total and the sneak peek are public before the launch too: the menu and "Coming soon" page tease them
-    return info | {"preview": not info["launched"] and auth.has_preview(request), "total": len(RULES), "peek": PEEK}
+        # total and the sneak peek are public before the launch too: the menu and "Coming soon" page tease them
+        peek = PEEK | {"revealed": icons.apply(db, PEEK["revealed"])}  # icons chosen on the Console page (D43)
+    return info | {"preview": not info["launched"] and auth.has_preview(request), "total": len(RULES), "peek": peek}
+
+
+# Shown in full on the "Coming soon" page (user, 2026-10-31): one per original section, one new challenge.
+REVEALED_IDS = (9, 45, 18, 70, 93)
 
 
 def _peek() -> dict:
-    """Sneak peek for the "Coming soon" page (user, 2026-10-31): how many per section and a few badge pictures,
-    never names, descriptions or targets."""
+    """Sneak peek for the "Coming soon" page (user, 2026-10-31): how many per section, the REVEALED_IDS in full,
+    and a few more badge pictures without names, descriptions or targets."""
     periods: dict[str, int] = defaultdict(int)
     themes: dict[str, int] = defaultdict(int)
     for r in RULES:
@@ -72,9 +77,13 @@ def _peek() -> dict:
             themes[r.group or "More"] += 1
         else:
             periods[r.period] += 1
-    art = [f for f in dict.fromkeys(icon_file(r) for r in RULES if r.icon) if f]
+    by_id = {r.id: r for r in RULES}
+    revealed = [{"id": r.id, "name": r.name, "description": r.description, "period": r.period, "icon": icon_file(r),
+                 "estimated": r.estimated, "new": r.new, "group": r.group} for r in map(by_id.get, REVEALED_IDS)]
+    shown = {r["icon"] for r in revealed}
+    art = [f for f in dict.fromkeys(icon_file(r) for r in RULES if r.icon) if f and f not in shown]
     step = max(1, len(art) // 6)
-    return {"periods": dict(periods), "new": dict(themes), "icons": art[::step][:6]}
+    return {"periods": dict(periods), "new": dict(themes), "revealed": revealed, "icons": art[::step][:6]}
 
 
 PEEK = _peek()

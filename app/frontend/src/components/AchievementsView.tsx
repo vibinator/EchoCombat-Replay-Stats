@@ -19,7 +19,7 @@ export const GROUPS: [Achievement["period"], string][] = [
 
 // New achievements (not on the original site) get their own section, in this theme order.
 export const NEW_GROUPS: [string, string][] = [
-  ["Unreleased gear", "Weapons and ordnances that were never released, seen in recent replays"],
+  ["Unreleased gear", "Weapons and ordnances that were never released, seen in recent replays (now public)"],
   ["Gear mastery", "All four weapons, ordnances or tac mods in one game"],
   ["Wins", "Results: streaks, totals, sweeps, attack and defence"],
   ["Payload", "Time pushing or blocking the payload"],
@@ -48,7 +48,7 @@ export function GroupedBadges<T extends AnyBadge>({ items }: { items: T[] }) {
           <h2>
             New challenges <span className="tag">new</span>
           </h2>
-          <p className="muted">Not on the original ECRanked site: they use replay data it never read.</p>
+          <p className="muted">Not on the original ECRanked site: they use replay data it never read. More being developed.</p>
           {[...NEW_GROUPS, ["More", ""] as [string, string]].map(([name, hint]) => {
             const known = NEW_GROUPS.some(([n]) => n === name);
             const group = added.filter((a) => (known ? a.group === name : !NEW_GROUPS.some(([n]) => n === a.group)));
@@ -146,7 +146,7 @@ export function useAchievementsAccess(): AchievementsAccess {
   };
 }
 
-/** Before the launch: how many achievements per section and a few hidden badges, nothing that gives them away. */
+/** Before the launch: how many achievements per section, a few shown in full and a few more as hidden badges. */
 function SneakPeek({ peek }: { peek: AchievementPeek }) {
   const newTotal = Object.values(peek.new).reduce((a, b) => a + b, 0);
   return (
@@ -154,6 +154,13 @@ function SneakPeek({ peek }: { peek: AchievementPeek }) {
       <div className="section-head">
         <h2>Sneak peek</h2>
       </div>
+      {peek.revealed.length > 0 && (
+        <>
+          <p className="muted">{peek.revealed.length} of them, revealed early:</p>
+          <div className="badges">{peek.revealed.map((a) => <Badge key={a.id} a={a} />)}</div>
+          <p className="muted">…and the rest stay secret until the start:</p>
+        </>
+      )}
       <div className="badges mystery">
         {peek.icons.map((icon) => (
           <div key={icon} className="badge-card locked">
@@ -182,11 +189,13 @@ function SneakPeek({ peek }: { peek: AchievementPeek }) {
           <h3>
             New challenges <span className="tag">new</span> <span className="muted hint">· {newTotal}, built on replay data the original site never read</span>
           </h3>
+          <p className="muted">More being developed.</p>
           <div className="cards">
             {Object.entries(peek.new).map(([theme, count]) => (
               <div key={theme} className="card">
                 <span className="label">{theme}</span>
                 <strong>{count}</strong>
+                {theme === "Unreleased gear" && <span className="muted">Now public</span>}
               </div>
             ))}
           </div>

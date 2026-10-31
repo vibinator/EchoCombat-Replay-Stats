@@ -433,7 +433,8 @@ export interface ChallengeWindow {
 export interface AchievementPeek {
   periods: Partial<Record<AchievementRule["period"], number>>;
   new: Record<string, number>; // theme -> count
-  icons: string[];
+  revealed: AchievementRule[]; // shown in full before the launch
+  icons: string[]; // more badge pictures, shown blurred
 }
 
 export interface Me {
