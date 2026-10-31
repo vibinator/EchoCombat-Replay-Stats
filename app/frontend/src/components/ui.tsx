@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, type ReactNode } from "react";
+import { Component, useLayoutEffect, useRef, type ReactNode } from "react";
 
 /** Plain-language explanations shown as tooltips next to stat names. */
 export const STAT_HELP: Record<string, string> = {
@@ -86,4 +86,25 @@ export function EmptyState({ title, children }: { title: string; children?: Reac
       {children && <span className="muted">{children}</span>}
     </div>
   );
+}
+
+/** A page that crashes shows this message instead of taking the whole site blank. Reset by `key` (the address). */
+export class ErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  componentDidCatch(error: unknown) {
+    console.error("Page error:", error);
+  }
+  render() {
+    if (!this.state.failed) return this.props.children;
+    return (
+      <div className="empty-state">
+        <p className="error">Something went wrong showing this page.</p>
+        <p className="muted">If the site was just updated, reload the page (Ctrl+F5). If it keeps happening, tell us which page it was.</p>
+        <button type="button" onClick={() => location.reload()}>Reload</button>
+      </div>
+    );
+  }
 }

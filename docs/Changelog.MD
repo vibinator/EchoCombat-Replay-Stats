@@ -13,6 +13,14 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 74 — 2026-10-31
+- **Fix: the Playback tab turned the whole page blank** when the website had been updated but the server not restarted yet
+  (the new page asked for playback data the old server does not send). The page now fills in what is missing, and any
+  page that crashes shows "Something went wrong showing this page" with a Reload button instead of a blank screen.
+  Browsers without `roundRect` drawing also work now. **After updating, restart the server** to get the new playback data.
+
+---
+
 ## Beta 73 — 2026-10-31
 ### Match playback, round 2
 - **Payload on the map:** the payload route is drawn (dashed, filled in the attackers' colour as it advances), with the

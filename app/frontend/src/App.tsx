@@ -4,7 +4,7 @@ import { getHealth, getMe, getProcessing, loginUrl, LOGOUT_URL } from "./api";
 import { GlobalSearch } from "./components/GlobalSearch";
 import { HomePage } from "./pages/HomePage";
 import { useAchievementsAccess } from "./components/AchievementsView";
-import { Skeleton } from "./components/ui";
+import { ErrorBoundary, Skeleton } from "./components/ui";
 import { useApi } from "./useApi";
 
 // Pages other than home load on first visit: the first page view downloads less.
@@ -156,6 +156,7 @@ function Layout() {
         )}
       </header>
       <main>
+        <ErrorBoundary key={location.pathname}>
         <Suspense fallback={<Skeleton lines={4} />}>
         <Routes>
           <Route path="/" element={<HomePage />} />
@@ -172,6 +173,7 @@ function Layout() {
           <Route path="*" element={<NotFound />} />
         </Routes>
         </Suspense>
+        </ErrorBoundary>
       </main>
       <footer>
         Inspired by ECRanked, the original Echo Combat stats site. · Press <kbd>/</kbd> to search
