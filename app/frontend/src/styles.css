@@ -2136,3 +2136,116 @@ td.best {
   .pb-main { grid-template-columns: 1fr; }
   .pb-score { gap: 8px; padding: 8px 10px; }
 }
+
+.pb-deaths {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+.pb-deaths img,
+.pb-skull {
+  width: 16px;
+  height: 16px;
+  vertical-align: -3px;
+}
+.pb-skull { margin-right: 4px; }
+.pb-feed li:has(.pb-skull) { color: var(--bad); }
+
+/* ---- playback: objective, fights, death summary, compare ---- */
+.pb-fight {
+  margin-top: 2px;
+  padding: 1px 8px;
+  border-radius: 10px;
+  background: var(--bad);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.pb-fightband {
+  position: absolute;
+  top: -2px;
+  height: 14px;
+  border-radius: 3px;
+  background: var(--bad);
+  opacity: 0.28;
+}
+.pb-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+.pb-ramp {
+  width: 90px;
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, hsl(220 90% 55%), hsl(120 90% 55%), hsl(60 90% 55%), hsl(0 90% 55%));
+}
+.pb-sub {
+  margin: 20px 0 8px;
+  font-size: 1rem;
+}
+.pb-summary,
+.pb-fights {
+  padding: 8px 12px;
+  border: 1px solid var(--surface-2);
+  border-radius: 8px;
+  background: var(--panel);
+}
+.pb-fights {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.pb-sumrow {
+  display: grid;
+  grid-template-columns: 150px 120px 24px 1fr;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border-radius: 6px;
+}
+.pb-sumrow.picked { background: var(--surface-2); }
+.pb-sumname { text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.pb-sumname.blue { color: var(--blue); }
+.pb-sumname.orange { color: var(--orange); }
+.pb-sumbar {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.pb-sumbar span { display: block; height: 100%; }
+.pb-sumbar .bluefill { background: var(--blue); }
+.pb-sumbar .orangefill { background: var(--orange); }
+.pb-sumcount { font-variant-numeric: tabular-nums; font-weight: 600; text-align: right; }
+.pb-sumtimes { display: flex; flex-wrap: wrap; gap: 4px; }
+.chip {
+  padding: 1px 7px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+.chip:hover { background: var(--line); }
+.chip.big { padding: 4px 12px; font-size: 0.85rem; }
+.chip .blue { color: var(--blue); }
+.chip .orange { color: var(--orange); }
+.pb-feed li.swap { color: #c9a227; }
+.pb-label { margin: 0 0 6px; text-transform: capitalize; }
+.pb-compare-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 8px;
+}
+.pb-main.compact { grid-template-columns: 1fr; }
+@media (max-width: 900px) {
+  .pb-compare-grid { grid-template-columns: 1fr; }
+  .pb-sumrow { grid-template-columns: 110px 70px 20px 1fr; }
+}

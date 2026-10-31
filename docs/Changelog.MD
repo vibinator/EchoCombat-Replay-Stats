@@ -13,6 +13,32 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 73 — 2026-10-31
+### Match playback, round 2
+- **Payload on the map:** the payload route is drawn (dashed, filled in the attackers' colour as it advances), with the
+  cart, the checkpoints (filled once reached) and the finish flag. The route was measured from real Fission and Surge
+  replays (median over 12 matches).
+- **Capture point on the map** (Dyson, Combustion): a ring where players stand while capture progress rises, filled in the
+  leading team's colour with the capture %. Its position is measured from replays and its size is an estimate.
+- **Team fights:** 3+ deaths within 6 seconds are a fight: red bands under the slider, a "Fight" badge in the scoreboard
+  while it happens, ⏮ / ⏭ Fight buttons (keys P / N) and a list of fights to jump to.
+- **Death summary:** deaths per player with a bar, every death time as a clickable chip, first death, fights.
+- **Loadout changes:** a "⇄ Nova · Detonator · …" label next to the player for 3 s, and lines in the event feed (the first
+  loadout of each player is not counted as a change). Can be switched off.
+- **Trail colour by speed:** trails can be coloured blue (slow) to red (12+ m/s) instead of by team.
+- **Compare two matches:** type a match number under "Compare with match #" (or use `?vs=` in the link) to play two
+  matches side by side on one shared clock.
+- Event player ids now follow merged players, like the rest of the playback.
+
+---
+
+## Beta 72 — 2026-10-31
+- **Deaths are obvious in the match playback:** a skull pops up on the map where each player died (estimated place),
+  stays 5 seconds and fades, with the player's name under it in their team colour. Each team has a running skull
+  count in the scoreboard, and the roster and event feed show a skull for fresh deaths.
+
+---
+
 ## Beta 71 — 2026-10-31
 - **Playback on the match page is much richer** (same recorded data, no re-import): a scoreboard bar (round score, clock,
   payload distance and checkpoints, or capture points), a roster per team with each player's current weapon, ordnance and

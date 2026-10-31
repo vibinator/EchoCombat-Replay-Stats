@@ -444,6 +444,7 @@ export interface Playback {
   series: Partial<Record<"blue_points" | "orange_points" | "payload_distance", (number | null)[]>>;
   gear: { weapon: PlaybackGear[]; ordnance: PlaybackGear[]; tacmod: PlaybackGear[] };
   events: MatchEvent[];
+  objects: { route?: ([number, number] | null)[]; point?: { u: number; v: number; r: number } };
   players: {
     user_id: string;
     name: string;

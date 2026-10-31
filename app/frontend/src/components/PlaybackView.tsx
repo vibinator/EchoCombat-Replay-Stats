@@ -5,9 +5,58 @@ import { duration, num } from "../format";
 const TEAM_COLORS = ["", "#19d9fc", "#ea7924"];
 const SPEEDS = [0.5, 1, 2, 4, 8, 16];
 const TRAILS: [number, string][] = [[0, "Off"], [10, "5 s"], [30, "15 s"], [120, "1 min"]]; // in samples (2 Hz)
-const DEATH_FLASH_S = 3;
+const DEATH_FLASH_S = 3; // red ring on the dead player's dot and name in the roster
+const SKULL_S = 5; // skull marker left where someone died
+const SWAP_S = 3; // "⇄ weapon" label after a loadout change
+const FIGHT_GAP_S = 6; // deaths closer together than this belong to the same fight
+const FIGHT_MIN_DEATHS = 3;
+const SKULL = new Image();
+SKULL.src = "/icons/death.png";
 
 type Player = Playback["players"][number];
+
+/** Playback clock: the time in seconds, whether it runs, and its speed. Shared between two views in compare mode. */
+export interface Clock {
+  t: number;
+  playing: boolean;
+  speed: number;
+  setT: (seconds: number | ((v: number) => number)) => void;
+  setPlaying: (playing: boolean | ((p: boolean) => boolean)) => void;
+  setSpeed: (speed: number | ((s: number) => number)) => void;
+}
+
+/** A clock that runs from 0 to `max` seconds. */
+export function useClock(max: number): Clock {
+  const [t, setT] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  const [speed, setSpeed] = useState(4);
+  const last = useRef<number | null>(null);
+  useEffect(() => {
+    if (!playing) return;
+    let frame = 0;
+    const tick = (now: number) => {
+      if (last.current != null) {
+        const dt = (now - last.current) / 1000;
+        setT((v) => {
+          const next = v + dt * speed;
+          if (next >= max) {
+            setPlaying(false);
+            return max;
+          }
+          return next;
+        });
+      }
+      last.current = now;
+      frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => {
+      cancelAnimationFrame(frame);
+      last.current = null;
+    };
+  }, [playing, speed, max]);
+  return { t, playing, speed, setT, setPlaying, setSpeed };
+}
 
 /** Current weapon / ordnance / tac mod names of a player at a sample (run-length list, binary search). */
 function loadoutAt(p: Player, gear: Playback["gear"], i: number): [string, string, string] {
@@ -26,10 +75,15 @@ function loadoutAt(p: Player, gear: Playback["gear"], i: number): [string, strin
   return [gear.weapon[w]?.name ?? "–", gear.ordnance[o]?.name ?? "–", gear.tacmod[t]?.name ?? "–"];
 }
 
+function swapText(e: MatchEvent): string {
+  return [e.data?.weapon, e.data?.ordnance, e.data?.tacmod].filter(Boolean).join(" · ");
+}
+
 function eventLabel(e: MatchEvent): string {
   if (e.type === "round_won") return `Round won: Blue ${e.data?.blue} – ${e.data?.orange} Orange`;
   if (e.type === "payload_checkpoint") return `Checkpoint ${e.data?.checkpoint}`;
   if (e.type === "death_est") return `${e.name ?? "Player"} died (est.)`;
+  if (e.type === "loadout_change") return `${e.name ?? "Player"} switched to ${swapText(e)}`;
   if (e.type === "contest_start") return "Contest start";
   if (e.type === "contest_end") return "Contest end";
   return e.type;
@@ -42,73 +96,129 @@ function seriesAt(series: (number | null)[] | undefined, i: number): number | nu
   return null;
 }
 
-/** Animated player dots over the minimap, driven by the 2 Hz position tracks, with scoreboard, roster and event markers. */
-export function PlaybackView({ playback }: { playback: Playback }) {
+/** Colour for a speed in m/s: slow blue, through green and yellow, to fast red. */
+function speedColor(v: number | null): string {
+  const s = Math.min(1, Math.max(0, (v ?? 0) / 12));
+  return `hsl(${Math.round(220 - 220 * s)} 90% 55%)`;
+}
+
+interface Fight {
+  start: number;
+  end: number;
+  deaths: number;
+  blue: number;
+  orange: number;
+}
+
+/** Runs of deaths close together: team fights. */
+function findFights(deaths: MatchEvent[]): Fight[] {
+  const fights: Fight[] = [];
+  let cur: MatchEvent[] = [];
+  const close = () => {
+    if (cur.length >= FIGHT_MIN_DEATHS) {
+      fights.push({
+        start: cur[0].t_s,
+        end: cur[cur.length - 1].t_s,
+        deaths: cur.length,
+        blue: cur.filter((d) => d.team === "blue").length,
+        orange: cur.filter((d) => d.team === "orange").length,
+      });
+    }
+    cur = [];
+  };
+  for (const d of [...deaths].sort((a, b) => a.t_s - b.t_s)) {
+    if (cur.length && d.t_s - cur[cur.length - 1].t_s > FIGHT_GAP_S) close();
+    cur.push(d);
+  }
+  close();
+  return fights;
+}
+
+/**
+ * Animated player dots over the minimap, driven by the 2 Hz position tracks, with scoreboard, objective (payload route /
+ * capture point), roster, fights, death summary, loadout changes and event markers.
+ * `clock` = a shared clock (compare mode); `compact` = only scoreboard, map and feed.
+ */
+export function PlaybackView({ playback, clock, compact = false, label }: { playback: Playback; clock?: Clock; compact?: boolean; label?: string }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const root = useRef<HTMLDivElement>(null);
-  const [t, setT] = useState(0); // sample index (float)
-  const [playing, setPlaying] = useState(false);
-  const [speed, setSpeed] = useState(4);
+  const hz = playback.hz;
+  const end = Math.max(0, playback.samples - 1);
+  const own = useClock(end / hz);
+  const c = clock ?? own;
   const [names, setNames] = useState(true);
   const [trail, setTrail] = useState(10);
+  const [trailColor, setTrailColor] = useState<"team" | "speed">("team");
+  const [swaps, setSwaps] = useState(true);
   const [follow, setFollow] = useState<string | null>(null); // highlighted player
-  const last = useRef<number | null>(null);
-  const end = Math.max(0, playback.samples - 1);
-  const hz = playback.hz;
+
+  const second = Math.min(c.t, end / hz);
+  const t = Math.min(end, second * hz); // sample index (float)
+  const i = Math.floor(t);
 
   const deaths = useMemo(() => playback.events.filter((e) => e.type === "death_est"), [playback.events]);
-  const markers = useMemo(() => playback.events.filter((e) => e.type === "round_won" || e.type === "payload_checkpoint"), [playback.events]);
+  const moments = useMemo(() => playback.events.filter((e) => e.type === "round_won" || e.type === "payload_checkpoint"), [playback.events]);
   const rounds = useMemo(() => playback.events.filter((e) => e.type === "round_won"), [playback.events]);
   const checkpoints = useMemo(() => playback.events.filter((e) => e.type === "payload_checkpoint"), [playback.events]);
+  const fights = useMemo(() => findFights(deaths), [deaths]);
+  // loadout changes after each player's first one (that is the starting pick)
+  const changes = useMemo(() => {
+    const seen = new Set<string>();
+    return playback.events
+      .filter((e) => e.type === "loadout_change")
+      .sort((a, b) => a.t_s - b.t_s)
+      .filter((e) => {
+        const key = e.user_id ?? e.name ?? "";
+        if (!seen.has(key)) {
+          seen.add(key);
+          return false;
+        }
+        return true;
+      });
+  }, [playback.events]);
+  const checkpointDistances = useMemo(
+    () => checkpoints.map((e) => seriesAt(playback.series.payload_distance, Math.round(e.t_s * hz))),
+    [checkpoints, playback.series.payload_distance, hz],
+  );
 
-  useEffect(() => {
-    if (!playing) return;
-    let frame = 0;
-    const tick = (now: number) => {
-      if (last.current != null) {
-        const dt = (now - last.current) / 1000;
-        setT((v) => {
-          const next = v + dt * hz * speed;
-          if (next >= end) {
-            setPlaying(false);
-            return end;
-          }
-          return next;
-        });
-      }
-      last.current = now;
-      frame = requestAnimationFrame(tick);
-    };
-    frame = requestAnimationFrame(tick);
-    return () => {
-      cancelAnimationFrame(frame);
-      last.current = null;
-    };
-  }, [playing, speed, end, hz]);
-
-  const seek = useCallback((seconds: number) => setT((v) => Math.min(end, Math.max(0, v + seconds * hz))), [end, hz]);
+  const seek = useCallback((seconds: number) => c.setT((v) => Math.min(end / hz, Math.max(0, v + seconds))), [c, end, hz]);
+  const jump = useCallback((seconds: number) => {
+    c.setPlaying(false);
+    c.setT(Math.min(end / hz, Math.max(0, seconds)));
+  }, [c, end, hz]);
   const toggle = useCallback(() => {
-    if (t >= end) {
-      setT(0);
-      setPlaying(true);
-    } else setPlaying((p) => !p);
-  }, [t, end]);
+    if (second >= end / hz) {
+      c.setT(0);
+      c.setPlaying(true);
+    } else c.setPlaying((p) => !p);
+  }, [c, second, end, hz]);
+  const nextFight = () => {
+    const f = fights.find((x) => x.start - 2 > second + 0.5);
+    if (f) jump(Math.max(0, f.start - 2));
+  };
+  const prevFight = () => {
+    const f = [...fights].reverse().find((x) => x.start - 2 < second - 2);
+    if (f) jump(Math.max(0, f.start - 2));
+  };
 
-  // keyboard: space play / pause, arrows ±5 s (shift ±30 s), [ ] speed — only while the player has focus
+  // keyboard: space play / pause, arrows ±5 s (shift ±30 s), [ ] speed, N / P next / previous fight
   function onKey(e: React.KeyboardEvent) {
-    if ((e.target as HTMLElement).tagName === "SELECT") return;
+    if ((e.target as HTMLElement).tagName === "SELECT" || compact) return;
     if (e.key === " ") {
       e.preventDefault();
       toggle();
     } else if (e.key === "ArrowRight") seek(e.shiftKey ? 30 : 5);
     else if (e.key === "ArrowLeft") seek(e.shiftKey ? -30 : -5);
-    else if (e.key === "]") setSpeed((s) => SPEEDS[Math.min(SPEEDS.length - 1, SPEEDS.indexOf(s) + 1)]);
-    else if (e.key === "[") setSpeed((s) => SPEEDS[Math.max(0, SPEEDS.indexOf(s) - 1)]);
-    else return;
+    else if (e.key === "]") c.setSpeed((s) => SPEEDS[Math.min(SPEEDS.length - 1, SPEEDS.indexOf(s) + 1)]);
+    else if (e.key === "[") c.setSpeed((s) => SPEEDS[Math.max(0, SPEEDS.indexOf(s) - 1)]);
+    else if (e.key === "n" || e.key === "N") nextFight();
+    else if (e.key === "p" || e.key === "P") prevFight();
   }
 
-  const second = t / hz;
-  const i = Math.floor(t);
+  const attackerColor = playback.attacking_team === "blue" ? TEAM_COLORS[1] : playback.attacking_team === "orange" ? TEAM_COLORS[2] : "#ffffff";
+  const payload = seriesAt(playback.series.payload_distance, i);
+  const bluePts = seriesAt(playback.series.blue_points, i);
+  const orangePts = seriesAt(playback.series.orange_points, i);
 
   useEffect(() => {
     const el = canvas.current;
@@ -119,9 +229,138 @@ export function PlaybackView({ playback }: { playback: Playback }) {
     const ctx = el.getContext("2d")!;
     ctx.scale(devicePixelRatio, devicePixelRatio);
     ctx.clearRect(0, 0, box.width, box.height);
+    const W = box.width;
+    const H = box.height;
     const f = t - i;
     ctx.font = "11px system-ui, sans-serif";
+
+    // --- objective: payload route and cart ---
+    const route = playback.objects.route;
+    if (route && route.some(Boolean)) {
+      const draw = (from: number, to: number) => {
+        ctx.beginPath();
+        let pen = false;
+        for (let k = from; k <= Math.min(to, route.length - 1); k++) {
+          const q = route[k];
+          if (!q) {
+            pen = false;
+            continue;
+          }
+          if (pen) ctx.lineTo(q[0] * W, q[1] * H);
+          else ctx.moveTo(q[0] * W, q[1] * H);
+          pen = true;
+        }
+        ctx.stroke();
+      };
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.strokeStyle = "rgba(255,255,255,.35)";
+      ctx.lineWidth = 3;
+      ctx.setLineDash([4, 5]);
+      draw(0, route.length - 1);
+      ctx.setLineDash([]);
+      const dist = Math.max(0, Math.min(route.length - 1, payload ?? 0));
+      ctx.strokeStyle = attackerColor;
+      ctx.globalAlpha = 0.85;
+      ctx.lineWidth = 4;
+      draw(0, Math.floor(dist));
+      ctx.globalAlpha = 1;
+      checkpointDistances.forEach((d, k) => {
+        const q = d != null ? route[Math.round(d)] : null;
+        if (!q) return;
+        ctx.fillStyle = second >= checkpoints[k].t_s ? attackerColor : "#fff";
+        ctx.strokeStyle = "#16181c";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.rect(q[0] * W - 5, q[1] * H - 5, 10, 10);
+        ctx.fill();
+        ctx.stroke();
+      });
+      const endPoint = route[route.length - 1];
+      if (endPoint) {
+        ctx.font = "bold 12px system-ui, sans-serif";
+        ctx.fillStyle = "#fff";
+        ctx.strokeStyle = "rgba(0,0,0,.8)";
+        ctx.lineWidth = 3;
+        ctx.strokeText("⚑", endPoint[0] * W - 4, endPoint[1] * H - 8);
+        ctx.fillText("⚑", endPoint[0] * W - 4, endPoint[1] * H - 8);
+        ctx.font = "11px system-ui, sans-serif";
+      }
+      const cart = route[Math.round(dist)];
+      if (cart) {
+        ctx.fillStyle = attackerColor;
+        ctx.strokeStyle = "#fff";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect(cart[0] * W - 8, cart[1] * H - 8, 16, 16, 3);
+        ctx.fill();
+        ctx.stroke();
+      }
+    }
+
+    // --- objective: capture point ---
+    const point = playback.objects.point;
+    if (point) {
+      const px = point.u * W;
+      const py = point.v * H;
+      const rad = point.r * W;
+      const blue = bluePts ?? 0;
+      const orange = orangePts ?? 0;
+      const lead = blue === orange ? 0 : blue > orange ? 1 : 2;
+      const share = Math.max(blue, orange) / 100;
+      ctx.fillStyle = lead ? `${TEAM_COLORS[lead]}33` : "rgba(255,255,255,.08)";
+      ctx.beginPath();
+      ctx.arc(px, py, rad, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "rgba(255,255,255,.4)";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      if (lead && share > 0) {
+        ctx.strokeStyle = TEAM_COLORS[lead];
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.arc(px, py, rad, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, share));
+        ctx.stroke();
+      }
+      ctx.font = "bold 12px system-ui, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillStyle = "#fff";
+      ctx.strokeStyle = "rgba(0,0,0,.8)";
+      ctx.lineWidth = 3;
+      const text = lead ? `${Math.round(Math.max(blue, orange))}%` : "point";
+      ctx.strokeText(text, px, py + 4);
+      ctx.fillText(text, px, py + 4);
+      ctx.textAlign = "start";
+      ctx.font = "11px system-ui, sans-serif";
+    }
+
+    // --- skulls where players died: pop in, then fade out ---
+    for (const d of deaths) {
+      const age = second - d.t_s;
+      const u = d.data?.u as number | null | undefined;
+      const w = d.data?.v as number | null | undefined;
+      if (age < 0 || age > SKULL_S || u == null || w == null) continue;
+      const pop = Math.min(1, age / 0.25);
+      const size = (26 + 10 * (1 - pop)) * pop + 6;
+      ctx.globalAlpha = age < SKULL_S - 1.5 ? 0.95 : Math.max(0, (SKULL_S - age) / 1.5) * 0.95;
+      if (SKULL.complete) ctx.drawImage(SKULL, u * W - size / 2, w * H - size / 2, size, size);
+      if (names && d.name) {
+        ctx.font = "bold 11px system-ui, sans-serif";
+        ctx.fillStyle = d.team === "blue" ? TEAM_COLORS[1] : TEAM_COLORS[2];
+        ctx.strokeStyle = "rgba(0,0,0,.8)";
+        ctx.lineWidth = 3;
+        ctx.textAlign = "center";
+        ctx.strokeText(d.name, u * W, w * H + size / 2 + 11);
+        ctx.fillText(d.name, u * W, w * H + size / 2 + 11);
+        ctx.textAlign = "start";
+        ctx.font = "11px system-ui, sans-serif";
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    // --- players ---
     const recentlyDied = new Set(deaths.filter((d) => second >= d.t_s && second - d.t_s < DEATH_FLASH_S).map((d) => d.user_id));
+    const recentSwap = new Map(changes.filter((e) => second >= e.t_s && second - e.t_s < SWAP_S).map((e) => [e.user_id, e]));
     for (const p of playback.players) {
       const a = p.points[i];
       if (!a) continue;
@@ -130,30 +369,28 @@ export function PlaybackView({ playback }: { playback: Playback }) {
       const lerp = b && Math.hypot(b[0] - a[0], b[1] - a[1]) < 0.08;
       const u = lerp ? a[0] + (b[0] - a[0]) * f : a[0];
       const v = lerp ? a[1] + (b[1] - a[1]) * f : a[1];
-      const x = u * box.width;
-      const y = v * box.height;
+      const x = u * W;
+      const y = v * H;
       const picked = follow === p.user_id;
       const dim = follow != null && !picked;
-      ctx.globalAlpha = dim ? 0.4 : 1;
+      const base = dim ? 0.4 : 1;
       if (trail > 0) {
-        ctx.strokeStyle = TEAM_COLORS[a[2]];
-        ctx.globalAlpha = (dim ? 0.4 : 1) * (picked ? 0.7 : 0.35);
-        ctx.lineWidth = picked ? 3 : 2;
-        ctx.beginPath();
-        let pen = false;
-        for (let k = Math.max(0, i - trail); k <= i; k++) {
-          const q = p.points[k];
-          if (!q) {
-            pen = false;
-            continue;
-          }
-          if (pen) ctx.lineTo(q[0] * box.width, q[1] * box.height);
-          else ctx.moveTo(q[0] * box.width, q[1] * box.height);
-          pen = true;
+        ctx.lineWidth = picked ? 3.5 : 2.5;
+        ctx.lineCap = "round";
+        ctx.globalAlpha = base * (picked ? 0.85 : 0.5);
+        const from = Math.max(0, i - trail);
+        for (let k = from + 1; k <= i; k++) {
+          const q0 = p.points[k - 1];
+          const q1 = p.points[k];
+          if (!q0 || !q1) continue;
+          ctx.strokeStyle = trailColor === "speed" ? speedColor(p.speed[k]) : TEAM_COLORS[a[2]];
+          ctx.beginPath();
+          ctx.moveTo(q0[0] * W, q0[1] * H);
+          ctx.lineTo(q1[0] * W, q1[1] * H);
+          ctx.stroke();
         }
-        ctx.stroke();
-        ctx.globalAlpha = dim ? 0.4 : 1;
       }
+      ctx.globalAlpha = base;
       if (recentlyDied.has(p.user_id)) {
         ctx.strokeStyle = "#ff4d5e";
         ctx.lineWidth = 2;
@@ -182,19 +419,29 @@ export function PlaybackView({ playback }: { playback: Playback }) {
         ctx.strokeText(p.name, x + 7, y - 6);
         ctx.fillText(p.name, x + 7, y - 6);
       }
+      const swap = swaps ? recentSwap.get(p.user_id) : undefined;
+      if (swap) {
+        const text = `⇄ ${swapText(swap)}`;
+        ctx.font = "bold 10px system-ui, sans-serif";
+        ctx.fillStyle = "#ffe08a";
+        ctx.strokeStyle = "rgba(0,0,0,.85)";
+        ctx.lineWidth = 3;
+        ctx.strokeText(text, x + 7, y + 14);
+        ctx.fillText(text, x + 7, y + 14);
+        ctx.font = "11px system-ui, sans-serif";
+      }
       ctx.globalAlpha = 1;
     }
-  }, [t, i, second, playback, names, trail, follow, deaths]);
+  }, [t, i, second, playback, names, trail, trailColor, follow, deaths, changes, swaps, payload, bluePts, orangePts, checkpoints, checkpointDistances, attackerColor]);
 
   // scoreboard
   const roundsSoFar = rounds.filter((e) => e.t_s <= second);
   const lastRound = roundsSoFar[roundsSoFar.length - 1];
   const blueRounds = lastRound ? Number(lastRound.data?.blue ?? 0) : 0;
   const orangeRounds = lastRound ? Number(lastRound.data?.orange ?? 0) : 0;
-  const payload = seriesAt(playback.series.payload_distance, i);
   const checkpointsDone = checkpoints.filter((e) => e.t_s <= second).length;
-  const bluePts = seriesAt(playback.series.blue_points, i);
-  const orangePts = seriesAt(playback.series.orange_points, i);
+  const deathsSoFar = (team: string) => deaths.filter((d) => d.team === team && d.t_s <= second).length;
+  const inFight = fights.find((x) => second >= x.start - 2 && second <= x.end + 3);
   // big number beside each team: rounds won (capture point); in payload games, which team attacks / defends
   const side = (team: "blue" | "orange") =>
     playback.mode === "capture_point" ? (
@@ -203,8 +450,8 @@ export function PlaybackView({ playback }: { playback: Playback }) {
       <span className="muted">{playback.attacking_team ? (playback.attacking_team === team ? "attack" : "defence") : ""}</span>
     );
   const recent = playback.events
-    .filter((e) => e.t_s <= second && e.type !== "contest_end")
-    .slice(-5)
+    .filter((e) => e.t_s <= second && e.type !== "contest_end" && (e.type !== "loadout_change" || (swaps && changes.includes(e))))
+    .slice(-6)
     .reverse();
 
   const roster = (team: number) =>
@@ -218,92 +465,128 @@ export function PlaybackView({ playback }: { playback: Playback }) {
         return { p, here, weapon, ordnance, tacmod, died, killsDeaths, speed: p.speed[i] };
       });
 
+  // death summary (whole match)
+  const summary = useMemo(() => {
+    const rows = playback.players.map((p) => {
+      const mine = deaths.filter((d) => d.user_id === p.user_id).sort((a, b) => a.t_s - b.t_s);
+      const team = p.points.find((q) => q)?.[2] ?? 0;
+      return { p, team, mine };
+    });
+    return rows.sort((a, b) => b.mine.length - a.mine.length);
+  }, [playback.players, deaths]);
+  const maxDeaths = Math.max(1, ...summary.map((r) => r.mine.length));
+  const firstDeath = deaths.length ? [...deaths].sort((a, b) => a.t_s - b.t_s)[0] : null;
+  const total = Math.max(1, end / hz);
+  const pos = (s: number) => `${(s / total) * 100}%`;
+
   return (
-    <div className="playback" ref={root} tabIndex={0} onKeyDown={onKey} aria-label="Match playback (space: play / pause, arrow keys: skip, [ ]: speed)">
+    <div className="playback" ref={root} tabIndex={0} onKeyDown={onKey} aria-label="Match playback (space: play / pause, arrow keys: skip, [ ]: speed, N / P: next / previous fight)">
+      {label && <h3 className="pb-label">{label}</h3>}
       <div className="pb-score">
         <div className="pb-team blue">
           <span>Blue</span>
           {side("blue")}
+          <span className="pb-deaths" title="Estimated deaths so far">
+            <img src="/icons/death.png" alt="" /> {deathsSoFar("blue")}
+          </span>
         </div>
         <div className="pb-mid">
           <strong>{duration(second)}</strong>
           <span className="muted">
             {playback.mode === "payload"
               ? `Payload ${payload != null ? `${num(payload, 0)} m` : "–"} · checkpoint ${checkpointsDone}/${Math.max(3, checkpoints.length)}`
-              : `Round ${Math.min(roundsSoFar.length + 1, 2)}${bluePts != null || orangePts != null ? ` · points ${Math.round(bluePts ?? 0)} – ${Math.round(orangePts ?? 0)}` : ""}`}
+              : `Round ${Math.min(roundsSoFar.length + 1, 2)}${bluePts != null || orangePts != null ? ` · capture ${Math.round(bluePts ?? 0)}% – ${Math.round(orangePts ?? 0)}%` : ""}`}
           </span>
+          {inFight && <span className="pb-fight">⚔ Fight · {inFight.deaths} deaths</span>}
         </div>
         <div className="pb-team orange">
+          <span className="pb-deaths" title="Estimated deaths so far">
+            <img src="/icons/death.png" alt="" /> {deathsSoFar("orange")}
+          </span>
           {side("orange")}
           <span>Orange</span>
         </div>
       </div>
 
+      {!clock && (
+        <div className="heatmap-tools">
+          <button onClick={toggle}>{c.playing ? "Pause" : second >= end / hz ? "Replay" : "Play"}</button>
+          <span className="zoom-buttons">
+            <button className="secondary" onClick={() => seek(-10)} title="Back 10 s">−10 s</button>
+            <button className="secondary" onClick={() => seek(10)} title="Forward 10 s">+10 s</button>
+            <button className="secondary" onClick={prevFight} disabled={fights.length === 0} title="Previous fight (P)">⏮ Fight</button>
+            <button className="secondary" onClick={nextFight} disabled={fights.length === 0} title="Next fight (N)">Fight ⏭</button>
+          </span>
+          <label>
+            Speed
+            <select value={c.speed} onChange={(e) => c.setSpeed(Number(e.target.value))}>
+              {SPEEDS.map((s) => (
+                <option key={s} value={s}>{s}×</option>
+              ))}
+            </select>
+          </label>
+          <span className="muted">
+            {duration(second)} / {duration(end / hz)}
+          </span>
+        </div>
+      )}
+
       <div className="heatmap-tools">
-        <button onClick={toggle}>{playing ? "Pause" : t >= end ? "Replay" : "Play"}</button>
-        <span className="zoom-buttons">
-          <button className="secondary" onClick={() => seek(-10)} title="Back 10 s">−10 s</button>
-          <button className="secondary" onClick={() => seek(10)} title="Forward 10 s">+10 s</button>
-        </span>
-        <label>
-          Speed
-          <select value={speed} onChange={(e) => setSpeed(Number(e.target.value))}>
-            {SPEEDS.map((s) => (
-              <option key={s} value={s}>{s}×</option>
-            ))}
-          </select>
-        </label>
         <label>
           Trails
           <select value={trail} onChange={(e) => setTrail(Number(e.target.value))}>
-            {TRAILS.map(([v, label]) => (
-              <option key={v} value={v}>{label}</option>
+            {TRAILS.map(([v, l]) => (
+              <option key={v} value={v}>{l}</option>
             ))}
           </select>
         </label>
+        <label>
+          Trail colour
+          <select value={trailColor} onChange={(e) => setTrailColor(e.target.value as "team" | "speed")}>
+            <option value="team">Team</option>
+            <option value="speed">Speed</option>
+          </select>
+        </label>
+        {trailColor === "speed" && trail > 0 && (
+          <span className="pb-legend" title="Trail colour = speed">
+            0 <span className="pb-ramp" /> 12+ m/s
+          </span>
+        )}
         <label className="inline-check">
           <input type="checkbox" checked={names} onChange={(e) => setNames(e.target.checked)} /> Names
         </label>
-        <span className="muted">
-          {duration(second)} / {duration(end / hz)}
-        </span>
+        <label className="inline-check">
+          <input type="checkbox" checked={swaps} onChange={(e) => setSwaps(e.target.checked)} /> Loadout changes
+        </label>
       </div>
 
-      <div className="pb-track">
-        <input
-          className="scrubber"
-          type="range"
-          min={0}
-          max={end}
-          step={0.5}
-          value={t}
-          aria-label="Match time"
-          onChange={(e) => {
-            setPlaying(false);
-            setT(Number(e.target.value));
-          }}
-        />
-        <div className="pb-markers" aria-hidden="true">
-          {deaths.map((e, k) => (
-            <span key={`d${k}`} className={`pb-tick death ${e.team ?? ""}`} style={{ left: `${(e.t_s * hz / Math.max(1, end)) * 100}%` }} />
-          ))}
-          {markers.map((e, k) => (
-            <button
-              key={`m${k}`}
-              type="button"
-              className="pb-tick moment"
-              style={{ left: `${(e.t_s * hz / Math.max(1, end)) * 100}%` }}
-              title={`${duration(e.t_s)} · ${eventLabel(e)}`}
-              onClick={() => {
-                setPlaying(false);
-                setT(Math.min(end, e.t_s * hz));
-              }}
-            />
-          ))}
+      {!clock && (
+        <div className="pb-track">
+          <input
+            className="scrubber"
+            type="range"
+            min={0}
+            max={end}
+            step={0.5}
+            value={t}
+            aria-label="Match time"
+            onChange={(e) => jump(Number(e.target.value) / hz)}
+          />
+          <div className="pb-markers" aria-hidden="true">
+            {fights.map((f, k) => (
+              <span key={`f${k}`} className="pb-fightband" style={{ left: pos(f.start), width: `max(6px, ${((f.end - f.start) / total) * 100}%)` }} />
+            ))}
+            {deaths.map((e, k) => (
+              <span key={`d${k}`} className={`pb-tick death ${e.team ?? ""}`} style={{ left: pos(e.t_s) }} />
+            ))}
+            {moments.map((e, k) => (
+              <button key={`m${k}`} type="button" className="pb-tick moment" style={{ left: pos(e.t_s) }} title={`${duration(e.t_s)} · ${eventLabel(e)}`} onClick={() => jump(e.t_s)} />
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
-      <div className="pb-main">
+      <div className={compact ? "pb-main compact" : "pb-main"}>
         <div className="heatmap-stage">
           <div className="heatmap-inner">
             <img src={playback.image} alt={`${playback.map} minimap`} />
@@ -311,45 +594,128 @@ export function PlaybackView({ playback }: { playback: Playback }) {
           </div>
         </div>
 
-        <aside className="pb-side">
-          {[1, 2].map((team) => (
-            <div key={team} className="pb-roster">
-              <h3 className={team === 1 ? "blue" : "orange"}>{team === 1 ? "Blue" : "Orange"}</h3>
-              {roster(team).map(({ p, here, weapon, ordnance, tacmod, died, killsDeaths, speed: sp }) => (
-                <button
-                  key={p.user_id}
-                  type="button"
-                  className={`pb-player ${follow === p.user_id ? "picked" : ""} ${here ? "" : "gone"} ${died ? "died" : ""}`}
-                  onClick={() => setFollow(follow === p.user_id ? null : p.user_id)}
-                  title="Click to highlight this player"
-                >
-                  <span className="pb-name">{p.name}</span>
-                  <span className="pb-gear">{here ? `${weapon} · ${ordnance} · ${tacmod}` : "off the map / left"}</span>
-                  <span className="pb-nums">
-                    {here && sp != null ? `${num(sp, 1)} m/s` : "–"}
-                    {killsDeaths > 0 && ` · ${killsDeaths} death${killsDeaths === 1 ? "" : "s"}*`}
-                  </span>
-                </button>
-              ))}
-            </div>
-          ))}
-        </aside>
+        {!compact && (
+          <aside className="pb-side">
+            {[1, 2].map((team) => (
+              <div key={team} className="pb-roster">
+                <h3 className={team === 1 ? "blue" : "orange"}>{team === 1 ? "Blue" : "Orange"}</h3>
+                {roster(team).map(({ p, here, weapon, ordnance, tacmod, died, killsDeaths, speed: sp }) => (
+                  <button
+                    key={p.user_id}
+                    type="button"
+                    className={`pb-player ${follow === p.user_id ? "picked" : ""} ${here ? "" : "gone"} ${died ? "died" : ""}`}
+                    onClick={() => setFollow(follow === p.user_id ? null : p.user_id)}
+                    title="Click to highlight this player"
+                  >
+                    <span className="pb-name">{died && <img className="pb-skull" src="/icons/death.png" alt="died" />}{p.name}</span>
+                    <span className="pb-gear">{here ? `${weapon} · ${ordnance} · ${tacmod}` : "off the map / left"}</span>
+                    <span className="pb-nums">
+                      {here && sp != null ? `${num(sp, 1)} m/s` : "–"}
+                      {killsDeaths > 0 && ` · ${killsDeaths} death${killsDeaths === 1 ? "" : "s"}*`}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ))}
+          </aside>
+        )}
       </div>
 
       <ul className="pb-feed">
         {recent.length === 0 && <li className="muted">Nothing yet.</li>}
         {recent.map((e, k) => (
-          <li key={`${e.frame}-${k}`}>
-            <span className="muted">{duration(e.t_s)}</span> {e.team && <span className={`dot ${e.team}`} />} {eventLabel(e)}
+          <li key={`${e.frame}-${e.type}-${k}`} className={e.type === "death_est" ? "death" : e.type === "loadout_change" ? "swap" : ""}>
+            <span className="muted">{duration(e.t_s)}</span>{" "}
+            {e.type === "death_est" ? <img className="pb-skull" src="/icons/death.png" alt="" /> : e.type === "loadout_change" ? <span>⇄</span> : e.team && <span className={`dot ${e.team}`} />} {eventLabel(e)}
           </li>
         ))}
       </ul>
 
+      {!compact && (
+        <>
+          <h3 className="pb-sub">Deaths (estimated)</h3>
+          <div className="pb-summary">
+            <p className="muted">
+              {deaths.length} deaths{firstDeath ? <> · first: <button type="button" className="link" onClick={() => jump(firstDeath.t_s - 2)}>{firstDeath.name} at {duration(firstDeath.t_s)}</button></> : ""}
+              {fights.length > 0 && ` · ${fights.length} team fight${fights.length === 1 ? "" : "s"} (${FIGHT_MIN_DEATHS}+ deaths within ${FIGHT_GAP_S} s)`}
+            </p>
+            {summary.map(({ p, team, mine }) => (
+              <div key={p.user_id} className={`pb-sumrow ${follow === p.user_id ? "picked" : ""}`}>
+                <button type="button" className={`link pb-sumname ${team === 1 ? "blue" : "orange"}`} onClick={() => setFollow(follow === p.user_id ? null : p.user_id)}>
+                  {p.name}
+                </button>
+                <span className="pb-sumbar">
+                  <span className={team === 1 ? "bluefill" : "orangefill"} style={{ width: `${(mine.length / maxDeaths) * 100}%` }} />
+                </span>
+                <span className="pb-sumcount">{mine.length}</span>
+                <span className="pb-sumtimes">
+                  {mine.slice(0, 10).map((d, k) => (
+                    <button key={k} type="button" className="chip" onClick={() => jump(d.t_s - 2)} title="Jump to this death">{duration(d.t_s)}</button>
+                  ))}
+                  {mine.length > 10 && <span className="muted">+{mine.length - 10}</span>}
+                </span>
+              </div>
+            ))}
+          </div>
+          {fights.length > 0 && (
+            <>
+              <h3 className="pb-sub">Team fights</h3>
+              <div className="pb-fights">
+                {fights.map((f, k) => (
+                  <button key={k} type="button" className="chip big" onClick={() => jump(Math.max(0, f.start - 2))}>
+                    {duration(f.start)} · {f.deaths} deaths <span className="blue">{f.blue}</span>/<span className="orange">{f.orange}</span>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </>
+      )}
+
       <p className="muted footnote">
+        {playback.objects.route ? "Payload route and cart are drawn from the recorded payload distance. " : ""}
+        {playback.objects.point ? "The capture point is drawn where players stand while capture progress rises (size is approximate). " : ""}
         Positions are recorded twice per second; dots glide between them. Players off the map image (spawn rooms) are hidden. Click a player to
-        highlight them; keys: space play / pause, ← → skip 5 s (shift 30 s), [ ] speed. Ticks under the slider are estimated deaths (small) and
-        round / checkpoint moments (click to jump). * Estimated. Speed is measured between recorded positions.
+        highlight them; keys: space play / pause, ← → skip 5 s (shift 30 s), [ ] speed, N / P next / previous fight. Ticks under the slider are
+        estimated deaths (small), round / checkpoint moments (dots, click to jump) and fights (red bands). * Estimated. Speed is measured between
+        recorded positions.
       </p>
+    </div>
+  );
+}
+
+/** Two matches side by side on one shared clock (both start at 0:00). */
+export function PlaybackCompare({ a, b }: { a: Playback; b: Playback }) {
+  const longest = Math.max(a.samples / a.hz, b.samples / b.hz);
+  const clock = useClock(longest);
+  return (
+    <div className="pb-compare">
+      <div className="heatmap-tools">
+        <button onClick={() => (clock.t >= longest ? (clock.setT(0), clock.setPlaying(true)) : clock.setPlaying((p) => !p))}>
+          {clock.playing ? "Pause" : clock.t >= longest ? "Replay" : "Play"}
+        </button>
+        <span className="zoom-buttons">
+          <button className="secondary" onClick={() => clock.setT((v) => Math.max(0, v - 10))}>−10 s</button>
+          <button className="secondary" onClick={() => clock.setT((v) => Math.min(longest, v + 10))}>+10 s</button>
+        </span>
+        <label>
+          Speed
+          <select value={clock.speed} onChange={(e) => clock.setSpeed(Number(e.target.value))}>
+            {SPEEDS.map((s) => (
+              <option key={s} value={s}>{s}×</option>
+            ))}
+          </select>
+        </label>
+        <span className="muted">
+          {duration(clock.t)} / {duration(longest)}
+        </span>
+      </div>
+      <input className="scrubber" type="range" min={0} max={longest} step={0.5} value={clock.t} aria-label="Shared match time"
+        onChange={(e) => { clock.setPlaying(false); clock.setT(Number(e.target.value)); }} />
+      <div className="pb-compare-grid">
+        <PlaybackView playback={a} clock={clock} compact label={`${a.map} (left)`} />
+        <PlaybackView playback={b} clock={clock} compact label={`${b.map} (right)`} />
+      </div>
     </div>
   );
 }

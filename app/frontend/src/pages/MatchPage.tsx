@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router";
 import {
   getMatch, getMatchHeatmapBy, getPlayback, getTimeline,
@@ -5,7 +6,7 @@ import {
 } from "../api";
 import { GearName, LoadoutText, Status, TableWrap } from "../components/common";
 import { CELL_SIZES, HEATMAP_MODES, HeatmapView } from "../components/HeatmapView";
-import { PlaybackView } from "../components/PlaybackView";
+import { PlaybackCompare, PlaybackView } from "../components/PlaybackView";
 import { TimelineView } from "../components/TimelineView";
 import { FitText, InfoTip, STAT_HELP, Skeleton } from "../components/ui";
 import { dateTime, duration, modeLabel, num, pct, teamLabel, title } from "../format";
@@ -271,12 +272,30 @@ function HeatmapTab({ m }: { m: MatchDetail }) {
 }
 
 function PlaybackTab({ id }: { id: number }) {
+  const [params, setParams] = useSearchParams();
+  const other = Number(params.get("vs")) || 0; // ?vs=<match id>: play a second match next to this one
+  const [draft, setDraft] = useState(other ? String(other) : "");
   const p = useApi(() => getPlayback(id), `p${id}`);
+  const q = useApi(() => (other ? getPlayback(other) : Promise.resolve(null)), `q${other}`);
+  function compare(value: number) {
+    const next = new URLSearchParams(params);
+    if (value > 0 && value !== id) next.set("vs", String(value));
+    else next.delete("vs");
+    setParams(next, { replace: true });
+  }
   return (
     <>
-      {p.loading && <Skeleton lines={5} />}
-      <Status loading={false} error={p.error} />
-      {p.data && <PlaybackView playback={p.data} />}
+      <form className="filters" onSubmit={(e) => { e.preventDefault(); compare(Number(draft.replace("#", "")) || 0); }}>
+        <label>
+          Compare with match #
+          <input value={draft} onChange={(e) => setDraft(e.target.value)} inputMode="numeric" placeholder="match number" size={12} />
+        </label>
+        <button type="submit" className="secondary">Compare</button>
+        {other > 0 && <button type="button" className="secondary" onClick={() => { setDraft(""); compare(0); }}>Stop comparing</button>}
+      </form>
+      {(p.loading || (other > 0 && q.loading)) && <Skeleton lines={5} />}
+      <Status loading={false} error={p.error ?? q.error} />
+      {p.data && other > 0 && q.data ? <PlaybackCompare a={p.data} b={q.data} /> : p.data && other === 0 ? <PlaybackView playback={p.data} /> : null}
     </>
   );
 }

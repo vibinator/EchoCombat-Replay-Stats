@@ -11,6 +11,7 @@ from ..duplicates import counted
 from ..errors import ApiError
 from ..gear import ORDNANCES, TACMODS, WEAPONS
 from ..gear import lookup as gear_lookup
+from ..stats.map_objects import CAPTURE_POINTS, PAYLOAD_ROUTES
 from ..stats.maps import HEATMAP_LAYOUTS
 from ..models import DuplicateMatch, Event, Match, MatchPlayer, MatchPlayerLoadout, Player
 from .derived import dominant_arm, loadout, match_summary, ratio
@@ -305,14 +306,37 @@ def get_playback(request: Request, match_id: int):
         out.append({"user_id": main, "name": names.get(main, uid), "points": points,
                     "speed": _speeds(t, header["hz"]), "loadout": _loadout_runs(t, header)})
     events = [e for e in get_events(request, match_id) if e["type"] in PLAYBACK_EVENTS]
+    for e in events:
+        e["user_id"] = aliases.get(e["user_id"], e["user_id"]) if e["user_id"] else None
+    for e in events:  # where a death happened, in minimap space (None when off the image)
+        if e["type"] == "death_est" and e["data"] and "x" in e["data"]:
+            cell = cell_of(e["data"]["x"], e["data"]["z"])
+            e["data"] |= {"u": None, "v": None} if cell is None else {"u": round((cell[0] + 0.5) / cols, 4), "v": round((cell[1] + 0.5) / rows, 4)}
     return json_response({"map": match.map, "image": f"/minimaps/{match.map}.png", "hz": header["hz"], "samples": header["samples"],
                           "mode": match.mode, "attacking_team": match.attacking_team, "duration_s": match.duration_s, "series": header.get("series", {}),
                           "gear": {"weapon": _gear_names(header["weapons"], WEAPONS), "ordnance": _gear_names(header["ordnances"], ORDNANCES),
                                    "tacmod": _gear_names(header["tacmods"], TACMODS)},
-                          "events": events, "players": out})
+                          "events": events, "objects": _map_objects(match.map, cell_of, cols, rows), "players": out})
 
 
-PLAYBACK_EVENTS = {"round_won", "payload_checkpoint", "death_est", "contest_start", "contest_end"}
+PLAYBACK_EVENTS = {"round_won", "payload_checkpoint", "death_est", "contest_start", "contest_end", "loadout_change"}
+
+
+def _map_objects(map_: str, cell_of, cols: int, rows: int) -> dict:
+    """Payload route (minimap space, one point per metre of payload distance) or capture point, for drawing."""
+    out: dict = {}
+    if route := PAYLOAD_ROUTES.get(map_):
+        pts = []
+        for x, z in route:
+            cell = cell_of(x, z)
+            pts.append(None if cell is None else [round((cell[0] + 0.5) / cols, 4), round((cell[1] + 0.5) / rows, 4)])
+        out["route"] = pts
+    if point := CAPTURE_POINTS.get(map_):
+        cell = cell_of(point[0], point[1])
+        if cell is not None:
+            out["point"] = {"u": round((cell[0] + 0.5) / cols, 4), "v": round((cell[1] + 0.5) / rows, 4),
+                            "r": round(point[2] / heatmaps.CELL_M / cols, 4)}  # radius as a share of the image width
+    return out
 
 
 def _gear_names(codes: list[str], table) -> list[dict]:
