@@ -636,7 +636,21 @@ export const getActivity = (bucket: "day" | "week" | "month" | "year") =>
 export const getPlayersSeen = (range: PlayersSeen["range"], anchor: PlayersSeen["anchor"]) =>
   shared(`seen|${range}|${anchor}`, () => request<PlayersSeen>(`/api/overview/players-seen?range=${range}&anchor=${anchor}`));
 export const search = (q: string) => request<SearchResult>(`/api/search${query({ q })}`);
-export const getPlayback = (id: number) => request<Playback>(`/api/matches/${id}/playback`);
+/** A server that has not been restarted after an update answers the older, smaller playback: fill in what is missing. */
+export const getPlayback = (id: number) =>
+  request<Playback>(`/api/matches/${id}/playback`).then(
+    (p): Playback => ({
+      ...p,
+      mode: p.mode ?? "capture_point",
+      attacking_team: p.attacking_team ?? null,
+      duration_s: p.duration_s ?? p.samples / p.hz,
+      series: p.series ?? {},
+      gear: p.gear ?? { weapon: [], ordnance: [], tacmod: [] },
+      events: p.events ?? [],
+      objects: p.objects ?? {},
+      players: p.players.map((q) => ({ ...q, speed: q.speed ?? [], loadout: q.loadout ?? [] })),
+    }),
+  );
 export const getTrends = (userId: string, bucket: "week" | "month" | "year") =>
   request<{ bucket: string; items: TrendPoint[] }>(`/api/players/${encodeURIComponent(userId)}/trends?bucket=${bucket}`);
 export type CompanionWindow = "24h" | "7d" | "1m" | "3m" | "6m" | "12m" | "all";

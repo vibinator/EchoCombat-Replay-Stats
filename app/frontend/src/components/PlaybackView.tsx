@@ -292,7 +292,8 @@ export function PlaybackView({ playback, clock, compact = false, label }: { play
         ctx.strokeStyle = "#fff";
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.roundRect(cart[0] * W - 8, cart[1] * H - 8, 16, 16, 3);
+        if (ctx.roundRect) ctx.roundRect(cart[0] * W - 8, cart[1] * H - 8, 16, 16, 3);
+        else ctx.rect(cart[0] * W - 8, cart[1] * H - 8, 16, 16); // older browsers
         ctx.fill();
         ctx.stroke();
       }
