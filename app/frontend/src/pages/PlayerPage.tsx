@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useParams, useSearchParams } from "react-router";
+import { Link, Navigate, useParams, useSearchParams } from "react-router";
 import {
   getCompanions, getPlayer, getPlayerHeatmapBy, getTrends,
   type Companion, type HeatmapLayerMode, type Period, type PlayerProfile, type PlayerStats,
@@ -236,6 +236,12 @@ export function PlayerPage() {
     if (value && !(key === "period" && value === "all")) next.set(key, value);
     else next.delete(key);
     setParams(next);
+  }
+
+  // a merged ID answers with its main player: show that player's own address (old links keep working)
+  if (p && p.user_id !== userId) {
+    const search = params.toString();
+    return <Navigate replace to={`/players/${encodeURIComponent(p.user_id)}${search ? `?${search}` : ""}`} />;
   }
 
   return (

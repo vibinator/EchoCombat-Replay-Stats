@@ -13,6 +13,18 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 31 — 2026-10-31
+### Website
+- **Merged players no longer show up twice in the search box** at the top of the site. The Players page already
+  hid them; the quick search still listed the merged ID with 0 games.
+- **Old links to a merged ID open the main player's profile** (the address changes to the main player) instead of an
+  empty profile with 0 games. Undoing the merge gives the ID its own profile back.
+
+### Upgrading to Beta 31
+- QNAP: upload Beta 31, wait for the Actions run, Recreate. Windows: restart `run.bat`. No re-import.
+
+---
+
 ## Beta 30 — 2026-10-31
 ### Import
 - **New replays reach the site within ~2-3 minutes** instead of up to ~7. Between the full scans (every 5 min) the

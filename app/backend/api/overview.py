@@ -7,7 +7,7 @@ from sqlalchemy import case, func, select
 
 from ..cache import cached
 from ..gear import ORDNANCES, TACMODS, WEAPONS
-from ..models import Match, MatchPlayer, MatchPlayerLoadout, Player, Replay
+from ..models import Match, MatchPlayer, MatchPlayerLoadout, Player, PlayerAlias, Replay
 from .derived import gear, match_summary, period_start, ratio
 from .players import games_of
 
@@ -100,7 +100,9 @@ def search(request: Request, q: str = Query(..., min_length=1), limit: int = Que
     with request.app.state.sessionmaker() as db:
         games = games_of(Player.id)
         players = db.execute(
-            select(Player.user_id, Player.name, games).where(Player.name.ilike(f"%{q}%")).order_by(games.desc()).limit(limit)
+            select(Player.user_id, Player.name, games)
+            .where(Player.name.ilike(f"%{q}%"), Player.user_id.not_in(select(PlayerAlias.alias_user_id)))  # merged ids (D34)
+            .order_by(games.desc()).limit(limit)
         ).all()
         match = db.get(Match, int(q.lstrip("#"))) if q.lstrip("#").isdigit() else None
     return {

@@ -74,7 +74,7 @@ All JSON. No upload, delete or replay-download endpoints: replays come only from
 | GET | /api/overview | Home dashboard: totals, today / week, by map, top players this week, latest; `global` = top weapon / ordnance / tac mod (time share), recorded hours, avg / longest match, players per match, deaths (est.), fastest, most active, busiest day, payload attack win rate, capture wins | D37 |
 | GET | /api/overview/activity | Matches per `bucket` (day / week / month / year), with a per-map split (`maps`) for the stacked chart | D37 |
 | GET | /api/overview/players-seen | Distinct players per hour (24h) / day (7d, 30d); `anchor` now / latest match | D37 |
-| GET | /api/search | `q`: players by name + match by `#id` | D37 |
+| GET | /api/search | `q`: players by name (merged ids left out, D34) + match by `#id` | D37 |
 | GET | /api/health | `{status, parser_version, stats_version, source_dir}` | 3 |
 | GET | /api/import | `{source_dir, workers, busy, counts, redo (re-processing after update), versions, rate_per_min (last 10 min), eta_min, matches_by_map, stages[{key, label, done, total, detail}] (files → replays → matches → players → events → tracks → heatmaps → leaderboard → achievements), current[{replay_id, source_path, seconds}], scan{…}}` | D25 |
 | GET | /api/replays | List replays (newest file first); filter `status` | 3 |
@@ -83,7 +83,7 @@ All JSON. No upload, delete or replay-download endpoints: replays come only from
 | GET | /api/matches/{id} | Match + teams + per-player stats (derived % included) + loadouts + duplicate sessions | 6 |
 | GET | /api/matches/{id}/events | Timeline; filter `type` | 6 |
 | GET | /api/players | Search; `q` (name contains, case-insensitive), paging; items include games, last_seen_at | 6 |
-| GET | /api/players/{user_id} | Profile stat set (DataModel; `period`=day\|week\|month\|all, `map`) + wins/losses + level + loadout usage + 20 recent matches (with team, result) | 6 |
+| GET | /api/players/{user_id} | A merged id answers with its main player (`user_id` = main; the page moves there). Profile stat set (DataModel; `period`=day\|week\|month\|all, `map`) + wins/losses + level + loadout usage + 20 recent matches (with team, result) | 6 |
 | GET | /api/leaderboard | Rank players by `stat` (see `/stats`; `loadout` + `weapon`/`ordnance`/`tacmod` = hours used); `period`, `map`, `private`, `min_games` (default 10), paging. Lower-is-better stats (ping, deaths, idle) sort ascending | 7 |
 | GET | /api/leaderboard/stats | Selectable stats `[{key, label, higher_is_better}]` | 7 |
 | GET | /api/leaderboard/gear | Loadout codes + names (released first, then cut) | 7 |

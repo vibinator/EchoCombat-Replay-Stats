@@ -153,6 +153,9 @@ def get_player(
 
 def _get_player(request: Request, user_id: str, period: str, map: str | None) -> dict:
     with request.app.state.sessionmaker() as db:
+        # a merged id (D34) answers with its main player; the page then moves to the main player's address
+        if (alias := db.get(PlayerAlias, user_id)) is not None:
+            user_id = alias.main_user_id
         player = db.scalar(select(Player).where(Player.user_id == user_id))
         if player is None:
             raise ApiError(404, "not_found", f"Player {user_id} not found")
