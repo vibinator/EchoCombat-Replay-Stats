@@ -302,6 +302,43 @@ def get_playback(request: Request, match_id: int):
             cell = cell_of(t["x"][i] / 10, t["z"][i] / 10) if team else None
             points.append(None if cell is None else [round((cell[0] + 0.5) / cols, 4), round((cell[1] + 0.5) / rows, 4), team])
         main = aliases.get(uid, uid)
-        out.append({"user_id": main, "name": names.get(main, uid), "points": points})
+        out.append({"user_id": main, "name": names.get(main, uid), "points": points,
+                    "speed": _speeds(t, header["hz"]), "loadout": _loadout_runs(t, header)})
+    events = [e for e in get_events(request, match_id) if e["type"] in PLAYBACK_EVENTS]
     return json_response({"map": match.map, "image": f"/minimaps/{match.map}.png", "hz": header["hz"], "samples": header["samples"],
-                          "players": out})
+                          "mode": match.mode, "attacking_team": match.attacking_team, "duration_s": match.duration_s, "series": header.get("series", {}),
+                          "gear": {"weapon": _gear_names(header["weapons"], WEAPONS), "ordnance": _gear_names(header["ordnances"], ORDNANCES),
+                                   "tacmod": _gear_names(header["tacmods"], TACMODS)},
+                          "events": events, "players": out})
+
+
+PLAYBACK_EVENTS = {"round_won", "payload_checkpoint", "death_est", "contest_start", "contest_end"}
+
+
+def _gear_names(codes: list[str], table) -> list[dict]:
+    return [{"code": c, "name": gear_lookup(table, c).display_name, "cut": gear_lookup(table, c).cut} for c in codes]
+
+
+def _speeds(t: dict, hz: int) -> list[float | None]:
+    """Speed in m/s between consecutive 2 Hz samples (None when absent, or after a respawn jump)."""
+    out: list[float | None] = [None]
+    for i in range(1, len(t["team"])):
+        if t["team"][i] and t["team"][i - 1]:
+            d = ((t["x"][i] - t["x"][i - 1]) ** 2 + (t["z"][i] - t["z"][i - 1]) ** 2) ** 0.5 / 10  # decimetres -> metres
+            v = d * hz
+            out.append(round(v, 1) if v < 40 else None)
+        else:
+            out.append(None)
+    return out
+
+
+def _loadout_runs(t: dict, header: dict) -> list[list[int]]:
+    """Run-length list [sample, weapon, ordnance, tacmod] (indexes into `gear`, -1 = none), one row per change."""
+    runs: list[list[int]] = []
+    last = None
+    for i in range(len(t["team"])):
+        cur = tuple(-1 if t[k][i] == tracks.NO_WEAPON else t[k][i] for k in ("weapon", "ordnance", "tacmod"))
+        if cur != last:
+            runs.append([i, *cur])
+            last = cur
+    return runs

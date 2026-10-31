@@ -13,6 +13,18 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 71 — 2026-10-31
+- **Playback on the match page is much richer** (same recorded data, no re-import): a scoreboard bar (round score, clock,
+  payload distance and checkpoints, or capture points), a roster per team with each player's current weapon, ordnance and
+  tac mod, speed (m/s) and estimated deaths so far, click a player to highlight them, a red ring when someone dies,
+  trails you can set to off / 5 s / 15 s / 1 min, ±10 s buttons, slower speeds (0.5x, 1x, 2x), event ticks under the slider
+  (estimated deaths, round wins and checkpoints you can click to jump to), a live event feed, and keyboard shortcuts
+  (space, arrow keys, [ ] for speed).
+- A 3D replay viewer would need height and facing for every player, which the stored tracks do not have (they keep
+  x / z only), so it needs the replays to be read again. Not part of this update.
+
+---
+
 ## Beta 70 — 2026-10-31
 - **Three per-game challenges are slightly harder** (user request): Full Team Salvo 40/50/60/75/90 % → 45/55/65/80/92 %,
   Super Ultra Hyper Turbo 13/17/21/25/30 m/s → 14/18/22/27/32 m/s, I'm Bat Bot 10/25/50/75/90 % → 15/30/55/80/92 %.

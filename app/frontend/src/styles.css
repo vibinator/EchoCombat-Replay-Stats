@@ -2011,3 +2011,128 @@ td.best {
   gap: 6px;
   margin: 8px 0;
 }
+
+/* ---- playback: scoreboard, roster, event ticks, feed ---- */
+.playback:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 4px;
+  border-radius: 8px;
+}
+.pb-score {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 16px;
+  border: 1px solid var(--surface-2);
+  border-radius: 8px;
+  background: var(--panel);
+}
+.pb-team {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  font-weight: 600;
+}
+.pb-team strong {
+  font-size: 1.8rem;
+  font-variant-numeric: tabular-nums;
+}
+.pb-team.blue { color: var(--blue); }
+.pb-team.orange { color: var(--orange); justify-content: flex-end; }
+.pb-mid {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+.pb-mid strong {
+  font-size: 1.3rem;
+  font-variant-numeric: tabular-nums;
+}
+.pb-track {
+  position: relative;
+}
+.pb-markers {
+  position: relative;
+  height: 14px;
+  margin: 0 8px;
+}
+.pb-tick {
+  position: absolute;
+  top: 0;
+  width: 2px;
+  height: 6px;
+  padding: 0;
+  border-radius: 1px;
+  background: var(--muted);
+  transform: translateX(-1px);
+}
+.pb-tick.death.blue { background: var(--blue); }
+.pb-tick.death.orange { background: var(--orange); }
+.pb-tick.moment {
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--panel);
+  border-radius: 50%;
+  background: var(--text);
+  transform: translateX(-5px);
+  pointer-events: auto;
+}
+.pb-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 16px;
+  align-items: start;
+}
+.pb-side {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.pb-roster {
+  padding: 8px;
+  border: 1px solid var(--surface-2);
+  border-radius: 8px;
+  background: var(--panel);
+}
+.pb-roster h3 {
+  margin: 2px 6px 6px;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+}
+.pb-roster h3.blue { color: var(--blue); }
+.pb-roster h3.orange { color: var(--orange); }
+.pb-player {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0 8px;
+  width: 100%;
+  padding: 6px;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font-weight: 400;
+  text-align: left;
+}
+.pb-player:hover { background: var(--surface-2); }
+.pb-player.picked { background: var(--surface-2); outline: 1px solid var(--muted); }
+.pb-player.gone { opacity: 0.45; }
+.pb-player.died .pb-name { color: var(--bad); }
+.pb-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pb-nums { color: var(--muted); font-size: 0.8rem; text-align: right; white-space: nowrap; }
+.pb-gear { grid-column: 1 / -1; color: var(--muted); font-size: 0.78rem; }
+.pb-feed {
+  margin: 12px 0 0;
+  padding: 8px 12px;
+  list-style: none;
+  border: 1px solid var(--surface-2);
+  border-radius: 8px;
+  background: var(--panel);
+  font-size: 0.85rem;
+}
+.pb-feed li { padding: 2px 0; }
+@media (max-width: 900px) {
+  .pb-main { grid-template-columns: 1fr; }
+  .pb-score { gap: 8px; padding: 8px 10px; }
+}

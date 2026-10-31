@@ -427,12 +427,30 @@ export interface SearchResult {
   matches: MatchSummary[];
 }
 
+export interface PlaybackGear {
+  code: string;
+  name: string;
+  cut: boolean;
+}
+
 export interface Playback {
   map: string;
   image: string;
   hz: number;
   samples: number;
-  players: { user_id: string; name: string; points: ([number, number, number] | null)[] }[];
+  mode: "capture_point" | "payload";
+  attacking_team: Team | null;
+  duration_s: number;
+  series: Partial<Record<"blue_points" | "orange_points" | "payload_distance", (number | null)[]>>;
+  gear: { weapon: PlaybackGear[]; ordnance: PlaybackGear[]; tacmod: PlaybackGear[] };
+  events: MatchEvent[];
+  players: {
+    user_id: string;
+    name: string;
+    points: ([number, number, number] | null)[];
+    speed: (number | null)[]; // m/s between samples
+    loadout: [number, number, number, number][]; // [sample, weapon, ordnance, tac mod] on every change; -1 = none
+  }[];
 }
 
 export interface TrendPoint {
