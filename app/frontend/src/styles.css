@@ -1007,8 +1007,15 @@ kbd {
 .gear-use {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
-  gap: 12px;
+  gap: 20px;
   align-items: start;
+}
+/* each gear type is its own panel so the three tables do not run into each other */
+.gear-use .table-wrap {
+  padding: 8px 14px 6px;
+  border-radius: 8px;
+  background: var(--panel);
+  border: 1px solid var(--surface-2);
 }
 .gear-use .table-wrap table {
   min-width: 0; /* 4 short columns: fit a third of the page (wrapped tables are 560px+ by default) */

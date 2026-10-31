@@ -1,4 +1,5 @@
 import json
+from datetime import datetime, timedelta
 from collections import Counter
 from functools import lru_cache
 from pathlib import Path
@@ -303,10 +304,18 @@ def _get_trends(request: Request, user_id: str, bucket: str) -> dict:
     } for r in rows]}
 
 
-def _together(db, player_id: int):
-    """Rows of (other_player_id, same_team, won) for every match shared with another player."""
-    me = (select(MatchPlayer.match_id, MatchPlayer.team)
-          .where(MatchPlayer.player_id == player_id, counted(MatchPlayer.match_id)).subquery())
+COMPANION_WINDOWS = {"24h": timedelta(hours=24), "7d": timedelta(days=7), "1m": timedelta(days=30),
+                     "3m": timedelta(days=91), "6m": timedelta(days=182), "12m": timedelta(days=365)}
+
+
+def _together(db, player_id: int, window: str = "all"):
+    """Rows of (other_player_id, same_team, won) for every match shared with another player, within a rolling window."""
+    conditions = [MatchPlayer.player_id == player_id, counted(MatchPlayer.match_id)]
+    if delta := COMPANION_WINDOWS.get(window):
+        # started_at is recorder-local time (D17), so the cutoff is local time too
+        conditions.append(MatchPlayer.match_id.in_(
+            select(Match.id).where(Match.started_at >= (datetime.now() - delta).isoformat(timespec="seconds"))))
+    me = select(MatchPlayer.match_id, MatchPlayer.team).where(*conditions).subquery()
     return db.execute(
         select(MatchPlayer.player_id, MatchPlayer.team == me.c.team, Match.winner == me.c.team, Match.winner.is_not(None))
         .join(me, me.c.match_id == MatchPlayer.match_id).join(Match, Match.id == MatchPlayer.match_id)
@@ -315,17 +324,18 @@ def _together(db, player_id: int):
 
 
 @router.get("/{user_id}/companions")
-def get_companions(request: Request, user_id: str, limit: int = Query(10, ge=1, le=50)):
-    """Most frequent teammates and opponents, with the record together / against."""
-    return cached(request, "companions", (user_id, limit), lambda: _get_companions(request, user_id, limit))
+def get_companions(request: Request, user_id: str, limit: int = Query(10, ge=1, le=50),
+                   window: str = Query("all", pattern="^(24h|7d|1m|3m|6m|12m|all)$")):
+    """Most frequent teammates and opponents, with the record together / against, over a rolling time window."""
+    return cached(request, "companions", (user_id, limit, window), lambda: _get_companions(request, user_id, limit, window))
 
 
-def _get_companions(request: Request, user_id: str, limit: int) -> dict:
+def _get_companions(request: Request, user_id: str, limit: int, window: str = "all") -> dict:
     with request.app.state.sessionmaker() as db:
         player = db.scalar(select(Player).where(Player.user_id == user_id))
         if player is None:
             raise ApiError(404, "not_found", f"Player {user_id} not found")
-        rows = _together(db, player.id)
+        rows = _together(db, player.id, window)
         people = dict(db.execute(select(Player.id, Player.user_id)).all())
         names = dict(db.execute(select(Player.id, Player.name)).all())
     stats: dict[tuple[int, bool], list[int]] = {}

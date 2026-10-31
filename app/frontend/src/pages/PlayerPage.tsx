@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, Navigate, useParams, useSearchParams } from "react-router";
 import {
   getCompanions, getPlayer, getPlayerHeatmapBy, getTrends,
-  type Companion, type GearUse, type GearUseSet, type HeatmapLayerMode, type Period, type PlayerProfile, type PlayerStats,
+  type Companion, type CompanionWindow, type GearUse, type GearUseSet, type HeatmapLayerMode, type Period, type PlayerProfile, type PlayerStats,
 } from "../api";
 import { AchievementsSummary } from "../components/AchievementsView";
 import { LineChart } from "../components/charts";
@@ -201,12 +201,25 @@ function CompanionTable({ title: heading, rows, together }: { title: string; row
   );
 }
 
+const COMPANION_WINDOWS: [CompanionWindow, string][] = [
+  ["24h", "24 hours"], ["7d", "7 days"], ["1m", "1 month"], ["3m", "3 months"], ["6m", "6 months"], ["12m", "12 months"], ["all", "All time"],
+];
+
 function Companions({ userId }: { userId: string }) {
-  const c = useApi(() => getCompanions(userId), userId);
+  const [window, setWindow] = useState<CompanionWindow>("all");
+  const c = useApi(() => getCompanions(userId, window), `${userId}|${window}`);
   if (!c.data) return null;
   return (
     <>
-      <h2>Teammates and opponents</h2>
+      <div className="section-head">
+        <h2>Teammates and opponents</h2>
+        <label>
+          Time frame
+          <select value={window} onChange={(e) => setWindow(e.target.value as CompanionWindow)}>
+            {COMPANION_WINDOWS.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
+          </select>
+        </label>
+      </div>
       <div className="two-col">
         <CompanionTable title="Most played with" rows={c.data.teammates} together />
         <CompanionTable title="Most played against" rows={c.data.opponents} together={false} />

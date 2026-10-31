@@ -596,8 +596,10 @@ export const search = (q: string) => request<SearchResult>(`/api/search${query({
 export const getPlayback = (id: number) => request<Playback>(`/api/matches/${id}/playback`);
 export const getTrends = (userId: string, bucket: "week" | "month" | "year") =>
   request<{ bucket: string; items: TrendPoint[] }>(`/api/players/${encodeURIComponent(userId)}/trends?bucket=${bucket}`);
-export const getCompanions = (userId: string) =>
-  request<{ teammates: Companion[]; opponents: Companion[] }>(`/api/players/${encodeURIComponent(userId)}/companions`);
+export type CompanionWindow = "24h" | "7d" | "1m" | "3m" | "6m" | "12m" | "all";
+
+export const getCompanions = (userId: string, window: CompanionWindow = "all") =>
+  request<{ teammates: Companion[]; opponents: Companion[] }>(`/api/players/${encodeURIComponent(userId)}/companions?window=${window}`);
 export const comparePlayers = (userIds: string[], period: Period) =>
   request<Comparison>(`/api/players/compare/${userIds.map(encodeURIComponent).join(",")}?period=${period}`);
 export const getChallenges = () => request<ChallengeWindow>("/api/challenges");

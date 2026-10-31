@@ -13,6 +13,18 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 64 — 2026-10-31
+- **Gear use is easier to read:** weapon, ordnance and tac mod tables on the player page are now separate panels with
+  more space between them instead of running together.
+
+---
+
+## Beta 63 — 2026-10-31
+- **Time frame filter for "Most played with / against":** player pages can now limit teammates and opponents to the last
+  24 hours, 7 days, 1 month, 3 months, 6 months, 12 months or all time (rolling windows, not calendar periods).
+
+---
+
 ## Beta 62 — 2026-10-31
 - **Import progress bars can reach 100%:** "Match results and player stats", "Leaderboard" and "Achievements" now count
   against replays that could be read, not against all replays. Failed replays never produce a match, so they used to
