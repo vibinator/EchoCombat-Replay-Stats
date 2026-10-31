@@ -55,6 +55,7 @@ def import_status(request: Request):
     total = sum(counts.values())
     finished = counts["done"] + counts["failed"]
     waiting = counts["queued"] + counts["processing"]
+    readable = total - counts["failed"]  # failed replays never produce a match, so they can't count against match stages
     # rate over the last 10 min, or since processing started if that is more recent (min 1 min)
     window_min = RATE_WINDOW_MIN
     if earliest:
@@ -65,7 +66,7 @@ def import_status(request: Request):
                "Listed from the replay folder (read-only). Recordings still being written are picked up by a later scan."),
         _stage("replays", "Replays read and checked", finished, total,
                f"Each file is unzipped, read frame by frame and checked (Echo Combat, not damaged). {counts['failed']:,} failed."),
-        _stage("matches", "Match results and player stats", matches, total,
+        _stage("matches", "Match results and player stats", matches, readable,
                "Score, winner, teams, play time, ping, speed, deaths (est.), loadouts, payload push / block."),
         _stage("players", "Players", players, None, "One profile per player ID, combining all of their matches."),
         _stage("events", "Timeline events", events, None,
@@ -74,9 +75,9 @@ def import_status(request: Request):
                "2 positions per second per player, saved per match; used by heatmaps and the timeline chart."),
         _stage("heatmaps", "Heatmaps", with_tracks, matches,
                "Drawn from the position tracks when a match or player page is opened."),
-        _stage("leaderboard", "Leaderboard", matches, total,
+        _stage("leaderboard", "Leaderboard", matches, readable,
                f"Ranked live from the saved match stats ({players:,} players)."),
-        _stage("achievements", "Achievements", matches, total,
+        _stage("achievements", "Achievements", matches, readable,
                f"{len(RULES)} achievements per player, calculated from the saved match stats when viewed."),
     ]
     return {

@@ -13,6 +13,13 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 62 — 2026-10-31
+- **Import progress bars can reach 100%:** "Match results and player stats", "Leaderboard" and "Achievements" now count
+  against replays that could be read, not against all replays. Failed replays never produce a match, so they used to
+  hold these bars just under 100% (e.g. 29,520 / 29,600). "Replays read and checked" still shows the failures.
+
+---
+
 ## Beta 61 — 2026-10-31
 ### Security review (penetration test of a local copy configured like the public site)
 - **Replay files cannot be downloaded:** no route reads the replay folder (it is also mounted read-only), and paths to
