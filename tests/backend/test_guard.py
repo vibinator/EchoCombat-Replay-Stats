@@ -57,3 +57,11 @@ def test_token_bucket():
     assert limiter.take("a", now=1.0) == 0  # one per second refills
     assert limiter.take("a", 5, now=2.0) > 0  # heavy request needs 5 tokens
     assert limiter.take("a", 5, now=7.0) == 0
+
+
+def test_hourly_limit_bounds_a_slow_scraper(tmp_path):
+    with guarded(tmp_path, rate_limit_per_min=100, rate_limit_per_hour=4) as client:  # minute bucket never trips
+        ip = BROWSER | {"CF-Connecting-IP": "3.3.3.3"}
+        assert [client.get("/api/leaderboard/stats", headers=ip).status_code for _ in range(4)] == [200] * 4
+        r = client.get("/api/leaderboard/stats", headers=ip)
+        assert r.status_code == 429 and int(r.headers["retry-after"]) >= 1

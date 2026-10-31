@@ -69,11 +69,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     per_min = settings.rate_limit_per_min
     limiter = guard.RateLimiter(per_min, 2 * per_min) if per_min > 0 else None
+    per_hour = settings.rate_limit_per_hour
+    hourly = guard.RateLimiter(per_hour / 60, per_hour) if per_hour > 0 else None
 
     @app.middleware("http")
     async def scraper_guard(request, call_next):
         """Bots and scripts are turned away before any work is done (D48, guard.py)."""
-        if settings.scraper_guard and (refusal := guard.check(request, limiter)):
+        if settings.scraper_guard and (refusal := guard.check(request, limiter, hourly)):
             return refusal
         return await call_next(request)
 

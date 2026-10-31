@@ -29,7 +29,8 @@ npm install
 | `ECHOVR_DISCORD_CLIENT_SECRET` | – | Discord login (D41). Secret: never in GitHub |
 | `ECHOVR_DISCORD_BOT_TOKEN` | – | Bot that checks the preview role (D41). Secret: never in GitHub |
 | `ECHOVR_DISCORD_PREVIEW_ROLES` | – | Optional: role id(s) and / or Discord user id(s), comma-separated. Those people get the preview **and the website's Console page (admin.bat on the website, D45)**. For the preview alone use admin console option 14 |
-| `ECHOVR_RATE_LIMIT_PER_MIN` | `60` | Scraper protection (D48): website data requests per visitor per minute, bursts up to twice that; heatmaps, playback, compare and downloads count 5. `0` = no limit |
+| `ECHOVR_RATE_LIMIT_PER_MIN` | `30` | Scraper protection (D48): website data requests per visitor per minute, bursts up to twice that; heatmaps, playback, compare and downloads count 10. `0` = no limit |
+| `ECHOVR_RATE_LIMIT_PER_HOUR` | `600` | Same, per visitor per hour (no burst above it). `0` = no hourly limit |
 | `ECHOVR_DB_CACHE_MB` | `1024` | RAM cache (D49): the database is memory-mapped up to this size and read in at startup. Shared OS file cache, given back when other programs need it. `0` = off |
 | `ECHOVR_TRACK_CACHE_MB` | `512` | RAM cache (D49): decoded position files (heatmaps, playback), ~70 KB per match. App memory: lower it on a NAS with little RAM. `0` = off |
 | `ECHOVR_DISCORD_CLIENT_ID` / `_GUILD_ID` | `1214456381466222683` / `779349159852769310` | Bot application and EchoVR Combat server |

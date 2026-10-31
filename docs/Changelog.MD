@@ -13,6 +13,17 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 60 — 2026-10-31
+### Stricter limits against scrapers
+- Data requests per visitor: **30 a minute** (bursts of 60), was 60 (bursts of 120). Heavy answers (heatmaps, playback,
+  compare, downloads) count 10, was 5.
+- **New hourly limit: 600 requests per visitor per hour**, so a slow scraper cannot copy the archive over a day either. A
+  normal visit (a few requests per page) stays far below it.
+- Settings: `ECHOVR_RATE_LIMIT_PER_MIN` (30) and `ECHOVR_RATE_LIMIT_PER_HOUR` (600) in `docker-compose.yml`; `0` turns a limit
+  off. Restart the app container for it to apply.
+
+---
+
 ## Beta 59 — 2026-10-31
 ### Leaderboard is faster
 - **Switching the stat is instant** (about 1.3 s before, 0.03 s now on the full archive): one pass over the matches

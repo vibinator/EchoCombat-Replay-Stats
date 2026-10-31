@@ -4,7 +4,7 @@ the app's layer behind them:
 - /api/* answers only this site's own pages: they send the X-EchoVR header (api.ts), plain scripts do not. Links
   the browser opens itself (login, downloads) cannot add a header and are exempt.
 - /api/* refuses common scraping libraries and headless browsers by user agent.
-- /api/* is rate limited per visitor (token bucket); heavy answers (heatmaps, playback, downloads) cost more.
+- /api/* is rate limited per visitor (token buckets: per minute and per hour); heavy answers (heatmaps, playback, downloads) cost more.
 A determined scraper can copy a header and a user agent; the rate limit is what bounds how fast anyone can copy
 the archive."""
 
@@ -29,7 +29,7 @@ SCRIPT_AGENTS = re.compile(
 HEADER_EXEMPT = ("/api/auth/", "/api/health")
 HEADER_EXEMPT_SUFFIXES = ("/export", ".csv", ".xlsx")
 HEAVY = ("/heatmap", "/playback", "/export", "/compare/", ".csv", ".xlsx")
-HEAVY_COST = 5
+HEAVY_COST = 10
 
 
 def client_ip(request) -> str:
@@ -73,7 +73,7 @@ def _refuse(status: int, code: str, message: str, headers: dict | None = None) -
     return JSONResponse({"error_code": code, "message": message}, status_code=status, headers=headers)
 
 
-def check(request, limiter: RateLimiter | None) -> JSONResponse | None:
+def check(request, limiter: RateLimiter | None, hourly: RateLimiter | None = None) -> JSONResponse | None:
     """None = let the request through; otherwise the refusal to send."""
     path = request.url.path
     agent = request.headers.get("user-agent", "")
@@ -88,7 +88,8 @@ def check(request, limiter: RateLimiter | None) -> JSONResponse | None:
         return _refuse(403, "automated", "Automated access to this site's data is not allowed.")
     if limiter is not None:
         cost = HEAVY_COST if any(h in path for h in HEAVY) else 1
-        wait = limiter.take(client_ip(request), cost)
+        # the per-minute bucket stops bursts, the hourly one bounds how much one visitor can copy in a day
+        wait = max(limiter.take(client_ip(request), cost), hourly.take(client_ip(request), cost) if hourly else 0.0)
         if wait:
             return _refuse(429, "rate_limited", "Too many requests. Wait a moment and try again.",
                            {"Retry-After": str(max(1, round(wait)))})
