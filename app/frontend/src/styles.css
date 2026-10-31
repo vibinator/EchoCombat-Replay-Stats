@@ -964,7 +964,7 @@ kbd {
 }
 @media (max-width: 900px) {
   .live-latest {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr); /* never wider than the screen (rows have one-line text) */
   }
   .live-latest-matches > .match-cards {
     position: static;

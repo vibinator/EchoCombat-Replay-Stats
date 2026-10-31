@@ -13,6 +13,13 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 42 — 2026-10-31
+### Home page
+- **Latest matches beside the live video are a compact, scrollable list:** one short row per match (small minimap,
+  map, mode, score, winner, date and length), as tall as the video, scrolling to all 8 newest matches. Replaces the
+  big cards, which did not fit next to the video. On narrow screens the list sits below the video and scrolls too.
+- Nothing to do: refresh the page.
+
 ## Beta 41 — 2026-10-31
 ### Home page
 - **Fixed:** the latest-match cards beside the live video were squashed to thin strips (every card shown, each
