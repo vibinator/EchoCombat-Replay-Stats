@@ -21,7 +21,7 @@ from .cache import bump_generation
 from .config import Settings
 from .db import utcnow
 from .models import Match, MatchPlayerLoadout, PriorityReplay, RepairRequest, Replay
-from . import tracks
+from . import duplicates, tracks
 from .persist import delete_match, save_match
 from .stats import STATS_VERSION, compute
 from .tracks import TrackRecorder, tracks_path
@@ -153,6 +153,7 @@ class Worker:
 
     def start(self) -> None:
         requeue_unfinished_and_outdated(self.sessions)
+        duplicates.refresh_all(self.sessions)
         self._pool = self._new_pool()
         self._thread.start()
 

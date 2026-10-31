@@ -24,6 +24,20 @@ export function dateTime(iso: string): string {
   return iso.slice(0, 16).replace("T", " ");
 }
 
+const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September",
+  "October", "November", "December"];
+
+/** Chart periods from the API ("2026-10" month, "2026-43" week, "2026" year) as "Oct 2026" / "Week 43 2026";
+ *  `long` spells the month out ("October 2026"), for tooltips. */
+export function periodLabel(period: string, bucket: string, long = false): string {
+  const [year, part] = period.split("-");
+  if (!part) return period;
+  if (bucket === "week") return `${long ? "Week" : "Wk"} ${Number(part)} ${year}`;
+  if (bucket !== "month") return period;
+  const name = MONTH_NAMES[Number(part) - 1] ?? part;
+  return `${long ? name : name.slice(0, 3)} ${year}`;
+}
+
 export function title(word: string): string {
   return word ? word[0].toUpperCase() + word.slice(1) : word;
 }

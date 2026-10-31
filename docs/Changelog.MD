@@ -13,6 +13,33 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 32 — 2026-10-31
+### Stats
+- **A match recorded twice now counts once.** The archive has 426 matches saved in two (or more) files: same
+  session, same time, usually one of them re-saved later at twice the size. Until now both copies counted, in every
+  total: profiles, leaderboard, achievements, home page, trends, teammates, heatmaps and match lists (about 1.5 % of
+  matches and ~2,500 player appearances counted twice).
+- Only the most complete copy counts (longest, then most players, then most frames; identical copies: the file
+  found first). The other copy keeps its match page, with a note linking to the counted one. Match lists show the
+  match once.
+- Back-to-back matches in the same lobby share a session id but do not overlap in time: they are separate matches
+  and still all count.
+- "Also recorded in" on a match page now lists only real copies of that match, not the other matches of the lobby.
+- Nothing is re-read: the copies are found from the existing data at startup (~0.05 s) and whenever a replay is
+  saved. A new index is added to the database at startup (~0.1 s).
+
+### Website
+- **"Matches recorded over time" shows the latest month again.** The chart labelled every other bar counted from the
+  first one, so the newest bar was often unlabelled; labels now count back from the newest. Same fix for the other
+  bar and line charts (players per day / hour, player trends).
+- Month labels read "Oct 2026" instead of "2026-10" (tooltip: "October 2026"); player trend weeks read "Wk 43 2026".
+
+### Upgrading to Beta 32
+- QNAP: upload Beta 32, wait for the Actions run, Recreate. Windows: restart `run.bat`. No re-import. Totals drop
+  slightly (the counted-twice matches), as intended.
+
+---
+
 ## Beta 31 — 2026-10-31
 ### Website
 - **Merged players no longer show up twice in the search box** at the top of the site. The Players page already

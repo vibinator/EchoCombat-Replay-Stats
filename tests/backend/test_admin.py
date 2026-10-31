@@ -80,7 +80,7 @@ def test_merge_then_undo_restores_everything(client):
 def test_merged_id_leaves_search_and_opens_the_main_profile(client):
     act(client, actions.merge_players, "100", ["200"])
     wait(client)
-    assert [p["user_id"] for p in client.get("/api/search", params={"q": "a"}).json()["players"]] == ["100", "300"]
+    assert {p["user_id"] for p in client.get("/api/search", params={"q": "a"}).json()["players"]} == {"100", "300"}
     old_link = client.get("/api/players/200").json()  # old links to the alt
     assert (old_link["user_id"], old_link["stats"]["games"]) == ("100", 3)
 

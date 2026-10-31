@@ -13,6 +13,7 @@ from .. import auth, icons
 from ..achievements import RULES, Game, evaluate, icon_file, in_window, overall, unlock_dates
 from ..admin_actions import WINDOW_KEYS, achievements_launched, challenge_window
 from ..cache import cached, data_stamp
+from ..duplicates import counted
 from ..errors import ApiError
 from ..models import AppSetting, Match, MatchPlayer, MatchPlayerLoadout, Player
 
@@ -76,9 +77,10 @@ def _games(db, player_ids: list[int] | None = None, fingerprints: dict[int, int]
         MatchPlayer.frames_near_enemy, MatchPlayer.frames_upside_down, MatchPlayer.speed_sum, MatchPlayer.top_speed,
         Match.frame_rate_hz, MatchPlayer.team, Match.winner, Match.attacking_team, Match.blue_rounds, Match.orange_rounds,
         MatchPlayer.payload_push_s, MatchPlayer.payload_block_s, MatchPlayer.emote_count,
-    ).join(Match, Match.id == MatchPlayer.match_id)
+    ).join(Match, Match.id == MatchPlayer.match_id).where(counted(MatchPlayer.match_id))  # duplicates left out (D13)
     lo_query = select(MatchPlayerLoadout.match_id, MatchPlayerLoadout.player_id, MatchPlayerLoadout.weapon,
-                      MatchPlayerLoadout.tacmod, MatchPlayerLoadout.ordnance, MatchPlayerLoadout.frames)
+                      MatchPlayerLoadout.tacmod, MatchPlayerLoadout.ordnance, MatchPlayerLoadout.frames
+                      ).where(counted(MatchPlayerLoadout.match_id))
     if player_ids is not None:
         query = query.where(MatchPlayer.player_id.in_(player_ids))
         lo_query = lo_query.where(MatchPlayerLoadout.player_id.in_(player_ids))

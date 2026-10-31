@@ -6,6 +6,7 @@ from fastapi import APIRouter, Query, Request
 from sqlalchemy import and_, case, func, select
 
 from ..cache import cached
+from ..duplicates import counted
 from ..errors import ApiError
 from ..gear import ORDNANCES, TACMODS, WEAPONS
 from ..models import Match, MatchPlayer, MatchPlayerLoadout, Player
@@ -58,7 +59,7 @@ def _aggregate(where):
 def _values(db, request, stat, period, map, private, weapon, tacmod, ordnance, shift_days: int = 0):
     """(label, higher_is_better, [(player_id, games, value)]); shift_days moves the window back
     (for rank changes): period windows move back one period, all-time stops `shift_days` ago."""
-    conditions = []
+    conditions = [counted(Match.id)]  # duplicate recordings left out (D13)
     start = period_start(period)
     if shift_days:
         today = datetime.now().date()

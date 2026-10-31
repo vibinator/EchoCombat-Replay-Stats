@@ -12,6 +12,16 @@ export interface BarDatum {
 
 const W = 800;
 
+/** Sparse axis labels, counted back from the newest point so the latest period is always labelled. */
+function labelled(i: number, count: number, every: number): boolean {
+  return (count - 1 - i) % every === 0;
+}
+
+/** The last label ends at the chart's edge instead of being cut off there. */
+function anchor(i: number, count: number): "middle" | "end" {
+  return i === count - 1 ? "end" : "middle";
+}
+
 export function BarChart({ data, title, unit = "", height = 180, color = "var(--chart-1)" }: {
   data: BarDatum[];
   title: string;
@@ -59,8 +69,8 @@ export function BarChart({ data, title, unit = "", height = 180, color = "var(--
                     opacity={hover == null || hover === i ? 1 : 0.55}
                   />
                 )}
-                {i % labelEvery === 0 && (
-                  <text className="axis" x={x + (slot - gap) / 2} y={height - 6} textAnchor="middle">
+                {labelled(i, data.length, labelEvery) && (
+                  <text className="axis" x={i === data.length - 1 ? x + slot - gap : x + (slot - gap) / 2} y={height - 6} textAnchor={anchor(i, data.length)}>
                     {d.label}
                   </text>
                 )}
@@ -163,8 +173,8 @@ export function StackedBarChart({ data, series, title, unit = "", height = 180 }
                     <rect key={s.key} x={x} y={top} width={w} height={h} fill={s.color} />
                   );
                 })}
-                {i % labelEvery === 0 && (
-                  <text className="axis" x={x + w / 2} y={height - 6} textAnchor="middle">
+                {labelled(i, data.length, labelEvery) && (
+                  <text className="axis" x={i === data.length - 1 ? x + w : x + w / 2} y={height - 6} textAnchor={anchor(i, data.length)}>
                     {d.label}
                   </text>
                 )}
@@ -248,8 +258,8 @@ export function LineChart({ data, title, format = (v: number) => v.toLocaleStrin
             </g>
           ))}
           {data.map((p, i) =>
-            i % labelEvery === 0 ? (
-              <text key={p.label} className="axis" x={x(i)} y={height - 5} textAnchor="middle">
+            labelled(i, data.length, labelEvery) ? (
+              <text key={p.label} className="axis" x={x(i)} y={height - 5} textAnchor={anchor(i, data.length)}>
                 {p.label}
               </text>
             ) : null,

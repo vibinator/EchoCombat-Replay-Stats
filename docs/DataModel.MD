@@ -126,6 +126,16 @@ Index: `(status, source_mtime)` for newest-first claiming. Files removed from th
 
 Event types (v1): `player_join` / `player_leave` (only mid-match: not at frame 0 / not in last frame), `loadout_change` (also the first loadout; data: weapon, tacmod, ordnance), `respawn` (out → in bounds), `death_est`, `respawn`, `loadout_change`, `death_est` (data: x, z of last in-bounds head position), `round_won` (data: blue/orange rounds), `payload_checkpoint` (data: checkpoint, time_left_s before the +120 s bonus), `contest_start`, `contest_end`.
 
+### duplicate_matches — copies of a match recorded twice (D13)
+| Column | Type | Notes |
+|---|---|---|
+| match_id | INTEGER PK FK → matches ON DELETE CASCADE | this copy does not count towards stats |
+| counted_match_id | INTEGER FK → matches ON DELETE CASCADE, index | the copy that counts (same session, overlapping time) |
+
+Derived like the tables above: recomputed for a session whenever one of its matches is saved or deleted, and for
+the whole archive at startup (`duplicates.refresh_all`, ~0.05 s). Stat queries leave these rows out with
+`duplicates.counted(<match id column>)`.
+
 ## Derived (computed in API, not stored)
 | Stat | Formula |
 |---|---|
@@ -179,7 +189,8 @@ In memory (`functools.lru_cache`, 64 entries) keyed by player, map, mode, period
 - replays.sha256 UNIQUE; replays.status
 - matches.session_id; matches.started_at; matches.map; matches(private_match, started_at)
 - players.user_id UNIQUE; players.name
-- match_players(player_id); match_players.top_speed (home "fastest player", D50)
+- match_players(player_id); match_players(player_id, match_id): covering for per-player counts without duplicates (D13);
+  match_players.top_speed (home "fastest player", D50)
 - match_player_loadouts(weapon, ordnance, tacmod, match_id, frames): covering, home "most popular gear" (D50)
 - events(match_id, t_s)
 

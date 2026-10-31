@@ -9,6 +9,7 @@ from sqlalchemy import and_, case, func, select
 from .. import heatmaps, tracks
 from ..aliases import ids_of
 from ..cache import cached, data_stamp
+from ..duplicates import counted
 from ..errors import ApiError
 from ..gear import WEAPONS
 from ..gear import lookup as gear_lookup
@@ -23,8 +24,9 @@ RECENT_MATCHES = 20
 
 
 def games_of(player_id_column):
-    """Correlated count of a player's matches (index-only on match_players.player_id)."""
-    return select(func.count()).where(MatchPlayer.player_id == player_id_column).scalar_subquery()
+    """Correlated count of a player's matches (index on match_players.player_id); duplicate recordings left out (D13)."""
+    return (select(func.count()).where(MatchPlayer.player_id == player_id_column, counted(MatchPlayer.match_id))
+            .scalar_subquery())
 
 
 @router.get("")
@@ -47,7 +49,7 @@ def search_players(
 
 
 def _filters(player_id: int, period: str, map_: str | None):
-    conditions = [MatchPlayer.player_id == player_id]
+    conditions = [MatchPlayer.player_id == player_id, counted(MatchPlayer.match_id)]  # duplicates left out (D13)
     if start := period_start(period):
         conditions.append(Match.started_at >= start)
     if map_:
@@ -286,7 +288,7 @@ def _get_trends(request: Request, user_id: str, bucket: str) -> dict:
                    s(MatchPlayer.frames_in_bounds).label("in_bounds"), s(MatchPlayer.ping_sum).label("ping"),
                    s(MatchPlayer.ping_frames).label("ping_frames"), func.max(MatchPlayer.top_speed).label("top"))
             .select_from(MatchPlayer).join(Match, Match.id == MatchPlayer.match_id)
-            .where(MatchPlayer.player_id == player.id).group_by("period").order_by("period")
+            .where(MatchPlayer.player_id == player.id, counted(Match.id)).group_by("period").order_by("period")
         ).all()
     return {"bucket": bucket, "items": [{
         "period": r.period, "games": r.games,
@@ -300,7 +302,8 @@ def _get_trends(request: Request, user_id: str, bucket: str) -> dict:
 
 def _together(db, player_id: int):
     """Rows of (other_player_id, same_team, won) for every match shared with another player."""
-    me = select(MatchPlayer.match_id, MatchPlayer.team).where(MatchPlayer.player_id == player_id).subquery()
+    me = (select(MatchPlayer.match_id, MatchPlayer.team)
+          .where(MatchPlayer.player_id == player_id, counted(MatchPlayer.match_id)).subquery())
     return db.execute(
         select(MatchPlayer.player_id, MatchPlayer.team == me.c.team, Match.winner == me.c.team, Match.winner.is_not(None))
         .join(me, me.c.match_id == MatchPlayer.match_id).join(Match, Match.id == MatchPlayer.match_id)

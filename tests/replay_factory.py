@@ -1,11 +1,14 @@
 """Builds small synthetic .echoreplay content shaped like the Echo VR /session API."""
 
 import io
+import itertools
 import json
 import zipfile
 from datetime import datetime, timedelta
 
 START = datetime(2026, 10, 28, 20, 45, 44, 123456)
+SESSION_ID = "BF48D570-ED45-426E-AF95-F0D6A033BF03"
+_sessions = itertools.count(1)
 BIG_USER_ID = 1324398816765673576  # > 2^53
 
 
@@ -22,7 +25,7 @@ def player(user_id: int = BIG_USER_ID, name: str = "Player", slot: int = 0) -> d
 
 def frame(match_type: str = "Echo_Combat", payload: bool = False, **overrides) -> dict:
     d = {
-        "sessionid": "BF48D570-ED45-426E-AF95-F0D6A033BF03", "sessionip": "0.0.0.0",
+        "sessionid": SESSION_ID, "sessionip": "0.0.0.0",
         "match_type": match_type, "map_name": "mpl_combat_dyson", "private_match": False,
         "tournament_match": False, "client_name": "Recorder", "blue_round_score": 0,
         "orange_round_score": 0, "total_round_count": 0, "contested": False,
@@ -43,15 +46,24 @@ def frame(match_type: str = "Echo_Combat", payload: bool = False, **overrides) -
     return d
 
 
-def lines(count: int = 3, stamp_format: str = "%Y-%m-%d %H:%M:%S.%f", **frame_kwargs) -> list[str]:
+def new_session_id() -> str:
+    """Each generated file is its own match: all start at START, so one shared id would make them copies (D13)."""
+    return f"00000000-0000-4000-8000-{next(_sessions):012d}"
+
+
+def lines(count: int = 3, stamp_format: str = "%Y-%m-%d %H:%M:%S.%f", start: datetime = START,
+          **frame_kwargs) -> list[str]:
+    frame_kwargs.setdefault("sessionid", new_session_id())
     return [
-        f"{(START + timedelta(seconds=i / 20)).strftime(stamp_format)}\t{json.dumps(frame(**frame_kwargs))}"
+        f"{(start + timedelta(seconds=i / 20)).strftime(stamp_format)}\t{json.dumps(frame(**frame_kwargs))}"
         for i in range(count)
     ]
 
 
 def lines_from(frames: list[dict]) -> list[str]:
-    """One line per frame dict, 20 Hz timestamps from START."""
+    """One line per frame dict, 20 Hz timestamps from START. Frames with the default session id get a new one."""
+    session = new_session_id()
+    frames = [f | {"sessionid": session} if f.get("sessionid") == SESSION_ID else f for f in frames]
     return [
         f"{(START + timedelta(seconds=i / 20)).strftime('%Y-%m-%d %H:%M:%S.%f')}\t{json.dumps(f)}"
         for i, f in enumerate(frames)

@@ -80,7 +80,7 @@ All JSON. No upload, delete or replay-download endpoints: replays come only from
 | GET | /api/replays | List replays (newest file first); filter `status` | 3 |
 | GET | /api/replays/{id} | `source_path`, status, error, warnings, `match_id` (also in list items) | 3, 5 |
 | GET | /api/matches | List; filters `map`, `mode`, `player` (user_id), `player_name`, `from`/`to`, `private`, `min_players`, `result` (blue / orange / attack_win / defence_win / unknown); `with_players` adds names (cards) | 6, D37 |
-| GET | /api/matches/{id} | Match + teams + per-player stats (derived % included) + loadouts + duplicate sessions | 6 |
+| GET | /api/matches/{id} | Match + teams + per-player stats (derived % included) + loadouts + `also_recorded_in` (other copies of the same match) + `duplicate_of` (set: that copy counts in stats instead, D13) | 6 |
 | GET | /api/matches/{id}/events | Timeline; filter `type` | 6 |
 | GET | /api/players | Search; `q` (name contains, case-insensitive), paging; items include games, last_seen_at | 6 |
 | GET | /api/players/{user_id} | A merged id answers with its main player (`user_id` = main; the page moves there). Profile stat set (DataModel; `period`=day\|week\|month\|all, `map`) + wins/losses + level + loadout usage + 20 recent matches (with team, result) | 6 |

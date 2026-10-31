@@ -105,7 +105,8 @@ export interface MatchDetail extends MatchSummary {
   blue_capture_s: number;
   orange_capture_s: number;
   teams: Record<Team, MatchPlayer[]>;
-  also_recorded_in: number[];
+  also_recorded_in: number[]; // other recordings of the same match
+  duplicate_of: number | null; // set: that recording counts in the stats, this one does not
 }
 
 export interface PlayerListItem {

@@ -63,6 +63,16 @@ class Match(Base):
     orange_capture_s: Mapped[float]
 
 
+class DuplicateMatch(Base):
+    """The same match recorded in more than one file (D13): `match_id` is a copy that does not count towards stats,
+    because `counted_match_id` (same session, overlapping time) does. Its match page still works. Set by duplicates.py."""
+
+    __tablename__ = "duplicate_matches"
+
+    match_id: Mapped[int] = mapped_column(ForeignKey("matches.id", ondelete="CASCADE"), primary_key=True)
+    counted_match_id: Mapped[int] = mapped_column(ForeignKey("matches.id", ondelete="CASCADE"), index=True)
+
+
 class Player(Base):
     __tablename__ = "players"
 
@@ -75,6 +85,8 @@ class Player(Base):
 
 class MatchPlayer(Base):
     __tablename__ = "match_players"
+    # per-player counts that leave duplicate recordings out (D13) read only this index
+    __table_args__ = (Index("ix_match_players_player_match", "player_id", "match_id"),)
 
     match_id: Mapped[int] = mapped_column(ForeignKey("matches.id", ondelete="CASCADE"), primary_key=True)
     player_id: Mapped[int] = mapped_column(ForeignKey("players.id"), primary_key=True, index=True)

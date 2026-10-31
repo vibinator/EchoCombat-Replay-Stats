@@ -6,7 +6,7 @@ import { MatchCards } from "../components/MatchCards";
 import { PlayerSearch } from "../components/PlayerSearch";
 import { EmptyState, FitText, Skeleton } from "../components/ui";
 import { Status } from "../components/common";
-import { MAPS, dateTime, duration, num, pct, title } from "../format";
+import { MAPS, dateTime, duration, num, pct, periodLabel, title } from "../format";
 import { useApi } from "../useApi";
 
 function GearTop({ label, items }: { label: string; items: GearShare[] }) {
@@ -109,7 +109,11 @@ function ActivityChart() {
           title={`Matches per ${bucket}, by map`}
           unit=" matches"
           series={MAPS.map((m) => ({ key: m, label: title(m), color: `var(--map-${m})` }))}
-          data={activity.data.items.map((i) => ({ label: i.period, values: i.maps, tooltip: `${i.period}: ${i.hours} h` }))}
+          data={activity.data.items.map((i) => ({
+            label: periodLabel(i.period, activity.data!.bucket),
+            values: i.maps,
+            tooltip: `${periodLabel(i.period, activity.data!.bucket, true)}: ${i.hours} h`,
+          }))}
         />
       )}
     </section>

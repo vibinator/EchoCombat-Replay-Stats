@@ -6,6 +6,7 @@ from fastapi import APIRouter, Query, Request
 from sqlalchemy import case, func, select
 
 from ..cache import cached
+from ..duplicates import counted
 from ..gear import ORDNANCES, TACMODS, WEAPONS
 from ..models import Match, MatchPlayer, MatchPlayerLoadout, Player, PlayerAlias, Replay
 from .derived import gear, match_summary, period_start, ratio
@@ -22,22 +23,23 @@ def overview(request: Request):
 
 def _overview(request: Request) -> dict:
     today, week = period_start("day"), period_start("week")
+    m, mp = counted(Match.id), counted(MatchPlayer.match_id)  # duplicate recordings left out (D13)
     with request.app.state.sessionmaker() as db:
-        matches, hours = db.execute(select(func.count(), func.sum(Match.duration_s))).one()
+        matches, hours = db.execute(select(func.count(), func.sum(Match.duration_s)).where(m)).one()
         players = db.scalar(select(func.count()).select_from(Player))
-        play_hours = db.scalar(select(func.sum(MatchPlayer.play_time_s)))
-        today_n = db.scalar(select(func.count()).select_from(Match).where(Match.started_at >= today))
-        week_n = db.scalar(select(func.count()).select_from(Match).where(Match.started_at >= week))
-        by_map = dict(db.execute(select(Match.map, func.count()).group_by(Match.map)).all())
+        play_hours = db.scalar(select(func.sum(MatchPlayer.play_time_s)).where(mp))
+        today_n = db.scalar(select(func.count()).select_from(Match).where(Match.started_at >= today, m))
+        week_n = db.scalar(select(func.count()).select_from(Match).where(Match.started_at >= week, m))
+        by_map = dict(db.execute(select(Match.map, func.count()).where(m).group_by(Match.map)).all())
         first, last = db.execute(select(func.min(Match.started_at), func.max(Match.started_at))).one()
         won = case((Match.winner == MatchPlayer.team, 1), else_=0)
         top_week = db.execute(
             select(Player.user_id, Player.name, func.count().label("games"), func.sum(won).label("wins"))
             .select_from(MatchPlayer).join(Match, Match.id == MatchPlayer.match_id).join(Player)
-            .where(Match.started_at >= week).group_by(Player.id)
+            .where(Match.started_at >= week, m).group_by(Player.id)
             .order_by(func.count().desc(), func.sum(won).desc()).limit(5)
         ).all()
-        latest = db.scalars(select(Match).order_by(Match.started_at.desc()).limit(8)).all()
+        latest = db.scalars(select(Match).where(m).order_by(Match.started_at.desc()).limit(8)).all()
         globals_ = _global_stats(db)
     return {
         "global": globals_,
@@ -80,7 +82,7 @@ def _activity(request: Request, bucket: str) -> dict:
     with request.app.state.sessionmaker() as db:
         rows = db.execute(
             select(expr.label("period"), Match.map, func.count(), func.sum(Match.duration_s))
-            .group_by("period", Match.map).order_by("period")
+            .where(counted(Match.id)).group_by("period", Match.map).order_by("period")
         ).all()
     items: dict[str, dict] = {}
     for period, map_, n, s in rows:
@@ -118,7 +120,7 @@ def _top_gear(db, limit: int = 3) -> dict[str, list[dict]]:
     rows = db.execute(
         select(MatchPlayerLoadout.weapon, MatchPlayerLoadout.ordnance, MatchPlayerLoadout.tacmod,
                func.sum(MatchPlayerLoadout.frames / Match.frame_rate_hz))
-        .join(Match, Match.id == MatchPlayerLoadout.match_id)
+        .join(Match, Match.id == MatchPlayerLoadout.match_id).where(counted(Match.id))
         .group_by(MatchPlayerLoadout.weapon, MatchPlayerLoadout.ordnance, MatchPlayerLoadout.tacmod)
     ).all()
     out = {}
@@ -136,30 +138,32 @@ def _top_gear(db, limit: int = 3) -> dict[str, list[dict]]:
 def _global_stats(db) -> dict:
     """Archive-wide facts for the home page."""
     avg_len, longest_id, longest_s = None, None, None
-    n, total_s = db.execute(select(func.count(), func.sum(Match.duration_s))).one()
+    m, mp = counted(Match.id), counted(MatchPlayer.match_id)  # duplicate recordings left out (D13)
+    n, total_s = db.execute(select(func.count(), func.sum(Match.duration_s)).where(m)).one()
     if n:
         avg_len = total_s / n
-        longest_id, longest_s = db.execute(select(Match.id, Match.duration_s).order_by(Match.duration_s.desc()).limit(1)).one()
-    slots = db.scalar(select(func.count()).select_from(MatchPlayer))
-    deaths = db.scalar(select(func.sum(MatchPlayer.deaths_est)))
+        longest_id, longest_s = db.execute(
+            select(Match.id, Match.duration_s).where(m).order_by(Match.duration_s.desc()).limit(1)).one()
+    slots = db.scalar(select(func.count()).select_from(MatchPlayer).where(mp))
+    deaths = db.scalar(select(func.sum(MatchPlayer.deaths_est)).where(mp))
     fastest = db.execute(
         select(Player.user_id, Player.name, MatchPlayer.top_speed, MatchPlayer.match_id).join(Player)
-        .order_by(MatchPlayer.top_speed.desc()).limit(1)
+        .where(mp).order_by(MatchPlayer.top_speed.desc()).limit(1)
     ).first()
     most_active = db.execute(
         select(Player.user_id, Player.name, func.count()).select_from(MatchPlayer).join(Player)
-        .group_by(Player.id).order_by(func.count().desc()).limit(1)
+        .where(mp).group_by(Player.id).order_by(func.count().desc()).limit(1)
     ).first()
     busiest = db.execute(
-        select(func.substr(Match.started_at, 1, 10).label("day"), func.count()).group_by("day")
+        select(func.substr(Match.started_at, 1, 10).label("day"), func.count()).where(m).group_by("day")
         .order_by(func.count().desc()).limit(1)
     ).first()
     payload = db.execute(
         select(func.count(), func.sum(case((Match.winner == Match.attacking_team, 1), else_=0)))
-        .where(Match.mode == "payload", Match.winner.is_not(None), Match.attacking_team.is_not(None))
+        .where(Match.mode == "payload", Match.winner.is_not(None), Match.attacking_team.is_not(None), m)
     ).one()
     capture = dict(db.execute(
-        select(Match.winner, func.count()).where(Match.mode == "capture_point", Match.winner.is_not(None))
+        select(Match.winner, func.count()).where(Match.mode == "capture_point", Match.winner.is_not(None), m)
         .group_by(Match.winner)
     ).all())
     return {
@@ -208,7 +212,8 @@ def players_seen(request: Request, range: str = Query("7d", pattern="^(24h|7d|30
             .where(Match.started_at >= start.isoformat(), Match.started_at <= end.isoformat())
         )
         matches = db.scalar(select(func.count()).select_from(Match)
-                            .where(Match.started_at >= start.isoformat(), Match.started_at <= end.isoformat()))
+                            .where(Match.started_at >= start.isoformat(), Match.started_at <= end.isoformat(),
+                                   counted(Match.id)))
     # every bucket in the range, zeros included
     step = timedelta(hours=1) if unit == "hour" else timedelta(days=1)
     cursor = start.replace(minute=0, second=0, microsecond=0)

@@ -9,7 +9,7 @@ import { LineChart } from "../components/charts";
 import { GearName, MatchTable, Status, TableWrap, TeamBadge } from "../components/common";
 import { CELL_SIZES, HEATMAP_MODES, HeatmapView } from "../components/HeatmapView";
 import { InfoTip, Skeleton } from "../components/ui";
-import { MAPS, dateTime, duration, num, pct, title } from "../format";
+import { MAPS, dateTime, duration, num, pct, periodLabel, title } from "../format";
 import { useApi } from "../useApi";
 
 const PERIODS: [Period, string][] = [
@@ -94,7 +94,8 @@ function ProfileHeader({ p }: { p: PlayerProfile }) {
 function Trends({ userId }: { userId: string }) {
   const [bucket, setBucket] = useState<"week" | "month" | "year">("month");
   const t = useApi(() => getTrends(userId, bucket), `${userId}|${bucket}`);
-  const items = t.data?.items ?? [];
+  // labelled by the bucket the data was fetched for (the tabs switch before the new data arrives)
+  const items = (t.data?.items ?? []).map((i) => ({ ...i, period: periodLabel(i.period, t.data!.bucket) }));
   return (
     <>
       <div className="section-head">

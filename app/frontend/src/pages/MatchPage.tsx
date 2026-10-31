@@ -268,9 +268,15 @@ export function MatchPage() {
             {m.private_match && " · private"}
             {m.recorded_by && <> · recorded by {m.recorded_by}</>}
           </p>
-          {m.also_recorded_in.length > 0 && (
+          {m.duplicate_of != null ? (
             <p className="note">
-              Also recorded in:{" "}
+              Duplicate recording: this match was also saved as{" "}
+              <Link to={`/matches/${m.duplicate_of}`}>match #{m.duplicate_of}</Link>, which is the one counted in stats,
+              leaderboards and achievements. This copy is not counted.
+            </p>
+          ) : m.also_recorded_in.length > 0 && (
+            <p className="note">
+              Also recorded in (not counted again):{" "}
               {m.also_recorded_in.map((other, i) => (
                 <span key={other}>
                   {i > 0 && ", "}

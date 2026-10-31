@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from parser import ReplayMeta
 
+from . import duplicates
 from .aliases import alias_map
 from .models import Event, Match, MatchPlayer, MatchPlayerLoadout, Player
 from .stats import MatchStats, PlayerStats
@@ -20,7 +21,9 @@ def _iso(dt: datetime) -> str:
 
 def delete_match(db: Session, replay_id: int) -> None:
     """Remove a replay's derived rows (cascades to match_players, loadouts, events). Players are kept."""
+    sessions = db.scalars(select(Match.session_id).where(Match.replay_id == replay_id)).all()
     db.execute(delete(Match).where(Match.replay_id == replay_id))
+    duplicates.refresh(db, sessions)  # another copy of the match may count now
 
 
 def _upsert_player(db: Session, p: PlayerStats, seen_at: str) -> Player:
@@ -89,4 +92,6 @@ def save_match(db: Session, replay_id: int, meta: ReplayMeta, stats: MatchStats,
                      player_id=(player_ids.get(e.user_id) or player_ids.get(aliases.get(e.user_id, e.user_id)))
                      if e.user_id else None, team=e.team,
                      data=json.dumps(e.data) if e.data is not None else None))
+    db.flush()
+    duplicates.refresh(db, [match.session_id])
     return match

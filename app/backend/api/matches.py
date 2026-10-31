@@ -7,11 +7,12 @@ from sqlalchemy import func, select
 
 from .. import heatmaps, tracks
 from ..aliases import alias_map, ids_of
+from ..duplicates import counted
 from ..errors import ApiError
 from ..gear import ORDNANCES, TACMODS, WEAPONS
 from ..gear import lookup as gear_lookup
 from ..stats.maps import HEATMAP_LAYOUTS
-from ..models import Event, Match, MatchPlayer, MatchPlayerLoadout, Player
+from ..models import DuplicateMatch, Event, Match, MatchPlayer, MatchPlayerLoadout, Player
 from .derived import dominant_arm, loadout, match_summary, ratio
 from .downloads import download_csv, download_json, json_response
 
@@ -41,7 +42,7 @@ def list_matches(
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
 ):
-    query = select(Match)
+    query = select(Match).where(counted(Match.id))  # a copy of a match recorded twice is listed once (D13)
     if private is not None:
         query = query.where(Match.private_match == private)
     if result == "attack_win":
@@ -54,8 +55,8 @@ def list_matches(
     elif result in ("blue", "orange"):
         query = query.where(Match.winner == result)
     if min_players:
-        counted = select(MatchPlayer.match_id).group_by(MatchPlayer.match_id).having(func.count() >= min_players)
-        query = query.where(Match.id.in_(counted))
+        big_enough = select(MatchPlayer.match_id).group_by(MatchPlayer.match_id).having(func.count() >= min_players)
+        query = query.where(Match.id.in_(big_enough))
     if player_name:
         named = select(MatchPlayer.match_id).join(Player).where(Player.name.ilike(f"%{player_name.strip()}%"))
         query = query.where(Match.id.in_(named))
@@ -127,9 +128,11 @@ def get_match(request: Request, match_id: int):
         loadouts: dict[int, list] = {}
         for lo in db.scalars(select(MatchPlayerLoadout).where(MatchPlayerLoadout.match_id == match_id)):
             loadouts.setdefault(lo.player_id, []).append(lo)
-        also = db.scalars(
-            select(Match.id).where(Match.session_id == match.session_id, Match.id != match.id)
-        ).all()
+        # other recordings of this same match (D13); back-to-back matches in the lobby share the session but are not copies
+        duplicate_of = db.scalar(select(DuplicateMatch.counted_match_id).where(DuplicateMatch.match_id == match_id))
+        root = duplicate_of or match_id
+        copies = db.scalars(select(DuplicateMatch.match_id).where(DuplicateMatch.counted_match_id == root)).all()
+        also = sorted({root, *copies} - {match_id})
 
         teams: dict[str, list] = {"blue": [], "orange": []}
         for mp, user_id in rows:
@@ -151,6 +154,7 @@ def get_match(request: Request, match_id: int):
             "orange_capture_s": match.orange_capture_s,
             "teams": teams,
             "also_recorded_in": list(also),
+            "duplicate_of": duplicate_of,  # another recording of this match counts in the stats instead (D13)
         }
 
 
