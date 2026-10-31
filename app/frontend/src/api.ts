@@ -426,6 +426,14 @@ export interface ChallengeWindow {
   active: boolean;
   /** number of achievements and challenges available (public before the launch too) */
   total: number;
+  /** sneak peek for the "Coming soon" page: counts per section and a few badge pictures, no names */
+  peek: AchievementPeek;
+}
+
+export interface AchievementPeek {
+  periods: Partial<Record<AchievementRule["period"], number>>;
+  new: Record<string, number>; // theme -> count
+  icons: string[];
 }
 
 export interface Me {

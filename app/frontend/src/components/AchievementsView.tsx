@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router";
-import { getAchievements, getChallenges, getMe, loginUrl, type Achievement, type AchievementRarity, type AchievementRule } from "../api";
+import { getAchievements, getChallenges, getMe, loginUrl, type Achievement, type AchievementPeek, type AchievementRarity, type AchievementRule } from "../api";
 import { pct } from "../format";
 import { useApi } from "../useApi";
 import { Status } from "./common";
@@ -131,6 +131,7 @@ export interface AchievementsAccess {
   start: string | null;
   /** number of achievements available (null while loading) */
   total: number | null;
+  peek: AchievementPeek | null;
 }
 
 export function useAchievementsAccess(): AchievementsAccess {
@@ -141,7 +142,58 @@ export function useAchievementsAccess(): AchievementsAccess {
     preview: !!d?.preview,
     start: d?.start ?? null,
     total: d?.total ?? null,
+    peek: d?.peek ?? null,
   };
+}
+
+/** Before the launch: how many achievements per section and a few hidden badges, nothing that gives them away. */
+function SneakPeek({ peek }: { peek: AchievementPeek }) {
+  const newTotal = Object.values(peek.new).reduce((a, b) => a + b, 0);
+  return (
+    <section className="sneak-peek">
+      <div className="section-head">
+        <h2>Sneak peek</h2>
+      </div>
+      <div className="badges mystery">
+        {peek.icons.map((icon) => (
+          <div key={icon} className="badge-card locked">
+            <div className="badge-art">
+              <img className="icon" src={IMG + icon} alt="" />
+              <img className="tier" src={IMG + "white_lock.png"} alt="locked" />
+            </div>
+            <div className="badge-text">
+              <strong>???</strong>
+              <span className="muted">Revealed at the start</span>
+            </div>
+          </div>
+        ))}
+      </div>
+      <h3>From the original ECRanked site</h3>
+      <div className="cards">
+        {GROUPS.filter(([period]) => peek.periods[period]).map(([period, label]) => (
+          <div key={period} className="card">
+            <span className="label">{label}</span>
+            <strong>{peek.periods[period]}</strong>
+          </div>
+        ))}
+      </div>
+      {newTotal > 0 && (
+        <>
+          <h3>
+            New challenges <span className="tag">new</span> <span className="muted hint">· {newTotal}, built on replay data the original site never read</span>
+          </h3>
+          <div className="cards">
+            {Object.entries(peek.new).map(([theme, count]) => (
+              <div key={theme} className="card">
+                <span className="label">{theme}</span>
+                <strong>{count}</strong>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </section>
+  );
 }
 
 function PreviewLogin() {
@@ -163,7 +215,7 @@ function PreviewLogin() {
   );
 }
 
-export function ComingSoon({ start, total }: { start: string | null; total: number | null }) {
+export function ComingSoon({ start, total, peek }: { start: string | null; total: number | null; peek: AchievementPeek | null }) {
   return (
     <>
       <EmptyState title="Coming soon">
@@ -178,6 +230,7 @@ export function ComingSoon({ start, total }: { start: string | null; total: numb
         )}
       </EmptyState>
       <PreviewLogin />
+      {peek && <SneakPeek peek={peek} />}
     </>
   );
 }

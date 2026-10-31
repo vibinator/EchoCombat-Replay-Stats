@@ -696,6 +696,15 @@ svg .crosshair {
   filter: grayscale(1);
 }
 
+/* "Coming soon" sneak peek: the badge art is only a silhouette */
+.badges.mystery .icon {
+  filter: grayscale(1) blur(3px);
+}
+
+.sneak-peek {
+  margin-top: 24px;
+}
+
 .badge-art {
   position: relative;
   flex: none;

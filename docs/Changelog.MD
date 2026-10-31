@@ -13,6 +13,20 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 36 — 2026-10-31
+### Website
+- **Sneak peek on the "Coming soon" achievements page.** Below the Coming soon message, visitors see six mystery
+  badges (blurred, grey, locked, named "???") and how many achievements each section holds: from the original
+  ECRanked site In one day 20, In one week 25, In one game 5, All time 25; and 21 new challenges by theme
+  (Unreleased gear 7, Gear mastery 3, Wins 6, Payload 3, Emotes 2). No names, descriptions or targets are shown
+  or sent before the start date.
+- `/api/challenges` now includes `peek` (those counts and the six badge pictures).
+
+### Upgrading to Beta 36
+- QNAP: upload Beta 36, wait for the Actions run, Recreate. Windows: restart `run.bat`. No re-import.
+
+---
+
 ## Beta 35 — 2026-10-31
 ### Website
 - **The "Achievements" menu item says "Coming soon · 96"** before the Flamingo Challenge start date: the number of

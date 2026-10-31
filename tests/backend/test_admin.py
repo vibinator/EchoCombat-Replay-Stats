@@ -8,6 +8,7 @@ from app_helpers import act, add, app_client, make_settings, replay_by_path, syn
 from sqlalchemy import select
 
 from backend import admin_actions as actions
+from backend.achievements import RULES
 from backend.models import PlayerAlias
 
 
@@ -134,8 +135,13 @@ def test_unreadable_reprocess_keeps_previous_results(client):
 
 
 def test_challenge_period(client):
-    assert client.get("/api/challenges").json() == {"start": None, "end": None, "updated_at": None, "launched": False,
-                                                    "active": False, "preview": False}
+    info = client.get("/api/challenges").json()
+    peek = info.pop("peek")
+    assert info == {"start": None, "end": None, "updated_at": None, "launched": False, "active": False, "preview": False,
+                    "total": len(RULES)}
+    # the sneak peek gives counts and pictures, never names or descriptions
+    assert sum(peek["periods"].values()) + sum(peek["new"].values()) == len(RULES) and peek["icons"]
+    assert not any(r.name in str(peek) or r.description in str(peek) for r in RULES)
     assert client.get("/api/players/100/achievements").status_code == 403  # coming soon
     act(client, actions.set_challenge_window, "2026-01-01", None)
     before = client.get("/api/players/100/achievements").json()
