@@ -433,7 +433,7 @@ def _build_rules() -> list[Rule]:
              None, _all_used("tacmod", {c for c, _, _ in TACMODS}), new=True, group="Gear mastery"),
         _ladder(90, "On a Roll", "Wins in a row (games without a result are skipped)", None, _win_streak, (2, 3, 5, 8, 12), new=True, group="Wins"),
         _ladder(91, "Unstoppable", "Wins in a row (games without a result are skipped)", None, _win_streak, (4, 6, 10, 14, 18), new=True, group="Wins"),
-        _tiered(92, "Centurion", "Win games", None, lambda g: g.won, (10, 25, 100, 500, 2000), new=True, group="Wins"),
+        _tiered(92, "Centurion", "Win games", None, lambda g: g.won, (5, 10, 30, 100, 500), new=True, group="Wins"),
         # the attacking team wins exactly when the payload reaches the end (stats/payload.py)
         _tiered(93, "Clean Sweep", "Win Capture Point games 2-0", "capture_point",
                 lambda g: _capture(g) and g.won and g.rounds_lost == 0, (1, 5, 10, 25, 100), new=True, group="Capture Point"),
@@ -487,7 +487,7 @@ def _build_rules() -> list[Rule]:
         _tiered(119, "Hot Day", "Win games in one day: the most in a single day counts", None, lambda g: g.won, (3, 5, 8, 12, 20), "day", new=True, group="Wins"),
         _tiered(120, "Point Taker", "Win Capture Point games", "capture_point", lambda g: _capture(g) and g.won, (3, 10, 30, 100, 400), new=True, group="Capture Point"),
         _tiered(121, "Cargo Hauler", "Win Payload games", "payload", lambda g: _payload(g) and g.won, (3, 10, 30, 100, 400), new=True, group="Payload"),
-        _ladder(122, "Grand Tour", "Wins on each of the 4 maps (the map with the fewest wins counts)", None, _fewest_wins, (1, 5, 15, 50, 150),
+        _ladder(122, "Grand Tour", "Wins on each of the 4 maps (the map with the fewest wins counts)", None, _fewest_wins, (1, 3, 8, 25, 75),
                 new=True, group="Wins"),
         _ladder(123, "Weapons Master", "Games with your least-used weapon of Pulsar, Nova, Comet and Meteor", None, _least_used("weapon", WEAPONS),
                 (1, 5, 15, 50, 150), new=True, group="Gear mastery"),

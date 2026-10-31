@@ -13,6 +13,17 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 54 — 2026-10-31
+### Achievements
+- **Centurion is easier:** win 5 / 10 / 30 / 100 / 500 games (was 10 / 25 / 100 / 500 / 2000). 100 wins, the name's
+  number, is now the diamond medal. In the archive 51 % of players (10+ games) reach bronze, 29 % silver, 11 % gold
+  (was 5 %), 5 % diamond and 1 % platinum.
+- **Grand Tour is easier:** wins on each of the four maps (the map with the fewest wins counts) 1 / 3 / 8 / 25 / 75
+  (was 1 / 5 / 15 / 50 / 150): 38 % bronze, 17 % silver, 8 % gold (was 5 %), 4 % diamond, 1.6 % platinum.
+  Medals recalculate by themselves; nothing has to be re-read.
+
+---
+
 ## Beta 53 — 2026-10-31
 ### Achievements
 - **The "All time" medals are easier to reach** (the original all-time section, ids 55-79):
