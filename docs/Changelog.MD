@@ -13,6 +13,25 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 61 — 2026-10-31
+### Security review (penetration test of a local copy configured like the public site)
+- **Replay files cannot be downloaded:** no route reads the replay folder (it is also mounted read-only), and paths to
+  `.echoreplay` files are now refused outright (404, also encoded or in capitals); a missing file such as `/x.txt` is a
+  404 instead of the home page. Tested with path traversal, encoded dots and slashes, and guessed download routes.
+- **The rate limit could be dodged** by sending a made-up `CF-Connecting-IP` header with every request (300 of 300 got
+  through). The header is now believed only when the request comes from inside (cloudflared, the home network); a request
+  that reaches the port from the internet is limited by its real address.
+- **API documentation hidden:** `/docs`, `/redoc` and `/openapi.json` listed every route, the admin ones included. Off.
+- **`/api/health` no longer shows the server folder path** (it answered anyone, without the bot checks).
+- **New browser protections:** Content-Security-Policy (scripts and connections only from this site; fonts from Google,
+  video from Twitch), Permissions-Policy, Cross-Origin-Opener-Policy, and HSTS when the visitor used https.
+- Checked and fine: admin, console, permissions and icon endpoints refuse visitors who are not logged in with the role;
+  changes (POST / PUT / DELETE) are refused site-wide; no cross-site access (CORS); odd input to players / leaderboard /
+  limits is rejected; `//api`, `/API` and encoded-slash tricks never reach the data.
+- If a page looks broken after the update (a missing font, the Twitch video), tell me: the CSP is the likely cause.
+
+---
+
 ## Beta 60 — 2026-10-31
 ### Stricter limits against scrapers
 - Data requests per visitor: **30 a minute** (bursts of 60), was 60 (bursts of 120). Heavy answers (heatmaps, playback,

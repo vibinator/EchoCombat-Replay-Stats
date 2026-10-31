@@ -30,7 +30,8 @@ class SinglePageApp(StaticFiles):
         try:
             return await super().get_response(path, scope)
         except HTTPException as e:
-            if e.status_code != 404 or path.startswith("api"):
+            # only page routes (/matches/12) fall back to index.html; a missing file (/x.txt, /a.echoreplay) stays a 404
+            if e.status_code != 404 or path.startswith("api") or "." in path.rsplit("/", 1)[-1]:
                 raise
             return await super().get_response("index.html", scope)
 
@@ -61,7 +62,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.worker.stop()
         engine.dispose()
 
-    app = FastAPI(title="EchoVR Replay Stats", lifespan=lifespan)
+    # no /docs, /redoc or /openapi.json on the public site: they list every route, the admin ones included
+    app = FastAPI(title="EchoVR Replay Stats", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
     app.state.settings = settings
     app.add_exception_handler(ApiError, api_error_handler)
     # heatmaps / playback are 100s of KB of JSON. Level 4: 12x faster than the default 9 for 8 % more bytes
@@ -94,9 +96,22 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return await call_next(request)
 
     @app.middleware("http")
+    async def no_replay_files(request, call_next):
+        """Replay files are never served (the share is mounted read-only and no route reads it); this refuses the
+        name outright as well, whatever route or static mount a later change adds."""
+        if guard.asks_for_replay_file(request.url.path):
+            return JSONResponse({"error_code": "not_found", "message": "Not found"}, status_code=404)
+        return await call_next(request)
+
+    @app.middleware("http")
     async def security_headers(request, call_next):
-        """Public site (echocombat.com): no sniffing, no framing by other sites, no full URLs leaked to other sites."""
+        """Public site (echocombat.com): no sniffing, no framing by other sites, no full URLs leaked to other sites,
+        scripts and connections only from this site."""
         response = await call_next(request)
+        for name, value in guard.SECURITY_HEADERS.items():
+            response.headers.setdefault(name, value)
+        if guard.is_https(request):
+            response.headers.setdefault("Strict-Transport-Security", "max-age=31536000")
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
         response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
         response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
@@ -125,8 +140,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/api/health")
     def health():
-        return {"status": "ok", "version": APP_VERSION, "parser_version": PARSER_VERSION, "stats_version": STATS_VERSION,
-                "source_dir": str(settings.source_dir)}
+        return {"status": "ok", "version": APP_VERSION, "parser_version": PARSER_VERSION, "stats_version": STATS_VERSION}
 
     @app.get("/achievements/custom/{name}")
     def custom_icon(name: str):

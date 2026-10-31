@@ -8,6 +8,7 @@ the app's layer behind them:
 A determined scraper can copy a header and a user agent; the rate limit is what bounds how fast anyone can copy
 the archive."""
 
+import ipaddress
 import re
 import time
 
@@ -32,10 +33,46 @@ HEAVY = ("/heatmap", "/playback", "/export", "/compare/", ".csv", ".xlsx")
 HEAVY_COST = 10
 
 
+REPLAY_FILE = re.compile(r"\.(echoreplay|replay)(\.|$|/)", re.IGNORECASE)
+CONTENT_SECURITY_POLICY = (
+    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+    "font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-src https://player.twitch.tv; "
+    "object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"
+)
+SECURITY_HEADERS = {
+    "Content-Security-Policy": CONTENT_SECURITY_POLICY,
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
+    "Cross-Origin-Opener-Policy": "same-origin",
+}
+
+
+def asks_for_replay_file(path: str) -> bool:
+    from urllib.parse import unquote
+    return bool(REPLAY_FILE.search(unquote(unquote(path))))
+
+
+def is_https(request) -> bool:
+    """Behind Cloudflare the app itself speaks http; Cloudflare says what the visitor used."""
+    return request.headers.get("x-forwarded-proto") == "https" or '"scheme":"https"' in request.headers.get("cf-visitor", "").replace(" ", "")
+
+
+def _from_inside(host: str | None) -> bool:
+    """True for loopback / private addresses (cloudflared in the same Docker network, the home network)."""
+    try:
+        ip = ipaddress.ip_address(host or "")
+    except ValueError:
+        return False
+    return not ip.is_global
+
+
 def client_ip(request) -> str:
-    """The visitor's address. Behind the Cloudflare Tunnel every request comes from cloudflared, which passes the
-    real one in CF-Connecting-IP."""
-    return request.headers.get("cf-connecting-ip") or (request.client.host if request.client else "unknown")
+    """The visitor's address. Behind the Cloudflare Tunnel every request comes from cloudflared (a private address),
+    which passes the real one in CF-Connecting-IP. From a public address the header is not believed: anyone who
+    reaches the port directly could otherwise invent a new visitor for every request and escape the rate limit."""
+    peer = request.client.host if request.client else None
+    if (forwarded := request.headers.get("cf-connecting-ip")) and _from_inside(peer):
+        return forwarded
+    return peer or "unknown"
 
 
 class RateLimiter:

@@ -65,3 +65,26 @@ def test_hourly_limit_bounds_a_slow_scraper(tmp_path):
         assert [client.get("/api/leaderboard/stats", headers=ip).status_code for _ in range(4)] == [200] * 4
         r = client.get("/api/leaderboard/stats", headers=ip)
         assert r.status_code == 429 and int(r.headers["retry-after"]) >= 1
+
+
+def test_forged_visitor_address_ignored_from_public_peer():
+    from types import SimpleNamespace
+
+    from backend.guard import client_ip
+
+    def req(peer):
+        return SimpleNamespace(client=SimpleNamespace(host=peer), headers={"cf-connecting-ip": "9.9.9.9"})
+
+    assert client_ip(req("172.18.0.3")) == "9.9.9.9"  # cloudflared in the Docker network
+    assert client_ip(req("8.8.8.8")) == "8.8.8.8"  # reached the port directly: header is not believed
+
+
+def test_replay_files_and_internals_not_served(tmp_path):
+    with guarded(tmp_path, import_api=False) as client:  # as on the public site
+        add(client, {"dyson/a.echoreplay": rf.plain(rf.lines(5))})
+        for path in ("/replays/dyson/a.echoreplay", "/dyson/a.echoreplay", "/api/matches/1/a.echoreplay", "/x/a.ECHOREPLAY",
+                     "/a%252eechoreplay", "/api/replays/1", "/api/import", "/openapi.json", "/secret.txt"):
+            assert client.get(path, headers=BROWSER).status_code == 404, path
+        assert "source_dir" not in client.get("/api/health").json()
+        csp = client.get("/", headers=BROWSER).headers["content-security-policy"]
+        assert "script-src 'self'" in csp and "object-src 'none'" in csp

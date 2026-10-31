@@ -20,7 +20,7 @@ def make_settings(tmp_path: Path, **overrides) -> Settings:
 
 @contextmanager
 def app_client(settings: Settings):
-    with TestClient(create_app(settings)) as client:
+    with TestClient(create_app(settings), client=("127.0.0.1", 50000)) as client:  # a private peer, like cloudflared
         yield client
 
 
