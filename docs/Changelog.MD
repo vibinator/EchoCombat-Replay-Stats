@@ -13,6 +13,23 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 57 — 2026-10-31
+### Achievements page loads fast
+- **Cause:** the page asks for three things at once (the list, the recent unlocks, the top players) and every one of them
+  started its own full calculation over all 8,090 players (about 20 s each, all at the same time), so the page sat on
+  "Loading...". Now:
+  - **One calculation at a time:** requests that arrive meanwhile wait for it instead of repeating it.
+  - **The list and the recent unlocks answer at once** while the calculation runs in the background; the rarity numbers
+    ("x % unlocked") appear on the next visit if it was not done yet.
+  - **Results are kept on disk** (`data/database/achievements-cache.pkl`) and reused after a restart, so only players with
+    new games are calculated again (the full calculation: about 23 s, once per new version; after a restart about 8 s).
+  - A few lookups were made cheaper (the achievements calculation is about 15 % faster per rule).
+- **Cyberkinetic Enhancements is easier and more realistic:** it needs **25+ games** instead of 50 (50 left out three
+  quarters of the active players) and the ladder is 2.6 / 2.8 / 3.0 / 3.2 / 3.5 m/s (was 2.8 / 2.95 / 3.1 / 3.3 / 3.6).
+  Of the players with 10+ games, about 30 % reach bronze, 20 % silver, 11 % gold, 4 % diamond and 0.7 % platinum.
+
+---
+
 ## Beta 56 — 2026-10-31
 ### Achievements: gear released on 30 Oct 2026
 - **Starburst, Protostar, Quark, Translocator and Overcharge now have the same ladders as the older gear** (the archive

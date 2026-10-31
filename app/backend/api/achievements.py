@@ -1,8 +1,12 @@
 """Achievements / Flamingo Challenges per player, rarity, recent unlocks, the achievement ranking, and the
 challenge period (Phase 8, D17, D31, D33). Read-only: the period and player merges are set in the admin console."""
 
+import hashlib
+import pickle
 import threading
 import time
+import zlib
+from pathlib import Path
 from collections import defaultdict
 from datetime import date, timedelta
 
@@ -16,6 +20,7 @@ from ..cache import cached, data_stamp
 from ..duplicates import counted
 from ..errors import ApiError
 from ..models import AppSetting, Match, MatchPlayer, MatchPlayerLoadout, Player
+from ..version import APP_VERSION
 
 router = APIRouter(tags=["achievements"])
 
@@ -94,6 +99,11 @@ PEEK = _peek()
 FINGERPRINT_MASK = (1 << 64) - 1
 
 
+def _stable_hash(row: tuple) -> int:
+    """Same value in every process (str hash() is randomised), so the results can be kept on disk across restarts."""
+    return zlib.crc32(repr(row).encode())
+
+
 def _games(db, player_ids: list[int] | None = None, fingerprints: dict[int, int] | None = None) -> dict[int, list[Game]]:
     """player_id -> Game list (all matches). None = every player. Plain column rows, not ORM objects
     (the full archive is 200k+ appearances). `fingerprints` is filled with player_id -> a hash of every row the
@@ -116,12 +126,12 @@ def _games(db, player_ids: list[int] | None = None, fingerprints: dict[int, int]
     for row in db.execute(lo_query):
         match_id, player_id, weapon, tacmod, ordnance, frames = row = tuple(row)
         loadouts[(match_id, player_id)][(weapon, tacmod, ordnance)] = frames
-        fp[player_id] = (fp.get(player_id, 0) + hash(row)) & FINGERPRINT_MASK
+        fp[player_id] = (fp.get(player_id, 0) + _stable_hash(row)) & FINGERPRINT_MASK
     games: dict[int, list[Game]] = defaultdict(list)
     for row in db.execute(query):
         (pid, mid, started, map_, mode, private, play, deaths, bounds, mate, enemy, upside, speed, top, hz,
          team, winner, attacking, blue_rounds, orange_rounds, push, block, emotes) = row = tuple(row)
-        fp[pid] = (fp.get(pid, 0) + hash(row)) & FINGERPRINT_MASK
+        fp[pid] = (fp.get(pid, 0) + _stable_hash(row)) & FINGERPRINT_MASK
         games[pid].append(Game(
             started_at=started, map=map_, mode=mode, private=private, play_time_s=play, deaths=deaths,
             in_bounds=bounds, near_mate=mate, near_enemy=enemy, upside=upside, speed_sum=speed, top_speed=top,
@@ -177,13 +187,54 @@ _lock = threading.Lock()
 _evaluated: dict[int, dict[int, list]] = {}
 
 
+def _cache_file(sessions) -> Path | None:
+    try:
+        database = sessions.kw["bind"].url.database
+    except Exception:  # noqa: BLE001
+        return None
+    return Path(database).with_name("achievements-cache.pkl") if database else None
+
+
+def _signature() -> str:
+    """Results are only reused for the same version and the same rules."""
+    rules = repr([(r.id, r.levels, r.period, r.description) for r in RULES])
+    return f"{APP_VERSION}|{hashlib.sha1(rules.encode()).hexdigest()}"
+
+
+def _load_results(sessions) -> dict[int, list]:
+    """Per-player results kept from the last run (so a restart only evaluates players whose games changed)."""
+    path = _cache_file(sessions)
+    try:
+        with open(path, "rb") as f:
+            signature, entries = pickle.load(f)
+        return entries if signature == _signature() else {}
+    except Exception:  # noqa: BLE001 - missing, damaged or from another version: start over
+        return {}
+
+
+def _save_results(sessions, entries: dict[int, list]) -> None:
+    path = _cache_file(sessions)
+    if path is None:
+        return
+    try:
+        tmp = path.with_suffix(".tmp")
+        with open(tmp, "wb") as f:
+            pickle.dump((_signature(), {pid: [e[0], e[1], e[2], None] for pid, e in entries.items()}), f)
+        tmp.replace(path)
+    except Exception:  # noqa: BLE001 - a cache that cannot be written is just slower next time
+        pass
+
+
 def _compute(sessions, window: tuple) -> dict:
     fingerprints: dict[int, int] = {}
     with sessions() as db:
         games = {pid: in_window(gs, *window) for pid, gs in _games(db, fingerprints=fingerprints).items()}
         latest = db.scalar(select(func.max(Match.started_at)))
         people = {pid: (uid, name) for pid, uid, name in db.execute(select(Player.id, Player.user_id, Player.name))}
-    previous = _evaluated.get(id(sessions), {})
+    previous = _evaluated.get(id(sessions))
+    if previous is None:
+        previous = _load_results(sessions)
+    changed = False
     evaluated: dict[int, list] = {}
     rows, progress = [], {}
     for pid, gs in games.items():
@@ -194,10 +245,13 @@ def _compute(sessions, window: tuple) -> dict:
         if entry is None or entry[0] != key:
             results = evaluate(gs)
             entry = [key, [r["progress"] for r in results], overall(results), None]
+            changed = True
         evaluated[pid] = entry
         progress[pid] = entry[1]
         rows.append((pid, len(gs), entry[2]))
     _evaluated[id(sessions)] = evaluated
+    if changed:
+        _save_results(sessions, evaluated)
     return {"rows": rows, "progress": progress, "recent": _recent(games, latest, people, evaluated)}
 
 
@@ -223,10 +277,18 @@ def _recent(games: dict[int, list[Game]], latest: str | None, people: dict, eval
     return events
 
 
+_compute_lock = threading.Lock()
+
+
 def _store(sessions, key: tuple) -> dict:
-    data = _compute(sessions, key[1])
-    _cache[id(sessions)] = (key, time.monotonic(), data)
-    return data
+    """One computation at a time: requests that arrive while it runs wait for it (the page asks three things at once)."""
+    with _compute_lock:
+        cached = _cache.get(id(sessions))
+        if cached and cached[0] == key:
+            return cached[2]
+        data = _compute(sessions, key[1])
+        _cache[id(sessions)] = (key, time.monotonic(), data)
+        return data
 
 
 def _refresh_in_background(sessions, key: tuple) -> None:
@@ -287,6 +349,16 @@ def _everyone(request: Request) -> dict:
     return _store(sessions, key)
 
 
+def _ready_or_start(request: Request) -> dict | None:
+    """The ranking if there is one (stale is fine); otherwise start calculating it in the background and say "not yet"
+    instead of making the page wait for it."""
+    sessions = request.app.state.sessionmaker
+    if id(sessions) in _cache:
+        return _everyone(request)
+    _refresh_in_background(sessions, _key(sessions))
+    return None
+
+
 def achievement_ranking(request: Request) -> list[tuple[int, int, float]]:
     return _everyone(request)["rows"]
 
@@ -295,7 +367,7 @@ def achievement_ranking(request: Request) -> list[tuple[int, int, float]]:
 def list_achievements(request: Request):
     """The rule catalogue with rarity: share of players (10+ games) who unlocked (25 %+, tiered: bronze) / completed each."""
     require_launched(request)
-    data = _everyone(request)
+    data = _ready_or_start(request) or {"rows": [], "progress": {}}  # no shares yet: the list itself is quick
     eligible = [data["progress"][pid] for pid, games, _ in data["rows"] if games >= RARITY_MIN_GAMES]
     out = []
     for i, r in enumerate(RULES):
@@ -315,4 +387,4 @@ def recent_unlocks(request: Request, limit: int = Query(20, ge=1, le=100)):
     """Latest 100 % completions by players active in the last 30 days of the archive."""
     require_launched(request)
     with request.app.state.sessionmaker() as db:
-        return icons.apply(db, _everyone(request)["recent"][:limit])
+        return icons.apply(db, (_ready_or_start(request) or {"recent": []})["recent"][:limit])

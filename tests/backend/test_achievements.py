@@ -106,7 +106,7 @@ def test_coming_soon_until_the_start_date(tmp_path):
 def test_logic_follows_the_text():
     """Every condition is in the description (user, 2026-10-30)."""
     text = {r.id: r.description for r in RULES}
-    assert "(3+ minutes)" in text[18] and "3+ minutes" in text[21] and "50+ games" in text[73]
+    assert "(3+ minutes)" in text[18] and "3+ minutes" in text[21] and "25+ games" in text[73]
     # 3+ minutes: a short game does not count, even with 0 deaths
     assert by_id(evaluate([game(deaths=0, play=60.0)]))[18]["progress"] == 0
     assert by_id(evaluate([game(deaths=3)]))[18]["tier"] == "bronze"

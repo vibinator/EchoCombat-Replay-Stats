@@ -25,7 +25,8 @@ ONLY_SHARE = 0.95  # "use only X": X is at least 95 % of the game's loadout time
 USED_SHARE = 0.05  # old loadoutCutoff: below 5 % of the time does not count as "used"
 FULL_GAME_S = 180.0  # per-game rules ignore short appearances (A: avoids 0-death 10-second games)
 LOADOUT_USED_S = 180.0  # "use all 64 loadouts": at least 3 min each (old code: 3*60*30 frames)
-SEASON_MIN_GAMES = 50  # all-time averages ramp up over the first 50 games (A)
+SEASON_MIN_GAMES = 50  # all-time averages need 50 games (A)
+SPEED_MIN_GAMES = 25  # Cyberkinetic Enhancements: 50 left 76 % of the active players out (user, 2026-10-31)
 TIERS = [(1.0, "gold"), (0.75, "silver"), (0.5, "bronze"), (0.25, "white")]
 
 
@@ -78,6 +79,11 @@ class Game:
                 counts[key[i]] = counts.get(key[i], 0) + n
         total = sum(self.loadouts.values())
         return {slot: {c: n / total for c, n in counts.items()} if total else {} for slot, counts in frames.items()}
+
+    @cached_property
+    def _only(self) -> dict[str, frozenset[str]]:
+        """slot -> codes that are at least ONLY_SHARE of the game's loadout time ("use only")."""
+        return {slot: frozenset(c for c, v in shares.items() if c and v >= ONLY_SHARE) for slot, shares in self._shares.items()}
 
     def share(self, slot: str, code: str) -> float:
         return self._shares[slot].get(code, 0.0)
@@ -258,11 +264,11 @@ def _days_all_equipables(games):
 
 
 def _games_using(slot: str, code: str):
-    return lambda games: sum(1 for g in games if code in g.used(slot))
+    return lambda games: sum(1 for g in games if code in g._used[slot])
 
 
 def _only_games(slot: str, code: str):
-    return lambda games: sum(1 for g in games if g.share(slot, code) >= ONLY_SHARE)
+    return lambda games: sum(1 for g in games if code in g._only[slot])
 
 
 def _all_used(slot: str, codes: set[str]):
@@ -399,8 +405,8 @@ def _build_rules() -> list[Rule]:
                 _AvgValue("near_mate", 100.0, SEASON_MIN_GAMES), (14, 15.5, 17, 19.5, 22.5), "all", "%"),
         _ladder(72, "Roboticide", "Time near an enemy, all-time average (50+ games)", None,
                 _AvgValue("near_enemy", 100.0, SEASON_MIN_GAMES), (6, 8, 10, 12.5, 15), "all", "%"),
-        _ladder(73, "Cyberkinetic Enhancements", "Average speed, all-time average (50+ games)", None,
-                _AvgValue("speed_sum", 1.0, SEASON_MIN_GAMES), (2.8, 2.95, 3.1, 3.3, 3.6), "all", " m/s"),
+        _ladder(73, "Cyberkinetic Enhancements", "Average speed, all-time average (25+ games)", None,
+                _AvgValue("speed_sum", 1.0, SPEED_MIN_GAMES), (2.6, 2.8, 3.0, 3.2, 3.5), "all", " m/s"),
         _ladder(74, "toB taB m'I", "Time spent inverted, all-time average (50+ games)", None,
                 _AvgValue("upside", 100.0, SEASON_MIN_GAMES), (2, 4, 8, 20, 40), "all", "%"),
     ]
