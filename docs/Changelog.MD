@@ -13,6 +13,17 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 34 — 2026-10-31
+### Website
+- **Player profiles no longer show "Achievements — coming soon"** before the Flamingo Challenge start date set in
+  the console. The achievements section appears on profiles from the start date on (Discord preview-role members
+  still see it early, as on the achievements page).
+
+### Upgrading to Beta 34
+- QNAP: upload Beta 34, wait for the Actions run, Recreate. Windows: restart `run.bat`. No re-import.
+
+---
+
 ## Beta 33 — 2026-10-31
 ### Website
 - **"Matches recorded over time" has a "Per day" tab** next to per month / per year. It shows the 90 days up to the

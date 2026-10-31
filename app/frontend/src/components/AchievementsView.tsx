@@ -176,15 +176,8 @@ export function ComingSoon({ start }: { start: string | null }) {
 
 export function AchievementsSummary({ userId }: { userId: string }) {
   const { visible } = useAchievementsAccess();
-  return visible ? (
-    <LaunchedSummary userId={userId} />
-  ) : visible === false ? (
-    <div className="section-head">
-      <h2>
-        Achievements <span className="tag">coming soon</span>
-      </h2>
-    </div>
-  ) : null;
+  // Hidden on profiles until the Flamingo Challenge start date set in the console (previewers excepted)
+  return visible ? <LaunchedSummary userId={userId} /> : null;
 }
 
 function LaunchedSummary({ userId }: { userId: string }) {
