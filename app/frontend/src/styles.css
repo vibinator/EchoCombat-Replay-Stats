@@ -2249,3 +2249,83 @@ td.best {
   .pb-compare-grid { grid-template-columns: 1fr; }
   .pb-sumrow { grid-template-columns: 110px 70px 20px 1fr; }
 }
+
+/* Timeline tab */
+.tl-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.tl-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+}
+
+.tl-stat-label {
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.tl-stat strong {
+  font-size: 1.25rem;
+}
+
+.tl-card {
+  padding: 8px 14px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+}
+
+.tl-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 16px;
+}
+
+svg .round-band {
+  fill: var(--text);
+  opacity: 0.04;
+}
+
+svg .round-label {
+  fill: var(--muted);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+svg .flag {
+  fill: #101216;
+  font-size: 10px;
+  font-weight: 700;
+  dominant-baseline: middle;
+  transform: translateY(-3px);
+}
+
+svg .strip-label {
+  font-size: 12px;
+}
+
+.tl-events-title {
+  margin-top: 20px;
+}
+
+.dot.none {
+  background: var(--line);
+}
+
+.event-list tbody tr:hover {
+  background: var(--line);
+}

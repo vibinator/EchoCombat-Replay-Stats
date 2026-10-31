@@ -13,6 +13,17 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 75 — 2026-10-31
+### Match timeline, redesigned
+- **Summary cards** above the chart: match length, rounds score, checkpoints, time in the lead, peak capture and estimated deaths per team.
+- **Chart:** filled areas under the capture lines, alternating round bands labelled "Round 1, 2, …", and flags at each round win
+  (coloured by the winner, showing the score) or payload checkpoint (CP1, CP2, …).
+- **Death ticks** along the bottom of the chart, coloured by team (estimated, hover for the player).
+- **Events list:** icons per event type, and hovering a row moves the chart crosshair to that moment.
+- Website only: no restart or re-read needed, just rebuild/refresh the frontend.
+
+---
+
 ## Beta 74 — 2026-10-31
 - **Fix: the Playback tab turned the whole page blank** when the website had been updated but the server not restarted yet
   (the new page asked for playback data the old server does not send). The page now fills in what is missing, and any
