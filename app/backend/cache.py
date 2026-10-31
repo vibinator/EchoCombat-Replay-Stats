@@ -32,25 +32,37 @@ def data_stamp(db) -> tuple:
 
 
 def cached(request: Request, name: str, params: tuple, compute: Callable[[], object]):
-    """compute() once per (name, params, data stamp, today) — period filters such as "this week" move daily."""
+    """compute() once per (name, params, data stamp, today) — period filters such as "this week" move daily.
+    Requests for the same key that arrive while it is being computed wait for that result instead of repeating it."""
     state = request.app.state
     if not hasattr(state, "response_cache"):
-        state.response_cache, state.response_cache_lock = OrderedDict(), threading.Lock()
+        state.response_cache, state.response_cache_lock, state.response_cache_keys = OrderedDict(), threading.Lock(), {}
     store, lock = state.response_cache, state.response_cache_lock
     with state.sessionmaker() as db:
         stamp = data_stamp(db)
     key = (name, params, date.today().isoformat())
+
+    def fresh():
+        with lock:
+            hit = store.get(key)
+        if hit:
+            hit_stamp, at, value = hit
+            worker = getattr(state, "worker", None)
+            if hit_stamp == stamp or (worker is not None and worker.busy and time.monotonic() - at < REUSE_WHILE_IMPORTING_S):
+                return (value,)
+        return None
+
+    if (hit := fresh()) is not None:
+        return hit[0]
     with lock:
-        hit = store.get(key)
-    if hit:
-        hit_stamp, at, value = hit
-        worker = getattr(state, "worker", None)
-        if hit_stamp == stamp or (worker is not None and worker.busy and time.monotonic() - at < REUSE_WHILE_IMPORTING_S):
-            return value
-    value = compute()
-    with lock:
-        store[key] = (stamp, time.monotonic(), value)
-        store.move_to_end(key)
-        while len(store) > MAX_ENTRIES:
-            store.popitem(last=False)
+        key_lock = state.response_cache_keys.setdefault(key, threading.Lock())
+    with key_lock:
+        if (hit := fresh()) is not None:  # another request computed it while this one waited
+            return hit[0]
+        value = compute()
+        with lock:
+            store[key] = (stamp, time.monotonic(), value)
+            store.move_to_end(key)
+            while len(store) > MAX_ENTRIES:
+                state.response_cache_keys.pop(store.popitem(last=False)[0], None)
     return value

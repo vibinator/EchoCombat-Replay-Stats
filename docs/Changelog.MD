@@ -13,6 +13,19 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 59 — 2026-10-31
+### Leaderboard is faster
+- **Switching the stat is instant** (about 1.3 s before, 0.03 s now on the full archive): one pass over the matches
+  calculates every stat, and that result is now kept per period / map / public-private filter instead of per stat. The
+  rank-change arrows reuse it too.
+- **Requests for the same board wait for one calculation** instead of each starting their own (this also applies to the
+  home page numbers, which use the same cache).
+- Only the 50 players on the shown page are looked up and built, not all ranked players.
+- The first view of a board after new replays are processed is still calculated once (about 1.3 s for the archive).
+  Nothing has to be re-read.
+
+---
+
 ## Beta 58 — 2026-10-31
 ### Achievements: every top medal reachable within a 4-month challenge window
 Checked against a window of about 120 days / 17 weeks. Medals recalculate by themselves; nothing has to be re-read.

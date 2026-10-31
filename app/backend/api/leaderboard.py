@@ -95,7 +95,10 @@ def _values(db, request, stat, period, map, private, weapon, tacmod, ordnance, s
         ).all()
         return "Loadout time (hours)", True, [(r.player_id, r.games, round((r.seconds or 0) / 3600, 3)) for r in rows]
     label, higher, value_of = STATS[stat]
-    return label, higher, [(r.player_id, r.games, value_of(r)) for r in db.execute(_aggregate(where)).all()]
+    # one scan computes every stat: keep the rows per filter set so switching the stat (or asking for the rank
+    # change arrows) does not scan the archive again
+    rows = cached(request, "leaderboard-aggregate", (period, map, private, shift_days), lambda: db.execute(_aggregate(where)).all())
+    return label, higher, [(r.player_id, r.games, value_of(r)) for r in rows]
 
 
 def _rank(values, higher: bool, min_games: int) -> list[tuple[int, int, float]]:
@@ -138,22 +141,24 @@ def leaderboard(
 
 def _leaderboard(request, stat, period, map, private, min_games, weapon, tacmod, ordnance, compare, limit, offset):
     with request.app.state.sessionmaker() as db:
-        names = dict(db.execute(select(Player.id, Player.name)).all())
-        user_ids = dict(db.execute(select(Player.id, Player.user_id)).all())
         label, higher, values = _values(db, request, stat, period, map, private, weapon, tacmod, ordnance)
         previous = {}
         if compare and stat != "achievements":
             _, _, before = _values(db, request, stat, period, map, private, weapon, tacmod, ordnance, shift_days=7)
             previous = {pid: i + 1 for i, (pid, _, _) in enumerate(_rank(before, higher, min_games))}
+        ranking = _rank(values, higher, min_games)
+        page = ranking[offset : offset + limit]
+        people = {pid: (name, user_id) for pid, name, user_id in
+                  db.execute(select(Player.id, Player.name, Player.user_id).where(Player.id.in_([pid for pid, _, _ in page])))}
 
     ranked = [
-        {"rank": i + 1, "user_id": user_ids[pid], "name": names[pid], "games": games, "value": value,
+        {"rank": offset + i + 1, "user_id": people[pid][1], "name": people[pid][0], "games": games, "value": value,
          "previous_rank": previous.get(pid) if compare else None}
-        for i, (pid, games, value) in enumerate(_rank(values, higher, min_games))
+        for i, (pid, games, value) in enumerate(page)
     ]
     result = {
         "stat": stat, "label": label, "higher_is_better": higher, "period": period, "map": map,
-        "min_games": min_games, "total": len(ranked), "items": ranked[offset : offset + limit],
+        "min_games": min_games, "total": len(ranking), "items": ranked,
     }
     if stat == "loadout":
         result["loadout"] = {
