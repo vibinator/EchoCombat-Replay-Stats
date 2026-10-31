@@ -23,8 +23,8 @@ def by_id(results):
 
 def test_catalogue():
     ids = [r.id for r in RULES]
-    assert ids == list(range(5, 127)) and len(set(ids)) == 122  # 75 original + 47 new (80-126)
-    assert [r.id for r in RULES if r.new] == list(range(80, 127))
+    assert ids == list(range(5, 139)) and len(set(ids)) == 134  # 75 original + 59 new (80-138)
+    assert [r.id for r in RULES if r.new] == list(range(80, 139))
     assert icon_file(next(r for r in RULES if r.id == 7)) == "comet_daily.png"
     assert icon_file(next(r for r in RULES if r.id == 32)) == "comet_weekly.png"
     assert icon_file(next(r for r in RULES if r.id == 57)) == "comet.png"
@@ -153,7 +153,7 @@ def test_now_public_gear_challenges():
     quark_day = [game("2026-10-31", loadout=("smg", "buff", "loc"))] * 10
     r = by_id(evaluate(quark_day))
     assert r[103]["tier"] == "gold" and r[104]["tier"] == "gold"  # only Quark / only Translocator, 10 in one day
-    assert r[107]["tier"] == "gold" and r[112]["tier"] == "platinum"  # 10 Quark games (1/3/10/25/60); 10 Overcharge games (1/2/3/4/5)
+    assert r[107]["tier"] == "bronze" and r[112]["tier"] == "bronze"  # 10 Quark / Overcharge games on the veteran ladder 5/15/50/150/500
     assert r[101]["progress"] == 0.0 and r[109]["progress"] == 0.5  # no Starburst; Translocator without Dot Field
     both = Game(**{**game().__dict__, "loadouts": {("assault", "heal", "loc"): 500, ("assault", "heal", "dot"): 500}})
     assert by_id(evaluate([both]))[109]["progress"] == 1.0
@@ -269,3 +269,15 @@ def test_ranking_only_re_evaluates_changed_players(tmp_path, monkeypatch):
         assert evaluated == [2, 2]  # both players gained a game
         api._evaluated.clear()
         assert api._compute(sessions, (None, None)) == again
+
+
+def test_new_gear_matches_the_older_gear():
+    """Gear released on 2026-10-30 has the same ladders as the older gear (user, 2026-10-31)."""
+    by = {r.id: r for r in RULES}
+    old_vet, old_day, old_week = by[55].levels, by[5].levels, by[30].levels
+    assert all(by[i].levels == old_vet for i in (105, 106, 107, 108, 112, 133, 134))  # veterans (+ Overcharge, Blazar, Dot Field)
+    assert all(by[i].levels == old_day for i in (101, 102, 103, 104, 131, 135, 136))  # only X in one day
+    assert all(by[i].levels == old_week for i in (127, 128, 129, 130, 132, 137, 138))  # only X in one week
+    week = [game(f"2026-10-{d:02d}", loadout=("smg", "buff", "loc")) for d in (26, 27, 28) for _ in range(5)]
+    r = by_id(evaluate(week))
+    assert (r[129]["tier"], r[129]["count"]) == ("gold", 15) and r[132]["count"] == 15  # 15 Quark-only games in a week

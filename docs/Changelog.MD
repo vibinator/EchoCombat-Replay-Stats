@@ -13,6 +13,22 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 56 — 2026-10-31
+### Achievements: gear released on 30 Oct 2026
+- **Starburst, Protostar, Quark, Translocator and Overcharge now have the same ladders as the older gear** (the archive
+  holds little of them yet, so these are estimates to retune once there is data): Veterans and Overclocked
+  (games using it) 5 / 15 / 50 / 150 / 500; "only X in one day" 3 / 6 / 10 / 15 / 20; **6 new achievements**: "only X in one
+  week" 5 / 10 / 15 / 30 / 50 for Starburst (Star Power), Protostar (Protostar Powerhouse), Quark (Quark Quake) and
+  Translocator (Blink and You'll Miss It), and Overcharge in a day (Full Charge) and in a week (Charged Up).
+- **Blazar and Dot Field were released too:** Blazar Veteran and Dot Field Veteran (5 / 15 / 50 / 150 / 500), "only X in one
+  day" Blazing Trail and Dot to Dot (3 / 6 / 10 / 15 / 20), "only X in one week" Blazar Barrage and Dot Matrix
+  (5 / 10 / 15 / 30 / 50): 6 more new achievements. Blazar of Glory and Connect the Dots are now 1 / 5 / 25 / 50 / 100 like
+  the other "Beta Tester" achievements.
+- Wording: these are called "experimental" instead of "unreleased".
+- Medals recalculate by themselves; nothing has to be re-read.
+
+---
+
 ## Beta 55 — 2026-10-31
 ### Achievements: similar ones now match, and unreachable medals fixed
 - **Similar achievements share a ladder:**
