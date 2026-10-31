@@ -942,6 +942,15 @@ kbd {
   border-radius: 8px;
   background: var(--panel);
 }
+/* home page news line under the site description */
+.announcement {
+  max-width: 760px;
+  margin: 0 0 14px;
+  padding: 8px 12px;
+  border-left: 3px solid var(--blue);
+  border-radius: 6px;
+  background: var(--panel);
+}
 /* home page: live stream left, latest matches right. The video sets the row's height; the match list is taken out
    of the flow (absolute) so it is exactly that tall, and scrolls. Stacked on narrow screens, with a capped height. */
 .live-latest {

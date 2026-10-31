@@ -154,6 +154,11 @@ export function HomePage() {
       <div className="hero">
         <h1>Echo Combat replay stats</h1>
         <p className="muted">Match and player statistics from the Echo Combat replay archive.</p>
+        <p className="announcement">
+          <strong>Echo Combat has been released to Quest Standalone</strong> as of Oct 30th 2026. Learn more on{" "}
+          <a href="https://discord.gg/echo-vr-lounge" target="_blank" rel="noopener noreferrer">Discord</a> and/or at{" "}
+          <a href="https://echovrce.com" target="_blank" rel="noopener noreferrer">echovrce.com</a>.
+        </p>
         <PlayerSearch large />
       </div>
 

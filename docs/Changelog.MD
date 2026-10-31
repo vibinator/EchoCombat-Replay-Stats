@@ -13,6 +13,12 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 43 — 2026-10-31
+### Home page
+- **Announcement under the site description:** "Echo Combat has been released to Quest Standalone as of Oct 30th
+  2026", with links to the [Discord](https://discord.gg/echo-vr-lounge) and [echovrce.com](https://echovrce.com).
+- Nothing to do: refresh the page.
+
 ## Beta 42 — 2026-10-31
 ### Home page
 - **Latest matches beside the live video are a compact, scrollable list:** one short row per match (small minimap,
