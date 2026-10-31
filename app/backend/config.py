@@ -36,7 +36,7 @@ class Settings:
     # Scraper protection (D48, guard.py): /api only for the site's own pages, no bots; tests turn it off
     scraper_guard: bool = True
     rate_limit_per_min: int = 30  # /api requests per visitor per minute (bursts up to 2x); 0 = no limit
-    rate_limit_per_hour: int = 600  # ... and per hour (no burst above it); 0 = no hourly limit
+    rate_limit_per_hour: int = 1500  # ... and per hour (no burst above it); 0 = no hourly limit
     # RAM caches (D49): database memory-mapped up to db_cache_mb, decoded tracks.bin files up to track_cache_mb; 0 = off
     db_cache_mb: int = 0
     track_cache_mb: int = 0
@@ -55,8 +55,8 @@ class Settings:
             discord_client_secret=_secret(env("ECHOVR_DISCORD_CLIENT_SECRET")),
             discord_bot_token=_secret(env("ECHOVR_DISCORD_BOT_TOKEN")),
             discord_guild_id=env("ECHOVR_DISCORD_GUILD_ID", DISCORD_GUILD_ID),
-            rate_limit_per_min=int(env("ECHOVR_RATE_LIMIT_PER_MIN", 30)),
-            rate_limit_per_hour=int(env("ECHOVR_RATE_LIMIT_PER_HOUR", 600)),
+            rate_limit_per_min=int(env("ECHOVR_RATE_LIMIT_PER_MIN", 60)),
+            rate_limit_per_hour=int(env("ECHOVR_RATE_LIMIT_PER_HOUR", 1500)),
             db_cache_mb=int(env("ECHOVR_DB_CACHE_MB", 1024)),
             track_cache_mb=int(env("ECHOVR_TRACK_CACHE_MB", 512)),
             discord_preview_roles=tuple(r.strip() for r in _secret(env("ECHOVR_DISCORD_PREVIEW_ROLES")).split(",") if r.strip()),

@@ -1,9 +1,30 @@
-import type { ReactNode } from "react";
+import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Link } from "react-router";
-import type { GearItem, Loadout, MatchSummary, Team } from "../api";
+import { rateLimit, type GearItem, type Loadout, type MatchSummary, type Team } from "../api";
 import { dateTime, duration, modeLabel, scoreText, teamLabel, title } from "../format";
 
+/** Seconds until the rate limit lifts (0 when it is not active); ticks once a second while counting down. */
+function useRateLimitCountdown(): number {
+  const until = useSyncExternalStore(rateLimit.subscribe, rateLimit.until);
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (until <= Date.now()) return;
+    setNow(Date.now());
+    const id = setInterval(() => setNow(Date.now()), 500);
+    return () => clearInterval(id);
+  }, [until]);
+  return Math.max(0, Math.ceil((until - now) / 1000));
+}
+
 export function Status({ loading, error }: { loading: boolean; error: string | null }) {
+  const wait = useRateLimitCountdown();
+  if (error && wait > 0 && /too many requests/i.test(error)) {
+    return (
+      <p className="error rate-limit" role="status">
+        {error} Trying again in <strong>{wait}s</strong>…
+      </p>
+    );
+  }
   if (error) return <p className="error">{error}</p>;
   if (loading) return <p className="muted">Loading…</p>;
   return null;

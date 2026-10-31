@@ -3,9 +3,33 @@ function errorMessage(body: unknown, status: number): string {
   return typeof message === "string" ? message : `Request failed (${status})`;
 }
 
+/** The server refused because of the rate limit (429); `retryAfter` is the wait it asked for, in seconds. */
+export class RateLimitError extends Error {
+  constructor(message: string, readonly retryAfter: number) {
+    super(message);
+  }
+}
+
+// When the rate limit lifts (ms since epoch); the pages show a countdown to it and reload by themselves.
+let blockedUntil = 0;
+const blockListeners = new Set<() => void>();
+export const rateLimit = {
+  subscribe(fn: () => void) {
+    blockListeners.add(fn);
+    return () => void blockListeners.delete(fn);
+  },
+  until: () => blockedUntil,
+};
+
 async function send<T>(path: string, init?: RequestInit): Promise<T> {
   // X-EchoVR: the server answers /api only to this site's own pages (scraper protection, D48)
   const res = await fetch(path, { ...init, headers: { "X-EchoVR": "1", ...init?.headers } });
+  if (res.status === 429) {
+    const seconds = Math.min(Math.max(Math.ceil(Number(res.headers.get("Retry-After"))) || 5, 1), 120);
+    blockedUntil = Date.now() + seconds * 1000;
+    blockListeners.forEach((fn) => fn());
+    throw new RateLimitError(errorMessage(await res.json().catch(() => null), 429), seconds);
+  }
   if (!res.ok) throw new Error(errorMessage(await res.json().catch(() => null), res.status));
   return (res.status === 204 ? undefined : await res.json()) as T;
 }

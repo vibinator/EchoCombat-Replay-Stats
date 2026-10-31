@@ -347,22 +347,28 @@ export function PlayerPage() {
 
               <h2>Loadouts</h2>
               <TableWrap>
-                <table className="stack">
+                <table className="stack loadouts">
                   <thead>
-                    <tr><th>Weapon</th><th>Ordnance</th><th>Tac mod</th><th className="num">Time used</th></tr>
+                    <tr><th className="num">#</th><th>Weapon</th><th>Ordnance</th><th>Tac mod</th><th>Time used</th></tr>
                   </thead>
                   <tbody>
-                    {p.loadouts.slice(0, 10).map((lo) => (
-                      <tr key={`${lo.weapon.code}|${lo.ordnance.code}|${lo.tacmod.code}`}>
-                        <td data-label="Weapon"><GearName item={lo.weapon} /></td>
-                        <td data-label="Ordnance"><GearName item={lo.ordnance} /></td>
-                        <td data-label="Tac mod"><GearName item={lo.tacmod} /></td>
-                        <td data-label="Time used" className="num">
-                          <span className="share-bar" style={{ width: `${Math.round((lo.share ?? 0) * 60)}px` }} />
-                          {pct(lo.share)}
-                        </td>
-                      </tr>
-                    ))}
+                    {p.loadouts.slice(0, 10).map((lo, i) => {
+                      const top = p.loadouts[0]?.share || 1;
+                      return (
+                        <tr key={`${lo.weapon.code}|${lo.ordnance.code}|${lo.tacmod.code}`}>
+                          <td data-label="#" className="num rank">{i + 1}</td>
+                          <td data-label="Weapon"><GearName item={lo.weapon} /></td>
+                          <td data-label="Ordnance"><GearName item={lo.ordnance} /></td>
+                          <td data-label="Tac mod"><GearName item={lo.tacmod} /></td>
+                          <td data-label="Time used">
+                            <span className="share-cell">
+                              <span className="share-track"><span className="share-fill" style={{ width: `${Math.max(2, ((lo.share ?? 0) / top) * 100)}%` }} /></span>
+                              <span className="share-pct">{pct(lo.share)}</span>
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </TableWrap>

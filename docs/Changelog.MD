@@ -13,6 +13,28 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 68 — 2026-10-31
+- **Rate limit countdown:** when the site says "Too many requests", the message now counts down the seconds until you
+  can try again (from the server's `Retry-After`), and the page reloads that data by itself when the wait is over
+  (up to 3 automatic tries) instead of staying on the error.
+
+---
+
+## Beta 67 — 2026-10-31
+- **Fewer "Too many requests" errors:** the per-visitor limit is raised from 30 to 60 requests a minute (bursts of 120)
+  and from 600 to 1,500 an hour; heatmaps, playback, compare and downloads now cost 5 instead of 10. A player page
+  loads many requests at once, so a few quick reloads used to hit the limit.
+- **To do on the server:** `docker-compose.yml` sets these explicitly (`ECHOVR_RATE_LIMIT_PER_MIN` 60,
+  `ECHOVR_RATE_LIMIT_PER_HOUR` 1500): Recreate the container so it picks them up.
+
+---
+
+## Beta 66 — 2026-10-31
+- **Loadouts table is easier to read:** numbered rows, and "Time used" is now a bar on a track (scaled to the most used
+  loadout) with the percentage beside it, instead of a tiny dot next to the number.
+
+---
+
 ## Beta 65 — 2026-10-31
 - **All tables are easier to read:** every table on the site now sits in its own panel (border, padding), headings are
   small muted capitals, rows highlight on hover, and side-by-side tables (teammates / opponents, status, gear use) have

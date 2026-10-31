@@ -17,8 +17,8 @@ services:
       ECHOVR_WORKERS: "4"            # parallel import processes: about the NAS's CPU core count
       ECHOVR_SCAN_INTERVAL_S: "300"  # seconds between full scans of the replay folder
       ECHOVR_QUICK_CHECK_S: "15"     # seconds between checks of the folders for new files (full scan when changed)
-      ECHOVR_RATE_LIMIT_PER_MIN: "30"  # scraper protection: data requests per visitor per minute (0 = no limit)
-      ECHOVR_RATE_LIMIT_PER_HOUR: "600"  # ... and per hour (0 = no hourly limit)
+      ECHOVR_RATE_LIMIT_PER_MIN: "60"  # scraper protection: data requests per visitor per minute (0 = no limit)
+      ECHOVR_RATE_LIMIT_PER_HOUR: "1500"  # ... and per hour (0 = no hourly limit)
       ECHOVR_DB_CACHE_MB: "1024"     # RAM for the database (faster pages); lower on a NAS with little RAM, 0 = off
       ECHOVR_TRACK_CACHE_MB: "512"   # RAM for heatmap / playback position data; 0 = off
       # Discord login: people with the preview role see achievements before their launch (Setup.MD, Discord login).

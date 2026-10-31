@@ -30,7 +30,7 @@ SCRIPT_AGENTS = re.compile(
 HEADER_EXEMPT = ("/api/auth/", "/api/health")
 HEADER_EXEMPT_SUFFIXES = ("/export", ".csv", ".xlsx")
 HEAVY = ("/heatmap", "/playback", "/export", "/compare/", ".csv", ".xlsx")
-HEAVY_COST = 10
+HEAVY_COST = 5
 
 
 REPLAY_FILE = re.compile(r"\.(echoreplay|replay)(\.|$|/)", re.IGNORECASE)

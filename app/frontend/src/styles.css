@@ -419,6 +419,36 @@ td.num {
   white-space: nowrap;
 }
 
+/* loadouts: rank, then a bar scaled to the most used loadout with the percentage beside it */
+.loadouts td.rank {
+  width: 2rem;
+  color: var(--muted);
+}
+.share-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.share-track {
+  flex: 1;
+  min-width: 80px;
+  max-width: 220px;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.share-fill {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: var(--blue);
+}
+.share-pct {
+  min-width: 3ch;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
 .share-bar {
   display: inline-block;
   height: 8px;
