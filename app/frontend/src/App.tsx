@@ -130,7 +130,11 @@ function Layout() {
           ].map(([to, label]) => (
             <NavLink key={to} to={to} end={to === "/"}>
               {label}
-              {to === "/achievements" && achievements.visible === false && <span className="tag">soon</span>}
+              {to === "/achievements" && achievements.visible === false && (
+                <span className="tag" title={achievements.total ? `${achievements.total} achievements available` : undefined}>
+                  Coming soon{achievements.total ? ` · ${achievements.total}` : ""}
+                </span>
+              )}
               {to === "/achievements" && achievements.preview && <span className="tag">preview</span>}
             </NavLink>
           ))}

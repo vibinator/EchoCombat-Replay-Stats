@@ -13,6 +13,18 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 35 — 2026-10-31
+### Website
+- **The "Achievements" menu item says "Coming soon · 96"** before the Flamingo Challenge start date: the number of
+  achievements and challenges available (hover for "96 achievements available"). The "Coming soon" page on
+  /achievements names the number too. Previewers still see the "preview" tag instead.
+- `/api/challenges` now includes `total`, the number of achievements, for everyone.
+
+### Upgrading to Beta 35
+- QNAP: upload Beta 35, wait for the Actions run, Recreate. Windows: restart `run.bat`. No re-import.
+
+---
+
 ## Beta 34 — 2026-10-31
 ### Website
 - **Player profiles no longer show "Achievements — coming soon"** before the Flamingo Challenge start date set in

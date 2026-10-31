@@ -113,13 +113,13 @@ function Catalogue() {
 }
 
 export function AchievementsPage() {
-  const { visible, start } = useAchievementsAccess();
+  const { visible, start, total } = useAchievementsAccess();
   if (visible === null) return null;
   if (!visible)
     return (
       <section>
         <h1>Achievements</h1>
-        <ComingSoon start={start} />
+        <ComingSoon start={start} total={total} />
       </section>
     );
   return <LaunchedAchievementsPage />;

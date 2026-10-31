@@ -58,7 +58,8 @@ def get_challenges(request: Request):
     """The Flamingo Challenge period: only matches inside it count. No start date = not launched yet."""
     with request.app.state.sessionmaker() as db:
         info = _window_info(db)
-    return info | {"preview": not info["launched"] and auth.has_preview(request)}
+    # total is public before the launch too: the menu and "Coming soon" page say how many there are
+    return info | {"preview": not info["launched"] and auth.has_preview(request), "total": len(RULES)}
 
 
 # --- data ---------------------------------------------------------------------------------

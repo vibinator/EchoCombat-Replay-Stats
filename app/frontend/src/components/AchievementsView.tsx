@@ -129,11 +129,19 @@ export interface AchievementsAccess {
   launched: boolean;
   preview: boolean;
   start: string | null;
+  /** number of achievements available (null while loading) */
+  total: number | null;
 }
 
 export function useAchievementsAccess(): AchievementsAccess {
   const d = useApi(getChallenges, "challenge").data;
-  return { visible: d ? d.launched || d.preview : null, launched: !!d?.launched, preview: !!d?.preview, start: d?.start ?? null };
+  return {
+    visible: d ? d.launched || d.preview : null,
+    launched: !!d?.launched,
+    preview: !!d?.preview,
+    start: d?.start ?? null,
+    total: d?.total ?? null,
+  };
 }
 
 function PreviewLogin() {
@@ -155,11 +163,11 @@ function PreviewLogin() {
   );
 }
 
-export function ComingSoon({ start }: { start: string | null }) {
+export function ComingSoon({ start, total }: { start: string | null; total: number | null }) {
   return (
     <>
       <EmptyState title="Coming soon">
-        Achievements and Flamingo Challenges are on their way
+        {total ? <><strong>{total}</strong> achievements</> : "Achievements"} and Flamingo Challenges are on their way
         {start ? (
           <>
             {" "}

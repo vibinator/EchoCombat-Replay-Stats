@@ -424,6 +424,8 @@ export interface ChallengeWindow {
   /** before the launch: this visitor has the Discord preview role and sees everything */
   preview: boolean;
   active: boolean;
+  /** number of achievements and challenges available (public before the launch too) */
+  total: number;
 }
 
 export interface Me {
