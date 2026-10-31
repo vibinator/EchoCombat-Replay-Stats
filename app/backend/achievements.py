@@ -1,14 +1,14 @@
 """Achievements (D17): 5-79 from the old ECRanked stat.js comments, thresholds from the rule text; 80+ are new
 (user, 2026-10-30), built on data the old site never used: unreleased gear, results, payload push / block, emotes.
 Progress = the best value ever reached (old app only ever raised progress): best game, best calendar
-day / week (recorder-local, weeks start Monday), or the all-time total. The logic follows the description shown
+day (recorder-local), best rolling 7 days (any 7-day window, Beta 69), or the all-time total. The logic follows the description shown
 on the website (user, 2026-10-30): every condition a rule applies is in its text. Computed from stored match
 stats on request; nothing is stored. Tiers (user, 2026-10-30): white 25 %, bronze 50 %, silver 75 %, gold 100 %."""
 
 from collections import Counter, defaultdict
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from functools import cached_property
 
 WEAPONS = [("assault", "Pulsar", "pulsar"), ("blaster", "Nova", "nova"), ("scout", "Comet", "comet"), ("rocket", "Meteor", "meteor")]
@@ -66,7 +66,11 @@ class Game:
         return date.fromisoformat(self.started_at[:10])
 
     @cached_property
-    def week(self) -> date:
+    def start_dt(self) -> datetime:
+        return datetime.fromisoformat(self.started_at)
+
+    @cached_property
+    def week(self) -> date:  # calendar week: only "Different weeks played" uses it
         return self.day - timedelta(days=self.day.weekday())
 
     @cached_property
@@ -228,7 +232,7 @@ PEW_PEW_MAX_DEATHS = 5  # was 3 in the original text; raised by the user (2026-1
 
 
 def _pew_pew_proof(games):
-    """Average fewer than PEW_PEW_MAX_DEATHS deaths per game over a week with at least 25 games. Exactly the
+    """Average fewer than PEW_PEW_MAX_DEATHS deaths per game over any 7 days with at least 25 games. Exactly the
     limit is not fewer: partial progress stays below 100 % until the average is under it."""
     if not games:
         return 0.0
@@ -347,13 +351,13 @@ def _build_rules() -> list[Rule]:
         _tiered(19, "Point Captured", "Play Capture Point games in one day: the most in a single day counts", "capture_point", _capture, (4, 6, 8, 12, 20), "day"),
         _tiered(20, "Checkpoint Reached", "Play Payload games in one day: the most in a single day counts", "payload", _payload, (4, 6, 8, 12, 20), "day"),
         _ladder(21, "Full Team Salvo", "Time near a teammate in one game of 3+ minutes: your best game counts", None,
-                _full(_pct("near_mate")), (40, 50, 60, 75, 90), "game", "%"),
+                _full(_pct("near_mate")), (45, 55, 65, 80, 92), "game", "%"),
         _ladder(22, "Can We Talk About This?", "Time near an enemy in one game of 3+ minutes: your best game counts", None,
                 _full(_pct("near_enemy")), (2, 15, 30, 50, 75), "game", "%"),
         _ladder(23, "Super Ultra Hyper Turbo", "Top speed reached in one game: your best game counts", None,
-                lambda gs: gs[0].top_speed, (13, 17, 21, 25, 30), "game", " m/s"),
+                lambda gs: gs[0].top_speed, (14, 18, 22, 27, 32), "game", " m/s"),
         _ladder(24, "I’m Bat Bot", "Time spent inverted in one game of 3+ minutes: your best game counts", None,
-                _full(_pct("upside")), (10, 25, 50, 75, 90), "game", "%"),
+                _full(_pct("upside")), (15, 30, 55, 80, 92), "game", "%"),
     ]
     for rid, name, m in ((25, "Constant Contesting", "dyson"), (26, "Blast Furnace", "combustion"),
                          (27, "Techneium-99", "fission"), (28, "Bird of Prey", "surge")):
@@ -370,25 +374,25 @@ def _build_rules() -> list[Rule]:
     i = 30
     for slot, items in (("weapon", WEAPONS), ("ordnance", ORDNANCES), ("tacmod", TACMODS)):
         for code, label, icon in items:
-            rules.append(_ladder(i, names[code], f"Play games using only {label} in one week: the most in a single week counts", icon,
+            rules.append(_ladder(i, names[code], f"Play games using only {label} in any 7 days: the most in any 7 days counts", icon,
                                  _only_games(slot, code), (5, 10, 15, 30, 50), "week"))
             i += 1
     rules += [
-        _ladder(42, "Gearhead", "Games in a row using only one loadout in one week: your best week counts", None, _gearhead_run, (4, 8, 15, 30, 50), "week"),
-        Rule(43, "Pew Pew Proof", "Average fewer than 5 deaths per game over a week (25+ games)", "week", "deaths", _pew_pew_proof, estimated=True),
-        _tiered(44, "I'd Rather Be on Kronos II", "Play Capture Point games in one week: the most in a single week counts", "capture_point", _capture, (10, 18, 25, 40, 50), "week"),
-        _tiered(45, "Sakura's Dancing Flamingo", "Play Payload games in one week: the most in a single week counts", "payload", _payload, (10, 18, 25, 40, 50), "week"),
-        _ladder(46, "Tech Support w/RAD_Natalie", "Time near a teammate over one week: your best week counts", None, _pct("near_mate"), (22, 27, 32, 40, 55), "week", "%"),
-        _ladder(47, "Hug Your Frenemy", "Time near an enemy over one week: your best week counts", None, _pct("near_enemy"), (10, 15, 20, 30, 50), "week", "%"),
-        _ladder(48, "The Wings of RAD_Wyvern", "Average speed over one week: your best week counts", None, _AvgValue("speed_sum", 1.0), (3.5, 4, 4.5, 5, 6), "week", " m/s"),
-        _ladder(49, "I’ɯ ꓭɐʇ ꓭoʇ", "Time spent inverted over one week: your best week counts", None, _pct("upside"), (5, 10, 15, 30, 50), "week", "%"),
+        _ladder(42, "Gearhead", "Games in a row using only one loadout in any 7 days: your best 7 days count", None, _gearhead_run, (4, 8, 15, 30, 50), "week"),
+        Rule(43, "Pew Pew Proof", "Average fewer than 5 deaths per game over any 7 days (25+ games)", "week", "deaths", _pew_pew_proof, estimated=True),
+        _tiered(44, "I'd Rather Be on Kronos II", "Play Capture Point games in any 7 days: the most in any 7 days counts", "capture_point", _capture, (10, 18, 25, 40, 50), "week"),
+        _tiered(45, "Sakura's Dancing Flamingo", "Play Payload games in any 7 days: the most in any 7 days counts", "payload", _payload, (10, 18, 25, 40, 50), "week"),
+        _ladder(46, "Tech Support w/RAD_Natalie", "Time near a teammate over any 7 days: your best 7 days count", None, _pct("near_mate"), (22, 27, 32, 40, 55), "week", "%"),
+        _ladder(47, "Hug Your Frenemy", "Time near an enemy over any 7 days: your best 7 days count", None, _pct("near_enemy"), (10, 15, 20, 30, 50), "week", "%"),
+        _ladder(48, "The Wings of RAD_Wyvern", "Average speed over any 7 days: your best 7 days count", None, _AvgValue("speed_sum", 1.0), (3.5, 4, 4.5, 5, 6), "week", " m/s"),
+        _ladder(49, "I’ɯ ꓭɐʇ ꓭoʇ", "Time spent inverted over any 7 days: your best 7 days count", None, _pct("upside"), (5, 10, 15, 30, 50), "week", "%"),
     ]
     for rid, name, m in ((50, "Frame-Drop Hell", "dyson"), (51, "I've Got a Fever, and the Only Prescription Is Pew Pew Pew!", "combustion"),
                          (52, "Phoeniconaias minor", "fission"), (53, "Phoenicopterus ruber", "surge")):
-        rules.append(_tiered(rid, name, f"Play games of {m.title()} in one week: the most in a single week counts", m,
+        rules.append(_tiered(rid, name, f"Play games of {m.title()} in any 7 days: the most in any 7 days counts", m,
                              lambda g, m=m: g.map == m, (4, 6, 8, 16, 30), "week"))
     rules.append(_tiered(54, "Who Do I Have to Pew Pew Pew to Get a Combat Update Around Here?",
-                         "Play Combat pubs in one week: the most in a single week counts", None, _pub, (15, 30, 60, 100, 150), "week"))
+                         "Play Combat pubs in any 7 days: the most in any 7 days counts", None, _pub, (15, 30, 60, 100, 150), "week"))
 
     # All time (55-79). 55-66 have no title in the old code (A: names generated).
     i = 55
@@ -510,12 +514,12 @@ def _build_rules() -> list[Rule]:
     weekly = (("weapon", "rifle", "Starburst", "Star Power"), ("weapon", "magnum", "Protostar", "Protostar Powerhouse"),
               ("weapon", "smg", "Quark", "Quark Quake"), ("ordnance", "loc", "Translocator", "Blink and You'll Miss It"))
     for i, (slot, code, label, name) in enumerate(weekly, 127):
-        rules.append(_ladder(i, name, f"Play games using only {label} in one week: the most in a single week counts", None,
+        rules.append(_ladder(i, name, f"Play games using only {label} in any 7 days: the most in any 7 days counts", None,
                              _only_games(slot, code), (5, 10, 15, 30, 50), "week", new=True, group="Experimental gear"))
     rules += [
         _ladder(131, "Full Charge", "Play games using only Overcharge in one day: the most in a single day counts", None,
                 _only_games("tacmod", "buff"), (3, 6, 10, 15, 20), "day", new=True, group="Experimental gear"),
-        _ladder(132, "Charged Up", "Play games using only Overcharge in one week: the most in a single week counts", None,
+        _ladder(132, "Charged Up", "Play games using only Overcharge in any 7 days: the most in any 7 days counts", None,
                 _only_games("tacmod", "buff"), (5, 10, 15, 30, 50), "week", new=True, group="Experimental gear"),
         # Blazar and Dot Field were released too (user, 2026-10-31): the same set as the other new gear
         _ladder(133, "Blazar Veteran", "Play games using Blazar", None, _games_using("weapon", "chain"), (5, 15, 50, 150, 500),
@@ -526,9 +530,9 @@ def _build_rules() -> list[Rule]:
                 _only_games("weapon", "chain"), (3, 6, 10, 15, 20), "day", new=True, group="Experimental gear"),
         _ladder(136, "Dot to Dot", "Play games using only Dot Field in one day: the most in a single day counts", None,
                 _only_games("ordnance", "dot"), (3, 6, 10, 15, 20), "day", new=True, group="Experimental gear"),
-        _ladder(137, "Blazar Barrage", "Play games using only Blazar in one week: the most in a single week counts", None,
+        _ladder(137, "Blazar Barrage", "Play games using only Blazar in any 7 days: the most in any 7 days counts", None,
                 _only_games("weapon", "chain"), (5, 10, 15, 30, 50), "week", new=True, group="Experimental gear"),
-        _ladder(138, "Dot Matrix", "Play games using only Dot Field in one week: the most in a single week counts", None,
+        _ladder(138, "Dot Matrix", "Play games using only Dot Field in any 7 days: the most in any 7 days counts", None,
                 _only_games("ordnance", "dot"), (5, 10, 15, 30, 50), "week", new=True, group="Experimental gear"),
     ]
     return rules
@@ -549,12 +553,47 @@ def tier(progress: float) -> str | None:
     return next((name for level, name in TIERS if progress >= level), None)
 
 
+WEEK = timedelta(days=7)
+
+
+def _rolling_weeks(games: list[Game], maximal: bool) -> list[list[Game]]:
+    """Every 7-day window that starts at one of the player's games (any 7 days can be slid to start at its first game).
+    `maximal`: skip windows that are a part of the one before (same last game), for rules where more games can
+    never lower the value (counts); averages and ratios need every window."""
+    ordered = sorted(games, key=lambda g: g.start_dt)
+    out: list[list[Game]] = []
+    end = prev_end = 0
+    for i, g in enumerate(ordered):
+        limit = g.start_dt + WEEK
+        end = max(end, i + 1)
+        while end < len(ordered) and ordered[end].start_dt < limit:
+            end += 1
+        if maximal and i and end == prev_end:
+            continue
+        out.append(ordered[i:end])
+        prev_end = end
+    return out
+
+
+def _monotone(rule: "Rule") -> bool:
+    """True when adding games to a group can never lower the rule's value (so only maximal windows need checking)."""
+    return bool(rule.levels) and not isinstance(rule.count, _AvgValue)
+
+
+def _week_key(rule: "Rule") -> str:
+    if rule.period != "week":
+        return rule.period
+    return "week" if _monotone(rule) else "week_all"
+
+
 def _groups(games: list[Game], period: str) -> list[list[Game]]:
     if period == "all":
         return [games]
     if period == "game":
         return [[g] for g in games]
-    key = (lambda g: g.day) if period == "day" else (lambda g: g.week)
+    if period in ("week", "week_all"):
+        return _rolling_weeks(games, maximal=period == "week")
+    key = lambda g: g.day
     groups = defaultdict(list)
     for g in games:
         groups[key(g)].append(g)
@@ -568,17 +607,17 @@ def _reached_gold(entry: dict, rule: Rule) -> bool:
 
 def evaluate(games: list[Game]) -> list[dict]:
     """Progress per rule: best period, capped at 1. Ladders also report the best count per period group."""
-    groups = {p: _groups(games, p) for p in ("game", "day", "week", "all")}
+    groups = {p: _groups(games, p) for p in ("game", "day", "week", "week_all", "all")}
     entries: dict[int, dict] = {}
     for rule in RULES:
         if rule.meta:
             continue
         n = None
         if rule.levels:  # ladder: the best count over the period groups (once: progress follows from it)
-            n = max((rule.count(g) for g in groups[rule.period] if g), default=0)
+            n = max((rule.count(g) for g in groups[_week_key(rule)] if g), default=0)
             best = _levelled(lambda _, n=n: n, rule.levels)([])
         else:
-            best = max((rule.score(g) for g in groups[rule.period] if g), default=0.0)
+            best = max((rule.score(g) for g in groups[_week_key(rule)] if g), default=0.0)
         progress = round(clamp(best), 4)
         entry = {
             "id": rule.id, "name": rule.name, "description": rule.description, "period": rule.period,
@@ -614,7 +653,7 @@ def unlock_dates(games: list[Game]) -> dict[int, str]:
     reached it; all-time rules: the first game at which the running total reached it (averages: scanned in
     order, they can go down again; counts only grow, so a binary search finds it)."""
     ordered = sorted(games, key=lambda g: g.started_at)
-    groups = {p: _groups(ordered, p) for p in ("game", "day", "week")}
+    groups = {p: _groups(ordered, p) for p in ("game", "day", "week", "week_all")}
     out: dict[int, str] = {}
     for rule in RULES:
         if rule.meta:
@@ -634,7 +673,9 @@ def unlock_dates(games: list[Game]) -> dict[int, str]:
                     lo = mid + 1
             out[rule.id] = ordered[lo - 1].started_at[:10]
         else:
-            done = [min(g.started_at for g in group) for group in groups[rule.period] if group and rule.score(group) >= 1]
+            # a rolling week is complete at its last game, a day / game at its first (as before)
+            pick = max if rule.period == "week" else min
+            done = [pick(g.started_at for g in group) for group in groups[_week_key(rule)] if group and rule.score(group) >= 1]
             if done:
                 out[rule.id] = min(done)[:10]
     return out

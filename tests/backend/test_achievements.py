@@ -42,12 +42,27 @@ def test_daily_only_weapon_takes_best_day():
     assert (r[5]["tier"], r[5]["count"], r[5]["progress"]) == (None, 1, pytest.approx(1 / 15, abs=1e-4))  # Pulsar only once
 
 
-def test_weekly_groups_by_calendar_week():
-    # Mon 26 Oct - Sun 1 Nov 2026 is one week; 2 Nov starts the next
+def test_weekly_is_a_rolling_seven_days():
+    # Sun 1 Nov and Mon 2 Nov are in different calendar weeks but within 7 days of each other
     games = [game(d) for d in ("2026-10-26", "2026-11-01")] + [game("2026-11-02")]
     r = by_id(evaluate(games))
-    # Frame-Drop Hell: the best week has 2 Dyson games, ladder 4 / 6 / 8 / 16 / 30
+    # Frame-Drop Hell: the best 7 days hold 2 Dyson games (26 Oct + 1 Nov, or 1 Nov + 2 Nov), ladder 4 / 6 / 8 / 16 / 30
     assert (r[50]["count"], r[50]["progress"]) == (2, pytest.approx(0.1))
+    games = [game(d) for d in ("2026-10-30", "2026-11-01", "2026-11-03")]  # all three across a calendar week boundary
+    assert by_id(evaluate(games))[50]["count"] == 3
+    games = [game(d) for d in ("2026-10-26", "2026-11-02")]  # exactly 7 days apart: not the same window
+    assert by_id(evaluate(games))[50]["count"] == 1
+
+
+def test_phasers_switching_weapons_keeps_progress():
+    # 5 Pulsar-only games over 6 days, with Nova games in between: they do not break or reset the count
+    days = ["2026-10-28", "2026-10-29", "2026-10-30", "2026-10-31", "2026-11-01"]
+    games = []
+    for d in days:
+        games += [game(d, loadout=("assault", "heal", "det")), game(d, loadout=("blaster", "heal", "det"))]
+    r = by_id(evaluate(games))
+    assert r[30]["count"] == 5 and r[31]["count"] == 5  # Set Phasers to Kill! and Eat My Nova!
+    assert "in any 7 days" in r[30]["description"]
 
 
 def test_per_game_rules_ignore_short_appearances():
@@ -208,10 +223,10 @@ def test_tiered_achievements():
 def test_ladders_with_units_and_periods():
     """Per-game ladders count the best game, units are in the text, short games do not count."""
     r = by_id(evaluate([game(top=20.0), game(top=9.0)]))
-    assert (r[23]["tier"], r[23]["count"], r[23]["unit"]) == ("silver", 20.0, " m/s")  # 13 / 17 / 21 / 25 / 30
-    assert "13 m/s bronze, 17 m/s silver" in next(x for x in RULES if x.id == 23).description
+    assert (r[23]["tier"], r[23]["count"], r[23]["unit"]) == ("silver", 20.0, " m/s")  # 14 / 18 / 22 / 27 / 32
+    assert "14 m/s bronze, 18 m/s silver" in next(x for x in RULES if x.id == 23).description
     r = by_id(evaluate([game(upside=600)]))
-    assert (r[24]["tier"], r[24]["count"]) == ("gold", 60.0)  # 60 % inverted in one 3+ min game: 10 / 25 / 50 / 75 / 90
+    assert (r[24]["tier"], r[24]["count"]) == ("gold", 60.0)  # 60 % inverted in one 3+ min game: 15 / 30 / 55 / 80 / 92
     assert by_id(evaluate([game(upside=900, play=60.0)]))[24]["count"] == 0
 
 

@@ -13,6 +13,24 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 70 — 2026-10-31
+- **Three per-game challenges are slightly harder** (user request): Full Team Salvo 40/50/60/75/90 % → 45/55/65/80/92 %,
+  Super Ultra Hyper Turbo 13/17/21/25/30 m/s → 14/18/22/27/32 m/s, I'm Bat Bot 10/25/50/75/90 % → 15/30/55/80/92 %.
+  Medals already earned are re-evaluated from the replays, so some players will drop a medal.
+
+---
+
+## Beta 69 — 2026-10-31
+- **Weekly challenges are now a rolling 7 days** instead of a Monday-to-Sunday calendar week (user request). Your best
+  7-day stretch counts, wherever it starts, so games on Friday and the following Tuesday are added together. Applies to
+  every "in one week" challenge (Set Phasers to Kill!, Eat My Nova!, the other "only X" gear challenges, Gearhead, Pew Pew
+  Proof, map / mode / pub counts, near mate / enemy, speed, inverted). Titles now say "in any 7 days"; the tab is "In any
+  7 days". Games with other weapons never reset progress: a game only counts for "only X" when X is 95%+ of its time.
+- Unlock dates for these challenges are now the date the 7-day stretch was completed. "Loyal Bot" (different weeks
+  played) still counts calendar weeks.
+
+---
+
 ## Beta 68 — 2026-10-31
 - **Rate limit countdown:** when the site says "Too many requests", the message now counts down the seconds until you
   can try again (from the server's `Retry-After`), and the page reloads that data by itself when the wait is over

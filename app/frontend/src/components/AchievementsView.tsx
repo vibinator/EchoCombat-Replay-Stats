@@ -13,7 +13,7 @@ const GENERIC_ICON = "happy_cubesat.png";
 export const GROUPS: [Achievement["period"], string][] = [
   ["game", "In one game"],
   ["day", "In one day"],
-  ["week", "In one week"],
+  ["week", "In any 7 days"],
   ["all", "All time"],
 ];
 
@@ -484,9 +484,9 @@ export function AchievementsView({ userId }: { userId: string }) {
           <p className="muted footnote">
             Almost every challenge is a ladder of medals (bronze, silver, gold, diamond, platinum): the bar has one step per medal, the
             colour of a name is the medal reached, and the number under each step is its target. Progress is the best ever reached (best game,
-            best calendar day or week, or all-time total). A few single-step challenges keep white 25%, bronze 50%, silver 75%, gold 100%.
+            best calendar day, best rolling 7 days, or all-time total). A few single-step challenges keep white 25%, bronze 50%, silver 75%, gold 100%.
             "Use only" an item = 95%+ of that game's loadout time; "use" = 5%+. Days are
-            calendar days, weeks start on Monday. * Based on estimated deaths.
+            calendar days; "7 days" is any 7-day window, not a calendar week. * Based on estimated deaths.
           </p>
         </>
       )}
