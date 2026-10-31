@@ -13,6 +13,15 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 50 — 2026-10-31
+### Achievements
+- **Super Ultra Hyper Turbo is a little easier:** top speed in one game is now 13 / 17 / 21 / 25 / 30 m/s for bronze /
+  silver / gold / platinum / diamond (was 14 / 18 / 22 / 26 / 32). In the archive about 82 % of players (10+ games)
+  reach bronze, 37 % silver, 10 % gold (was 7 %), 3 % platinum and 0.3 % diamond. Medals update by themselves; nothing
+  has to be re-read.
+
+---
+
 ## Beta 49 — 2026-10-31
 ### Achievements: sections with their own filters
 - **Section order:** In one game, In one day, In one week, All time, then Experimental gear, Gear mastery, Wins,

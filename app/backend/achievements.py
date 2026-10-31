@@ -345,7 +345,7 @@ def _build_rules() -> list[Rule]:
         _ladder(22, "Can We Talk About This?", "Time near an enemy in one game of 3+ minutes: your best game counts", None,
                 _full(_pct("near_enemy")), (2, 15, 30, 50, 75), "game", "%"),
         _ladder(23, "Super Ultra Hyper Turbo", "Top speed reached in one game: your best game counts", None,
-                lambda gs: gs[0].top_speed, (14, 18, 22, 26, 32), "game", " m/s"),
+                lambda gs: gs[0].top_speed, (13, 17, 21, 25, 30), "game", " m/s"),
         _ladder(24, "I’m Bat Bot", "Time spent inverted in one game of 3+ minutes: your best game counts", None,
                 _full(_pct("upside")), (10, 25, 50, 75, 90), "game", "%"),
     ]
