@@ -38,7 +38,7 @@ def test_daily_only_weapon_takes_best_day():
     games = [game("2026-10-27")] * 6 + [game("2026-10-28")] * 15 + [game("2026-10-28", loadout=("assault", "heal", "det"))]
     r = by_id(evaluate(games))
     # One with the Comet: ladder 3 / 6 / 10 / 15 / 20 games in one day; the best day (15 Comet-only games) counts
-    assert (r[7]["tier"], r[7]["count"], r[7]["progress"]) == ("platinum", 15, pytest.approx(0.8))
+    assert (r[7]["tier"], r[7]["count"], r[7]["progress"]) == ("diamond", 15, pytest.approx(0.8))
     assert (r[5]["tier"], r[5]["count"], r[5]["progress"]) == (None, 1, pytest.approx(1 / 15, abs=1e-4))  # Pulsar only once
 
 
@@ -120,7 +120,7 @@ def test_logic_follows_the_text():
 def test_average_unlock_date_is_when_first_reached():
     from backend.achievements import unlock_dates
 
-    # Inverted 60%+ (diamond) over 50+ games: reached on day 2 (games 1-50 are 90 % inverted), then diluted, still above 60%
+    # Inverted 60%+ (platinum) over 50+ games: reached on day 2 (games 1-50 are 90 % inverted), then diluted, still above 60%
     games = [game("2026-10-01", upside=900)] * 25 + [game("2026-10-02", upside=900)] * 25 + [game("2026-10-20")] * 20
     assert by_id(evaluate(games))[74]["progress"] == 1.0
     assert unlock_dates(games)[74] == "2026-10-02"
@@ -153,7 +153,7 @@ def test_now_public_gear_challenges():
     quark_day = [game("2026-10-31", loadout=("smg", "buff", "loc"))] * 10
     r = by_id(evaluate(quark_day))
     assert r[103]["tier"] == "gold" and r[104]["tier"] == "gold"  # only Quark / only Translocator, 10 in one day
-    assert r[107]["tier"] == "bronze" and r[112]["tier"] == "platinum"  # 10 Quark games; 10 Overcharge games (1/3/5/10/25)
+    assert r[107]["tier"] == "bronze" and r[112]["tier"] == "diamond"  # 10 Quark games; 10 Overcharge games (1/3/5/10/25)
     assert r[101]["progress"] == 0.0 and r[109]["progress"] == 0.5  # no Starburst; Translocator without Dot Field
     both = Game(**{**game().__dict__, "loadouts": {("assault", "heal", "loc"): 500, ("assault", "heal", "dot"): 500}})
     assert by_id(evaluate([both]))[109]["progress"] == 1.0
@@ -183,7 +183,7 @@ def test_new_result_challenges():
 
 
 def test_tiered_achievements():
-    """Clean Sweep / Special Delivery (user, 2026-10-31): bronze 1, silver 5, gold 10, platinum 25, diamond 100
+    """Clean Sweep / Special Delivery (user, 2026-10-31): bronze 1, silver 5, gold 10, diamond 25, platinum 100
     games; progress 20 % per medal, partial in between; the text lists every target (website text is the spec)."""
     from backend.achievements import unlock_threshold
 
@@ -192,13 +192,13 @@ def test_tiered_achievements():
                 for i in range(n)]
 
     expected = {0: (None, 0.0), 1: ("bronze", 0.2), 3: ("bronze", 0.3), 5: ("silver", 0.4), 10: ("gold", 0.6),
-                25: ("platinum", 0.8), 50: ("platinum", 0.8 + 25 / 75 / 5), 100: ("diamond", 1.0), 120: ("diamond", 1.0)}
+                25: ("diamond", 0.8), 50: ("diamond", 0.8 + 25 / 75 / 5), 100: ("platinum", 1.0), 120: ("platinum", 1.0)}
     for n, (medal, progress) in expected.items():
         r = by_id(evaluate(sweeps(n)))[93]
         assert (r["tier"], r["count"], r["levels"]) == (medal, n, [1, 5, 10, 25, 100]), n
         assert r["progress"] == pytest.approx(progress, abs=1e-4), n
     rule = next(r for r in RULES if r.id == 93)
-    assert "1 bronze, 5 silver, 10 gold, 25 platinum, 100 diamond" in rule.description
+    assert "1 bronze, 5 silver, 10 gold, 25 diamond, 100 platinum" in rule.description
     assert unlock_threshold(rule) == 0.2 and unlock_threshold(next(r for r in RULES if r.id == 43)) == 0.25
     delivery = next(r for r in RULES if r.id == 94)
     assert "Deliver the payload to the end" in delivery.description and delivery.levels == (1, 5, 10, 25, 100)

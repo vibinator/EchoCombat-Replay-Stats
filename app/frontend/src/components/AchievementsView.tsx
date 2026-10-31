@@ -167,7 +167,7 @@ function TierSteps({ a }: { a: Achievement & AchievementRule }) {
 }
 
 /** A rule with a player's progress, or just the catalogue entry when `progress` is absent. */
-/** Tiered achievements: "12 / 25 for platinum", or the top medal once every target is reached. */
+/** Tiered achievements: "12 / 25 for diamond", or the top medal once every target is reached. */
 function levelText(count: number, levels: number[], unit = ""): string {
   const next = levels.findIndex((need) => count < need);
   if (next < 0) return `${count.toLocaleString()}${unit} · ${LEVELS[levels.length - 1]} (max)`;
@@ -375,7 +375,7 @@ function LaunchedSummary({ userId }: { userId: string }) {
   const result = useApi(() => getAchievements(userId), userId);
   const d = result.data;
   if (!d) return null;
-  const gold = d.items.filter((a) => a.progress >= 1).length; // diamond for ladders, 100 % for single-step ones
+  const gold = d.items.filter((a) => a.progress >= 1).length; // platinum for ladders, 100 % for single-step ones
   const unlocked = d.items.filter((a) => a.tier).length;
   const added = d.items.filter((a) => a.new);
   return (
@@ -390,7 +390,7 @@ function LaunchedSummary({ userId }: { userId: string }) {
           <strong>{pct(d.overall)}</strong>
         </div>
         <div className="card">
-          <span className="label">Completed (diamond)</span>
+          <span className="label">Completed (platinum)</span>
           <strong>
             {gold} / {d.total}
           </strong>
@@ -482,7 +482,7 @@ export function AchievementsView({ userId }: { userId: string }) {
             <GroupedBadges items={data.items} />
           )}
           <p className="muted footnote">
-            Almost every challenge is a ladder of medals (bronze, silver, gold, platinum, diamond): the bar has one step per medal, the
+            Almost every challenge is a ladder of medals (bronze, silver, gold, diamond, platinum): the bar has one step per medal, the
             colour of a name is the medal reached, and the number under each step is its target. Progress is the best ever reached (best game,
             best calendar day or week, or all-time total). A few single-step challenges keep white 25%, bronze 50%, silver 75%, gold 100%.
             "Use only" an item = 95%+ of that game's loadout time; "use" = 5%+. Days are

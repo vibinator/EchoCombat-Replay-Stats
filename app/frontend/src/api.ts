@@ -319,14 +319,14 @@ export interface AchievementRule {
   new: boolean; // added in this app (80+), not on the original ECRanked site
   group: string | null; // theme of a new achievement
   unit?: string; // ladder targets are in this unit ("%", " m/s", " min"); empty = a count
-  levels?: number[] | null; // tiered achievements: count targets for bronze, silver, gold, platinum, diamond
+  levels?: number[] | null; // tiered achievements: count targets for bronze, silver, gold, diamond, platinum
 }
 
-export const LEVELS = ["bronze", "silver", "gold", "platinum", "diamond"] as const;
+export const LEVELS = ["bronze", "silver", "gold", "diamond", "platinum"] as const;
 
 export interface Achievement extends AchievementRule {
   progress: number;
-  tier: "white" | "bronze" | "silver" | "gold" | "platinum" | "diamond" | null;
+  tier: "white" | "bronze" | "silver" | "gold" | "diamond" | "platinum" | null;
   unlocked_at: string | null;
   count?: number; // tiered achievements: games counted so far
 }

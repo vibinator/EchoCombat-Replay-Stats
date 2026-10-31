@@ -150,7 +150,7 @@ function LaunchedAchievementsPage() {
           <p className="muted">
             The achievements from the original ECRanked site, plus new ones (marked "new") built on data it never used:
             unreleased gear, wins, payload push / block time, emotes and how often you play. Almost every challenge is a ladder of medals
-            (bronze, silver, gold, platinum, diamond); pick a player to see their progress to each medal. A few single-step challenges keep
+            (bronze, silver, gold, diamond, platinum); pick a player to see their progress to each medal. A few single-step challenges keep
             white 25%, bronze 50%, silver 75%, gold 100%. "Use only" an item = 95%+ of that game's loadout time; "use" = 5%+. Days are calendar days,
             weeks start on Monday.
           </p>

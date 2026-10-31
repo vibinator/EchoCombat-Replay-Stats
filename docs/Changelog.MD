@@ -13,6 +13,15 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 52 — 2026-10-31
+### Achievements
+- **Medal order corrected:** bronze, silver, gold, **diamond, then platinum** (platinum is the top medal, it was the
+  other way round). Every ladder keeps its targets; the fourth target is now diamond and the fifth platinum, on the
+  badge, the progress bar and the text. "Completed" now means platinum. Medal Collector counts gold or better as before.
+  Medals recalculate by themselves; nothing has to be re-read. (Earlier changelog entries still use the old order.)
+
+---
+
 ## Beta 51 — 2026-10-31
 ### Achievements
 - **Tech Support w/RAD_Natalie is easier:** time near a teammate over one week is now 22 / 27 / 32 / 40 / 55 % for

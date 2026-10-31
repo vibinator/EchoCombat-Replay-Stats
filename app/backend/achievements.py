@@ -17,7 +17,7 @@ TACMODS = [("heal", "Repair Matrix", "repair_matrix"), ("sensor", "Threat Scanne
 SLOTS = {"weapon": 0, "tacmod": 1, "ordnance": 2}  # index into the (weapon, tacmod, ordnance) loadout key
 # Unreleased gear seen in recent replays. Attack Drone, Umbral Veil and Neutron are left out: each appears in 35
 # games or fewer in the 2026 archive and in none of the 30-31 Oct 2026 replays. Overcharge got a low target (112).
-MEDAL_LEVELS = (5, 10, 25, 50, 75)  # Medal Collector: gold-or-better medals held; archive: 36 % bronze, 20 % silver, 11 % gold, 5 % platinum, 1 % diamond
+MEDAL_LEVELS = (5, 10, 25, 50, 75)  # Medal Collector: gold-or-better medals held; archive: 36 % bronze, 20 % silver, 11 % gold, 5 % diamond, 1 % platinum
 MAPS = ("dyson", "combustion", "fission", "surge")
 UNRELEASED_WEAPONS = [("rifle", "Starburst"), ("magnum", "Protostar"), ("smg", "Quark"), ("chain", "Blazar")]
 
@@ -108,20 +108,20 @@ class Rule:
     estimated: bool = False
     new: bool = False  # not on the original ECRanked site
     group: str | None = None  # theme of a new rule (its own section on the website)
-    # Tiered (progression) rules: all-time count targets for bronze, silver, gold, platinum, diamond (LEVELS).
-    # The medal is the highest target reached instead of the percentage tiers; diamond = completed.
+    # Tiered (progression) rules: all-time count targets for bronze, silver, gold, diamond, platinum (LEVELS).
+    # The medal is the highest target reached instead of the percentage tiers; platinum = completed.
     levels: tuple[float, ...] = ()
     count: Callable[[list[Game]], float] | None = None  # per period group; the best group counts
     unit: str = ""  # shown after each target ("%", " m/s", " min")
     meta: bool = False  # Medal Collector: counts the medals of the other rules
 
 
-# Tiered rules (user, 2026-10-31): almost every rule is a ladder. Platinum below diamond, as usual for medal ladders.
-LEVELS = ("bronze", "silver", "gold", "platinum", "diamond")
+# Tiered rules (user, 2026-10-31): almost every rule is a ladder. Order (user, 2026-10-31): bronze, silver, gold, diamond, platinum (platinum is the top medal).
+LEVELS = ("bronze", "silver", "gold", "diamond", "platinum")
 
 
 def _levelled(count, levels: tuple[float, ...]):
-    """Progress spread evenly over the medals: bronze 20 %, silver 40 %, ... diamond 100 %, partial in between."""
+    """Progress spread evenly over the medals: bronze 20 %, silver 40 %, ... platinum 100 %, partial in between."""
     def score(games):
         n, prev = count(games), 0
         for i, need in enumerate(levels):
@@ -551,7 +551,7 @@ def evaluate(games: list[Game]) -> list[dict]:
             "id": rule.id, "name": rule.name, "description": rule.description, "period": rule.period,
             "icon": icon_file(rule), "estimated": rule.estimated, "new": rule.new, "group": rule.group, "progress": progress, "tier": tier(progress),
         }
-        if n is not None:  # the website shows "12 / 25 for platinum"
+        if n is not None:  # the website shows "12 / 25 for diamond"
             entry |= {"tier": level_tier(n, rule.levels), "count": round(n, 2), "levels": list(rule.levels), "unit": rule.unit}
         entries[rule.id] = entry
     for rule in RULES:
