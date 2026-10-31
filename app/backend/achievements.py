@@ -335,7 +335,7 @@ def _build_rules() -> list[Rule]:
                                  _only_games(slot, code), (3, 6, 10, 15, 20), "day"))
             i += 1
     rules += [
-        _ladder(17, "Versatile Bot", "Days on which you used all 12 equipables", None, _days_all_equipables, (1, 3, 10, 25, 50)),
+        _ladder(17, "Versatile Bot", "Days on which you used all 12 equipables", None, _days_all_equipables, (1, 2, 4, 8, 15)),
         _tiered(18, "My Other Chassis Is a Toaster", "Games with 3 or fewer deaths (3+ minutes)", "deaths",
                 lambda g: g.play_time_s >= FULL_GAME_S and g.deaths <= 3, (1, 5, 15, 50, 250), estimated=True),
         _tiered(19, "Point Captured", "Play Capture Point games in one day: the most in a single day counts", "capture_point", _capture, (4, 6, 8, 12, 20), "day"),
@@ -368,7 +368,7 @@ def _build_rules() -> list[Rule]:
                                  _only_games(slot, code), (5, 10, 15, 30, 50), "week"))
             i += 1
     rules += [
-        _ladder(42, "Gearhead", "Games in a row using only one loadout in one week: your best week counts", None, _gearhead_run, (5, 10, 25, 50, 100), "week"),
+        _ladder(42, "Gearhead", "Games in a row using only one loadout in one week: your best week counts", None, _gearhead_run, (4, 8, 15, 30, 50), "week"),
         Rule(43, "Pew Pew Proof", "Average fewer than 5 deaths per game over a week (25+ games)", "week", "deaths", _pew_pew_proof, estimated=True),
         _tiered(44, "I'd Rather Be on Kronos II", "Play Capture Point games in one week: the most in a single week counts", "capture_point", _capture, (10, 18, 25, 40, 50), "week"),
         _tiered(45, "Sakura's Dancing Flamingo", "Play Payload games in one week: the most in a single week counts", "payload", _payload, (10, 18, 25, 40, 50), "week"),
@@ -421,7 +421,7 @@ def _build_rules() -> list[Rule]:
     rules += [
         _ladder(84, "Now You See Me", "Play games using Translocator (unreleased ordnance)", None, _games_using("ordnance", "loc"), (1, 5, 25, 50, 100),
                 new=True, group="Experimental gear"),
-        _ladder(85, "Connect the Dots", "Play games using Dot Field (unreleased ordnance)", None, _games_using("ordnance", "dot"), (1, 2, 5, 10, 15),
+        _ladder(85, "Connect the Dots", "Play games using Dot Field (unreleased ordnance)", None, _games_using("ordnance", "dot"), (1, 2, 3, 5, 8),
                 new=True, group="Experimental gear"),
         Rule(86, "Forbidden Arsenal", "Use all 4 unreleased weapons: Starburst, Protostar, Quark and Blazar", "all", None,
              _all_used("weapon", {c for c, _ in UNRELEASED_WEAPONS}), new=True, group="Experimental gear"),
@@ -471,7 +471,7 @@ def _build_rules() -> list[Rule]:
              lambda gs: len(gs[0].used("weapon")) / 6, new=True, group="Gear mastery"),
         Rule(111, "Ordnance Overload", "Use 5 different ordnances in one game", "game", None,
              lambda gs: len(gs[0].used("ordnance")) / 5, new=True, group="Gear mastery"),
-        _ladder(112, "Overclocked", "Play games using Overcharge (unreleased tac mod)", None, _games_using("tacmod", "buff"), (1, 3, 5, 10, 25),
+        _ladder(112, "Overclocked", "Play games using Overcharge (unreleased tac mod)", None, _games_using("tacmod", "buff"), (1, 2, 3, 4, 5),
                 new=True, group="Experimental gear"),
     ]
 

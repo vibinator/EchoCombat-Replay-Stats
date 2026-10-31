@@ -13,6 +13,23 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 55 — 2026-10-31
+### Achievements: similar ones now match, and unreachable medals fixed
+- **Similar achievements share a ladder:**
+  - Hold the Line = Special Delivery = Clean Sweep: 1 / 5 / 10 / 25 / 100 (Hold the Line was 1 / 5 / 15 / 50 / 200).
+  - Point Taker and Cargo Hauler: 5 / 10 / 30 / 100 / 250 wins (bronze 5 like Centurion, top = half of Centurion's 500).
+  - Weapons Master = Loadout Scholar: 1 / 5 / 15 / 50 / 100.
+  - Experimental gear: Starburst Beta Tester, Protostar Prototype, Quantum of Quark and Now You See Me all 1 / 5 / 25 / 50 / 100;
+    Blazar of Glory and Connect the Dots (rarest) 1 / 2 / 5 / 10 / 15.
+  - The four "only <experimental gear>" day achievements use the released-gear ladder 3 / 6 / 10 / 15 / 20.
+  - Starburst, Protostar, Quark and Translocator Veteran all 1 / 3 / 10 / 25 / 60.
+- **Medals nobody could reach were lowered** (checked against the archive; the top medals now have at least ~0.1 %):
+  Gearhead 4 / 8 / 15 / 30 / 50 games in a row (top was 0.0 %); Versatile Bot 1 / 2 / 4 / 8 / 15 days (gold was 0.4 %);
+  Connect the Dots 1 / 2 / 3 / 5 / 8 games (no more than 24 in the archive); Overclocked 1 / 2 / 3 / 4 / 5 games (the most
+  anyone has is 2). Medals recalculate by themselves; nothing has to be re-read.
+
+---
+
 ## Beta 54 — 2026-10-31
 ### Achievements
 - **Centurion is easier:** win 5 / 10 / 30 / 100 / 500 games (was 10 / 25 / 100 / 500 / 2000). 100 wins, the name's

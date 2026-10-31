@@ -153,7 +153,7 @@ def test_now_public_gear_challenges():
     quark_day = [game("2026-10-31", loadout=("smg", "buff", "loc"))] * 10
     r = by_id(evaluate(quark_day))
     assert r[103]["tier"] == "gold" and r[104]["tier"] == "gold"  # only Quark / only Translocator, 10 in one day
-    assert r[107]["tier"] == "gold" and r[112]["tier"] == "diamond"  # 10 Quark games (1/3/10/25/60); 10 Overcharge games (1/3/5/10/25)
+    assert r[107]["tier"] == "gold" and r[112]["tier"] == "platinum"  # 10 Quark games (1/3/10/25/60); 10 Overcharge games (1/2/3/4/5)
     assert r[101]["progress"] == 0.0 and r[109]["progress"] == 0.5  # no Starburst; Translocator without Dot Field
     both = Game(**{**game().__dict__, "loadouts": {("assault", "heal", "loc"): 500, ("assault", "heal", "dot"): 500}})
     assert by_id(evaluate([both]))[109]["progress"] == 1.0
