@@ -416,15 +416,15 @@ def _build_rules() -> list[Rule]:
     for code, label in UNRELEASED_WEAPONS:
         name, levels = starts[code]
         rules.append(_ladder(i, name, f"Play games using {label} (unreleased weapon)", None, _games_using("weapon", code), levels,
-                             new=True, group="Unreleased gear"))
+                             new=True, group="Experimental gear"))
         i += 1
     rules += [
         _ladder(84, "Now You See Me", "Play games using Translocator (unreleased ordnance)", None, _games_using("ordnance", "loc"), (1, 5, 25, 50, 100),
-                new=True, group="Unreleased gear"),
+                new=True, group="Experimental gear"),
         _ladder(85, "Connect the Dots", "Play games using Dot Field (unreleased ordnance)", None, _games_using("ordnance", "dot"), (1, 2, 5, 10, 20),
-                new=True, group="Unreleased gear"),
+                new=True, group="Experimental gear"),
         Rule(86, "Forbidden Arsenal", "Use all 4 unreleased weapons: Starburst, Protostar, Quark and Blazar", "all", None,
-             _all_used("weapon", {c for c, _ in UNRELEASED_WEAPONS}), new=True, group="Unreleased gear"),
+             _all_used("weapon", {c for c, _ in UNRELEASED_WEAPONS}), new=True, group="Experimental gear"),
         Rule(87, "Jack of All Trades", "Use Pulsar, Nova, Comet and Meteor in one game", "game", None,
              _all_used("weapon", {c for c, _, _ in WEAPONS}), new=True, group="Gear mastery"),
         Rule(88, "Ordnance Sampler", "Use Detonator, Stun Field, Arc Mine and Instant Repair in one game", "game", None,
@@ -436,11 +436,11 @@ def _build_rules() -> list[Rule]:
         _tiered(92, "Centurion", "Win games", None, lambda g: g.won, (10, 25, 100, 500, 2000), new=True, group="Wins"),
         # the attacking team wins exactly when the payload reaches the end (stats/payload.py)
         _tiered(93, "Clean Sweep", "Win Capture Point games 2-0", "capture_point",
-                lambda g: _capture(g) and g.won and g.rounds_lost == 0, (1, 5, 10, 25, 100), new=True, group="Wins"),
+                lambda g: _capture(g) and g.won and g.rounds_lost == 0, (1, 5, 10, 25, 100), new=True, group="Capture Point"),
         _tiered(94, "Special Delivery", "Deliver the payload to the end: win Payload games as the attacking team", "payload",
-                lambda g: _payload(g) and g.won and g.attacking_team == g.team, (1, 5, 10, 25, 100), new=True, group="Wins"),
+                lambda g: _payload(g) and g.won and g.attacking_team == g.team, (1, 5, 10, 25, 100), new=True, group="Payload"),
         _tiered(95, "Hold the Line", "Win Payload games as the defending team", "payload",
-                lambda g: _payload(g) and g.won and g.attacking_team not in (None, g.team), (1, 5, 15, 50, 200), new=True, group="Wins"),
+                lambda g: _payload(g) and g.won and g.attacking_team not in (None, g.team), (1, 5, 15, 50, 200), new=True, group="Payload"),
         _ladder(96, "Pedal to the Metal", "Time pushing the payload in one game: your best game counts", "payload",
                 lambda gs: gs[0].push_s / 60, (1, 2, 3, 4, 6), "game", " min", estimated=True, new=True, group="Payload"),
         _ladder(97, "Immovable Object", "Time blocking the payload in one game: your best game counts", "payload",
@@ -459,19 +459,19 @@ def _build_rules() -> list[Rule]:
                   ("weapon", "smg", "Quark", "Quark Storm"), ("ordnance", "loc", "Translocator", "Here, There and Everywhere"))
     for i, (slot, code, label, name) in enumerate(now_public, 101):
         rules.append(_ladder(i, name, f"Play games using only {label} in one day: the most in a single day counts", None,
-                             _only_games(slot, code), (2, 5, 10, 15, 20), "day", new=True, group="Unreleased gear"))
+                             _only_games(slot, code), (2, 5, 10, 15, 20), "day", new=True, group="Experimental gear"))
     for i, (slot, code, label, _) in enumerate(now_public, 105):
         rules.append(_ladder(i, f"{label} Veteran", f"Play games using {label}", None, _games_using(slot, code), (10, 30, 100, 300, 1000),
-                             new=True, group="Unreleased gear"))
+                             new=True, group="Experimental gear"))
     rules += [
         Rule(109, "Beam Me Up", "Use Translocator and Dot Field in one game", "game", None,
-             _all_used("ordnance", {"loc", "dot"}), new=True, group="Unreleased gear"),
+             _all_used("ordnance", {"loc", "dot"}), new=True, group="Experimental gear"),
         Rule(110, "Arsenal Overload", "Use 6 different weapons in one game", "game", None,
              lambda gs: len(gs[0].used("weapon")) / 6, new=True, group="Gear mastery"),
         Rule(111, "Ordnance Overload", "Use 5 different ordnances in one game", "game", None,
              lambda gs: len(gs[0].used("ordnance")) / 5, new=True, group="Gear mastery"),
         _ladder(112, "Overclocked", "Play games using Overcharge (unreleased tac mod)", None, _games_using("tacmod", "buff"), (1, 3, 5, 10, 25),
-                new=True, group="Unreleased gear"),
+                new=True, group="Experimental gear"),
     ]
 
     # New challenges from the 2026-10-31 review (113+). Targets chosen from the archive (docs/Achievement-Tiers-Proposal.MD).
@@ -484,8 +484,8 @@ def _build_rules() -> list[Rule]:
                 new=True, group="Activity"),
         _tiered(118, "Overtime", "Games of 10 minutes or longer", None, lambda g: g.play_time_s >= 600, (5, 20, 50, 250, 1000), new=True, group="Activity"),
         _tiered(119, "Hot Day", "Win games in one day: the most in a single day counts", None, lambda g: g.won, (3, 5, 8, 12, 20), "day", new=True, group="Wins"),
-        _tiered(120, "Point Taker", "Win Capture Point games", "capture_point", lambda g: _capture(g) and g.won, (3, 10, 30, 100, 400), new=True, group="Wins"),
-        _tiered(121, "Cargo Hauler", "Win Payload games", "payload", lambda g: _payload(g) and g.won, (3, 10, 30, 100, 400), new=True, group="Wins"),
+        _tiered(120, "Point Taker", "Win Capture Point games", "capture_point", lambda g: _capture(g) and g.won, (3, 10, 30, 100, 400), new=True, group="Capture Point"),
+        _tiered(121, "Cargo Hauler", "Win Payload games", "payload", lambda g: _payload(g) and g.won, (3, 10, 30, 100, 400), new=True, group="Payload"),
         _ladder(122, "Grand Tour", "Wins on each of the 4 maps (the map with the fewest wins counts)", None, _fewest_wins, (1, 5, 15, 50, 150),
                 new=True, group="Wins"),
         _ladder(123, "Weapons Master", "Games with your least-used weapon of Pulsar, Nova, Comet and Meteor", None, _least_used("weapon", WEAPONS),

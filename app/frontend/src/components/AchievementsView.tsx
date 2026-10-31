@@ -11,18 +11,19 @@ import { EmptyState } from "./ui";
 const IMG = "/achievements/";
 const GENERIC_ICON = "happy_cubesat.png";
 export const GROUPS: [Achievement["period"], string][] = [
+  ["game", "In one game"],
   ["day", "In one day"],
   ["week", "In one week"],
-  ["game", "In one game"],
   ["all", "All time"],
 ];
 
-// New achievements (not on the original site) get their own section, in this theme order.
+// New achievements (not on the original site) get their own sections, in this order.
 export const NEW_GROUPS: [string, string][] = [
-  ["Unreleased gear", "Weapons and ordnances that were never released, seen in recent replays (now public)"],
+  ["Experimental gear", "Weapons and ordnances that were never released, seen in recent replays (now public)"],
   ["Gear mastery", "All four weapons, ordnances or tac mods in one game"],
-  ["Wins", "Results: streaks, totals, sweeps, attack and defence"],
-  ["Payload", "Time pushing or blocking the payload"],
+  ["Wins", "Results: streaks and totals"],
+  ["Payload", "Winning, pushing and blocking the payload"],
+  ["Capture Point", "Winning and sweeping Capture Point"],
   ["Activity", "How often and how long you play"],
   ["Emotes", ""],
 ];
@@ -57,64 +58,69 @@ function useCollapsed() {
 
 type Collapse = ReturnType<typeof useCollapsed>;
 
-/** A heading that folds its badges away; shows how many achievements are inside. */
-function Fold({ id, c, level = 3, title, count, children }: { id: string; c: Collapse; level?: 2 | 3; title: React.ReactNode; count: number; children: React.ReactNode }) {
+type Filter = "done" | "open" | "new";
+const FILTERS: [Filter, string][] = [["open", "In progress"], ["new", "Not started"], ["done", "Completed"]];
+
+/** Where a player stands: completed (100 %), in progress, or not started. Catalogue entries (no progress) have none. */
+function status(a: AnyBadge): Filter | null {
+  if (a.progress === undefined) return null;
+  return a.progress >= 1 ? "done" : a.progress > 0 ? "open" : "new";
+}
+
+/** A section: a heading that folds it away, and (for a player) filters Completed / In progress / Not started. Completed
+ *  achievements are hidden until you pick Completed; the view opens on the first filter that has something. */
+function Section<T extends AnyBadge>({ id, c, level = 3, title, items, anchor }: { id: string; c: Collapse; level?: 2 | 3; title: React.ReactNode; items: T[]; anchor?: string }) {
+  const [picked, setPicked] = useState<Filter | null>(null);
   const open = !c.folded.has(id);
   const Heading = `h${level}` as "h2" | "h3";
+  const tracked = items.every((a) => status(a) !== null);
+  const counts = { done: 0, open: 0, new: 0 };
+  if (tracked) for (const a of items) counts[status(a)!]++;
+  const filter = picked ?? FILTERS.find(([f]) => counts[f] > 0)?.[0] ?? "open";
+  const shown = tracked ? items.filter((a) => status(a) === filter) : items;
   return (
-    <div className="fold">
+    <div className="fold" id={anchor}>
       <Heading className="fold-head">
         <button type="button" aria-expanded={open} onClick={() => c.toggle(id)}>
-          <span className="chevron" aria-hidden="true">{open ? "▾" : "▸"}</span> {title} <span className="muted hint">({count})</span>
+          <span className="chevron" aria-hidden="true">{open ? "▾" : "▸"}</span> {title} <span className="muted hint">({items.length})</span>
         </button>
       </Heading>
-      {open && children}
+      {open && tracked && (
+        <div className="tabs" role="tablist">
+          {FILTERS.map(([f, label]) => (
+            <button key={f} role="tab" aria-selected={filter === f} className={filter === f ? "tab active" : "tab"} onClick={() => setPicked(f)}>
+              {label} ({counts[f]})
+            </button>
+          ))}
+        </div>
+      )}
+      {open && <div className="badges">{shown.map((a) => <Badge key={a.id} a={a} />)}</div>}
     </div>
   );
 }
 
-/** Original achievements by period, then the new ones by theme. Every section can be folded away. */
+/** Original achievements by period, then the new ones by theme, in one flat list of sections. */
 export function GroupedBadges<T extends AnyBadge>({ items }: { items: T[] }) {
   const c = useCollapsed();
-  const original = items.filter((a) => !a.new);
-  const added = items.filter((a) => a.new);
-  const inNamed = (name: string) =>
-    added.filter((a) => (NEW_GROUPS.some(([n]) => n === name) ? a.group === name : !NEW_GROUPS.some(([n]) => n === a.group)));
-  const ids = [
-    ...GROUPS.filter(([period]) => original.some((a) => a.period === period)).map(([period]) => `p-${period}`),
-    ...(added.length > 0 ? ["new"] : []),
-    ...[...NEW_GROUPS.map(([n]) => n), "More"].filter((name) => inNamed(name).length > 0).map((name) => `n-${name}`),
-  ];
+  const sections: { id: string; title: React.ReactNode; items: T[] }[] = [
+    ...GROUPS.map(([period, label]) => ({ id: `p-${period}`, title: label, items: items.filter((a) => !a.new && a.period === period) })),
+    ...[...NEW_GROUPS, ["More", ""] as [string, string]].map(([name, hint]) => ({
+      id: `n-${name}`,
+      title: <>{name} {hint && <span className="muted hint">· {hint}</span>}</>,
+      items: items.filter((a) => a.new && (NEW_GROUPS.some(([n]) => n === name) ? a.group === name : !NEW_GROUPS.some(([n]) => n === a.group))),
+    })),
+  ].filter((x) => x.items.length > 0);
+  const firstNew = sections.find((x) => x.id.startsWith("n-"))?.id;
+  const ids = sections.map((x) => x.id);
   return (
     <>
       <div className="fold-all">
         <button type="button" className="tab" onClick={() => c.setAll(ids, false)}>Expand all</button>
         <button type="button" className="tab" onClick={() => c.setAll(ids, true)}>Collapse all</button>
       </div>
-      {GROUPS.map(([period, label]) => {
-        const group = original.filter((a) => a.period === period);
-        return group.length === 0 ? null : (
-          <Fold key={period} id={`p-${period}`} c={c} title={label} count={group.length}>
-            <div className="badges">{group.map((a) => <Badge key={a.id} a={a} />)}</div>
-          </Fold>
-        );
-      })}
-      {added.length > 0 && (
-        <section className="new-challenges" id="new">
-          <Fold id="new" c={c} level={2} count={added.length} title={<>New challenges <span className="tag">new</span></>}>
-            <p className="muted">Not on the original ECRanked site: they use replay data it never read. More being developed.</p>
-            {[...NEW_GROUPS, ["More", ""] as [string, string]].map(([name, hint]) => {
-              const known = NEW_GROUPS.some(([n]) => n === name);
-              const group = added.filter((a) => (known ? a.group === name : !NEW_GROUPS.some(([n]) => n === a.group)));
-              return group.length === 0 ? null : (
-                <Fold key={name} id={`n-${name}`} c={c} count={group.length} title={<>{name} {hint && <span className="muted hint">· {hint}</span>}</>}>
-                  <div className="badges">{group.map((a) => <Badge key={a.id} a={a} />)}</div>
-                </Fold>
-              );
-            })}
-          </Fold>
-        </section>
-      )}
+      {sections.map((x) => (
+        <Section key={x.id} id={x.id} c={c} title={x.title} items={x.items} anchor={x.id === firstNew ? "new" : undefined} />
+      ))}
     </>
   );
 }
@@ -289,7 +295,7 @@ function SneakPeek({ peek }: { peek: AchievementPeek }) {
               <div key={theme} className="card">
                 <span className="label">{theme}</span>
                 <strong>{count}</strong>
-                {theme === "Unreleased gear" && <span className="muted">Now public</span>}
+                {theme === "Experimental gear" && <span className="muted">Now public</span>}
               </div>
             ))}
           </div>
@@ -439,7 +445,6 @@ export function ChallengeBanner() {
 
 export function AchievementsView({ userId }: { userId: string }) {
   const result = useApi(() => getAchievements(userId), userId);
-  const [show, setShow] = useState<"open" | "done" | "all">("open"); // completed ones are tucked away by default
   const [sort, setSort] = useState<"group" | "closest">("group");
   const data = result.data;
 
@@ -459,19 +464,6 @@ export function AchievementsView({ userId }: { userId: string }) {
                 {data.completed} / {data.total}
               </strong>
             </div>
-            <div className="tabs" role="tablist">
-              {(
-                [
-                  ["open", `In progress (${data.total - data.completed})`],
-                  ["done", `Completed (${data.completed})`],
-                  ["all", "All"],
-                ] as const
-              ).map(([value, label]) => (
-                <button key={value} role="tab" aria-selected={show === value} className={show === value ? "tab active" : "tab"} onClick={() => setShow(value)}>
-                  {label}
-                </button>
-              ))}
-            </div>
           </div>
           {sort === "group" && <JumpToNew ready />}
           <label className="inline-check">
@@ -481,15 +473,13 @@ export function AchievementsView({ userId }: { userId: string }) {
           {sort === "closest" && (
             <div className="badges">
               {data.items
-                .filter((a) => a.progress < 1 && show !== "done")
+                .filter((a) => a.progress < 1)
                 .sort((a, b) => b.progress - a.progress)
                 .map((a) => <Badge key={a.id} a={a} />)}
             </div>
           )}
-          {show === "done" && data.completed === 0 && <p className="muted">Nothing completed yet: a challenge lands here once it reaches diamond (or 100 %).</p>}
-          {show === "open" && data.completed === data.total && <p className="muted">Everything is completed. Look under Completed.</p>}
           {sort === "group" && (
-            <GroupedBadges items={data.items.filter((a) => show === "all" || (show === "done") === a.progress >= 1)} />
+            <GroupedBadges items={data.items} />
           )}
           <p className="muted footnote">
             Almost every challenge is a ladder of medals (bronze, silver, gold, platinum, diamond): the bar has one step per medal, the

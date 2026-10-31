@@ -13,6 +13,20 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 49 — 2026-10-31
+### Achievements: sections with their own filters
+- **Section order:** In one game, In one day, In one week, All time, then Experimental gear, Gear mastery, Wins,
+  Payload, Capture Point, Activity, Emotes. Each section still folds away.
+- **Each section has Completed / In progress / Not started filters** (with counts) for a player. Completed
+  achievements are hidden until you pick Completed; the section opens on the first filter that has something. This
+  replaces the single Completed / In progress tab at the top (Beta 47).
+- **"Unreleased gear" is now "Experimental gear".** New **Capture Point** section (Clean Sweep, Point Taker); Payload now
+  also holds Special Delivery, Hold the Line and Cargo Hauler (moved out of Wins). The "New challenges" heading is gone
+  (the "new" tag stays on each badge); "Jump to new challenges" goes to Experimental gear.
+- The catalogue (no player picked) shows every achievement without filters. Display only.
+
+---
+
 ## Beta 48 — 2026-10-31
 ### Achievements
 - **Every section can be folded away:** In one day / week / game / All time, the New challenges block and each of its
