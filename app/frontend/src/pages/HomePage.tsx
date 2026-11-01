@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
-import { getActivity, getOverview, getPlayersSeen, type GearShare, type PlayersSeen } from "../api";
+import { getActivity, getLastMatch, getOverview, getPlayersSeen, type GearShare, type PlayersSeen } from "../api";
 import { BarChart, StackedBarChart } from "../components/charts";
 import { MatchCards } from "../components/MatchCards";
 import { PlayerSearch } from "../components/PlayerSearch";
 import { EmptyState, FitText, Skeleton } from "../components/ui";
 import { Status } from "../components/common";
 import { MAPS, dateTime, duration, num, pct, periodLabel, title } from "../format";
-import { useApi } from "../useApi";
+import { useApi, useWhileVisible } from "../useApi";
 
 function GearTop({ label, items }: { label: string; items: GearShare[] }) {
   return (
@@ -155,11 +155,36 @@ function LiveStream() {
 }
 
 /** "3 min ago", "5 h ago", "2 days ago" */
-function since(iso: string): string {
-  const min = Math.max(0, (Date.now() - new Date(iso).getTime()) / 60000);
+function since(iso: string, now: number): string {
+  const min = Math.max(0, (now - new Date(iso).getTime()) / 60000);
   if (min < 60) return `${Math.round(min)} min ago`;
   if (min < 48 * 60) return `${Math.round(min / 60)} h ago`;
   return `${Math.round(min / 1440)} days ago`;
+}
+
+const LAST_MATCH_POLL_MS = 60_000; // Cloudflare keeps the answer as long, asking more often gains nothing
+const TICK_MS = 20_000;
+
+/** The "Last match" card, kept current while the tab is visible: "x min ago" counts on by itself, and the newest
+ * match time is asked separately because the overview is rebuilt only every few minutes (and then refreshed too). */
+function LastMatchCard({ fromOverview }: { fromOverview: string | null }) {
+  const [live, setLive] = useState<string | null>(null);
+  const [now, setNow] = useState(Date.now);
+  useWhileVisible(() => {
+    getLastMatch()
+      .then((d) => setLive(d.last_match_at))
+      .catch(() => undefined); // keep what is shown
+    getOverview().catch(() => undefined); // refreshed in the background once a minute old; the page updates if it changed
+  }, LAST_MATCH_POLL_MS);
+  useWhileVisible(() => setNow(Date.now()), TICK_MS);
+  const last = live && (!fromOverview || live > fromOverview) ? live : fromOverview;
+  return (
+    <div className="card">
+      <span className="label">Last match</span>
+      <strong>{last ? since(last, now) : "–"}</strong>
+      {last && <span className="muted">{dateTime(last)}</span>}
+    </div>
+  );
 }
 
 /** Most useful first: what is happening now (recent matches, who is playing), then maps and gear, then the
@@ -201,11 +226,7 @@ export function HomePage() {
               <div className="cards">
                 <div className="card"><span className="label">Matches today</span><strong>{o.today.toLocaleString()}</strong></div>
                 <div className="card"><span className="label">This week</span><strong>{o.this_week.toLocaleString()}</strong></div>
-                <div className="card">
-                  <span className="label">Last match</span>
-                  <strong>{o.last_match_at ? since(o.last_match_at) : "–"}</strong>
-                  {o.last_match_at && <span className="muted">{dateTime(o.last_match_at)}</span>}
-                </div>
+                <LastMatchCard fromOverview={o.last_match_at} />
                 <div className="card">
                   <span className="label">Most played map</span>
                   <strong>{o.most_played_map ? <Link to={`/matches?map=${o.most_played_map}`}>{title(o.most_played_map)}</Link> : "–"}</strong>

@@ -31,7 +31,8 @@ def _overview(request: Request) -> dict:
         today_n = db.scalar(select(func.count()).select_from(Match).where(Match.started_at >= today, m))
         week_n = db.scalar(select(func.count()).select_from(Match).where(Match.started_at >= week, m))
         by_map = dict(db.execute(select(Match.map, func.count()).where(m).group_by(Match.map)).all())
-        first, last = db.execute(select(func.min(Match.started_at), func.max(Match.started_at))).one()
+        first = db.scalar(select(func.min(Match.started_at)))
+        last = _last_ended(db)
         won = case((Match.winner == MatchPlayer.team, 1), else_=0)
         top_week = db.execute(
             select(Player.user_id, Player.name, func.count().label("games"), func.sum(won).label("wins"))
@@ -64,6 +65,21 @@ def processing(request: Request):
     with request.app.state.sessionmaker() as db:
         pending = db.scalar(select(func.count()).select_from(Replay).where(Replay.status.in_(("queued", "processing"))))
     return {"pending": pending or 0}
+
+
+@router.get("/api/overview/last-match")
+def last_match(request: Request):
+    """When the newest match ended, for the home page's "Last match" card: the overview is rebuilt at most every
+    cache_refresh_s, this reads a few rows via an index (Cloudflare still keeps it ECHOVR_EDGE_CACHE_S)."""
+    with request.app.state.sessionmaker() as db:
+        return {"last_match_at": _last_ended(db)}
+
+
+def _last_ended(db) -> str | None:
+    """When the most recent match ended. ended_at has no index: the latest end is among the latest starts (matches
+    overlap only a little), so read those few via the started_at index instead of scanning every match."""
+    newest = select(Match.ended_at).order_by(Match.started_at.desc()).limit(20).subquery()
+    return db.scalar(select(func.max(newest.c.ended_at)))
 
 
 @router.get("/api/overview/activity")

@@ -56,6 +56,14 @@ def test_processing_is_zero_once_everything_is_read(client):
     assert client.get("/api/overview/processing").json() == {"pending": 0}
 
 
+def test_last_match_matches_the_overview(client):
+    last = client.get("/api/overview/last-match").json()["last_match_at"]
+    assert last and last == client.get("/api/overview").json()["last_match_at"]
+    # the end of the game, not its start
+    newest = client.get("/api/overview").json()["latest"][0]
+    assert last > newest["started_at"]
+
+
 def test_activity_and_players_seen(client):
     a = client.get("/api/overview/activity", params={"bucket": "day"}).json()
     # per day: the 90 days up to the newest match, empty days included
