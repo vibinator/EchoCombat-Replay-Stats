@@ -626,7 +626,7 @@ export function PlaybackView({ playback, clock, compact = false, label }: { play
                     title="Click to highlight this player"
                   >
                     <span className="pb-name">{died && <img className="pb-skull" src="/icons/death.png" alt="died" />}{p.name}</span>
-                    <span className="pb-gear">{here ? <><GearLabel name={weapon} /> · {ordnance} · {tacmod}</> : "off the map / left"}</span>
+                    <span className="pb-gear">{here ? <><GearLabel name={weapon} /> · <GearLabel name={ordnance} /> · <GearLabel name={tacmod} /></> : "off the map / left"}</span>
                     <span className="pb-nums">
                       {here && sp != null ? `${num(sp, 1)} m/s` : "–"}
                       {killsDeaths > 0 && ` · ${killsDeaths} death${killsDeaths === 1 ? "" : "s"}*`}

@@ -36,7 +36,24 @@ export function TeamBadge({ team }: { team: Team | null }) {
 
 /** In-game gear name -> small inline icon (public/icons). Add more names here as icons arrive. */
 const GEAR_ICONS: Record<string, string> = {
+  Pulsar: "/icons/pulsar.webp",
+  Nova: "/icons/nova.webp",
   Comet: "/icons/comet.webp",
+  Meteor: "/icons/meteor.webp",
+  Blazar: "/icons/blazar.webp",
+  Protostar: "/icons/protostar.webp",
+  Quark: "/icons/quark.webp",
+  Starburst: "/icons/starburst.webp",
+  Detonator: "/icons/detonator.webp",
+  "Arc Mine": "/icons/arc_mine.webp",
+  "Stun Field": "/icons/stun_field.webp",
+  "Instant Repair": "/icons/instant_repair.webp",
+  Translocator: "/icons/translocator.webp",
+  "Attack Drone": "/icons/attack_drone.webp",
+  "Repair Matrix": "/icons/repair_matrix.webp",
+  "Threat Scanner": "/icons/threat_scanner.webp",
+  "Energy Barrier": "/icons/energy_barrier.webp",
+  "Phase Shift": "/icons/phase_shift.webp",
 };
 
 /** Decorative icon shown before a gear name; renders nothing for gear without an icon. */
