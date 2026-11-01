@@ -9,7 +9,7 @@ import { HEATMAP_CELL_M, HEATMAP_MODES, HeatmapView } from "../components/Heatma
 import { PlaybackCompare, PlaybackView } from "../components/PlaybackView";
 import { TimelineView } from "../components/TimelineView";
 import { FitText, InfoTip, STAT_HELP, Skeleton } from "../components/ui";
-import { dateTime, duration, modeLabel, num, pct, playerPath, teamLabel, title } from "../format";
+import { dateTime, duration, int, modeLabel, num, pct, playerPath, teamLabel, title } from "../format";
 import { useApi } from "../useApi";
 
 function resultText(m: MatchDetail): string {
@@ -141,7 +141,7 @@ function TeamTable({ team, players, payload }: { team: Team; players: MatchPlaye
                 <td data-label="Near mate" className="num">{pct(p.pct_near_mate)}</td>
                 <td data-label="Near enemy" className="num">{pct(p.pct_near_enemy)}</td>
                 <td data-label="Loss" className="num">{p.avg_packet_loss == null ? "–" : `${(p.avg_packet_loss * 100).toFixed(1)}%`}</td>
-                <td data-label="Emotes" className="num">{p.emote_count}</td>
+                <td data-label="Emotes" className="num">{int(p.emote_count)}</td>
                 {payload && (
                   <td data-label="Push / block*" className="num">
                     {duration(p.payload_push_s)} / {duration(p.payload_block_s)}
@@ -149,8 +149,10 @@ function TeamTable({ team, players, payload }: { team: Team; players: MatchPlaye
                 )}
                 <td data-label="Arm">{p.dominant_arm ?? "–"}</td>
                 <td data-label="Main loadout">
-                  <LoadoutText loadout={p.loadouts[0]} />
-                  {p.loadouts.length > 1 && <span className="muted"> +{p.loadouts.length - 1}</span>}
+                  <LoadoutText loadout={p.loadouts[0]} stacked />
+                  {p.loadouts.length > 1 && (
+                    <span className="muted" title="Other loadouts: see Gear use below">+{p.loadouts.length - 1} more</span>
+                  )}
                 </td>
               </tr>
             ))}

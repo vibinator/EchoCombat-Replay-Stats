@@ -1,4 +1,4 @@
-import { useState, type MouseEvent } from "react";
+import { useLayoutEffect, useState, type MouseEvent } from "react";
 
 /* Small SVG charts. Colours come from CSS variables validated per theme (dataviz validator):
    --chart-1 (blue) / --chart-2 (orange), --map-* for the stacked per-map chart. No dual axes; hover tooltip on
@@ -10,7 +10,22 @@ export interface BarDatum {
   tooltip?: string;
 }
 
-const W = 800;
+/** Draw at the chart's real width (1 SVG unit = 1 CSS pixel), so axis text stays 11 px in small charts too instead of
+ * shrinking with a fixed 800-unit drawing; heights are in pixels. 800 until measured. */
+function useChartWidth(): [(el: HTMLDivElement | null) => void, number] {
+  // a callback ref: measured whenever the chart's box appears (a chart may first render nothing while data loads)
+  const [el, setEl] = useState<HTMLDivElement | null>(null);
+  const [width, setWidth] = useState(800);
+  useLayoutEffect(() => {
+    if (!el) return;
+    const measure = (w: number) => setWidth(Math.max(240, Math.round(w)));
+    measure(el.getBoundingClientRect().width);
+    const ro = new ResizeObserver(([entry]) => measure(entry.contentRect.width));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [el]);
+  return [setEl, width];
+}
 
 /** Sparse axis labels, counted back from the newest point so the latest period is always labelled. */
 function labelled(i: number, count: number, every: number): boolean {
@@ -30,6 +45,7 @@ export function BarChart({ data, title, unit = "", height = 180, color = "var(--
   color?: string;
 }) {
   const [hover, setHover] = useState<number | null>(null);
+  const [wrapRef, W] = useChartWidth();
   const pad = { left: 40, right: 8, top: 8, bottom: 24 };
   const max = Math.max(1, ...data.map((d) => d.value));
   const innerW = W - pad.left - pad.right;
@@ -47,7 +63,7 @@ export function BarChart({ data, title, unit = "", height = 180, color = "var(--
   return (
     <figure className="chart">
       <figcaption className="chart-title">{title}</figcaption>
-      <div className="chart-wrap">
+      <div className="chart-wrap" ref={wrapRef}>
         <svg viewBox={`0 0 ${W} ${height}`} role="img" aria-label={title} onMouseMove={onMove} onMouseLeave={() => setHover(null)}>
           {[0, 0.5, 1].map((f) => (
             <g key={f}>
@@ -118,6 +134,7 @@ export function StackedBarChart({ data, series, title, unit = "", height = 180 }
   height?: number;
 }) {
   const [hover, setHover] = useState<number | null>(null);
+  const [wrapRef, W] = useChartWidth();
   const pad = { left: 40, right: 8, top: 8, bottom: 24 };
   const total = (d: StackDatum) => series.reduce((sum, s) => sum + (d.values[s.key] ?? 0), 0);
   const max = Math.max(1, ...data.map(total));
@@ -144,7 +161,7 @@ export function StackedBarChart({ data, series, title, unit = "", height = 180 }
           </span>
         ))}
       </div>
-      <div className="chart-wrap">
+      <div className="chart-wrap" ref={wrapRef}>
         <svg viewBox={`0 0 ${W} ${height}`} role="img" aria-label={title} onMouseMove={onMove} onMouseLeave={() => setHover(null)}>
           {[0, 0.5, 1].map((f) => (
             <g key={f}>
@@ -217,7 +234,7 @@ export function LineChart({ data, title, format = (v: number) => v.toLocaleStrin
   min?: number;
 }) {
   const [hover, setHover] = useState<number | null>(null);
-  const W = 400; // drawn at about its real size (small multiples are ~1/3 of the page), so axis text stays readable
+  const [wrapRef, W] = useChartWidth();
   const pad = { left: 44, right: 12, top: 10, bottom: 24 };
   const values = data.map((d) => d.value).filter((v): v is number => v != null);
   if (values.length === 0) return null;
@@ -248,7 +265,7 @@ export function LineChart({ data, title, format = (v: number) => v.toLocaleStrin
   return (
     <figure className="chart">
       <figcaption className="chart-title">{title}</figcaption>
-      <div className="chart-wrap">
+      <div className="chart-wrap" ref={wrapRef}>
         <svg viewBox={`0 0 ${W} ${height}`} role="img" aria-label={title} onMouseMove={onMove} onMouseLeave={() => setHover(null)}>
           {[0, 1].map((f) => (
             <g key={f}>

@@ -4,7 +4,8 @@ Working record of what changed in each release, newest first.
 
 ## Versioning (user, 2026-11-01)
 - **Calendar versions:** `YYYY.MM.DD.N` = release date + the Nth update that day (`2026.11.01.6` = sixth update on
-  1 November 2026), plus the release time. Still beta: shown as `2026.11.01.6 (beta)`.
+  1 November 2026), plus the release time. People see the short form `Beta v26.11.1-6` (footer:
+  `Beta v26.11.1-6 · 1 Nov 2026, 16:59`); the full form tags Docker images, commits and these headings.
 - Every update runs `python app/bump_version.py`: it sets `VERSION` and `RELEASED` in `app/backend/version.py` and adds
   the `## <version> — HH:MM` heading here; write the notes under it. Shown in the website footer (version, date and
   time), `/api/health` (`version`, `released`), the admin console, the Docker image tag and the GitHub commit label.
@@ -16,6 +17,52 @@ Working record of what changed in each release, newest first.
   a re-read).
 
 ---
+
+## 2026.11.01.10 — 18:10
+### Performance and security review
+**Faster**
+- **Heatmaps download about a third of the size:** cells are sent packed (binary, base64) instead of
+  `[col, row, count]` JSON. A player's last 200 games: 1.1 MB → 0.47 MB; all games: 2.5–3.2 MB → 0.9–1.1 MB; one
+  match: 207 → 95 KB. The browser also decodes them much faster. API change: layers carry `packed` instead of `cells`
+  (Architecture.MD).
+- **All-matches player heatmaps build ~4× faster the first time** (17–19 s → ~4.5 s): position files are now read 8
+  at a time instead of one by one.
+- **"Game in progress" never makes a visitor wait:** the last Twitch answer is sent at once and the next check runs in
+  the background (before, whoever's request fell due waited ~0.5 s, and everyone arriving meanwhile with them).
+
+**Safer**
+- **Discord check (Console) only accepts a Discord id** (17–20 digits). Before, the text typed went straight into a
+  Discord API address called with the bot token, so something like `../../channels/…` could read other things the
+  bot can see. Same check for names looked up on the Permissions page, and stored ids no longer accept non-ASCII
+  digits.
+- **Filters only take real values:** map (the 4 maps), mode (payload / capture point), loadout gear (known codes),
+  and length limits on name searches and ids. Every distinct value was its own cached answer and a full scan to
+  build, so made-up values could keep the server busy and push useful answers out of the cache.
+- **Icon upload** refuses an oversized file before reading it into memory.
+- Checked and fine: login (OAuth state, signed HttpOnly / SameSite cookies, no open redirect), console and
+  permission changes (Discord role checked on every command, custom header blocks other sites), no raw SQL from
+  input, no HTML injection in the pages, security headers (CSP, frame, nosniff), bounded caches, rate limits,
+  frontend packages (`npm audit`: 0 vulnerabilities).
+
+## 2026.11.01.9 — 17:56
+### Readability pass over every page
+- **Numbers:** thousands separators everywhere (8,689 games, 1,194.6 h, 2,916 – 2,411, capture wins 4,176 – 4,305,
+  "1,823 ranked players", search suggestions, compare, players list, achievements).
+- **Player page:** new *Win rate* card; payload push / block totals read `31 h 24 m` instead of the clock-like
+  `31:24:28`; "Last seen" capitalised.
+- **Charts:** drawn at their real on-screen width, so axis labels are a readable 12 px in the small trend charts
+  and the home page's players-per-hour chart (they shrank to ~4 px before).
+- **Header:** stays on one line on a normal desktop width (the search box shrinks instead of wrapping).
+- **Match page:** per-player tables no longer cut off on the right: the main loadout is stacked on three short lines,
+  "+N more" points at Gear use. Pages are a little wider (1320 px) for the wide tables.
+- **Home:** the most-popular-gear cards are wider so runner-up lines fit on one line.
+
+## 2026.11.01.8 — 17:48
+### Shorter version in the footer
+- The footer said the date twice (`2026.11.01.7 (beta) · 1 Nov 2026, 17:01`). It now reads
+  `Beta v26.11.1-8 · 1 Nov 2026, 17:48`: two-digit year, no leading zeros, the update of the day after the dash.
+  Hovering it shows the full version. Same short form in `/api/health` (`version`; the full one is `build`) and the
+  admin console. Docker tags, commits and changelog headings keep the full `2026.11.01.8`.
 
 ## 2026.11.01.7 — 17:01
 ### Home: "Game in progress" is always live

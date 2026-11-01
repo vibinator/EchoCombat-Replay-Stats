@@ -45,6 +45,12 @@ def enabled(settings: Settings) -> bool:
                 and settings.discord_guild_id)
 
 
+def is_discord_id(value: str) -> bool:
+    """A Discord snowflake (17-20 digits). Ids typed by people must pass this before they go into a Discord API path
+    called with the bot token (anything else could reach other endpoints, e.g. '../../channels/...')."""
+    return value.isascii() and value.isdigit() and 17 <= len(value) <= 20
+
+
 def _bot_get(settings: Settings, path: str) -> httpx.Response:
     with http_client() as client:
         return client.get(f"{API}{path}", headers={"Authorization": f"Bot {settings.discord_bot_token}"})
@@ -67,7 +73,7 @@ def user_name(settings: Settings, user_id: str) -> str:
     user_id = user_id.strip()
     if user_id in _names:
         return _names[user_id]
-    if not settings.discord_bot_token:
+    if not settings.discord_bot_token or not is_discord_id(user_id):
         return "?"
     try:
         r = _bot_get(settings, f"/users/{user_id}")

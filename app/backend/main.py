@@ -17,7 +17,7 @@ from .db import open_db, warm
 from .errors import ApiError, api_error_handler
 from .middleware import SiteMiddleware
 from .stats import STATS_VERSION
-from .version import APP_VERSION, RELEASED
+from .version import APP_VERSION, RELEASED, VERSION
 from .scanner import Scanner
 from .worker import Worker
 
@@ -95,7 +95,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/api/health")
     def health():
-        return {"status": "ok", "version": APP_VERSION, "released": RELEASED, "parser_version": PARSER_VERSION, "stats_version": STATS_VERSION}
+        return {"status": "ok", "version": APP_VERSION, "build": VERSION, "released": RELEASED, "parser_version": PARSER_VERSION, "stats_version": STATS_VERSION}
 
     @app.get("/achievements/custom/{name}")
     def custom_icon(name: str):

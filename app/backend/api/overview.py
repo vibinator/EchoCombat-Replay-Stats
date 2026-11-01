@@ -139,7 +139,7 @@ def _activity(request: Request, bucket: str) -> dict:
 
 
 @router.get("/api/search")
-def search(request: Request, q: str = Query(..., min_length=1), limit: int = Query(8, ge=1, le=25)):
+def search(request: Request, q: str = Query(..., min_length=1, max_length=64), limit: int = Query(8, ge=1, le=25)):
     """Players by name, plus a match when q is a match id. Cached: the top bar asks as you type."""
     q = q.strip()
     return cached_response(request, "search", (q, limit), lambda: _search(request, q, limit))

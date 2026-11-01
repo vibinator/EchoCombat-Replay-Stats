@@ -321,6 +321,8 @@ def cmd_admin_users(sessions, settings: Settings, add: str | None = None, remove
 def cmd_discord_check(sessions, settings: Settings, user_id: str) -> dict:
     """Asks Discord (with the bot token) what the website sees for one person, step by step."""
     user_id = user_id.strip()
+    if not auth.is_discord_id(user_id):  # it goes into a Discord API path called with the bot token
+        raise ConsoleError(f"'{user_id}' is not a Discord user id (17-20 digits: right-click the person > Copy User ID)")
     if not settings.discord_bot_token:
         raise ConsoleError("The bot token is not set here (ECHOVR_DISCORD_BOT_TOKEN), so Discord cannot be asked. "
                            "On the NAS run this in the container; on Windows put it in settings.local.bat.")

@@ -26,8 +26,22 @@ export function pct(value: number | null | undefined): string {
   return value == null ? "–" : `${Math.round(value * 100)}%`;
 }
 
+/** Fixed decimals with thousands separators: 1194.6 -> "1,194.6". */
 export function num(value: number | null | undefined, digits = 1): string {
-  return value == null ? "–" : value.toFixed(digits);
+  return value == null ? "–" : value.toLocaleString("en-GB", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+}
+
+/** Whole number with thousands separators: 8689 -> "8,689". */
+export function int(value: number | null | undefined): string {
+  return value == null ? "–" : Math.round(value).toLocaleString("en-GB");
+}
+
+/** Long totals of time: "31 h 24 m" from an hour up (h:mm:ss reads like a clock time there), else m:ss. */
+export function hoursMinutes(seconds: number | null | undefined): string {
+  if (seconds == null) return "–";
+  if (seconds < 3600) return duration(seconds);
+  const m = Math.round(seconds / 60);
+  return `${Math.floor(m / 60).toLocaleString("en-GB")} h ${m % 60} m`;
 }
 
 // Match times are the recorder's local time with no zone (ReplayData Q6): show as-is.

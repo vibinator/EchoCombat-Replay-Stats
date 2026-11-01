@@ -106,7 +106,7 @@ All JSON. No upload, delete or replay-download endpoints: replays come only from
 | GET | /api/challenges | Flamingo Challenge period `{start, end, launched, preview, active}`; `preview` = this visitor has the Discord preview role; `launched` = start date reached. Before it the achievement endpoints (and `stat=achievements`) answer 403 `coming_soon` | D33, D40 |
 | GET | /api/matches/{id}/export?format=csv\|json | Match download: CSV = one row per player; JSON = match detail | 7 |
 
-Heatmap response: `{map, image: "/minimaps/<map>.png", cols, rows, cell_m, matches, layers: [{key, label, cells: [[col, row, count]], max}]}` — cells are in minimap image space (layout per map in `stats/maps.py`, ReplayData).
+Heatmap response: `{map, image: "/minimaps/<map>.png", cols, rows, cell_m, matches, layers: [{key, label, packed: {d, n, w}, max}]}` — cells are in minimap image space (layout per map in `stats/maps.py`, ReplayData). `packed` (2026-11-01, a third of the old `cells: [[col, row, count]]` size): cells sorted by index `row * cols + col`; `d` = base64 little-endian uint32 differences between consecutive indices (the first from 0), `n` = base64 counts, uint16 (`w` = 2) or uint32 (`w` = 4). `heatmaps.unpack_cells` / `unpackCells` (api.ts) decode it.
 
 ### Response sketch — `GET /api/matches/{id}`
 ```json

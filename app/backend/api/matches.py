@@ -18,7 +18,7 @@ from ..gear import lookup as gear_lookup
 from ..stats.map_objects import CAPTURE_POINTS, PAYLOAD_ROUTES
 from ..stats.maps import HEATMAP_LAYOUTS
 from ..models import DuplicateMatch, Event, Match, MatchPlayer, MatchPlayerLoadout, Player
-from .derived import dominant_arm, loadout, match_summary, ratio
+from .derived import ID_MAX, MAP_PATTERN, MODE_PATTERN, TEXT_MAX, dominant_arm, loadout, match_summary, ratio
 from .downloads import download_csv, download_json
 
 router = APIRouter(prefix="/api/matches", tags=["matches"])
@@ -34,15 +34,15 @@ def player_counts(db, match_ids: list[int]) -> dict[int, int]:
 @router.get("")
 def list_matches(
     request: Request,
-    map: str | None = None,
-    mode: str | None = None,
-    player: str | None = Query(None, description="user_id"),
+    map: str | None = Query(None, pattern=MAP_PATTERN),
+    mode: str | None = Query(None, pattern=MODE_PATTERN),
+    player: str | None = Query(None, max_length=ID_MAX, description="user_id"),
     from_: date | None = Query(None, alias="from"),
     to: date | None = None,
     private: bool | None = None,
     min_players: int | None = Query(None, ge=1),
     result: str | None = Query(None, pattern="^(attack_win|defence_win|unknown|blue|orange)$"),
-    player_name: str | None = Query(None, description="matches with a player whose name contains this"),
+    player_name: str | None = Query(None, max_length=TEXT_MAX, description="matches with a player whose name contains this"),
     with_players: bool = Query(False, description="include player names per match (match cards)"),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
@@ -218,7 +218,7 @@ def match_detail(request: Request, match_id: int) -> dict:
 
 
 @router.get("/{match_id}/events")
-def get_events(request: Request, match_id: int, type: str | None = None):
+def get_events(request: Request, match_id: int, type: str | None = None):  # also called directly: plain default
     with request.app.state.sessionmaker() as db:
         if db.get(Match, match_id) is None:
             raise ApiError(404, "not_found", f"Match {match_id} not found")
@@ -281,7 +281,7 @@ MATCH_HEATMAP_MODES = heatmaps.TRACK_MODES + ("player",)
 def get_match_heatmap(
     request: Request,
     match_id: int,
-    player: str | None = Query(None, description="user_id"),
+    player: str | None = Query(None, max_length=ID_MAX, description="user_id"),
     mode: str = Query("team", pattern="^(" + "|".join(MATCH_HEATMAP_MODES) + ")$"),
     cell: float = Query(heatmaps.HEATMAP_CELL_M, description="cell size in metres: 0.1 only"),
 ):

@@ -83,8 +83,17 @@ export function GearName({ item }: { item: GearItem }) {
   );
 }
 
-export function LoadoutText({ loadout }: { loadout: Loadout | undefined }) {
+/** Weapon · ordnance · tac mod; `stacked` puts them on three short lines (narrow table columns). */
+export function LoadoutText({ loadout, stacked = false }: { loadout: Loadout | undefined; stacked?: boolean }) {
   if (!loadout) return <span className="muted">–</span>;
+  if (stacked)
+    return (
+      <span className="loadout stacked">
+        <GearName item={loadout.weapon} />
+        <GearName item={loadout.ordnance} />
+        <GearName item={loadout.tacmod} />
+      </span>
+    );
   return (
     <span className="loadout">
       <GearName item={loadout.weapon} /> · <GearName item={loadout.ordnance} /> · <GearName item={loadout.tacmod} />

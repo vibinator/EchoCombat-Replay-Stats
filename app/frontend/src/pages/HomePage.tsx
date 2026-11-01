@@ -6,7 +6,7 @@ import { MatchCards } from "../components/MatchCards";
 import { PlayerSearch } from "../components/PlayerSearch";
 import { EmptyState, FitText, Skeleton } from "../components/ui";
 import { GearLabel, Status } from "../components/common";
-import { MAPS, dateTime, duration, modeLabel, num, pct, periodLabel, playerPath, scoreText, title } from "../format";
+import { MAPS, dateTime, duration, int, modeLabel, num, pct, periodLabel, playerPath, scoreText, title } from "../format";
 import { useApi, useWhileVisible } from "../useApi";
 
 function GearTop({ label, items }: { label: string; items: GearShare[] }) {
@@ -374,7 +374,7 @@ export function HomePage() {
                 <div className="card">
                   <span className="label">Busiest day</span>
                   <strong>{g.busiest_day?.day ?? "–"}</strong>
-                  {g.busiest_day && <span className="muted">{g.busiest_day.matches} matches</span>}
+                  {g.busiest_day && <span className="muted">{int(g.busiest_day.matches)} matches</span>}
                 </div>
                 <div className="card" title="Payload matches with a known result">
                   <span className="label">Payload attack wins</span>
@@ -384,7 +384,7 @@ export function HomePage() {
                 <div className="card">
                   <span className="label">Capture point wins</span>
                   <strong>
-                    <span className="team-text blue">{g.capture_wins.blue}</span> – <span className="team-text orange">{g.capture_wins.orange}</span>
+                    <span className="team-text blue">{int(g.capture_wins.blue)}</span> – <span className="team-text orange">{int(g.capture_wins.orange)}</span>
                   </strong>
                   <span className="muted">blue – orange</span>
                 </div>

@@ -50,6 +50,12 @@ def match_summary(m: Match, player_count: int | None = None) -> dict:
 
 
 PERIODS = ("day", "week", "month", "all")
+# Filters only take values that exist: every distinct value is its own cached answer and a full scan to build, so free
+# text would let anyone keep the server busy and push useful answers out of the cache (security review 2026-11-01).
+MAP_PATTERN = "^(combustion|dyson|fission|surge)$"
+MODE_PATTERN = "^(payload|capture_point)$"
+ID_MAX = 32  # user ids (digits, < 21) and similar keys
+TEXT_MAX = 64  # name searches
 
 
 def period_start(period: str, today: date | None = None) -> str | None:

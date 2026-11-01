@@ -14,7 +14,7 @@ from ..gear import WEAPONS
 from ..gear import lookup as gear_lookup
 from ..models import Event, Match, MatchPlayer, MatchPlayerLoadout, Player, PlayerAlias
 from ..stats.maps import HEATMAP_LAYOUTS
-from .derived import PERIODS, dominant_arm, loadout, match_summary, period_start, ratio
+from .derived import MAP_PATTERN, PERIODS, TEXT_MAX, dominant_arm, loadout, match_summary, period_start, ratio
 
 router = APIRouter(prefix="/api/players", tags=["players"])
 
@@ -30,7 +30,7 @@ def games_of(player_id_column):
 @router.get("")
 def search_players(
     request: Request,
-    q: str = "",
+    q: str = Query("", max_length=TEXT_MAX),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
 ):
@@ -149,7 +149,7 @@ def get_player(
     request: Request,
     user_id: str,
     period: str = Query("all", pattern="^(" + "|".join(PERIODS) + ")$"),
-    map: str | None = None,
+    map: str | None = Query(None, pattern=MAP_PATTERN),
 ):
     return cached_response(request, "player", (user_id, period, map), lambda: _get_player(request, user_id, period, map))
 
@@ -243,7 +243,7 @@ def _player_heatmap(request: Request, user_id: str, map_: str, mode: str, period
         layers, labels = {"deaths": counts}, {"deaths": "Deaths (estimated)"}
     else:
         processed = request.app.state.settings.processed_dir
-        decoded = (d for d in (tracks.read(tracks.tracks_path(processed, r.replay_id)) for r in rows) if d)
+        decoded = tracks.read_many(tracks.tracks_path(processed, r.replay_id) for r in rows)
         layers, labels = heatmaps.build_layers(layout, decoded, user_ids, mode, cell)
     return heatmaps.response(map_, layers, labels, matches=len(rows), cell_m=cell, mode=mode)
 

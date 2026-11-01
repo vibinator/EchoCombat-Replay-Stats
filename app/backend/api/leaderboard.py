@@ -11,7 +11,7 @@ from ..errors import ApiError
 from ..gear import ORDNANCES, TACMODS, WEAPONS
 from ..models import Match, MatchPlayer, MatchPlayerLoadout, Player
 from .achievements import achievement_ranking, require_launched, visible
-from .derived import PERIODS, gear, period_start, ratio
+from .derived import MAP_PATTERN, PERIODS, gear, period_start, ratio
 
 router = APIRouter(prefix="/api/leaderboard", tags=["leaderboard"])
 
@@ -136,9 +136,9 @@ def leaderboard(
     request: Request,
     stat: str = "games",
     period: str = Query("all", pattern="^(" + "|".join(PERIODS) + ")$"),
-    map: str | None = None,
+    map: str | None = Query(None, pattern=MAP_PATTERN),
     private: bool | None = Query(None, description="true / false; omit for all matches (old app had no filter)"),
-    min_games: int = Query(10, ge=1),
+    min_games: int = Query(10, ge=1, le=100_000),
     weapon: str | None = None,
     tacmod: str | None = None,
     ordnance: str | None = None,
@@ -148,7 +148,10 @@ def leaderboard(
 ):
     if stat not in STATS and stat not in ("loadout", "achievements"):
         raise ApiError(400, "unknown_stat", f"Unknown stat '{stat}'")
-    params = (stat, period, map, private, min_games, weapon, tacmod, ordnance, compare, limit, offset)
+    for value, table, what in ((weapon, WEAPONS, "weapon"), (tacmod, TACMODS, "tac mod"), (ordnance, ORDNANCES, "ordnance")):
+        if value is not None and value not in table:
+            raise ApiError(400, "unknown_gear", f"Unknown {what} '{value[:32]}'")
+    params =(stat, period, map, private, min_games, weapon, tacmod, ordnance, compare, limit, offset)
     if stat == "achievements":  # has its own background-refreshed cache
         require_launched(request)
         return _leaderboard(request, *params)

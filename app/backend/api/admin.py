@@ -54,7 +54,16 @@ def set_icon(request: Request, rule_id: int, choice: IconChoice):
 async def upload_icon(request: Request, rule_id: int):
     """Body = the PNG file itself (Content-Type: image/png). Stored, then used for this achievement."""
     require_icon_editor(request)
-    data = await request.body()
+    # refuse an oversized upload before reading it into memory (save_upload checks the bytes again)
+    declared = request.headers.get("content-length", "")
+    if declared.isdigit() and int(declared) > icons.MAX_BYTES:
+        raise ApiError(400, "bad_icon", f"Image too big: at most {icons.MAX_BYTES // 1024} KB")
+    data = bytearray()
+    async for chunk in request.stream():
+        data += chunk
+        if len(data) > icons.MAX_BYTES:
+            raise ApiError(400, "bad_icon", f"Image too big: at most {icons.MAX_BYTES // 1024} KB")
+    data = bytes(data)
     settings = request.app.state.settings
     try:
         icon = icons.save_upload(settings, data)

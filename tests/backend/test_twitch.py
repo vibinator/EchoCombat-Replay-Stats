@@ -43,6 +43,22 @@ def test_twitch_is_checked_every_10_seconds():
     assert twitch.CHECK_S <= 10
 
 
+def test_old_answer_is_sent_while_asking_again(monkeypatch):
+    import threading
+
+    monkeypatch.setattr(twitch, "_memo", {"bot": (0.0, {"live": False, "since": None})})  # long out of date
+    monkeypatch.setattr(twitch, "_refreshing", set())
+    asked = threading.Event()
+    monkeypatch.setattr(twitch, "_ask", lambda channel: asked.set() or {"live": True, "since": None})
+    assert twitch.live("bot")["live"] is False  # at once, the old answer
+    assert asked.wait(5)
+    for _ in range(100):  # the background ask stores its answer
+        if twitch._memo["bot"][1]["live"]:
+            break
+        threading.Event().wait(0.01)
+    assert twitch.live("bot")["live"] is True
+
+
 def test_answer_is_remembered(monkeypatch):
     calls = []
     monkeypatch.setattr(twitch, "_memo", {})

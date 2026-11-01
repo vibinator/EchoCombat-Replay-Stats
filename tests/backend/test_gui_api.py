@@ -188,6 +188,26 @@ def test_leaderboard_rank_change(client):
     assert all("previous_rank" in r for r in board["items"])
 
 
+def test_filters_only_take_known_values(client):
+    # every distinct filter value is a cached answer and a full scan: junk values are refused (security review)
+    for url, params in (("/api/leaderboard", {"map": "nowhere"}), ("/api/leaderboard", {"stat": "loadout", "weapon": "zzz"}),
+                        ("/api/matches", {"map": "x" * 40}), ("/api/matches", {"mode": "arena"}),
+                        ("/api/matches", {"player_name": "a" * 65}), ("/api/players", {"q": "a" * 65}),
+                        (f"/api/players/{BLUE}", {"map": "nowhere"})):
+        r = client.get(url, params=params)
+        assert r.status_code in (400, 422), (url, params, r.status_code)
+    assert client.get("/api/leaderboard", params={"map": "dyson", "min_games": 1}).status_code == 200
+    assert client.get("/api/matches", params={"map": "dyson", "mode": "capture_point"}).status_code == 200
+
+
+def test_discord_ids_are_digits_only():
+    from backend import auth
+
+    assert auth.is_discord_id("123456789012345678")
+    for bad in ("../../channels/1/messages", "12345", "１２３４５６７８９０１２３４５６７８", "²" * 18, "123456789012345678/x"):
+        assert not auth.is_discord_id(bad), bad
+
+
 def test_leaderboard_summary_columns(client):
     # every row carries wins / losses / win rate / hours beside the ranked stat, whichever stat is ranked
     for stat in ("games", "avg_speed", "loadout"):

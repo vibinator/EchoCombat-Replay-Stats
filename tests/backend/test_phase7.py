@@ -240,13 +240,18 @@ def test_build_layers_matches_per_sample_reference():
 
 # --- endpoints ---------------------------------------------------------------------------
 
+def cells(h: dict, layer: dict) -> list:
+    return heatmaps.unpack_cells(layer["packed"], h["cols"])
+
+
+
 def test_match_heatmap(client):
     mid = match_id(client)
     h = client.get(f"/api/matches/{mid}/heatmap").json()
     assert (h["map"], h["image"], h["matches"]) == ("dyson", "/minimaps/dyson.png", 1)
     layers = {layer["key"]: layer for layer in h["layers"]}
     assert set(layers) == {"blue", "orange"}
-    assert len(layers["blue"]["cells"]) > len(layers["orange"]["cells"])  # blue walks, orange stands
+    assert len(cells(h, layers["blue"])) > len(cells(h, layers["orange"]))  # blue walks, orange stands
     only_orange = client.get(f"/api/matches/{mid}/heatmap", params={"player": "42"}).json()
     assert [layer["key"] for layer in only_orange["layers"]] == ["orange"]
 
@@ -259,7 +264,7 @@ def test_match_heatmap_per_player(client):
     assert set(layers) == {BLUE, "42"}
     assert (layers[BLUE]["team"], layers["42"]["team"]) == ("blue", "orange")
     assert all(layer["label"] != layer["key"] for layer in h["layers"])  # names, not ids
-    assert len(layers[BLUE]["cells"]) > len(layers["42"]["cells"])
+    assert len(cells(h, layers[BLUE])) > len(cells(h, layers["42"]))
     one = client.get(f"/api/matches/{mid}/heatmap", params={"mode": "player", "player": "42"}).json()
     assert [layer["key"] for layer in one["layers"]] == ["42"]
 
@@ -290,7 +295,7 @@ def test_player_heatmap(client, mode):
     if mode == "weapons":
         assert h["layers"][0]["label"] == "Pulsar"
     if mode == "deaths":
-        assert sum(n for _, _, n in h["layers"][0]["cells"]) == 1
+        assert sum(n for _, _, n in cells(h, h["layers"][0])) == 1
 
 
 def test_player_heatmap_validation(client):

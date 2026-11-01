@@ -9,7 +9,7 @@ import { LineChart } from "../components/charts";
 import { GearName, MatchTable, Status, TableWrap, TeamBadge } from "../components/common";
 import { HEATMAP_CELL_M, HEATMAP_MODES, HeatmapView } from "../components/HeatmapView";
 import { InfoTip, Skeleton, WhenVisible } from "../components/ui";
-import { MAPS, dateTime, duration, nameSlug, num, pct, periodLabel, playerPath, title } from "../format";
+import { MAPS, dateTime, hoursMinutes, int, nameSlug, num, pct, periodLabel, playerPath, title } from "../format";
 import { useApi } from "../useApi";
 
 const PERIODS: [Period, string][] = [
@@ -21,10 +21,11 @@ const PERIODS: [Period, string][] = [
 
 function cards(s: PlayerStats): [string, string, string?][] {
   const list: [string, string, string?][] = [
-    ["Games", String(s.games)],
-    ["Wins – losses", `${s.wins} – ${s.losses}`, "Matches without a known winner are not counted"],
+    ["Games", int(s.games)],
+    ["Wins – losses", `${int(s.wins)} – ${int(s.losses)}`, "Matches without a known winner are not counted"],
+    ["Win rate", s.wins + s.losses ? pct(s.wins / (s.wins + s.losses)) : "–", "Wins out of the games with a known winner"],
     ["Hours played", num(s.hours_played)],
-    ["Deaths*", String(s.deaths_est), "Estimated from leaving the map bounds"],
+    ["Deaths*", int(s.deaths_est), "Estimated from leaving the map bounds"],
     ["Deaths / game*", num(s.deaths_per_game_est, 2)],
     ["Average speed", `${num(s.avg_speed, 2)} m/s`],
     ["Top speed", `${num(s.top_speed)} m/s`, "Fastest speed held for a full second"],
@@ -34,13 +35,13 @@ function cards(s: PlayerStats): [string, string, string?][] {
     ["Near an enemy", pct(s.pct_near_enemy)],
     ["Average ping", num(s.avg_ping, 0)],
     ["Packet loss", s.avg_packet_loss == null ? "–" : `${(s.avg_packet_loss * 100).toFixed(2)}%`],
-    ["Emotes", String(s.emote_count)],
+    ["Emotes", int(s.emote_count)],
     ["Left early", pct(s.pct_left_early), "Last seen more than 45 s before the end"],
     ["Arm", s.dominant_arm ? `${s.dominant_arm} (${pct(s.dominant_arm === "Left" ? s.pct_left_arm : 1 - (s.pct_left_arm ?? 0))})` : "–"],
   ];
   if (s.games_by_mode.payload) {
-    list.push(["Payload push*", duration(s.payload_push_s), "Estimated: within 3 m of the payload"]);
-    list.push(["Payload block*", duration(s.payload_block_s), "Estimated: within 3 m of the payload"]);
+    list.push(["Payload push*", hoursMinutes(s.payload_push_s), "Estimated: within 3 m of the payload"]);
+    list.push(["Payload block*", hoursMinutes(s.payload_block_s), "Estimated: within 3 m of the payload"]);
   }
   return list;
 }
@@ -56,7 +57,7 @@ function ProfileHeader({ p }: { p: PlayerProfile }) {
           {p.name}
         </h1>
         <p className="muted">
-          {p.level != null && `Level ${p.level} · `}First seen {dateTime(p.first_seen_at).slice(0, 10)} · last seen {dateTime(p.last_seen_at).slice(0, 10)}
+          {p.level != null && `Level ${p.level} · `}First seen {dateTime(p.first_seen_at).slice(0, 10)} · Last seen {dateTime(p.last_seen_at).slice(0, 10)}
           {p.merged_ids.length > 0 && ` · merged with ${p.merged_ids.length} other ID${p.merged_ids.length > 1 ? "s" : ""}`}
         </p>
         <div className="profile-facts">
@@ -187,7 +188,7 @@ function CompanionTable({ title: heading, rows, together }: { title: string; row
               {rows.map((c) => (
                 <tr key={c.user_id}>
                   <td data-label="Player"><Link to={playerPath(c.user_id, c.name)}>{c.name}</Link></td>
-                  <td data-label="Games" className="num">{c.games}</td>
+                  <td data-label="Games" className="num">{int(c.games)}</td>
                   <td data-label={together ? "Won together" : "Won against"} className="num">
                     {c.wins} – {c.losses}
                   </td>
@@ -268,7 +269,7 @@ function PlayerHeatmap({ userId, period, maps }: { userId: string; period: Perio
         </label>      </div>
       {h.loading && <Skeleton lines={5} />}
       <Status loading={false} error={h.error} />
-      {h.data && <HeatmapView heatmap={h.data} caption={`${h.data.matches} match${h.data.matches === 1 ? "" : "es"}.`} />}
+      {h.data && <HeatmapView heatmap={h.data} caption={`${int(h.data.matches)} match${h.data.matches === 1 ? "" : "es"}.`} />}
     </>
   );
 }
@@ -336,7 +337,7 @@ export function PlayerPage() {
                 ))}
               </div>
               <p className="muted footnote">
-                Games per map: {Object.entries(p.stats.games_by_map).map(([m, n]) => `${title(m)} ${n}`).join(" · ")}. * Estimated.
+                Games per map: {Object.entries(p.stats.games_by_map).map(([m, n]) => `${title(m)} ${int(n)}`).join(" · ")}. * Estimated.
               </p>
 
               <h2>Loadouts</h2>

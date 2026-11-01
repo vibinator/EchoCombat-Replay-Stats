@@ -14,6 +14,8 @@ import threading
 import zlib
 from array import array
 from collections import OrderedDict
+from collections.abc import Iterable, Iterator
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -224,3 +226,22 @@ def read(path: Path) -> tuple[dict, dict] | None:
             while _cache_used > _cache_limit:
                 _cache_used -= _cache.popitem(last=False)[1][2]
     return decoded
+
+# Reading many files (a player heatmap over thousands of matches): disk reads and zlib release the GIL, so a few
+# threads overlap them (the cold all-matches heatmap was ~13 s of one-at-a-time reads).
+READ_THREADS = 8
+READ_AHEAD = 64  # files decoded ahead of the consumer at most: memory stays bounded
+_readers = ThreadPoolExecutor(max_workers=READ_THREADS, thread_name_prefix="tracks-read")
+
+
+def read_many(paths: Iterable[Path]) -> Iterator[tuple[dict, dict]]:
+    """read() for each path, in order, a few files at a time in parallel; missing / unreadable files are skipped."""
+    pending = []
+    for path in paths:
+        pending.append(_readers.submit(read, path))
+        if len(pending) >= READ_AHEAD:
+            if (data := pending.pop(0).result()) is not None:
+                yield data
+    for future in pending:
+        if (data := future.result()) is not None:
+            yield data

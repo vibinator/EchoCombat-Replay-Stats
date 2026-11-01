@@ -2,7 +2,7 @@ import { Link, useSearchParams } from "react-router";
 import { getGear, getLeaderboard, getLeaderboardStats, type LeaderboardRow, type Period } from "../api";
 import { Status, TableWrap } from "../components/common";
 import { EmptyState, FitText, Skeleton } from "../components/ui";
-import { MAPS, duration, num, pct, playerPath, title } from "../format";
+import { MAPS, duration, int, num, pct, playerPath, title } from "../format";
 import { useApi } from "../useApi";
 
 const PAGE_SIZE = 50;
@@ -195,7 +195,7 @@ export function LeaderboardPage() {
               </table>
             </TableWrap>
             <p className="muted footnote">
-              {board.data.higher_is_better ? "Highest first" : "Lowest first"} · {total} ranked players · Arrows compare with one period earlier
+              {board.data.higher_is_better ? "Highest first" : "Lowest first"} · {int(total)} ranked players · Arrows compare with one period earlier
               (all time: with 7 days ago).
             </p>
             {total > PAGE_SIZE && (
@@ -204,7 +204,7 @@ export function LeaderboardPage() {
                   Previous
                 </button>
                 <span className="muted">
-                  {offset + 1}–{Math.min(offset + PAGE_SIZE, total)} of {total}
+                  {int(offset + 1)}–{int(Math.min(offset + PAGE_SIZE, total))} of {int(total)}
                 </span>
                 <button className="secondary" disabled={offset + PAGE_SIZE >= total} onClick={() => set("offset", String(offset + PAGE_SIZE))}>
                   Next

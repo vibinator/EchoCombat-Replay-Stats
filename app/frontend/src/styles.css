@@ -81,7 +81,7 @@ nav a:hover {
 main {
   flex: 1;
   width: 100%;
-  max-width: 1200px;
+  max-width: 1320px; /* room for the match page's wide per-player tables */
   margin: 0 auto;
   padding: 16px;
 }
@@ -623,7 +623,7 @@ svg .grid {
 
 svg .axis {
   fill: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 svg .moment {
@@ -1074,9 +1074,9 @@ kbd {
 /* global search */
 .global-search {
   position: relative;
-  flex: 1;
-  max-width: 340px;
-  min-width: 160px;
+  flex: 1 1 180px; /* small base so the header stays on one line; grows into spare room */
+  max-width: 320px;
+  min-width: 140px;
 }
 .global-search input {
   width: 100%;
@@ -1295,7 +1295,17 @@ kbd {
   opacity: 0.8;
 }
 
+.loadout.stacked {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  white-space: nowrap;
+}
+
 /* home */
+.cards.gear-cards {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); /* three wide cards: runner-up lines fit on one line */
+}
 .gear-cards .card strong {
   font-size: 1.1rem;
 }

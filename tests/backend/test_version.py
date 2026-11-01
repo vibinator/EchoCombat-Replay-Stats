@@ -8,7 +8,13 @@ sys.path.insert(0, str(ROOT / "app"))
 
 from bump_version import next_version  # noqa: E402
 
-from backend.version import APP_VERSION, RELEASED, VERSION  # noqa: E402
+from backend.version import APP_VERSION, RELEASED, VERSION, short  # noqa: E402
+
+
+def test_short_form():
+    assert short("2026.11.01.7") == "v26.11.1-7"
+    assert short("2027.01.09.12") == "v27.1.9-12"
+    assert APP_VERSION == f"Beta {short(VERSION)}"
 
 
 def test_next_version_counts_per_day():
@@ -18,7 +24,7 @@ def test_next_version_counts_per_day():
 
 
 def test_version_matches_release_and_changelog():
-    assert re.fullmatch(r"\d{4}\.\d{2}\.\d{2}\.\d+", VERSION) and APP_VERSION == f"{VERSION} (beta)"
+    assert re.fullmatch(r"\d{4}\.\d{2}\.\d{2}\.\d+", VERSION)
     date, time = RELEASED.split("T")
     assert VERSION.startswith(date.replace("-", ".") + ".") and re.fullmatch(r"\d{2}:\d{2}", time)
     first = next(line for line in (ROOT / "docs" / "Changelog.MD").read_text(encoding="utf-8").splitlines()

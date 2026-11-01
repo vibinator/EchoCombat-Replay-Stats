@@ -188,7 +188,7 @@ function Layout() {
         </Suspense>
         </ErrorBoundary>
       </main>
-      <footer>{health && <>{health.version} · {released(health.released)}</>}</footer>
+      <footer>{health && <span title={`Version ${health.build}`}>{health.version} · {released(health.released)}</span>}</footer>
     </>
   );
 }

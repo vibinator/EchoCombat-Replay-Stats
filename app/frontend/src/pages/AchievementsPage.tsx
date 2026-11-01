@@ -3,7 +3,7 @@ import { Link, useSearchParams } from "react-router";
 import { getAchievements, getLeaderboard, getRarity, getRecentUnlocks, searchPlayers } from "../api";
 import { AchievementsView, ChallengeBanner, ComingSoon, GroupedBadges, JumpToNew, useAchievementsAccess } from "../components/AchievementsView";
 import { Status, TableWrap } from "../components/common";
-import { pct } from "../format";
+import { int, pct } from "../format";
 import { useApi } from "../useApi";
 
 function PlayerPicker() {
@@ -31,7 +31,7 @@ function PlayerPicker() {
             {found.data.items.map((p) => (
               <li key={p.user_id}>
                 <Link to={`/achievements?player=${encodeURIComponent(p.user_id)}`}>{p.name}</Link>{" "}
-                <span className="muted">{p.games} games</span>
+                <span className="muted">{int(p.games)} games</span>
               </li>
             ))}
           </ul>
@@ -66,7 +66,7 @@ function TopPlayers() {
                 <td>
                   <Link to={`/achievements?player=${encodeURIComponent(r.user_id)}`}>{r.name}</Link>
                 </td>
-                <td className="num">{r.games}</td>
+                <td className="num">{int(r.games)}</td>
                 <td className="num">{pct(r.value)}</td>
               </tr>
             ))}

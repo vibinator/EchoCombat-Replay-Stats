@@ -44,12 +44,31 @@ def _ask(channel: str) -> dict:
     return parse(channel, r.text, datetime.now())
 
 
+_refreshing: set[str] = set()
+
+
+def _refresh(channel: str) -> None:
+    try:
+        answer = _ask(channel)
+        with _lock:
+            _memo[channel] = (time.monotonic(), answer)
+    finally:
+        with _lock:
+            _refreshing.discard(channel)
+
+
 def live(channel: str) -> dict:
+    """The last answer at once; once it is CHECK_S old, decapi is asked again in the background (one request at a
+    time), so no visitor waits the ~0.5 s it takes. Only the very first ask waits for the answer."""
     if not channel:
         return {"live": None, "since": None}
     with _lock:
         memo = _memo.get(channel)
-        if memo is None or time.monotonic() - memo[0] >= CHECK_S:
-            memo = (time.monotonic(), _ask(channel))
-            _memo[channel] = memo
+        if memo is not None:
+            if time.monotonic() - memo[0] >= CHECK_S and channel not in _refreshing:
+                _refreshing.add(channel)
+                threading.Thread(target=_refresh, args=(channel,), name="twitch-live", daemon=True).start()
+            return memo[1]
+        memo = (time.monotonic(), _ask(channel))  # first ask: wait for it (others wait on the lock and share it)
+        _memo[channel] = memo
         return memo[1]

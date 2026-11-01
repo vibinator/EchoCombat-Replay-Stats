@@ -446,7 +446,7 @@ export const getPlayer = (userId: string, period: Period, map?: string) =>
 export interface HeatmapLayer {
   key: string;
   label: string;
-  cells: [number, number, number][];
+  cells: [number, number, number][]; // [col, row, samples], unpacked from `packed` by heatmapRequest
   max: number;
   team?: string; // "player" mode only
 }
@@ -460,6 +460,45 @@ export interface Heatmap {
   mode: string;
   matches: number;
   layers: HeatmapLayer[];
+}
+
+/** As sent: cells packed (heatmaps.pack_cells): d = base64 uint32 index differences, n = base64 counts (w bytes each). */
+type PackedLayer = Omit<HeatmapLayer, "cells"> & { packed: { d: string; n: string; w: 2 | 4 } };
+type PackedHeatmap = Omit<Heatmap, "layers"> & { layers: PackedLayer[] };
+
+function bytes(b64: string): ArrayBuffer {
+  const text = atob(b64);
+  const out = new Uint8Array(text.length);
+  for (let i = 0; i < text.length; i++) out[i] = text.charCodeAt(i);
+  return out.buffer;
+}
+
+export function unpackCells(packed: PackedLayer["packed"], cols: number): [number, number, number][] {
+  if (!packed.d) return [];
+  const view = new DataView(bytes(packed.d));
+  const counts = new DataView(bytes(packed.n));
+  const cells = new Array<[number, number, number]>(view.byteLength / 4);
+  let index = 0;
+  for (let i = 0; i < cells.length; i++) {
+    index += view.getUint32(i * 4, true);
+    const n = packed.w === 2 ? counts.getUint16(i * 2, true) : counts.getUint32(i * 4, true);
+    cells[i] = [index % cols, Math.floor(index / cols), n];
+  }
+  return cells;
+}
+
+// one unpacked copy per answer: the answer cache hands the same object to every page that asks
+const unpacked = new WeakMap<PackedHeatmap, Heatmap>();
+
+function heatmapRequest(path: string): Promise<Heatmap> {
+  return request<PackedHeatmap>(path).then((raw) => {
+    let h = unpacked.get(raw);
+    if (!h) {
+      h = { ...raw, layers: raw.layers.map(({ packed, ...layer }) => ({ ...layer, cells: unpackCells(packed, raw.cols) })) };
+      unpacked.set(raw, h);
+    }
+    return h;
+  });
 }
 
 export interface MatchEvent {
@@ -516,7 +555,7 @@ export interface GearList {
 export type HeatmapMode = "team" | "weapons" | "deaths";
 
 export const getMatchHeatmap = (id: number, player?: string) =>
-  request<Heatmap>(`/api/matches/${id}/heatmap${query({ player })}`);
+  heatmapRequest(`/api/matches/${id}/heatmap${query({ player })}`);
 
 /** Team heat PNGs (data URLs) for a page of match cards, keyed by match id; one request for the whole page. */
 export const getMatchThumbnails = (ids: number[]) =>
@@ -525,7 +564,7 @@ export const getMatchThumbnails = (ids: number[]) =>
 export const getTimeline = (id: number) => request<Timeline>(`/api/matches/${id}/timeline`);
 
 export const getPlayerHeatmap = (userId: string, map: string, mode: HeatmapMode, period: Period, last: number) =>
-  request<Heatmap>(`/api/players/${encodeURIComponent(userId)}/heatmap${query({ map, mode, period, last })}`);
+  heatmapRequest(`/api/players/${encodeURIComponent(userId)}/heatmap${query({ map, mode, period, last })}`);
 
 export interface LeaderboardQuery {
   stat: string;
@@ -857,8 +896,8 @@ export const getMe = () => request<Me>("/api/auth/me");
 /** Full-page navigation (not a fetch): Discord's login page, then back to `next`. */
 export const loginUrl = (next: string) => `/api/auth/login?next=${encodeURIComponent(next)}`;
 export const LOGOUT_URL = "/api/auth/logout";
-/** `version` e.g. "2026.11.01.6 (beta)"; `released` local date-time "YYYY-MM-DDTHH:MM" */
-export const getHealth = () => request<{ version: string; released: string }>("/api/health");
+/** `version` e.g. "Beta v26.11.1-7" (shown), `build` the full "2026.11.01.7", `released` local "YYYY-MM-DDTHH:MM" */
+export const getHealth = () => request<{ version: string; build: string; released: string }>("/api/health");
 // The home page starts its chart requests together with the overview; request() lets the charts reuse them.
 export const getOverview = () => request<Overview>("/api/overview");
 /** Live queue length for the top bar: always asked (Cloudflare may answer it), never reused from the cache. */
@@ -903,6 +942,6 @@ export const getRecentUnlocks = () => request<RecentUnlock[]>("/api/achievements
 export type HeatmapLayerMode = "team" | "weapons" | "ordnance" | "tacmod" | "loadout" | "speed";
 
 export const getMatchHeatmapBy = (id: number, mode: HeatmapLayerMode | "player", cell: number, player?: string) =>
-  request<Heatmap>(`/api/matches/${id}/heatmap${query({ mode, cell, player })}`);
+  heatmapRequest(`/api/matches/${id}/heatmap${query({ mode, cell, player })}`);
 export const getPlayerHeatmapBy = (userId: string, map: string, mode: HeatmapLayerMode | "deaths", period: Period, last: number, cell: number) =>
-  request<Heatmap>(`/api/players/${encodeURIComponent(userId)}/heatmap${query({ map, mode, period, last, cell })}`);
+  heatmapRequest(`/api/players/${encodeURIComponent(userId)}/heatmap${query({ map, mode, period, last, cell })}`);

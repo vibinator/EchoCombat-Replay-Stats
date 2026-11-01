@@ -196,7 +196,7 @@ def discord_roles(db: Session, kind: str) -> list[str]:
 
 def _role_id(value: str) -> str:
     value = value.strip()
-    if not (value.isdigit() and 17 <= len(value) <= 20):
+    if not (value.isascii() and value.isdigit() and 17 <= len(value) <= 20):  # isdigit alone also takes "²", "٣"
         raise AdminError(f"'{value}' is not a Discord id (17-20 digits: right-click > Copy Role ID / Copy User ID)")
     return value
 

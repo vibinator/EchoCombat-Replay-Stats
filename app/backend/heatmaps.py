@@ -1,6 +1,7 @@
-"""Heatmap grids in minimap image space (D18). Cells are `cell_m` metres (default 0.25, D35); consecutive
+"""Heatmap grids in minimap image space (D18). Cells are `cell_m` metres (0.1 m, user 2026-11-01); consecutive
 2 Hz samples are joined with a line unless the player jumped (respawn / teleport)."""
 
+import base64
 import math
 import struct
 import zlib
@@ -242,6 +243,29 @@ def player_layers(layout: HeatmapLayout, players: dict, user_ids: set[str] | Non
     return {uid: _rasterise_arrays(layout, *_merge(p), cell_m) for uid, p in parts.items()}
 
 
+def pack_cells(counts: Counter, cols: int) -> dict:
+    """A layer's cells, compact (0.1 m heatmaps reach ~800k cells: as [col, row, n] JSON that was 2.5 MB gzipped,
+    this is a third of it and the browser decodes it far faster). Cells sorted by index = row * cols + col;
+    d = base64 little-endian uint32 differences between consecutive indices (the first from 0), n = base64 counts
+    as uint16 (w = 2) or uint32 (w = 4) in the same order. Decoded by unpackCells in api.ts."""
+    if not counts:
+        return {"d": "", "n": "", "w": 2}
+    index = np.fromiter((r * cols + c for c, r in counts.keys()), dtype=np.int64, count=len(counts))
+    n = np.fromiter(counts.values(), dtype=np.int64, count=len(counts))
+    order = np.argsort(index, kind="stable")
+    index, n = index[order], n[order]
+    width = 2 if n.max() < 65536 else 4
+    return {"d": base64.b64encode(np.diff(index, prepend=0).astype("<u4").tobytes()).decode("ascii"),
+            "n": base64.b64encode(n.astype("<u2" if width == 2 else "<u4").tobytes()).decode("ascii"), "w": width}
+
+
+def unpack_cells(packed: dict, cols: int) -> list[tuple[int, int, int]]:
+    """[(col, row, n)], the inverse of pack_cells (tests, tools)."""
+    index = np.cumsum(np.frombuffer(base64.b64decode(packed["d"]), dtype="<u4").astype(np.int64))
+    n = np.frombuffer(base64.b64decode(packed["n"]), dtype="<u2" if packed["w"] == 2 else "<u4")
+    return [(int(i % cols), int(i // cols), int(v)) for i, v in zip(index, n)]
+
+
 def response(map_name: str, layers: dict[str, Counter], labels: dict[str, str] | None = None, matches: int = 0,
              cell_m: float = CELL_M, mode: str = "team", teams: dict[str, str] | None = None) -> dict:
     layout = HEATMAP_LAYOUTS[map_name]
@@ -255,8 +279,8 @@ def response(map_name: str, layers: dict[str, Counter], labels: dict[str, str] |
         "cell_m": cell_m,
         "matches": matches,
         "layers": [
-            {"key": key, "label": (labels or {}).get(key, key),
-             "cells": [[c, r, n] for (c, r), n in counts.items()], "max": max(counts.values(), default=0)}
+            {"key": key, "label": (labels or {}).get(key, key), "packed": pack_cells(counts, cols),
+             "max": max(counts.values(), default=0)}
             | ({"team": teams[key]} if teams and key in teams else {})
             for key, counts in layers.items() if counts
         ],

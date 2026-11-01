@@ -4,7 +4,7 @@ import { comparePlayers, getPlayerHeatmapBy, searchPlayers, type Period, type Pl
 import { Status, TableWrap } from "../components/common";
 import { HeatmapView } from "../components/HeatmapView";
 import { EmptyState, Skeleton, WhenVisible } from "../components/ui";
-import { MAPS, duration, num, pct, playerPath, title } from "../format";
+import { MAPS, duration, int, num, pct, playerPath, title } from "../format";
 import { useApi } from "../useApi";
 
 const ROWS: [string, (s: PlayerStats) => string, (s: PlayerStats) => number | null, boolean][] = [
@@ -39,7 +39,7 @@ function AddPlayer({ onAdd }: { onAdd: (id: string) => void }) {
         <ul className="picker">
           {found.data.items.map((p) => (
             <li key={p.user_id}>
-              <button className="link" onClick={() => (onAdd(p.user_id), setTerm(""), setQ(""))}>{p.name}</button> <span className="muted">{p.games} games</span>
+              <button className="link" onClick={() => (onAdd(p.user_id), setTerm(""), setQ(""))}>{p.name}</button> <span className="muted">{int(p.games)} games</span>
             </li>
           ))}
           {found.data.items.length === 0 && <li className="muted">No players found.</li>}
@@ -127,12 +127,12 @@ export function ComparePage() {
           <div className="cards">
             <div className="card">
               <span className="label">Same team</span>
-              <strong>{c.head_to_head.together.games} games</strong>
+              <strong>{int(c.head_to_head.together.games)} games</strong>
               <span className="muted">record {c.head_to_head.together.wins} – {c.head_to_head.together.losses}</span>
             </div>
             <div className="card">
               <span className="label">Opposite teams</span>
-              <strong>{c.head_to_head.against.games} games</strong>
+              <strong>{int(c.head_to_head.against.games)} games</strong>
               <span className="muted">
                 {c.players[0].name} won {c.head_to_head.against.wins}, lost {c.head_to_head.against.losses}
               </span>
@@ -167,7 +167,7 @@ function CompareHeatmap({ userId, name, map, period }: { userId: string; name: s
     <div>
       <h3>{name}</h3>
       {h.loading && <Skeleton lines={3} />}
-      {h.data && <HeatmapView heatmap={h.data} caption={`${h.data.matches} matches.`} />}
+      {h.data && <HeatmapView heatmap={h.data} caption={`${int(h.data.matches)} matches.`} />}
     </div>
   );
 }

@@ -11,9 +11,11 @@ from backend import admin_actions as actions
 from backend import auth
 
 BLUE = str(rf.BIG_USER_ID)  # player in rf.plain
-ROLE, MEMBER, OUTSIDER, NO_ROLE = "555", "42", "43", "44"
-DB_ROLE, DB_MEMBER = "123456789012345678", "45"  # role set in the admin console
-BROKEN = "46"  # Discord refuses the bot token for this lookup
+# real Discord ids are 17-20 digits (people's ids are checked before they go into a Discord API path)
+ROLE, MEMBER, OUTSIDER, NO_ROLE = "555000000000000555", "420000000000000042", "430000000000000043", "440000000000000044"
+DB_ROLE, DB_MEMBER = "123456789012345678", "450000000000000045"  # role set in the admin console
+BROKEN = "460000000000000046"  # Discord refuses the bot token for this lookup
+SOMEONE_ELSE = "470000000000000047"  # a valid id that is none of the people above
 
 
 @pytest.fixture
@@ -306,9 +308,9 @@ def test_admin_users_by_discord_id(tmp_path, discord):
 
         login(client, NO_ROLE)  # in the server, no useful role
         assert client.get("/api/auth/me").json()["user"]["admin"] is False
-        assert console.cmd_admin_users(sessions, st, add=NO_ROLE + "0" * 15) == [NO_ROLE + "0" * 15]  # someone else
+        assert console.cmd_admin_users(sessions, st, add=SOMEONE_ELSE) == [SOMEONE_ELSE]
         assert client.get("/api/auth/me").json()["user"]["admin"] is False
-        console.cmd_admin_users(sessions, st, remove=NO_ROLE + "0" * 15)
+        console.cmd_admin_users(sessions, st, remove=SOMEONE_ELSE)
 
     (tmp_path / "b").mkdir()
     with app_client(settings(tmp_path / "b")) as client:
