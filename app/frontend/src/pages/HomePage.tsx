@@ -42,7 +42,7 @@ const RANGES: [PlayersSeen["range"], string][] = [
 ];
 
 function PlayersSeenChart() {
-  const [range, setRange] = useState<PlayersSeen["range"]>("7d");
+  const [range, setRange] = useState<PlayersSeen["range"]>("24h");
   const [anchor, setAnchor] = useState<PlayersSeen["anchor"]>("now");
   const seen = useApi(() => getPlayersSeen(range, anchor), `${range}|${anchor}`);
   const d = seen.data;
@@ -89,14 +89,14 @@ function PlayersSeenChart() {
 }
 
 function ActivityChart() {
-  const [bucket, setBucket] = useState<"day" | "month" | "year">("month");
+  const [bucket, setBucket] = useState<"day" | "week" | "month" | "year">("day");
   const activity = useApi(() => getActivity(bucket), bucket);
   return (
     <section className="panel">
       <div className="section-head">
         <h2>Matches recorded over time</h2>
         <div className="tabs" role="tablist">
-          {(["day", "month", "year"] as const).map((b) => (
+          {(["day", "week", "month", "year"] as const).map((b) => (
             <button key={b} role="tab" aria-selected={bucket === b} className={bucket === b ? "tab active" : "tab"} onClick={() => setBucket(b)}>
               Per {b}
             </button>
@@ -124,32 +124,42 @@ const TWITCH_CHANNEL = "combat_stream_bot";
 
 /** The live Echo Combat spectator bot (offline: Twitch's offline screen). Twitch only plays embeds whose `parent`
  * is the hostname of the page showing them (and only over HTTPS, apart from localhost). Muted autoplay, so the
- * page does not start making sound. */
+ * page does not start making sound. Twitch pauses an autoplaying player at once when it is smaller than 400x300 or
+ * not visible enough (user 2026-11-01: it started and paused straight away): it loads once half of it is on screen,
+ * and a smaller one (phones) does not autoplay, it shows its play button instead. */
 function LiveStream() {
   // The player is several MB of third-party script and video: load it once the page has settled and the box is on
   // screen, so it does not compete with the numbers (user, 2026-10-31: the home page was slow).
   const box = useRef<HTMLDivElement>(null);
   const [show, setShow] = useState(false);
+  const [autoplay, setAutoplay] = useState(true);
   useEffect(() => {
     const el = box.current;
     if (!el) return;
     let timer = 0;
-    const seen = new IntersectionObserver(([e]) => {
-      if (e.isIntersecting) {
-        timer = window.setTimeout(() => setShow(true), 1200);
-        seen.disconnect();
-      }
-    });
+    const seen = new IntersectionObserver(
+      ([e]) => {
+        if (e.isIntersecting) {
+          timer = window.setTimeout(() => {
+            const r = el.getBoundingClientRect();
+            setAutoplay(r.width >= 400 && r.height >= 300);
+            setShow(true);
+          }, 1200);
+          seen.disconnect();
+        }
+      },
+      { threshold: 0.5 },
+    );
     seen.observe(el);
     return () => {
       seen.disconnect();
       window.clearTimeout(timer);
     };
   }, []);
-  const src = `https://player.twitch.tv/?channel=${TWITCH_CHANNEL}&parent=${encodeURIComponent(window.location.hostname)}&muted=true`;
+  const src = `https://player.twitch.tv/?channel=${TWITCH_CHANNEL}&parent=${encodeURIComponent(window.location.hostname)}&muted=true&autoplay=${autoplay}`;
   return (
     <div className="twitch-embed" ref={box}>
-      {show && <iframe src={src} title="Live Echo Combat spectator bot on Twitch" allowFullScreen />}
+      {show && <iframe src={src} title="Live Echo Combat spectator bot on Twitch" allow="autoplay; fullscreen; picture-in-picture; encrypted-media" allowFullScreen />}
     </div>
   );
 }
@@ -166,24 +176,39 @@ const LAST_MATCH_POLL_MS = 60_000; // Cloudflare keeps the answer as long, askin
 const TICK_MS = 20_000;
 
 /** The "Last match" card, kept current while the tab is visible: "x min ago" counts on by itself, and the newest
- * match time is asked separately because the overview is rebuilt only every few minutes (and then refreshed too). */
+ * match time is asked separately because the overview is rebuilt only every few minutes (and then refreshed too).
+ * While the spectator bot is live on Twitch a game is being played: a "Game in progress" card appears beside it
+ * (none at all otherwise, user 2026-11-01). */
 function LastMatchCard({ fromOverview }: { fromOverview: string | null }) {
   const [live, setLive] = useState<string | null>(null);
+  const [playing, setPlaying] = useState(false);
   const [now, setNow] = useState(Date.now);
   useWhileVisible(() => {
     getLastMatch()
-      .then((d) => setLive(d.last_match_at))
+      .then((d) => {
+        setLive(d.last_match_at);
+        setPlaying(d.in_progress?.live === true);
+      })
       .catch(() => undefined); // keep what is shown
     getOverview().catch(() => undefined); // refreshed in the background once a minute old; the page updates if it changed
   }, LAST_MATCH_POLL_MS);
   useWhileVisible(() => setNow(Date.now()), TICK_MS);
   const last = live && (!fromOverview || live > fromOverview) ? live : fromOverview;
   return (
-    <div className="card">
-      <span className="label">Last match</span>
-      <strong>{last ? since(last, now) : "–"}</strong>
-      {last && <span className="muted">{dateTime(last)}</span>}
-    </div>
+    <>
+      <div className="card">
+        <span className="label">Last match</span>
+        <strong>{last ? since(last, now) : "–"}</strong>
+        {last && <span className="muted">{dateTime(last)}</span>}
+      </div>
+      {playing && (
+        <div className="card live-card">
+          <span className="label">Right now</span>
+          <strong className="live-text">Game in progress</strong>
+          <a href={`https://www.twitch.tv/${TWITCH_CHANNEL}`} target="_blank" rel="noopener noreferrer">Watch on Twitch</a>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -193,8 +218,8 @@ export function HomePage() {
   const overview = useApi(getOverview, "overview");
   // the two charts are only drawn once the overview is there; ask for their data now instead of afterwards
   useEffect(() => {
-    getActivity("month").catch(() => undefined);
-    getPlayersSeen("7d", "now").catch(() => undefined);
+    getActivity("day").catch(() => undefined);
+    getPlayersSeen("24h", "now").catch(() => undefined);
   }, []);
   const o = overview.data;
   const g = o?.global;

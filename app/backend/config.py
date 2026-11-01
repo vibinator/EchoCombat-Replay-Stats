@@ -45,6 +45,8 @@ class Settings:
     # many seconds (Cloudflare-CDN-Cache-Control; 0 = no shared cache keeps them, browsers still revalidate by ETag)
     cache_refresh_s: float = 0.0
     edge_cache_s: int = 0
+    # Twitch channel of the spectator bot: live = a game is being played now (twitch.py); "" = not checked (the tests)
+    twitch_channel: str = ""
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -66,6 +68,7 @@ class Settings:
             track_cache_mb=int(env("ECHOVR_TRACK_CACHE_MB", 512)),
             cache_refresh_s=float(env("ECHOVR_CACHE_REFRESH_S", 300)),
             edge_cache_s=int(env("ECHOVR_EDGE_CACHE_S", 60)),
+            twitch_channel=env("ECHOVR_TWITCH_CHANNEL", "combat_stream_bot"),
             discord_preview_roles=tuple(r.strip() for r in _secret(env("ECHOVR_DISCORD_PREVIEW_ROLES")).split(",") if r.strip()),
         )
 

@@ -390,6 +390,29 @@ td.num {
   font-size: 1.25rem;
 }
 
+/* home: a game is being played now (the spectator bot is live on Twitch) */
+.live-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ok);
+}
+.live-text::before {
+  content: "";
+  width: 9px;
+  height: 9px;
+  flex: none;
+  border-radius: 50%;
+  background: currentColor;
+  animation: live-pulse 1.6s ease-in-out infinite;
+}
+@keyframes live-pulse {
+  50% { opacity: 0.35; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .live-text::before { animation: none; }
+}
+
 /* FitText (components/ui.tsx): one line, font shrunk to fit */
 .fit-text {
   display: block;

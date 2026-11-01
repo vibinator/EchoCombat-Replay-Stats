@@ -5,6 +5,7 @@ from datetime import date, datetime, timedelta
 from fastapi import APIRouter, Query, Request
 from sqlalchemy import case, func, select
 
+from .. import twitch
 from ..cache import cached_response
 from ..duplicates import counted
 from ..gear import ORDNANCES, TACMODS, WEAPONS
@@ -69,10 +70,12 @@ def processing(request: Request):
 
 @router.get("/api/overview/last-match")
 def last_match(request: Request):
-    """When the newest match ended, for the home page's "Last match" card: the overview is rebuilt at most every
-    cache_refresh_s, this reads a few rows via an index (Cloudflare still keeps it ECHOVR_EDGE_CACHE_S)."""
+    """When the newest match ended, and whether one is being played now (the spectator bot is live on Twitch), for
+    the home page's "Last match" card: the overview is rebuilt at most every cache_refresh_s, this reads a few rows via
+    an index (Cloudflare still keeps it ECHOVR_EDGE_CACHE_S)."""
     with request.app.state.sessionmaker() as db:
-        return {"last_match_at": _last_ended(db)}
+        last = _last_ended(db)
+    return {"last_match_at": last, "in_progress": twitch.live(request.app.state.settings.twitch_channel)}
 
 
 def _last_ended(db) -> str | None:
@@ -272,7 +275,7 @@ def warm(app) -> None:
     from types import SimpleNamespace
 
     request = SimpleNamespace(app=app, headers={})
-    for call in (lambda: overview(request), lambda: activity(request, "month"), lambda: players_seen(request, "7d", "now")):
+    for call in (lambda: overview(request), lambda: activity(request, "day"), lambda: players_seen(request, "24h", "now")):
         try:
             call()
         except Exception:  # noqa: BLE001 - warming is best effort; the real request recomputes and reports errors

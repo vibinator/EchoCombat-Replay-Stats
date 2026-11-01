@@ -829,8 +829,10 @@ export const getHealth = () => request<{ version: string }>("/api/health");
 export const getOverview = () => request<Overview>("/api/overview");
 /** Live queue length for the top bar: always asked (Cloudflare may answer it), never reused from the cache. */
 export const getProcessing = () => send<{ pending: number }>("/api/overview/processing");
-/** Newest match time for the home page, polled: never reused from the cache (Cloudflare may answer it). */
-export const getLastMatch = () => send<{ last_match_at: string | null }>("/api/overview/last-match");
+/** Newest match end time for the home page, and whether a game is being played now (the spectator bot is live on
+ * Twitch; live null = could not tell). Polled: never reused from the cache (Cloudflare may answer it). */
+export const getLastMatch = () =>
+  send<{ last_match_at: string | null; in_progress?: { live: boolean | null; since: string | null } }>("/api/overview/last-match");
 export const getActivity = (bucket: "day" | "week" | "month" | "year") =>
   request<{ bucket: string; items: { period: string; matches: number; hours: number; maps: Record<string, number> }[] }>(`/api/overview/activity?bucket=${bucket}`);
 export const getPlayersSeen = (range: PlayersSeen["range"], anchor: PlayersSeen["anchor"]) =>
