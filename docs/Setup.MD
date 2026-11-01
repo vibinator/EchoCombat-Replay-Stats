@@ -33,6 +33,8 @@ npm install
 | `ECHOVR_RATE_LIMIT_PER_HOUR` | `1500` | Same, per visitor per hour (no burst above it). `0` = no hourly limit |
 | `ECHOVR_DB_CACHE_MB` | `1024` | RAM cache (D49): the database is memory-mapped up to this size and read in at startup. Shared OS file cache, given back when other programs need it. `0` = off |
 | `ECHOVR_TRACK_CACHE_MB` | `512` | RAM cache (D49): decoded position files (heatmaps, playback), ~70 KB per match. App memory: lower it on a NAS with little RAM. `0` = off |
+| `ECHOVR_CACHE_REFRESH_S` | `300` | Answer cache (D53): a page whose data changed is still answered at once and recalculated in the background at most this often (pages are at most about this far behind new replays). Lower = fresher, more CPU while importing. `0` = recalculate before answering (slow while importing) |
+| `ECHOVR_EDGE_CACHE_S` | `60` | Cloudflare may keep public data answers this many seconds, so repeats never reach the NAS (needs the Cache Rule, see Cloudflare cache). Login answers and errors are never kept. `0` = Cloudflare never keeps them |
 | `ECHOVR_DISCORD_CLIENT_ID` / `_GUILD_ID` | `1214456381466222683` / `779349159852769310` | Bot application and EchoVR Combat server |
 
 ## Admin console
@@ -115,6 +117,43 @@ DNS moves to Cloudflare.
    internet (myQNAPcloud / UPnP port forwarding off) - only the website is public, through the tunnel.
 
 The website stays read-only to everyone: changes are only possible from the admin console in the container.
+
+## Cloudflare cache (D53)
+Cloudflare keeps public data answers for `ECHOVR_EDGE_CACHE_S` (60 s), so repeated requests never reach the NAS. The
+app decides what may be kept, in a header only Cloudflare reads (`Cloudflare-CDN-Cache-Control`): answers that depend
+on who is logged in, and errors, are never kept; browsers always check with the server (`no-cache` + ETag). Static
+files (scripts, styles, images) were already kept by Cloudflare and need nothing. Free plan.
+1. **Cache Rule**: Cloudflare dashboard > echocombat.com > Caching > Cache Rules > *Create rule*. Name `API answers
+   (the app decides)`.
+2. **When incoming requests match**: *Custom filter expression* > *Edit expression*, paste
+   ```
+   (starts_with(http.request.uri.path, "/api/") and any(http.request.headers["x-echovr"][*] == "1"))
+   ```
+   The header part keeps the app's scraper check in front of cached answers: a request without the site's own
+   header is never answered from the cache, so it still reaches the app and is refused (D48). If the editor refuses
+   the header field, use `starts_with(http.request.uri.path, "/api/")` alone; cached answers can then be read without
+   the header (rate limited by step 4).
+3. **Then**: *Cache eligibility* = **Eligible for cache**; *Edge TTL* = **Use cache-control header if present, bypass
+   cache if not** (never *Ignore cache-control header and use this TTL*: login answers would be shared between
+   visitors); *Browser TTL* = **Respect origin**. Leave the rest as it is (*Serve stale content while revalidating*
+   on, *Respect strong ETags* off, cache key default). *Deploy*.
+4. **Rate limiting** (now recommended: cached answers never reach the app's own limit): Security > WAF > Rate limiting
+   rules > *Create rule*: URI Path contains `/api/`, same characteristics (IP), 100 requests per 10 seconds, action
+   Block for 10 seconds. A normal page asks 5-10 at once.
+5. **NAS**: `docker-compose.yml` has `ECHOVR_EDGE_CACHE_S: "60"` and `ECHOVR_CACHE_REFRESH_S: "300"` (the defaults);
+   change them there and Recreate. `ECHOVR_EDGE_CACHE_S: "0"` turns the Cloudflare part off without touching the rule.
+6. **Check**: double-click `check_cloudflare.bat` (or on the NAS: `docker exec -it echovr-replay-stats python
+   app/cloudflare_check.py https://echocombat.com`). It asks the site about 20 small questions, changes nothing, and
+   says PASS / WARN / FAIL with what to fix. All PASS = done. A login answer served from the cache is reported as
+   DANGER: fix step 3 at once.
+
+**Check in a browser** (if Cloudflare challenges the check): open https://echocombat.com, F12 > Network, reload, click
+`overview`: *Response headers* show `cf-cache-status: HIT` (or `MISS` on the first visit within 60 s), `etag`, and
+`cache-control: no-cache`. `me` (the login answer) must never say `HIT`.
+
+After an admin change (merge, challenge period) Cloudflare can show the old answer for up to 60 s and the server for
+up to 5 minutes; nothing needs purging. Caching > Configuration > *Development Mode* bypasses Cloudflare's cache for
+3 hours when needed.
 
 ## Discord login (achievement previews, D41)
 Before the achievements launch date (admin console option 5), members of the Discord server

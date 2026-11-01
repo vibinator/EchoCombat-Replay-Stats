@@ -21,6 +21,8 @@ services:
       ECHOVR_RATE_LIMIT_PER_HOUR: "1500"  # ... and per hour (0 = no hourly limit)
       ECHOVR_DB_CACHE_MB: "1024"     # RAM for the database (faster pages); lower on a NAS with little RAM, 0 = off
       ECHOVR_TRACK_CACHE_MB: "512"   # RAM for heatmap / playback position data; 0 = off
+      ECHOVR_CACHE_REFRESH_S: "300"  # pages answer at once and are recalculated in the background at most this often (s)
+      ECHOVR_EDGE_CACHE_S: "60"      # Cloudflare may keep public data answers this long (s); 0 = never (Setup.MD, Cloudflare cache)
       # Discord login: people with the preview role see achievements before their launch (Setup.MD, Discord login).
       # Leave the YOUR_... placeholders and the login stays off. Never upload real values to GitHub.
       ECHOVR_PUBLIC_URL: https://echocombat.com

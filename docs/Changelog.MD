@@ -13,6 +13,50 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 76 — 2026-11-01
+### Pages answer at once, even while the server is busy (caching, D53)
+- **No more waiting for a recalculation.** Every new replay used to make the next visitor wait while the home page,
+  leaderboard, profile or heatmap was recalculated (on the live site the home page numbers took 2.2 s). Now the last
+  result is shown at once and recalculated in the background at most every 5 minutes (user choice,
+  `ECHOVR_CACHE_REFRESH_S`), so pages are at most about 5 minutes behind new replays. Only a page nobody opened yet
+  is calculated while you wait.
+- **Match pages, playback, heatmaps, timeline, match lists and search are cached too** (they were recalculated on
+  every visit), and every answer is kept compressed with an ETag: a repeat costs almost nothing, and a browser that
+  already has the answer gets "304 Not Modified".
+- **Measured on the full archive** with 16 visitors while a replay finished every second: requests answered in 30 s
+  1,045 → 3,226; the slowest 10 % 1.8 s → 0.35 s; requests over 1 s 164 → 8; leaderboard median 2.2 s → 0.07 s.
+- **Less work for every request**, images and scripts included: one layer instead of four for the security checks and
+  headers (0.78 → 0.27 ms per request), and "has anything changed?" is read at most every 2 s instead of on every
+  request (3 ms each time).
+- **Replay processing gives way to visitors**: the import processes run at a lower priority, so pages stay quick while
+  a big import runs; imports still use all the CPU the website leaves idle.
+- **The achievements ranking no longer freezes the site** while it is calculated (Python's memory clean-up froze every
+  request for up to 0.3 s at a time; paused during the calculation, which is also 18 % faster), and it is
+  recalculated at most every 5 minutes.
+- Teammates / opponents about 2x faster for players with many games, compare 4x.
+
+### In the browser
+- **Pages show the last data instantly** (also after a reload, kept per tab) and refresh in the background; numbers
+  update by themselves when the refresh brings something new.
+- **If the server is slow or out of reach**, pages keep what they show and the top bar says "Server busy · showing
+  saved data" instead of an error; a request with no answer after 30 s is tried once more.
+- **Fewer requests**: teammates, trends, the heatmap and achievements on player pages (and the compare heatmaps) load
+  when you scroll to them; "Processing replays" is checked every minute and not at all in hidden tabs; the top-bar
+  search starts at 2 letters (or a match number) and an older answer can no longer replace a newer one.
+
+### Cloudflare cache (new)
+- Public data answers may be kept by Cloudflare for 60 s (user choice, `ECHOVR_EDGE_CACHE_S`): repeats never reach the
+  NAS. Login answers (and anything that depends on who is logged in) are never kept, errors are never kept.
+- Needs one Cache Rule in the Cloudflare dashboard: docs/Setup.MD, "Cloudflare cache". **`check_cloudflare.bat` checks
+  the setup** (also on the NAS: `docker exec -it echovr-replay-stats python app/cloudflare_check.py`).
+
+### To do
+1. Upload, wait for the GitHub Actions build, Recreate the container. No replay is read again.
+2. Add the Cloudflare Cache Rule and the rate limiting rule (Setup.MD, "Cloudflare cache"), then run
+   `check_cloudflare.bat`: everything PASS.
+
+---
+
 ## Beta 75 — 2026-10-31
 ### Match timeline, redesigned
 - **Summary cards** above the chart: match length, rounds score, checkpoints, time in the lead, peak capture and estimated deaths per team.

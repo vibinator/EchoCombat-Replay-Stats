@@ -8,7 +8,7 @@ import { AchievementsSummary } from "../components/AchievementsView";
 import { LineChart } from "../components/charts";
 import { GearName, MatchTable, Status, TableWrap, TeamBadge } from "../components/common";
 import { CELL_SIZES, HEATMAP_MODES, HeatmapView } from "../components/HeatmapView";
-import { InfoTip, Skeleton } from "../components/ui";
+import { InfoTip, Skeleton, WhenVisible } from "../components/ui";
 import { MAPS, dateTime, duration, num, pct, periodLabel, title } from "../format";
 import { useApi } from "../useApi";
 
@@ -377,10 +377,13 @@ export function PlayerPage() {
             </>
           )}
 
-          <Trends userId={p.user_id} />
-          <Companions userId={p.user_id} />
-          {p.stats.games > 0 && <PlayerHeatmap userId={p.user_id} period={period} maps={p.stats.games_by_map} />}
-          <AchievementsSummary userId={p.user_id} />
+          {/* further down: asked for only when scrolled near (the heatmap is the heaviest request on the site) */}
+          <WhenVisible><Trends userId={p.user_id} /></WhenVisible>
+          <WhenVisible><Companions userId={p.user_id} /></WhenVisible>
+          {p.stats.games > 0 && (
+            <WhenVisible minHeight={400}><PlayerHeatmap userId={p.user_id} period={period} maps={p.stats.games_by_map} /></WhenVisible>
+          )}
+          <WhenVisible><AchievementsSummary userId={p.user_id} /></WhenVisible>
 
           <h2>Recent matches</h2>
           <MatchTable

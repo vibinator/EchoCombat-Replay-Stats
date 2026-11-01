@@ -1,15 +1,13 @@
 import json
 from datetime import datetime, timedelta
 from collections import Counter
-from functools import lru_cache
-from pathlib import Path
 
 from fastapi import APIRouter, Query, Request
 from sqlalchemy import and_, case, func, select
 
 from .. import gear_use, heatmaps, tracks
 from ..aliases import ids_of
-from ..cache import cached, data_stamp
+from ..cache import cached_response
 from ..duplicates import counted
 from ..errors import ApiError
 from ..gear import WEAPONS
@@ -17,7 +15,6 @@ from ..gear import lookup as gear_lookup
 from ..models import Event, Match, MatchPlayer, MatchPlayerLoadout, Player, PlayerAlias
 from ..stats.maps import HEATMAP_LAYOUTS
 from .derived import PERIODS, dominant_arm, loadout, match_summary, period_start, ratio
-from .downloads import json_response
 
 router = APIRouter(prefix="/api/players", tags=["players"])
 
@@ -37,9 +34,14 @@ def search_players(
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
 ):
+    q = q.strip()
+    return cached_response(request, "players", (q, limit, offset), lambda: _search_players(request, q, limit, offset))
+
+
+def _search_players(request: Request, q: str, limit: int, offset: int) -> dict:
     where = [Player.user_id.not_in(select(PlayerAlias.alias_user_id))]
-    if q.strip():
-        where.append(Player.name.ilike(f"%{q.strip()}%"))
+    if q:
+        where.append(Player.name.ilike(f"%{q}%"))
     with request.app.state.sessionmaker() as db:
         total = db.scalar(select(func.count()).select_from(Player).where(*where))
         # page first (index on last_seen_at), then count games for those rows only
@@ -117,7 +119,7 @@ def _profile(db, where) -> dict:
 @router.get("/compare/{user_ids}")
 def compare_players(request: Request, user_ids: str, period: str = Query("all", pattern="^(" + "|".join(PERIODS) + ")$")):
     """Profiles of 2-4 players side by side + head-to-head record of the first two."""
-    return cached(request, "compare", (user_ids, period), lambda: _compare_players(request, user_ids, period))
+    return cached_response(request, "compare", (user_ids, period), lambda: _compare_players(request, user_ids, period))
 
 
 def _compare_players(request: Request, user_ids: str, period: str) -> dict:
@@ -133,9 +135,7 @@ def _compare_players(request: Request, user_ids: str, period: str) -> dict:
                     for u in ids]
         a, b = players[ids[0]].id, players[ids[1]].id
         h2h = {"together": [0, 0, 0], "against": [0, 0, 0]}  # games, wins, losses for the first player
-        for other, same, won, decided in _together(db, a):
-            if other != b:
-                continue
+        for _, same, won, decided in _together(db, a, other=b):
             entry = h2h["together" if same else "against"]
             entry[0] += 1
             if decided:
@@ -151,7 +151,7 @@ def get_player(
     period: str = Query("all", pattern="^(" + "|".join(PERIODS) + ")$"),
     map: str | None = None,
 ):
-    return cached(request, "player", (user_id, period, map), lambda: _get_player(request, user_id, period, map))
+    return cached_response(request, "player", (user_id, period, map), lambda: _get_player(request, user_id, period, map))
 
 
 def _get_player(request: Request, user_id: str, period: str, map: str | None) -> dict:
@@ -216,12 +216,13 @@ def _get_player(request: Request, user_id: str, period: str, map: str | None) ->
 HEATMAP_MODES = heatmaps.TRACK_MODES + ("deaths",)
 
 
-@lru_cache(maxsize=64)
-def _player_heatmap(sessions, processed_dir: str, player_id: int, user_ids: frozenset, map_: str, mode: str,
-                    period: str, last: int, cell: float, stamp: tuple) -> dict:
-    """Cached per data stamp (done count + last processed_at): any import change recomputes."""
+def _player_heatmap(request: Request, user_id: str, map_: str, mode: str, period: str, last: int, cell: float) -> dict:
     layout = HEATMAP_LAYOUTS[map_]
-    with sessions() as db:
+    with request.app.state.sessionmaker() as db:
+        player = db.scalar(select(Player).where(Player.user_id == user_id))
+        if player is None:
+            raise ApiError(404, "not_found", f"Player {user_id} not found")
+        player_id, user_ids = player.id, ids_of(db, user_id)
         rows = db.execute(
             select(Match.id, Match.replay_id).join(MatchPlayer, MatchPlayer.match_id == Match.id)
             .where(_filters(player_id, period, map_)).order_by(Match.started_at.desc()).limit(last)
@@ -241,8 +242,9 @@ def _player_heatmap(sessions, processed_dir: str, player_id: int, user_ids: froz
                 counts[cell_xy] += 1
         layers, labels = {"deaths": counts}, {"deaths": "Deaths (estimated)"}
     else:
-        decoded = (d for d in (tracks.read(tracks.tracks_path(Path(processed_dir), r.replay_id)) for r in rows) if d)
-        layers, labels = heatmaps.build_layers(layout, decoded, set(user_ids), mode, cell)
+        processed = request.app.state.settings.processed_dir
+        decoded = (d for d in (tracks.read(tracks.tracks_path(processed, r.replay_id)) for r in rows) if d)
+        layers, labels = heatmaps.build_layers(layout, decoded, user_ids, mode, cell)
     return heatmaps.response(map_, layers, labels, matches=len(rows), cell_m=cell, mode=mode)
 
 
@@ -258,21 +260,13 @@ def get_player_heatmap(
 ):
     if cell not in heatmaps.CELL_SIZES:
         raise ApiError(400, "bad_cell", f"cell must be one of {heatmaps.CELL_SIZES}")
-    with request.app.state.sessionmaker() as db:
-        player = db.scalar(select(Player).where(Player.user_id == user_id))
-        if player is None:
-            raise ApiError(404, "not_found", f"Player {user_id} not found")
-        stamp = data_stamp(db)
-    settings = request.app.state.settings
-    with request.app.state.sessionmaker() as db:
-        user_ids = frozenset(ids_of(db, user_id))
-    return json_response(_player_heatmap(request.app.state.sessionmaker, str(settings.processed_dir), player.id, user_ids,
-                                        map, mode, period, last, cell, stamp + (len(user_ids),)))
+    return cached_response(request, "player-heatmap", (user_id, map, mode, period, last, cell),
+                           lambda: _player_heatmap(request, user_id, map, mode, period, last, cell))
 
 
 @router.get("/{user_id}/trends")
 def get_trends(request: Request, user_id: str, bucket: str = Query("month", pattern="^(week|month|year)$")):
-    return cached(request, "trends", (user_id, bucket), lambda: _get_trends(request, user_id, bucket))
+    return cached_response(request, "trends", (user_id, bucket), lambda: _get_trends(request, user_id, bucket))
 
 
 def _get_trends(request: Request, user_id: str, bucket: str) -> dict:
@@ -308,47 +302,61 @@ COMPANION_WINDOWS = {"24h": timedelta(hours=24), "7d": timedelta(days=7), "1m": 
                      "3m": timedelta(days=91), "6m": timedelta(days=182), "12m": timedelta(days=365)}
 
 
-def _together(db, player_id: int, window: str = "all"):
-    """Rows of (other_player_id, same_team, won) for every match shared with another player, within a rolling window."""
+def _mine(player_id: int, window: str = "all"):
+    """The player's matches (and team in each) within a rolling window, duplicate recordings left out."""
     conditions = [MatchPlayer.player_id == player_id, counted(MatchPlayer.match_id)]
     if delta := COMPANION_WINDOWS.get(window):
         # started_at is recorder-local time (D17), so the cutoff is local time too
         conditions.append(MatchPlayer.match_id.in_(
             select(Match.id).where(Match.started_at >= (datetime.now() - delta).isoformat(timespec="seconds"))))
-    me = select(MatchPlayer.match_id, MatchPlayer.team).where(*conditions).subquery()
-    return db.execute(
-        select(MatchPlayer.player_id, MatchPlayer.team == me.c.team, Match.winner == me.c.team, Match.winner.is_not(None))
-        .join(me, me.c.match_id == MatchPlayer.match_id).join(Match, Match.id == MatchPlayer.match_id)
-        .where(MatchPlayer.player_id != player_id)
-    ).all()
+    return select(MatchPlayer.match_id, MatchPlayer.team).where(*conditions).subquery()
+
+
+def _together(db, player_id: int, window: str = "all", other: int | None = None):
+    """Rows of (other_player_id, same_team, won, decided) for every match shared with another player (or `other`)."""
+    me = _mine(player_id, window)
+    query = (select(MatchPlayer.player_id, MatchPlayer.team == me.c.team, Match.winner == me.c.team, Match.winner.is_not(None))
+             .join(me, me.c.match_id == MatchPlayer.match_id).join(Match, Match.id == MatchPlayer.match_id)
+             .where(MatchPlayer.player_id != player_id))
+    if other is not None:
+        query = query.where(MatchPlayer.player_id == other)
+    return db.execute(query).all()
 
 
 @router.get("/{user_id}/companions")
 def get_companions(request: Request, user_id: str, limit: int = Query(10, ge=1, le=50),
                    window: str = Query("all", pattern="^(24h|7d|1m|3m|6m|12m|all)$")):
     """Most frequent teammates and opponents, with the record together / against, over a rolling time window."""
-    return cached(request, "companions", (user_id, limit, window), lambda: _get_companions(request, user_id, limit, window))
+    return cached_response(request, "companions", (user_id, limit, window),
+                           lambda: _get_companions(request, user_id, limit, window))
 
 
 def _get_companions(request: Request, user_id: str, limit: int, window: str = "all") -> dict:
+    """Counted in the database (one row per companion and side) and only the names shown are looked up: the busiest
+    players share ~60k match slots with others."""
     with request.app.state.sessionmaker() as db:
         player = db.scalar(select(Player).where(Player.user_id == user_id))
         if player is None:
             raise ApiError(404, "not_found", f"Player {user_id} not found")
-        rows = _together(db, player.id, window)
-        people = dict(db.execute(select(Player.id, Player.user_id)).all())
-        names = dict(db.execute(select(Player.id, Player.name)).all())
-    stats: dict[tuple[int, bool], list[int]] = {}
-    for other, same, won, decided in rows:
-        entry = stats.setdefault((other, bool(same)), [0, 0, 0])  # games, wins, losses (from this player's view)
-        entry[0] += 1
-        if decided:
-            entry[1 if won else 2] += 1
+        me = _mine(player.id, window)
+        same = MatchPlayer.team == me.c.team
+        decided = Match.winner.is_not(None)
+        rows = db.execute(
+            select(MatchPlayer.player_id, same.label("same"), func.count().label("games"),
+                   func.sum(case((and_(decided, Match.winner == me.c.team), 1), else_=0)).label("wins"),
+                   func.sum(case((and_(decided, Match.winner != me.c.team), 1), else_=0)).label("losses"))
+            .join(me, me.c.match_id == MatchPlayer.match_id).join(Match, Match.id == MatchPlayer.match_id)
+            .where(MatchPlayer.player_id != player.id).group_by(MatchPlayer.player_id, same)
+        ).all()
+        # most games first; ties: most wins, then the player first seen
+        ranked = sorted(rows, key=lambda r: (-r.games, -r.wins, r.player_id))
+        top = {side: [r for r in ranked if bool(r.same) == side][:limit] for side in (True, False)}
+        shown = {r.player_id for side in top.values() for r in side}
+        people = {pid: (uid, name) for pid, uid, name in
+                  db.execute(select(Player.id, Player.user_id, Player.name).where(Player.id.in_(shown)))}
 
-    def top(same: bool):
-        items = [(pid, v) for (pid, s), v in stats.items() if s == same]
-        items.sort(key=lambda kv: -kv[1][0])
-        return [{"user_id": people[pid], "name": names[pid], "games": g, "wins": w, "losses": l}
-                for pid, (g, w, l) in items[:limit]]
+    def side(rows):
+        return [{"user_id": people[r.player_id][0], "name": people[r.player_id][1], "games": r.games, "wins": r.wins,
+                 "losses": r.losses} for r in rows]
 
-    return {"teammates": top(True), "opponents": top(False)}
+    return {"teammates": side(top[True]), "opponents": side(top[False])}

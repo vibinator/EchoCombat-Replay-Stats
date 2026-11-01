@@ -5,7 +5,7 @@ from datetime import date, datetime, timedelta
 from fastapi import APIRouter, Query, Request
 from sqlalchemy import and_, case, func, select
 
-from ..cache import cached
+from ..cache import cached, cached_response
 from ..duplicates import counted
 from ..errors import ApiError
 from ..gear import ORDNANCES, TACMODS, WEAPONS
@@ -136,7 +136,7 @@ def leaderboard(
     if stat == "achievements":  # has its own background-refreshed cache
         require_launched(request)
         return _leaderboard(request, *params)
-    return cached(request, "leaderboard", params, lambda: _leaderboard(request, *params))
+    return cached_response(request, "leaderboard", params, lambda: _leaderboard(request, *params))
 
 
 def _leaderboard(request, stat, period, map, private, min_games, weapon, tacmod, ordnance, compare, limit, offset):

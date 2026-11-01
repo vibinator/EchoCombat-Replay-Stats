@@ -5,7 +5,7 @@ from datetime import date, datetime, timedelta
 from fastapi import APIRouter, Query, Request
 from sqlalchemy import case, func, select
 
-from ..cache import cached
+from ..cache import cached_response
 from ..duplicates import counted
 from ..gear import ORDNANCES, TACMODS, WEAPONS
 from ..models import Match, MatchPlayer, MatchPlayerLoadout, Player, PlayerAlias, Replay
@@ -18,7 +18,7 @@ router = APIRouter(tags=["overview"])
 @router.get("/api/overview")
 def overview(request: Request):
     """Archive totals, today / this week, most-played map, top players this week, latest matches."""
-    return cached(request, "overview", (), lambda: _overview(request))
+    return cached_response(request, "overview", (), lambda: _overview(request))
 
 
 def _overview(request: Request) -> dict:
@@ -71,7 +71,7 @@ def activity(request: Request, bucket: str = Query("month", pattern="^(day|week|
     """Matches per period over the whole archive (recorder-local dates), split by map for the stacked chart.
     `day`: only the last DAY_WINDOW days up to the newest match, empty days included (a bar per day of the whole
     archive would be too thin to read)."""
-    return cached(request, "activity", (bucket,), lambda: _activity(request, bucket))
+    return cached_response(request, "activity", (bucket,), lambda: _activity(request, bucket))
 
 
 DAY_WINDOW = 90  # days shown by the per-day activity chart
@@ -110,8 +110,12 @@ def _activity(request: Request, bucket: str) -> dict:
 
 @router.get("/api/search")
 def search(request: Request, q: str = Query(..., min_length=1), limit: int = Query(8, ge=1, le=25)):
-    """Players by name, plus a match when q is a match id."""
+    """Players by name, plus a match when q is a match id. Cached: the top bar asks as you type."""
     q = q.strip()
+    return cached_response(request, "search", (q, limit), lambda: _search(request, q, limit))
+
+
+def _search(request: Request, q: str, limit: int) -> dict:
     with request.app.state.sessionmaker() as db:
         games = games_of(Player.id)
         players = db.execute(
@@ -205,7 +209,7 @@ def players_seen(request: Request, range: str = Query("7d", pattern="^(24h|7d|30
     """Distinct players seen in Combat per hour (24 h) or per day (7 / 30 days), plus the distinct total.
     `anchor=latest` ends the range at the newest recorded match instead of now (the archive may stop earlier)."""
     stamp = datetime.now().strftime("%Y-%m-%dT%H") if range == "24h" else ""  # a 24 h window moves every hour
-    return cached(request, "players-seen", (range, anchor, stamp), lambda: _players_seen(request, range, anchor))
+    return cached_response(request, "players-seen", (range, anchor, stamp), lambda: _players_seen(request, range, anchor))
 
 
 def _players_seen(request: Request, range: str, anchor: str) -> dict:
@@ -251,7 +255,7 @@ def warm(app) -> None:
     queries. A new replay still invalidates them like any other result (cache.py)."""
     from types import SimpleNamespace
 
-    request = SimpleNamespace(app=app)
+    request = SimpleNamespace(app=app, headers={})
     for call in (lambda: overview(request), lambda: activity(request, "month"), lambda: players_seen(request, "7d", "now")):
         try:
             call()

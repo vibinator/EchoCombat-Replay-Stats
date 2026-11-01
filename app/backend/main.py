@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException
 
@@ -14,13 +14,13 @@ from .api import achievements, admin, auth as auth_api, console, imports, leader
 from .config import PROJECT_ROOT, Settings
 from .db import open_db, warm
 from .errors import ApiError, api_error_handler
+from .middleware import SiteMiddleware
 from .stats import STATS_VERSION
 from .version import APP_VERSION
 from .scanner import Scanner
 from .worker import Worker
 
 FRONTEND_DIST = PROJECT_ROOT / "app" / "frontend" / "dist"
-PER_VISITOR = ("/api/admin", "/api/auth", "/api/challenges", "/api/achievements", "/api/players", "/api/leaderboard")
 
 
 class SinglePageApp(StaticFiles):
@@ -66,64 +66,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(title="EchoVR Replay Stats", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
     app.state.settings = settings
     app.add_exception_handler(ApiError, api_error_handler)
-    # heatmaps / playback are 100s of KB of JSON. Level 4: 12x faster than the default 9 for 8 % more bytes
+    # Large answers that are not cached (cached ones are gzipped once, cache.py). Level 4: 12x faster than the
+    # default 9 for 8 % more bytes
     app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=4)
 
     per_min = settings.rate_limit_per_min
     limiter = guard.RateLimiter(per_min, 2 * per_min) if per_min > 0 else None
     per_hour = settings.rate_limit_per_hour
     hourly = guard.RateLimiter(per_hour / 60, per_hour) if per_hour > 0 else None
-
-    @app.middleware("http")
-    async def scraper_guard(request, call_next):
-        """Bots and scripts are turned away before any work is done (D48, guard.py)."""
-        if settings.scraper_guard and (refusal := guard.check(request, limiter, hourly)):
-            return refusal
-        return await call_next(request)
-
-    @app.middleware("http")
-    async def read_only(request, call_next):
-        """The website never changes data: every change is made in the admin console (admin.bat). Exceptions:
-        achievement icons (D43), and the Console page (D45, admin.bat itself), for
-        ECHOVR_DISCORD_PREVIEW_ROLES members, and the Permissions page (console users); the X-EchoVR header proves the request comes from this site's own pages
-        (other sites cannot send it without a CORS preflight, which is refused)."""
-        if (request.method in ("PUT", "POST") and request.url.path.startswith(("/api/admin/achievements/", "/api/admin/console/", "/api/admin/permissions"))
-                and request.headers.get("x-echovr") == "1"):
-            return await call_next(request)  # the endpoint checks the role
-        if request.method not in ("GET", "HEAD", "OPTIONS"):
-            return JSONResponse({"error_code": "read_only", "message": "The website is read-only. Use the admin console (admin.bat)."},
-                                status_code=405)
-        return await call_next(request)
-
-    @app.middleware("http")
-    async def no_replay_files(request, call_next):
-        """Replay files are never served (the share is mounted read-only and no route reads it); this refuses the
-        name outright as well, whatever route or static mount a later change adds."""
-        if guard.asks_for_replay_file(request.url.path):
-            return JSONResponse({"error_code": "not_found", "message": "Not found"}, status_code=404)
-        return await call_next(request)
-
-    @app.middleware("http")
-    async def security_headers(request, call_next):
-        """Public site (echocombat.com): no sniffing, no framing by other sites, no full URLs leaked to other sites,
-        scripts and connections only from this site."""
-        response = await call_next(request)
-        for name, value in guard.SECURITY_HEADERS.items():
-            response.headers.setdefault(name, value)
-        if guard.is_https(request):
-            response.headers.setdefault("Strict-Transport-Security", "max-age=31536000")
-        response.headers.setdefault("X-Content-Type-Options", "nosniff")
-        response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
-        response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
-        if request.url.path.startswith("/api/"):
-            response.headers["X-Robots-Tag"] = "noindex, nofollow"  # data, not pages: keep it out of search results
-        if request.url.path.startswith(PER_VISITOR):  # differs per logged-in visitor (D41): never shared by a cache
-            response.headers["Cache-Control"] = "private, no-store"
-        elif (request.url.path.startswith("/assets/") and response.status_code == 200
-              and not response.headers.get("content-type", "").startswith("text/html")):  # not the index.html fallback
-            # built JS / CSS: the file name changes with the content, so browsers keep it instead of asking again
-            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
-        return response
+    # replay files, read-only site, scraper protection, security and cache headers (middleware.py); outside GZip
+    app.add_middleware(SiteMiddleware, settings=settings, limiter=limiter, hourly=hourly)
 
     if settings.import_api:
         app.include_router(replays.router)

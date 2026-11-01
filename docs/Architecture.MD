@@ -1,6 +1,6 @@
 # Architecture
 
-Last updated: 2026-10-30 — Beta 23 speed-ups (orjson parsing, faster heatmaps, incremental achievement ranking).
+Last updated: 2026-11-01 — Beta 76 caching (stale-while-revalidate answer cache, ETag / 304, Cloudflare edge cache, D53).
 
 ## Stack
 | Layer | Choice |
@@ -52,10 +52,12 @@ GET /api/... ← React pages (home, matches, match, players, player, import stat
 | `backend/admin_actions.py`, `aliases.py`; `app/admin_console.py` (`admin.bat`) | Every write: player merges (lossless, via reprocess), challenge period, reprocess / repair / scan / reprocess all, hiding replays that cannot be repaired. The website is read-only (D38): the server answers 405 `read_only` to any non-GET request |
 | `backend/api/overview.py` | Dashboard, activity, players seen, search |
 | `backend/achievements.py` | 75 rules (old `stat.js` ids 5–79), `evaluate(games)` = best game / day / week / all-time progress, tiers. Pure functions. |
-| `backend/api/achievements.py`, `imports.py` | Achievements API + achievement ranking (reused for ≤ 10 min while importing); Import status with per-stage breakdown. |
+| `backend/api/achievements.py`, `imports.py` | Achievements API + achievement ranking (rebuilt in the background at most every `ECHOVR_CACHE_REFRESH_S`, 10 min while importing; Python's cycle collector paused while it builds); Import status with per-stage breakdown. |
+| `backend/cache.py` | Answer caches (D53): `cached()` (values) and `cached_response()` (JSON kept gzipped with a weak ETag, 304 on `If-None-Match`). Stale-while-revalidate on the data stamp (read at most every 2 s): an out-of-date answer is sent at once and rebuilt in the background (2 at a time) once `ECHOVR_CACHE_REFRESH_S` old; only a never-built answer waits, one build per key. `X-EchoVR-Cache` = HIT / MISS / STALE |
+| `backend/middleware.py` | One pure ASGI layer for every request: replay files refused, read-only site, scraper guard; security headers; cache headers: per-visitor answers (auth.viewer asked, /api/auth, /api/admin) `private, no-store`, errors `no-store`, other API answers `no-cache` for browsers + `Cloudflare-CDN-Cache-Control: max-age=ECHOVR_EDGE_CACHE_S` (not STALE ones); index.html `no-cache`, /assets a year, other files 4 h |
 | `backend/api/` | Routes only; pydantic response schemas. |
 | `backend/db.py`, `backend/tracks.py` (RAM) | D49: database memory-mapped + warmed at startup; `tracks.read()` keeps decoded files in an LRU (`set_cache_limit`, from `main.py`) |
-| `backend/guard.py` | Scraper protection (D48): AI crawlers refused, `/api` only with the `X-EchoVR` header (sent by `api.ts`) and a browser user agent, per-visitor rate limit. Middleware in `main.py` |
+| `backend/guard.py` | Scraper protection (D48): AI crawlers refused, `/api` only with the `X-EchoVR` header (sent by `api.ts`) and a browser user agent, per-visitor rate limit. Applied by `middleware.py` |
 
 ## Validation (import)
 | Check | Rule | Result |
@@ -149,9 +151,9 @@ Layout: sticky top bar (ECRanked background) with nav (Matches, Players, Leaderb
 
 Charts: `TimelineView` (SVG line chart, crosshair tooltip, legend for 2 series, key-moment markers; series colours `#12a6c4` / `#d96a1a` pass the dataviz validator on `#1f2228`), `HeatmapView` (canvas over the minimap, one hue per layer with log-scaled alpha, layer toggles, hover counts, table view). Weapon layer colours = validated dark categorical order, fixed per weapon code. Minimaps served from `app/frontend/public/minimaps/<map>.png` (low-res copies).
 
-Dev: Vite on :5173 proxies `/api` to Uvicorn on :8000. Production: FastAPI mounts `app/frontend/dist` at `/` when it exists. Pages other than home are loaded on first visit (`React.lazy`); `/assets/*` (hashed names) are sent with a 1-year immutable cache header. Responses are gzipped at level 4; heatmaps / playback skip FastAPI's `jsonable_encoder` (`json_response`).
+Dev: Vite on :5173 proxies `/api` to Uvicorn on :8000. Production: FastAPI mounts `app/frontend/dist` at `/` when it exists. Pages other than home are loaded on first visit (`React.lazy`); `/assets/*` (hashed names) are sent with a 1-year immutable cache header. Cached answers are orjson + gzip level 6 once per build (cache.py); other responses are gzipped at level 4. Import pool processes run at lower CPU priority (nice 10 / below normal) so requests win when both want the CPU.
 
-Frontend code (`app/frontend/src`): `api.ts` (typed API client), one component file per page, `styles.css` (plain CSS, team colours as variables). Import page polls every 5 s. Routing: `react-router` (`App.tsx`); pages in `src/pages/`, shared table/badge/gear components in `src/components/`, `useApi.ts` (fetch hook), `format.ts` (display formatting). FastAPI serves `index.html` for any non-API path so deep links work (`SinglePageApp` in `main.py`).
+Frontend code (`app/frontend/src`): `api.ts` (typed API client + answer cache: reused 60 s without asking, older answers up to 1 h shown at once and refreshed in the background, kept per tab in sessionStorage under the build id unless `no-store` or > 150 KB; 30 s timeout, one retry for GET on network errors / 5xx; STALE answers re-checked after 3 s; `connection` = server unreachable note in the top bar), one component file per page, `styles.css` (plain CSS, team colours as variables). `useApi` re-renders a page when a background refresh changed an answer it shows; `useWhileVisible` polls only in visible tabs; `WhenVisible` loads sections far down a page when scrolled near. Import page polls every 5 s. Routing: `react-router` (`App.tsx`); pages in `src/pages/`, shared table/badge/gear components in `src/components/`, `useApi.ts` (fetch hook), `format.ts` (display formatting). FastAPI serves `index.html` for any non-API path so deep links work (`SinglePageApp` in `main.py`).
 
 ## Deployment
 - v1: local only, single user, no auth, binds to 127.0.0.1. `run.bat` (project root) = first-run setup + build + start + open browser.

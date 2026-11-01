@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getMe, getProcessingStatus, loginUrl, type ProcessingStatus } from "../api";
 import { BarChart } from "../components/charts";
 import { Status, TableWrap } from "../components/common";
 import { EmptyState } from "../components/ui";
 import { title } from "../format";
-import { useApi } from "../useApi";
+import { useApi, useWhileVisible } from "../useApi";
 
 const REFRESH_MS = 10_000;
 
@@ -39,20 +39,17 @@ function useLiveStatus(): { data: ProcessingStatus | null; error: string | null;
     error: null,
     at: null,
   });
+  const mounted = useRef(true);
   useEffect(() => {
-    let current = true;
-    const load = () =>
-      getProcessingStatus().then(
-        (data) => current && setState({ data, error: null, at: new Date() }),
-        (e: Error) => current && setState((s) => ({ ...s, error: e.message })),
-      );
-    load();
-    const timer = setInterval(load, REFRESH_MS);
-    return () => {
-      current = false;
-      clearInterval(timer);
-    };
+    mounted.current = true; // StrictMode mounts twice
+    return () => void (mounted.current = false);
   }, []);
+  useWhileVisible(() => {
+    getProcessingStatus().then(
+      (data) => mounted.current && setState({ data, error: null, at: new Date() }),
+      (e: Error) => mounted.current && setState((s) => ({ ...s, error: e.message })),
+    );
+  }, REFRESH_MS); // a hidden tab asks nothing
   return state;
 }
 

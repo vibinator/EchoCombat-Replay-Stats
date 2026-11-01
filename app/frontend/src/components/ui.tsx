@@ -1,4 +1,24 @@
-import { Component, useLayoutEffect, useRef, type ReactNode } from "react";
+import { Component, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+
+/** Renders `children` only once this spot is near the screen: sections far down a page (heatmaps, trends,
+ *  teammates) ask the server nothing for visitors who never scroll there. */
+export function WhenVisible({ children, minHeight = 160 }: { children: ReactNode; minHeight?: number }) {
+  const spot = useRef<HTMLDivElement>(null);
+  const [shown, setShown] = useState(() => typeof IntersectionObserver === "undefined");
+  useEffect(() => {
+    const el = spot.current;
+    if (shown || !el) return;
+    const near = new IntersectionObserver(([e]) => {
+      if (e.isIntersecting) {
+        setShown(true);
+        near.disconnect();
+      }
+    }, { rootMargin: "400px 0px" });
+    near.observe(el);
+    return () => near.disconnect();
+  }, [shown]);
+  return shown ? <>{children}</> : <div ref={spot} style={{ minHeight }} aria-hidden="true" />;
+}
 
 /** Plain-language explanations shown as tooltips next to stat names. */
 export const STAT_HELP: Record<string, string> = {

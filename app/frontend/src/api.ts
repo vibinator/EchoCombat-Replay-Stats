@@ -21,37 +21,244 @@ export const rateLimit = {
   until: () => blockedUntil,
 };
 
-async function send<T>(path: string, init?: RequestInit): Promise<T> {
-  // X-EchoVR: the server answers /api only to this site's own pages (scraper protection, D48)
-  const res = await fetch(path, { ...init, headers: { "X-EchoVR": "1", ...init?.headers } });
-  if (res.status === 429) {
-    const seconds = Math.min(Math.max(Math.ceil(Number(res.headers.get("Retry-After"))) || 5, 1), 120);
-    blockedUntil = Date.now() + seconds * 1000;
-    blockListeners.forEach((fn) => fn());
-    throw new RateLimitError(errorMessage(await res.json().catch(() => null), 429), seconds);
-  }
-  if (!res.ok) throw new Error(errorMessage(await res.json().catch(() => null), res.status));
-  return (res.status === 204 ? undefined : await res.json()) as T;
+// The server is too busy or out of reach (time-outs, 5xx): pages keep showing the answers they have and the top bar
+// says so, until any request gets through again.
+let unreachable = false;
+const connectionListeners = new Set<() => void>();
+export const connection = {
+  subscribe(fn: () => void) {
+    connectionListeners.add(fn);
+    return () => void connectionListeners.delete(fn);
+  },
+  unreachable: () => unreachable,
+};
+function setUnreachable(value: boolean) {
+  if (value === unreachable) return;
+  unreachable = value;
+  connectionListeners.forEach((fn) => fn());
 }
 
-// The website is read-only (changes are made in the admin console). GET responses are reused for a minute: going
-// back to a page is instant, and two components asking for the same thing share one request.
-const CACHE_MS = 60_000;
-const responses = new Map<string, { at: number; value: Promise<unknown> }>();
+const TIMEOUT_MS = 30_000; // a request still unanswered is given up (and a GET asked once more)
+const RETRY_MS = 2_000;
+const pause = (ms: number) => new Promise((done) => setTimeout(done, ms));
+
+interface Reply<T> {
+  data: T;
+  etag: string | null;
+  /** the server sent an older answer while it builds a fresher one: ask again shortly */
+  stale: boolean;
+  /** the server allows keeping it (not an answer for this visitor only) */
+  keep: boolean;
+}
+
+async function fetchReply<T>(path: string, init?: RequestInit): Promise<Reply<T>> {
+  const retryable = !init?.method || init.method === "GET";
+  for (let attempt = 0; ; attempt++) {
+    const timeout = new AbortController();
+    const timer = setTimeout(() => timeout.abort(), TIMEOUT_MS);
+    let res: Response;
+    try {
+      // X-EchoVR: the server answers /api only to this site's own pages (scraper protection, D48)
+      res = await fetch(path, { ...init, signal: timeout.signal, headers: { "X-EchoVR": "1", ...init?.headers } });
+    } catch {
+      if (retryable && attempt === 0) {
+        await pause(RETRY_MS);
+        continue;
+      }
+      setUnreachable(true);
+      throw new Error(timeout.signal.aborted ? "The server is taking too long to answer. Try again in a moment."
+        : "Could not reach the server. Check your connection and try again.");
+    } finally {
+      clearTimeout(timer);
+    }
+    if (res.status >= 500 && retryable && attempt === 0) {
+      await pause(RETRY_MS); // 502 / 503 / 504 / 524: busy for a moment
+      continue;
+    }
+    setUnreachable(res.status >= 500);
+    if (res.status === 429) {
+      const seconds = Math.min(Math.max(Math.ceil(Number(res.headers.get("Retry-After"))) || 5, 1), 120);
+      blockedUntil = Date.now() + seconds * 1000;
+      blockListeners.forEach((fn) => fn());
+      throw new RateLimitError(errorMessage(await res.json().catch(() => null), 429), seconds);
+    }
+    if (!res.ok) throw new Error(errorMessage(await res.json().catch(() => null), res.status));
+    return {
+      data: (res.status === 204 ? undefined : await res.json()) as T,
+      etag: res.headers.get("ETag"),
+      stale: res.headers.get("X-EchoVR-Cache") === "STALE",
+      keep: !/no-store/i.test(res.headers.get("Cache-Control") ?? ""),
+    };
+  }
+}
+
+/** Never cached: writes, admin pages, live status. */
+async function send<T>(path: string, init?: RequestInit): Promise<T> {
+  return (await fetchReply<T>(path, init)).data;
+}
+
+// ---- Answers, stale-while-revalidate (D53) --------------------------------------------------------------------------
+// The website is read-only: an answer is reused without asking for FRESH_MS (going back to a page is instant; two
+// components asking for the same thing share one request). An older one is shown at once while a fresh one is fetched
+// in the background (KEEP_MS at most); pages showing it update when it changed. Answers are kept per tab in
+// sessionStorage, so a reload is instant too. Never kept: answers the server marks no-store (logins) and big ones
+// (heatmaps, playback: the browser's own cache revalidates those by ETag).
+const FRESH_MS = 60_000;
+const KEEP_MS = 60 * 60_000;
+const RECHECK_MS = 3_000;
+const MAX_RECHECKS = 3;
+const MAX_ENTRIES = 200;
+const STORE_PREFIX = "echovr:";
+const STORE_BUILD = `${STORE_PREFIX}${__BUILD_ID__}:`; // a new version never reads answers of the old one
+const STORE_MAX_CHARS = 150_000;
+
+interface Entry {
+  at: number;
+  data?: unknown;
+  etag?: string | null;
+  pending?: Promise<unknown>;
+}
+const entries = new Map<string, Entry>();
+const changeListeners = new Set<(path: string) => void>();
+const rechecks = new Map<string, number>();
+let tracking: Set<string> | null = null;
+
+function tabStore(): Storage | null {
+  try {
+    return window.sessionStorage;
+  } catch {
+    return null; // blocked (privacy settings): memory only
+  }
+}
+
+function forgetStored(keep: (key: string) => boolean = () => false): void {
+  const store = tabStore();
+  if (!store) return;
+  try {
+    for (const key of Object.keys(store)) if (key.startsWith(STORE_PREFIX) && !keep(key)) store.removeItem(key);
+  } catch {
+    /* unavailable */
+  }
+}
+forgetStored((key) => key.startsWith(STORE_BUILD)); // answers saved by an older version of the site
+
+function setEntry(path: string, entry: Entry): void {
+  entries.delete(path); // most recently used last
+  entries.set(path, entry);
+  while (entries.size > MAX_ENTRIES) entries.delete(entries.keys().next().value!);
+}
+
+function restore(path: string): Entry | undefined {
+  try {
+    const text = tabStore()?.getItem(STORE_BUILD + path);
+    if (!text) return undefined;
+    const saved = JSON.parse(text) as Entry;
+    if (Date.now() - saved.at > KEEP_MS) return undefined;
+    setEntry(path, saved);
+    return saved;
+  } catch {
+    return undefined;
+  }
+}
+
+function save(path: string, entry: Entry): void {
+  const store = tabStore();
+  if (!store) return;
+  let text: string;
+  try {
+    text = JSON.stringify({ at: entry.at, data: entry.data, etag: entry.etag });
+  } catch {
+    return;
+  }
+  if (text.length > STORE_MAX_CHARS) return;
+  try {
+    store.setItem(STORE_BUILD + path, text);
+  } catch {
+    // full: start this tab's store over with the newest answer
+    forgetStored();
+    try {
+      store.setItem(STORE_BUILD + path, text);
+    } catch {
+      /* not kept */
+    }
+  }
+}
+
+function load<T>(path: string): Promise<T> {
+  const before = entries.get(path);
+  if (before?.pending) return before.pending as Promise<T>;
+  const pending = fetchReply<T>(path).then((reply) => {
+    const entry = { at: Date.now(), data: reply.data, etag: reply.etag };
+    setEntry(path, entry);
+    if (reply.keep) save(path, entry);
+    if (reply.stale) recheck(path);
+    else rechecks.delete(path);
+    return reply.data;
+  });
+  setEntry(path, { ...(before ?? { at: 0 }), pending });
+  pending.catch(() => {
+    const entry = entries.get(path);
+    if (entry?.pending !== pending) return;
+    if (entry.data === undefined) entries.delete(path); // never keep an error
+    else delete entry.pending; // keep the older answer
+  });
+  return pending;
+}
+
+/** Fetch again in the background; pages showing it are told when it changed. */
+function refresh(path: string): void {
+  const before = entries.get(path);
+  if (before?.pending) return;
+  load(path).then(
+    () => {
+      const after = entries.get(path);
+      const same = before?.etag && after?.etag ? before.etag === after.etag : JSON.stringify(before?.data) === JSON.stringify(after?.data);
+      if (!same) changeListeners.forEach((fn) => fn(path));
+    },
+    () => undefined, // busy or unreachable: keep showing the older answer
+  );
+}
+
+function recheck(path: string): void {
+  const n = rechecks.get(path) ?? 0;
+  if (n >= MAX_RECHECKS) return;
+  rechecks.set(path, n + 1);
+  setTimeout(() => refresh(path), RECHECK_MS * (n + 1));
+}
 
 function request<T>(path: string, init?: RequestInit): Promise<T> {
   if (init) return send<T>(path, init);
-  const hit = responses.get(path);
-  if (hit && Date.now() - hit.at < CACHE_MS) return hit.value as Promise<T>;
-  const value = send<T>(path);
-  responses.set(path, { at: Date.now(), value });
-  value.catch(() => responses.delete(path)); // never keep an error
-  return value;
+  tracking?.add(path);
+  const entry = entries.get(path) ?? restore(path);
+  const age = entry && entry.data !== undefined ? Date.now() - entry.at : Infinity;
+  if (age < KEEP_MS) {
+    if (age >= FRESH_MS) refresh(path);
+    return Promise.resolve(entry!.data as T);
+  }
+  return load<T>(path);
+}
+
+/** Runs `fn` and lists the answers it asked for (useApi re-renders a page when one of them changes). */
+export function track<T>(fn: () => T): { result: T; paths: Set<string> } {
+  const outer = tracking;
+  const paths = new Set<string>();
+  tracking = paths;
+  try {
+    return { result: fn(), paths };
+  } finally {
+    tracking = outer;
+  }
+}
+
+export function onAnswerChange(fn: (path: string) => void): () => void {
+  changeListeners.add(fn);
+  return () => void changeListeners.delete(fn);
 }
 
 /** After a change (icons, Console): ask the server again instead of reusing answers. */
 export function forgetResponses(): void {
-  responses.clear();
+  entries.clear();
+  forgetStored();
 }
 
 export type Team = "blue" | "orange";
@@ -618,23 +825,14 @@ export const getMe = () => request<Me>("/api/auth/me");
 export const loginUrl = (next: string) => `/api/auth/login?next=${encodeURIComponent(next)}`;
 export const LOGOUT_URL = "/api/auth/logout";
 export const getHealth = () => request<{ version: string }>("/api/health");
-const SHARE_MS = 15000;
-const inflight = new Map<string, { at: number; promise: Promise<unknown> }>();
-/** One request for identical calls made within SHARE_MS: the home page starts every request at once, the charts reuse them. */
-function shared<T>(key: string, load: () => Promise<T>): Promise<T> {
-  const hit = inflight.get(key);
-  if (hit && Date.now() - hit.at < SHARE_MS) return hit.promise as Promise<T>;
-  const promise = load();
-  inflight.set(key, { at: Date.now(), promise });
-  promise.catch(() => inflight.delete(key));
-  return promise;
-}
-export const getOverview = () => shared("overview", () => request<Overview>("/api/overview"));
-export const getProcessing = () => request<{ pending: number }>("/api/overview/processing");
+// The home page starts its chart requests together with the overview; request() lets the charts reuse them.
+export const getOverview = () => request<Overview>("/api/overview");
+/** Live queue length for the top bar: always asked (Cloudflare may answer it), never reused from the cache. */
+export const getProcessing = () => send<{ pending: number }>("/api/overview/processing");
 export const getActivity = (bucket: "day" | "week" | "month" | "year") =>
-  shared(`activity|${bucket}`, () => request<{ bucket: string; items: { period: string; matches: number; hours: number; maps: Record<string, number> }[] }>(`/api/overview/activity?bucket=${bucket}`));
+  request<{ bucket: string; items: { period: string; matches: number; hours: number; maps: Record<string, number> }[] }>(`/api/overview/activity?bucket=${bucket}`);
 export const getPlayersSeen = (range: PlayersSeen["range"], anchor: PlayersSeen["anchor"]) =>
-  shared(`seen|${range}|${anchor}`, () => request<PlayersSeen>(`/api/overview/players-seen?range=${range}&anchor=${anchor}`));
+  request<PlayersSeen>(`/api/overview/players-seen?range=${range}&anchor=${anchor}`);
 export const search = (q: string) => request<SearchResult>(`/api/search${query({ q })}`);
 /** A server that has not been restarted after an update answers the older, smaller playback: fill in what is missing. */
 export const getPlayback = (id: number) =>

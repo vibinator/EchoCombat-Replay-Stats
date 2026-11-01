@@ -1,11 +1,11 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState, useSyncExternalStore } from "react";
 import { BrowserRouter, Link, NavLink, Route, Routes, useLocation } from "react-router";
-import { getHealth, getMe, getProcessing, loginUrl, LOGOUT_URL } from "./api";
+import { connection, getHealth, getMe, getProcessing, loginUrl, LOGOUT_URL } from "./api";
 import { GlobalSearch } from "./components/GlobalSearch";
 import { HomePage } from "./pages/HomePage";
 import { useAchievementsAccess } from "./components/AchievementsView";
 import { ErrorBoundary, Skeleton } from "./components/ui";
-import { useApi } from "./useApi";
+import { useApi, useWhileVisible } from "./useApi";
 
 // Pages other than home load on first visit: the first page view downloads less.
 const AchievementsPage = lazy(() => import("./pages/AchievementsPage").then((m) => ({ default: m.AchievementsPage })));
@@ -55,25 +55,28 @@ function NotFound() {
   );
 }
 
-const PROCESSING_POLL_MS = 15_000;
+const PROCESSING_POLL_MS = 60_000; // the count changes slowly; a hidden tab does not ask at all
 
 /** Number of replays still waiting to be read; polled so the top bar shows when new data is on its way. */
 function usePendingReplays(): number {
   const [pending, setPending] = useState(0);
-  useEffect(() => {
-    let current = true;
-    const poll = () =>
-      getProcessing()
-        .then((d) => current && setPending(d.pending))
-        .catch(() => current && setPending(0));
-    poll();
-    const timer = setInterval(poll, PROCESSING_POLL_MS);
-    return () => {
-      current = false;
-      clearInterval(timer);
-    };
-  }, []);
+  useWhileVisible(() => {
+    getProcessing()
+      .then((d) => setPending(d.pending))
+      .catch(() => setPending(0));
+  }, PROCESSING_POLL_MS);
   return pending;
+}
+
+/** The server did not answer (busy or offline): pages keep showing what they have. */
+function ConnectionNote() {
+  const unreachable = useSyncExternalStore(connection.subscribe, connection.unreachable);
+  if (!unreachable) return null;
+  return (
+    <span className="processing unreachable" role="status" title="The server is busy or out of reach. Pages show the data they already have and refresh by themselves once it answers again.">
+      <span className="processing-text">Server busy · showing saved data</span>
+    </span>
+  );
 }
 
 function ProcessingIndicator({ pending }: { pending: number }) {
@@ -114,6 +117,7 @@ function Layout() {
           EchoVR Replay Stats
         </Link>
         <ProcessingIndicator pending={pending} />
+        <ConnectionNote />
         <button className="menu-toggle secondary" aria-expanded={menuOpen} aria-controls="main-nav" onClick={() => setMenuOpen(!menuOpen)}>
           {menuOpen ? "Close" : "Menu"}
         </button>

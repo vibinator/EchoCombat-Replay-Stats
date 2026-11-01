@@ -7,6 +7,7 @@ from sqlalchemy import func, select
 
 from .. import gear_use, heatmaps, tracks
 from ..aliases import alias_map, ids_of
+from ..cache import cached_response
 from ..duplicates import counted
 from ..errors import ApiError
 from ..gear import ORDNANCES, TACMODS, WEAPONS
@@ -15,7 +16,7 @@ from ..stats.map_objects import CAPTURE_POINTS, PAYLOAD_ROUTES
 from ..stats.maps import HEATMAP_LAYOUTS
 from ..models import DuplicateMatch, Event, Match, MatchPlayer, MatchPlayerLoadout, Player
 from .derived import dominant_arm, loadout, match_summary, ratio
-from .downloads import download_csv, download_json, json_response
+from .downloads import download_csv, download_json
 
 router = APIRouter(prefix="/api/matches", tags=["matches"])
 
@@ -43,6 +44,12 @@ def list_matches(
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
 ):
+    params = (map, mode, player, from_, to, private, min_players, result, player_name, with_players, limit, offset)
+    return cached_response(request, "matches", params, lambda: _list_matches(request, *params))
+
+
+def _list_matches(request: Request, map, mode, player, from_, to, private, min_players, result, player_name,
+                  with_players, limit, offset) -> dict:
     query = select(Match).where(counted(Match.id))  # a copy of a match recorded twice is listed once (D13)
     if private is not None:
         query = query.where(Match.private_match == private)
@@ -121,6 +128,10 @@ def player_row(mp: MatchPlayer, user_id: str, loadouts: list[MatchPlayerLoadout]
 
 @router.get("/{match_id}")
 def get_match(request: Request, match_id: int):
+    return cached_response(request, "match", (match_id,), lambda: match_detail(request, match_id))
+
+
+def match_detail(request: Request, match_id: int) -> dict:
     with request.app.state.sessionmaker() as db:
         match = db.get(Match, match_id)
         if match is None:
@@ -208,6 +219,10 @@ def _tracks(request: Request, match: Match):
 @router.get("/{match_id}/timeline")
 def get_timeline(request: Request, match_id: int):
     """Objective progress (2 Hz) + events, for the match timeline."""
+    return cached_response(request, "timeline", (match_id,), lambda: _timeline(request, match_id))
+
+
+def _timeline(request: Request, match_id: int) -> dict:
     with request.app.state.sessionmaker() as db:
         match = _match_or_404(db, match_id)
     events = get_events(request, match_id)
@@ -230,6 +245,11 @@ def get_match_heatmap(
     """One layer per team, player, weapon, ordnance, tac mod, loadout or speed band; `player` = one player."""
     if cell not in heatmaps.CELL_SIZES:
         raise ApiError(400, "bad_cell", f"cell must be one of {heatmaps.CELL_SIZES}")
+    return cached_response(request, "match-heatmap", (match_id, player, mode, cell),
+                           lambda: _match_heatmap(request, match_id, player, mode, cell))
+
+
+def _match_heatmap(request: Request, match_id: int, player: str | None, mode: str, cell: float) -> dict:
     with request.app.state.sessionmaker() as db:
         match = _match_or_404(db, match_id)
         wanted = ids_of(db, player) if player else None
@@ -246,9 +266,9 @@ def get_match_heatmap(
         layers = {uid: found.pop(uid) for uid, _, _ in roster if uid in found} | found  # roster order first
         labels = {uid: name for uid, name, _ in roster}
         teams = {uid: team for uid, _, team in roster}
-        return json_response(heatmaps.response(match.map, layers, labels, matches=1, cell_m=cell, mode=mode, teams=teams))
+        return heatmaps.response(match.map, layers, labels, matches=1, cell_m=cell, mode=mode, teams=teams)
     layers, labels = heatmaps.build_layers(layout, [data], wanted, mode, cell)
-    return json_response(heatmaps.response(match.map, layers, labels, matches=1, cell_m=cell, mode=mode))
+    return heatmaps.response(match.map, layers, labels, matches=1, cell_m=cell, mode=mode)
 
 
 EXPORT_COLUMNS = [
@@ -272,7 +292,7 @@ def export_rows(players: list[dict]) -> list[dict]:
 
 @router.get("/{match_id}/export")
 def export_match(request: Request, match_id: int, format: str = Query("csv", pattern="^(csv|json)$")):
-    match = get_match(request, match_id)
+    match = match_detail(request, match_id)
     players = match["teams"].get("blue", []) + match["teams"].get("orange", [])
     name = f"match-{match_id}-{match['map']}-{match['started_at'][:10]}"
     if format == "json":
@@ -284,6 +304,10 @@ def export_match(request: Request, match_id: int, format: str = Query("csv", pat
 def get_playback(request: Request, match_id: int):
     """Player positions at 2 Hz in minimap image space (u, v in 0..1; null = absent / off the image),
     for animating dots over the minimap."""
+    return cached_response(request, "playback", (match_id,), lambda: _playback(request, match_id))
+
+
+def _playback(request: Request, match_id: int) -> dict:
     with request.app.state.sessionmaker() as db:
         match = _match_or_404(db, match_id)
         names = dict(db.execute(
@@ -312,11 +336,11 @@ def get_playback(request: Request, match_id: int):
         if e["type"] == "death_est" and e["data"] and "x" in e["data"]:
             cell = cell_of(e["data"]["x"], e["data"]["z"])
             e["data"] |= {"u": None, "v": None} if cell is None else {"u": round((cell[0] + 0.5) / cols, 4), "v": round((cell[1] + 0.5) / rows, 4)}
-    return json_response({"map": match.map, "image": f"/minimaps/{match.map}.png", "hz": header["hz"], "samples": header["samples"],
-                          "mode": match.mode, "attacking_team": match.attacking_team, "duration_s": match.duration_s, "series": header.get("series", {}),
-                          "gear": {"weapon": _gear_names(header["weapons"], WEAPONS), "ordnance": _gear_names(header["ordnances"], ORDNANCES),
-                                   "tacmod": _gear_names(header["tacmods"], TACMODS)},
-                          "events": events, "objects": _map_objects(match.map, cell_of, cols, rows), "players": out})
+    return {"map": match.map, "image": f"/minimaps/{match.map}.png", "hz": header["hz"], "samples": header["samples"],
+            "mode": match.mode, "attacking_team": match.attacking_team, "duration_s": match.duration_s, "series": header.get("series", {}),
+            "gear": {"weapon": _gear_names(header["weapons"], WEAPONS), "ordnance": _gear_names(header["ordnances"], ORDNANCES),
+                     "tacmod": _gear_names(header["tacmods"], TACMODS)},
+            "events": events, "objects": _map_objects(match.map, cell_of, cols, rows), "players": out}
 
 
 PLAYBACK_EVENTS = {"round_won", "payload_checkpoint", "death_est", "contest_start", "contest_end", "loadout_change"}

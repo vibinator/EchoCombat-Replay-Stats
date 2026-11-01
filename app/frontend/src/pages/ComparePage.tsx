@@ -3,7 +3,7 @@ import { Link, useSearchParams } from "react-router";
 import { comparePlayers, getPlayerHeatmapBy, searchPlayers, type Period, type PlayerStats } from "../api";
 import { Status, TableWrap } from "../components/common";
 import { HeatmapView } from "../components/HeatmapView";
-import { EmptyState, Skeleton } from "../components/ui";
+import { EmptyState, Skeleton, WhenVisible } from "../components/ui";
 import { MAPS, duration, num, pct, title } from "../format";
 import { useApi } from "../useApi";
 
@@ -148,11 +148,13 @@ export function ComparePage() {
               </select>
             </label>
           </div>
-          <div className="heatmap-grid">
-            {c.players.map((p) => (
-              <CompareHeatmap key={p.user_id} userId={p.user_id} name={p.name} map={map} period={period} />
-            ))}
-          </div>
+          <WhenVisible minHeight={400}>
+            <div className="heatmap-grid">
+              {c.players.map((p) => (
+                <CompareHeatmap key={p.user_id} userId={p.user_id} name={p.name} map={map} period={period} />
+              ))}
+            </div>
+          </WhenVisible>
         </>
       )}
     </section>

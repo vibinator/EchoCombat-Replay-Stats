@@ -26,12 +26,20 @@ export function GlobalSearch() {
 
   useEffect(() => {
     const term = q.trim();
-    if (!term) {
+    // one letter matches nearly every player (the slowest search, the least useful); "#12" / "12" finds a match
+    if (term.length < 2 && !/^#?\d+$/.test(term)) {
       setResult(null);
       return;
     }
-    const timer = setTimeout(() => search(term).then(setResult).catch(() => setResult(null)), 200);
-    return () => clearTimeout(timer);
+    let current = true; // an answer for an older term never replaces a newer one
+    const timer = setTimeout(
+      () => search(term).then((r) => current && setResult(r)).catch(() => current && setResult(null)),
+      250,
+    );
+    return () => {
+      current = false;
+      clearTimeout(timer);
+    };
   }, [q]);
 
   const options = [

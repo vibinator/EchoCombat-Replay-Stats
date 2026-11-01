@@ -187,7 +187,12 @@ def member_roles(settings: Settings, user_id: str) -> frozenset[str]:
 # --- the current visitor --------------------------------------------------------------------
 
 def viewer(request: Request) -> dict | None:
-    """{"id", "name"} of the logged-in visitor, or None."""
+    """{"id", "name"} of the logged-in visitor, or None. The answer being built now depends on who asks: no shared
+    cache may keep it (middleware.py). Every check of the visitor comes through here."""
+    try:
+        request.state.per_visitor = True
+    except AttributeError:  # not a real request
+        pass
     settings = request.app.state.settings
     if not enabled(settings):
         return None

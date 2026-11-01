@@ -40,6 +40,11 @@ class Settings:
     # RAM caches (D49): database memory-mapped up to db_cache_mb, decoded tracks.bin files up to track_cache_mb; 0 = off
     db_cache_mb: int = 0
     track_cache_mb: int = 0
+    # Answer caches (D53, cache.py): an out-of-date answer is sent at once and rebuilt in the background once it is
+    # this many seconds old (0 = rebuilt before answering, the tests); Cloudflare may keep public API answers this
+    # many seconds (Cloudflare-CDN-Cache-Control; 0 = no shared cache keeps them, browsers still revalidate by ETag)
+    cache_refresh_s: float = 0.0
+    edge_cache_s: int = 0
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -59,6 +64,8 @@ class Settings:
             rate_limit_per_hour=int(env("ECHOVR_RATE_LIMIT_PER_HOUR", 1500)),
             db_cache_mb=int(env("ECHOVR_DB_CACHE_MB", 1024)),
             track_cache_mb=int(env("ECHOVR_TRACK_CACHE_MB", 512)),
+            cache_refresh_s=float(env("ECHOVR_CACHE_REFRESH_S", 300)),
+            edge_cache_s=int(env("ECHOVR_EDGE_CACHE_S", 60)),
             discord_preview_roles=tuple(r.strip() for r in _secret(env("ECHOVR_DISCORD_PREVIEW_ROLES")).split(",") if r.strip()),
         )
 

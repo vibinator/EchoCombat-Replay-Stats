@@ -3,7 +3,9 @@ results are saved by this one thread, because SQLite allows a single writer."""
 
 import json
 import logging
+import os
 import signal
+import sys
 import threading
 import time
 import traceback
@@ -31,10 +33,25 @@ log = logging.getLogger(__name__)
 MAX_CRASHES = 2  # a file in flight during this many pool crashes is marked failed ("crashed")
 
 
-def _ignore_ctrl_c() -> None:
+def _pool_process_start() -> None:
     # Pool processes share the console: let only the main process handle Ctrl+C, so a stop
     # never kills workers mid-file (their replays are re-queued on the next start instead).
     signal.signal(signal.SIGINT, signal.SIG_IGN)
+    _lower_priority()
+
+
+def _lower_priority() -> None:
+    """The website first (D53): replay processing still uses every core the website leaves idle, but when both want
+    the CPU the visitors' requests win, so pages do not crawl while a big import runs."""
+    try:
+        if hasattr(os, "nice"):
+            os.nice(10)  # Linux / the NAS container: 10 of 19 below normal
+        elif sys.platform == "win32":
+            import ctypes
+            below_normal = 0x4000
+            ctypes.windll.kernel32.SetPriorityClass(ctypes.windll.kernel32.GetCurrentProcess(), below_normal)
+    except Exception:  # noqa: BLE001 - not allowed or not supported: process at normal priority
+        pass
 
 
 def analyse(path: str, tracks_file: str | None = None, repair: bool = False) -> tuple:
@@ -159,7 +176,7 @@ class Worker:
 
     def _new_pool(self) -> Executor:
         if self.settings.workers > 0:
-            return ProcessPoolExecutor(self.settings.workers, initializer=_ignore_ctrl_c)
+            return ProcessPoolExecutor(self.settings.workers, initializer=_pool_process_start)
         return ThreadPoolExecutor(1)  # tests: same process, deterministic
 
     def notify(self) -> None:
