@@ -147,6 +147,32 @@ def test_newest_files_are_processed_first(client, settings):
     assert [p.rsplit(os.sep, 1)[-1] for _, p, _ in claimed] == ["new.echoreplay", "mid.echoreplay", "old.echoreplay"]
 
 
+BACKLOG = 20_000  # any large number: the newest file goes next however many are queued
+
+
+def test_new_match_jumps_a_large_backlog(client, settings):
+    """A large historic backlog is queued and being worked through; a match recorded now is the very next file
+    claimed, whatever the backlog size."""
+    from sqlalchemy import insert
+
+    old = time.time() - 365 * 86400
+    with client.app.state.sessionmaker() as db:
+        db.execute(insert(Replay), [
+            {"source_path": f"dyson/hist{i}.echoreplay", "size_bytes": 1, "source_mtime": old + i,
+             "discovered_at": "x", "status": "queued"} for i in range(BACKLOG)])
+        db.commit()
+    worker = client.app.state.worker
+    first = [p.rsplit(os.sep, 1)[-1] for _, p, _ in worker._claim(8)][0]
+    assert first == f"hist{BACKLOG - 1}.echoreplay"  # backlog under way, newest of it first
+
+    write(settings, {"fission/live.echoreplay": rf.plain(rf.lines(3))})  # just recorded
+    assert scan_once(client.app.state.sessionmaker, settings, client.app.state.scanner.state) == 1
+    started = time.perf_counter()
+    claimed = worker._claim(1)
+    assert claimed[0][1].rsplit(os.sep, 1)[-1] == "live.echoreplay"
+    assert time.perf_counter() - started < 1  # picking from a large queue uses the (status, mtime) index
+
+
 def test_priority_replays_newest_match_first(client, settings):
     """Merge / undo re-reads (priority_replays) go newest match first, whatever the file dates."""
     from datetime import timedelta
