@@ -4,6 +4,9 @@ rem (data\, *.echoreplay, the database, tests\sample-replays, docs\reference, .v
 rem First run: asks for the GitHub repository URL (create an EMPTY repository first at https://github.com/new).
 setlocal EnableDelayedExpansion
 cd /d "%~dp0"
+rem Git shows a list longer than the window in its viewer ("less"), which waits for q: the upload seemed to stop at
+rem the list of changes (user, 2026-11-01). Never use the viewer here.
+set "GIT_PAGER=cat"
 
 where git >nul 2>nul
 if errorlevel 1 (

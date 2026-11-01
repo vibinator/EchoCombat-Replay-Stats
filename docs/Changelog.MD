@@ -50,6 +50,10 @@ Working record of what changed in each release, newest first.
 - Needs one Cache Rule in the Cloudflare dashboard: docs/Setup.MD, "Cloudflare cache". **`check_cloudflare.bat` checks
   the setup** (also on the NAS: `docker exec -it echovr-replay-stats python app/cloudflare_check.py`).
 
+### Upload script
+- **`upload_to_github.bat` no longer stops at the list of changes.** A list longer than the window opened in Git's
+  viewer, which waited for `q` (it looked as if nothing happened); the script now always prints it and goes on.
+
 ### To do
 1. Upload, wait for the GitHub Actions build, Recreate the container. No replay is read again.
 2. Add the Cloudflare Cache Rule and the rate limiting rule (Setup.MD, "Cloudflare cache"), then run
