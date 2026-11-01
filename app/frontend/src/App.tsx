@@ -99,9 +99,17 @@ const NAV = [
   ["/compare", "Compare"],
 ] as const;
 
+/** "2026-11-01T17:05" (release's local time, shown as written, no time zone shift) -> "1 Nov 2026, 17:05" */
+function released(iso: string): string {
+  const [date, time] = iso.split("T");
+  const [y, m, d] = date.split("-").map(Number);
+  const month = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][m - 1];
+  return `${d} ${month} ${y}, ${time}`;
+}
+
 function Layout() {
   const [theme, toggleTheme] = useTheme();
-  const version = useApi(getHealth, "health").data?.version;
+  const health = useApi(getHealth, "health").data;
   const pending = usePendingReplays();
   const achievements = useAchievementsAccess();
   const me = useApi(getMe, "me").data;
@@ -180,10 +188,7 @@ function Layout() {
         </Suspense>
         </ErrorBoundary>
       </main>
-      <footer>
-        Inspired by ECRanked, the original Echo Combat stats site. · Press <kbd>/</kbd> to search
-        {version && <> · {version}</>}
-      </footer>
+      <footer>{health && <>{health.version} · {released(health.released)}</>}</footer>
     </>
   );
 }

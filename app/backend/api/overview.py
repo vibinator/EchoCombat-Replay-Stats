@@ -2,7 +2,7 @@
 
 from datetime import date, datetime, timedelta
 
-from fastapi import APIRouter, Query, Request
+from fastapi import APIRouter, Query, Request, Response
 from sqlalchemy import case, func, select
 
 from .. import twitch
@@ -70,12 +70,23 @@ def processing(request: Request):
 
 @router.get("/api/overview/last-match")
 def last_match(request: Request):
-    """When the newest match ended, and whether one is being played now (the spectator bot is live on Twitch), for
-    the home page's "Last match" card: the overview is rebuilt at most every cache_refresh_s, this reads a few rows via
-    an index (Cloudflare still keeps it ECHOVR_EDGE_CACHE_S)."""
+    """When the newest match ended, for the home page's "Last match" card: the overview is rebuilt at most every
+    cache_refresh_s, this reads a few rows via an index (Cloudflare still keeps it ECHOVR_EDGE_CACHE_S)."""
     with request.app.state.sessionmaker() as db:
         last = _last_ended(db)
-    return {"last_match_at": last, "in_progress": twitch.live(request.app.state.settings.twitch_channel)}
+    return {"last_match_at": last}
+
+
+LIVE_HEADERS = {"Cache-Control": "no-store", "Cloudflare-CDN-Cache-Control": "no-store"}
+
+
+@router.get("/api/overview/live")
+def live(request: Request, response: Response):
+    """Is a game being played now (the spectator bot is live on Twitch)? The home page's "Game in progress" card
+    (user 2026-11-01: never cached, always live): no browser or Cloudflare copy; the server asks Twitch at most every
+    twitch.CHECK_S seconds, shared by all visitors, so decapi is not flooded."""
+    response.headers.update(LIVE_HEADERS)
+    return twitch.live(request.app.state.settings.twitch_channel)
 
 
 def _last_ended(db) -> str | None:

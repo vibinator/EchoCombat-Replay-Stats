@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
-import { getActivity, getLastMatch, getOverview, getPlayersSeen, type GearShare, type MatchSummary, type PlayersSeen } from "../api";
+import { getActivity, getLastMatch, getLive, getOverview, getPlayersSeen, type GearShare, type MatchSummary, type PlayersSeen } from "../api";
 import { BarChart, StackedBarChart } from "../components/charts";
 import { MatchCards } from "../components/MatchCards";
 import { PlayerSearch } from "../components/PlayerSearch";
@@ -173,6 +173,7 @@ function since(iso: string, now: number): string {
 }
 
 const LAST_MATCH_POLL_MS = 60_000; // Cloudflare keeps the answer as long, asking more often gains nothing
+const LIVE_POLL_MS = 10_000; // "Game in progress": never cached, the server checks Twitch as often
 const TICK_MS = 20_000;
 
 /** The "Last match" card, kept current while the tab is visible: "x min ago" counts on by itself, and the newest
@@ -196,13 +197,15 @@ function LastMatchCard({ fromOverview }: { fromOverview: string | null }) {
   const [now, setNow] = useState(Date.now);
   useWhileVisible(() => {
     getLastMatch()
-      .then((d) => {
-        setLive(d.last_match_at);
-        setPlaying(d.in_progress?.live === true);
-      })
+      .then((d) => setLive(d.last_match_at))
       .catch(() => undefined); // keep what is shown
     getOverview().catch(() => undefined); // refreshed in the background once a minute old; the page updates if it changed
   }, LAST_MATCH_POLL_MS);
+  useWhileVisible(() => {
+    getLive()
+      .then((d) => setPlaying(d.live === true))
+      .catch(() => undefined); // keep what is shown
+  }, LIVE_POLL_MS);
   useWhileVisible(() => setNow(Date.now()), TICK_MS);
   const last = live && (!fromOverview || live > fromOverview) ? live : fromOverview;
   return (

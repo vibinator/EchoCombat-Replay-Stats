@@ -2,10 +2,14 @@
 
 Working record of what changed in each release, newest first.
 
-## Versioning (user, 2026-10-30)
-- Every update gets the next **sequential beta number**: Beta 1, Beta 2, Beta 3, …
-- The number lives in one place, `app/backend/version.py` (`BETA`). Bump it and add an entry at the top of this file
-  in the same update. It is shown in the website footer, `/api/health` (`version`) and the admin console.
+## Versioning (user, 2026-11-01)
+- **Calendar versions:** `YYYY.MM.DD.N` = release date + the Nth update that day (`2026.11.01.6` = sixth update on
+  1 November 2026), plus the release time. Still beta: shown as `2026.11.01.6 (beta)`.
+- Every update runs `python app/bump_version.py`: it sets `VERSION` and `RELEASED` in `app/backend/version.py` and adds
+  the `## <version> — HH:MM` heading here; write the notes under it. Shown in the website footer (version, date and
+  time), `/api/health` (`version`, `released`), the admin console, the Docker image tag and the GitHub commit label.
+- Until 2026-11-01 versions were numbered Beta 1 – Beta 80 (no release times kept); their headings were renamed to the
+  calendar version of the same day, with the old number beside it. The old git tags (`beta-45` …) still work.
 - `PARSER_VERSION` / `STATS_VERSION` are separate, internal: they decide which replays are re-read (D19) and are only
   bumped when parsing or stat calculation changes.
 - Entry format: what changed for the person using the site / console, then anything they must do (restart, wait for
@@ -13,7 +17,25 @@ Working record of what changed in each release, newest first.
 
 ---
 
-## Beta 80 — 2026-11-01
+## 2026.11.01.7 — 17:01
+### Home: "Game in progress" is always live
+- It could show up or disappear up to ~3 minutes late (Twitch checked once a minute, Cloudflare kept the answer a
+  minute, the page asked once a minute). It now has its own address, `/api/overview/live`, that no browser or
+  Cloudflare keeps (`no-store`); the page asks every 10 s and the server checks Twitch every 10 s, one check shared by
+  all visitors so the Twitch lookup service does not rate-limit the site. Now at most ~20 s behind the stream.
+- `/api/overview/last-match` no longer includes `in_progress`.
+
+## 2026.11.01.6 — 16:59
+### Calendar version numbers, with release date and time
+- Versions are now `YYYY.MM.DD.N` (release date + Nth update that day) with the release time, replacing Beta 1 – 80.
+  Earlier changelog headings were renamed to match (old Beta number kept beside each).
+- The website footer now shows only the version and its release date and time, e.g.
+  `2026.11.01.6 (beta) · 1 Nov 2026, 16:59`; the ECRanked credit and search hint are gone from it.
+- `/api/health` adds `released`. Docker images are tagged with the version (e.g. `2026.11.01.6`) and GitHub commits
+  from `upload_to_github.bat` are labelled with it.
+- New `python app/bump_version.py` makes the next version (date, counter, time) and adds its changelog heading.
+
+## 2026.11.01.5 — Beta 80
 ### Leaderboard: wins, losses, win rate and hours on every board
 - The table showed *Games* twice when ranking by games. Every board now shows Games, Wins, Losses, Win rate and
   Hours played beside the ranked stat; the column that is the ranked stat is not repeated.
@@ -21,18 +43,18 @@ Working record of what changed in each release, newest first.
 - These columns cover the same period and map as the board, all modes. Payload games have no winner, so they
   count as games but not as wins or losses.
 
-## Beta 79 — 2026-11-01
+## 2026.11.01.4 — Beta 79
 ### Playback: Fission payload track fixed
 - One measured point of the Fission payload route (metre 160) sat at the end of the track, so once the payload
   passed 160 m the orange progress line shot ahead to the finish and back, and the cart briefly jumped there. The
   point is corrected; a test now checks every payload route for jumps.
 
-## Beta 78 — 2026-11-01
+## 2026.11.01.3 — Beta 78
 ### Heatmaps: super fine only
 - Heatmaps on match and player pages are always drawn at **super fine (0.1 m)** detail. The *Detail* picker (fine,
   medium, coarse) is gone; the API's `cell` parameter now only accepts 0.1.
 
-## Beta 77 — 2026-11-01
+## 2026.11.01.2 — Beta 77
 ### Deaths: loading in no longer counts as a death
 - **A player who loads into a server is parked at exactly (0, 0, 0)**, inside the play area, for ~10-17 s, then
   teleported out to the war room; that jump was counted as a death. Measured on 624 replays (every map, every year
@@ -71,7 +93,7 @@ Working record of what changed in each release, newest first.
 
 ---
 
-## Beta 76 — 2026-11-01
+## 2026.11.01.1 — Beta 76
 ### Pages answer at once, even while the server is busy (caching, D53)
 - **No more waiting for a recalculation.** Every new replay used to make the next visitor wait while the home page,
   leaderboard, profile or heatmap was recalculated (on the live site the home page numbers took 2.2 s). Now the last
@@ -119,7 +141,7 @@ Working record of what changed in each release, newest first.
 
 ---
 
-## Beta 75 — 2026-10-31
+## 2026.10.31.46 — Beta 75
 ### Match timeline, redesigned
 - **Summary cards** above the chart: match length, rounds score, checkpoints, time in the lead, peak capture and estimated deaths per team.
 - **Chart:** filled areas under the capture lines, alternating round bands labelled "Round 1, 2, …", and flags at each round win
@@ -130,7 +152,7 @@ Working record of what changed in each release, newest first.
 
 ---
 
-## Beta 74 — 2026-10-31
+## 2026.10.31.45 — Beta 74
 - **Fix: the Playback tab turned the whole page blank** when the website had been updated but the server not restarted yet
   (the new page asked for playback data the old server does not send). The page now fills in what is missing, and any
   page that crashes shows "Something went wrong showing this page" with a Reload button instead of a blank screen.
@@ -138,7 +160,7 @@ Working record of what changed in each release, newest first.
 
 ---
 
-## Beta 73 — 2026-10-31
+## 2026.10.31.44 — Beta 73
 ### Match playback, round 2
 - **Payload on the map:** the payload route is drawn (dashed, filled in the attackers' colour as it advances), with the
   cart, the checkpoints (filled once reached) and the finish flag. The route was measured from real Fission and Surge
@@ -157,14 +179,14 @@ Working record of what changed in each release, newest first.
 
 ---
 
-## Beta 72 — 2026-10-31
+## 2026.10.31.43 — Beta 72
 - **Deaths are obvious in the match playback:** a skull pops up on the map where each player died (estimated place),
   stays 5 seconds and fades, with the player's name under it in their team colour. Each team has a running skull
   count in the scoreboard, and the roster and event feed show a skull for fresh deaths.
 
 ---
 
-## Beta 71 — 2026-10-31
+## 2026.10.31.42 — Beta 71
 - **Playback on the match page is much richer** (same recorded data, no re-import): a scoreboard bar (round score, clock,
   payload distance and checkpoints, or capture points), a roster per team with each player's current weapon, ordnance and
   tac mod, speed (m/s) and estimated deaths so far, click a player to highlight them, a red ring when someone dies,
@@ -176,14 +198,14 @@ Working record of what changed in each release, newest first.
 
 ---
 
-## Beta 70 — 2026-10-31
+## 2026.10.31.41 — Beta 70
 - **Three per-game challenges are slightly harder** (user request): Full Team Salvo 40/50/60/75/90 % → 45/55/65/80/92 %,
   Super Ultra Hyper Turbo 13/17/21/25/30 m/s → 14/18/22/27/32 m/s, I'm Bat Bot 10/25/50/75/90 % → 15/30/55/80/92 %.
   Medals already earned are re-evaluated from the replays, so some players will drop a medal.
 
 ---
 
-## Beta 69 — 2026-10-31
+## 2026.10.31.40 — Beta 69
 - **Weekly challenges are now a rolling 7 days** instead of a Monday-to-Sunday calendar week (user request). Your best
   7-day stretch counts, wherever it starts, so games on Friday and the following Tuesday are added together. Applies to
   every "in one week" challenge (Set Phasers to Kill!, Eat My Nova!, the other "only X" gear challenges, Gearhead, Pew Pew
@@ -194,14 +216,14 @@ Working record of what changed in each release, newest first.
 
 ---
 
-## Beta 68 — 2026-10-31
+## 2026.10.31.39 — Beta 68
 - **Rate limit countdown:** when the site says "Too many requests", the message now counts down the seconds until you
   can try again (from the server's `Retry-After`), and the page reloads that data by itself when the wait is over
   (up to 3 automatic tries) instead of staying on the error.
 
 ---
 
-## Beta 67 — 2026-10-31
+## 2026.10.31.38 — Beta 67
 - **Fewer "Too many requests" errors:** the per-visitor limit is raised from 30 to 60 requests a minute (bursts of 120)
   and from 600 to 1,500 an hour; heatmaps, playback, compare and downloads now cost 5 instead of 10. A player page
   loads many requests at once, so a few quick reloads used to hit the limit.
@@ -210,13 +232,13 @@ Working record of what changed in each release, newest first.
 
 ---
 
-## Beta 66 — 2026-10-31
+## 2026.10.31.37 — Beta 66
 - **Loadouts table is easier to read:** numbered rows, and "Time used" is now a bar on a track (scaled to the most used
   loadout) with the percentage beside it, instead of a tiny dot next to the number.
 
 ---
 
-## Beta 65 — 2026-10-31
+## 2026.10.31.36 — Beta 65
 - **All tables are easier to read:** every table on the site now sits in its own panel (border, padding), headings are
   small muted capitals, rows highlight on hover, and side-by-side tables (teammates / opponents, status, gear use) have
   a wider gap so they no longer run together.
@@ -226,26 +248,26 @@ Working record of what changed in each release, newest first.
 
 ---
 
-## Beta 64 — 2026-10-31
+## 2026.10.31.35 — Beta 64
 - **Gear use is easier to read:** weapon, ordnance and tac mod tables on the player page are now separate panels with
   more space between them instead of running together.
 
 ---
 
-## Beta 63 — 2026-10-31
+## 2026.10.31.34 — Beta 63
 - **Time frame filter for "Most played with / against":** player pages can now limit teammates and opponents to the last
   24 hours, 7 days, 1 month, 3 months, 6 months, 12 months or all time (rolling windows, not calendar periods).
 
 ---
 
-## Beta 62 — 2026-10-31
+## 2026.10.31.33 — Beta 62
 - **Import progress bars can reach 100%:** "Match results and player stats", "Leaderboard" and "Achievements" now count
   against replays that could be read, not against all replays. Failed replays never produce a match, so they used to
   hold these bars just under 100% (e.g. 29,520 / 29,600). "Replays read and checked" still shows the failures.
 
 ---
 
-## Beta 61 — 2026-10-31
+## 2026.10.31.32 — Beta 61
 ### Security review (penetration test of a local copy configured like the public site)
 - **Replay files cannot be downloaded:** no route reads the replay folder (it is also mounted read-only), and paths to
   `.echoreplay` files are now refused outright (404, also encoded or in capitals); a missing file such as `/x.txt` is a
@@ -264,7 +286,7 @@ Working record of what changed in each release, newest first.
 
 ---
 
-## Beta 60 — 2026-10-31
+## 2026.10.31.31 — Beta 60
 ### Stricter limits against scrapers
 - Data requests per visitor: **30 a minute** (bursts of 60), was 60 (bursts of 120). Heavy answers (heatmaps, playback,
   compare, downloads) count 10, was 5.
@@ -275,7 +297,7 @@ Working record of what changed in each release, newest first.
 
 ---
 
-## Beta 59 — 2026-10-31
+## 2026.10.31.30 — Beta 59
 ### Leaderboard is faster
 - **Switching the stat is instant** (about 1.3 s before, 0.03 s now on the full archive): one pass over the matches
   calculates every stat, and that result is now kept per period / map / public-private filter instead of per stat. The
@@ -288,7 +310,7 @@ Working record of what changed in each release, newest first.
 
 ---
 
-## Beta 58 — 2026-10-31
+## 2026.10.31.29 — Beta 58
 ### Achievements: every top medal reachable within a 4-month challenge window
 Checked against a window of about 120 days / 17 weeks. Medals recalculate by themselves; nothing has to be re-read.
 - **Regular** (days played): 5 / 15 / 30 / 60 / 100 (was up to 300 days).
@@ -301,7 +323,7 @@ Checked against a window of about 120 days / 17 weeks. Medals recalculate by the
 
 ---
 
-## Beta 57 — 2026-10-31
+## 2026.10.31.28 — Beta 57
 ### Achievements page loads fast
 - **Cause:** the page asks for three things at once (the list, the recent unlocks, the top players) and every one of them
   started its own full calculation over all 8,090 players (about 20 s each, all at the same time), so the page sat on
@@ -318,7 +340,7 @@ Checked against a window of about 120 days / 17 weeks. Medals recalculate by the
 
 ---
 
-## Beta 56 — 2026-10-31
+## 2026.10.31.27 — Beta 56
 ### Achievements: gear released on 30 Oct 2026
 - **Starburst, Protostar, Quark, Translocator and Overcharge now have the same ladders as the older gear** (the archive
   holds little of them yet, so these are estimates to retune once there is data): Veterans and Overclocked
@@ -334,7 +356,7 @@ Checked against a window of about 120 days / 17 weeks. Medals recalculate by the
 
 ---
 
-## Beta 55 — 2026-10-31
+## 2026.10.31.26 — Beta 55
 ### Achievements: similar ones now match, and unreachable medals fixed
 - **Similar achievements share a ladder:**
   - Hold the Line = Special Delivery = Clean Sweep: 1 / 5 / 10 / 25 / 100 (Hold the Line was 1 / 5 / 15 / 50 / 200).
@@ -351,7 +373,7 @@ Checked against a window of about 120 days / 17 weeks. Medals recalculate by the
 
 ---
 
-## Beta 54 — 2026-10-31
+## 2026.10.31.25 — Beta 54
 ### Achievements
 - **Centurion is easier:** win 5 / 10 / 30 / 100 / 500 games (was 10 / 25 / 100 / 500 / 2000). 100 wins, the name's
   number, is now the diamond medal. In the archive 51 % of players (10+ games) reach bronze, 29 % silver, 11 % gold
@@ -362,7 +384,7 @@ Checked against a window of about 120 days / 17 weeks. Medals recalculate by the
 
 ---
 
-## Beta 53 — 2026-10-31
+## 2026.10.31.24 — Beta 53
 ### Achievements
 - **The "All time" medals are easier to reach** (the original all-time section, ids 55-79):
   - Gear Veterans (games using it): 5 / 15 / 50 / 150 / 500 (was 10 / 30 / 100 / 300 / 1000)
@@ -380,7 +402,7 @@ Checked against a window of about 120 days / 17 weeks. Medals recalculate by the
 
 ---
 
-## Beta 52 — 2026-10-31
+## 2026.10.31.23 — Beta 52
 ### Achievements
 - **Medal order corrected:** bronze, silver, gold, **diamond, then platinum** (platinum is the top medal, it was the
   other way round). Every ladder keeps its targets; the fourth target is now diamond and the fifth platinum, on the
@@ -389,7 +411,7 @@ Checked against a window of about 120 days / 17 weeks. Medals recalculate by the
 
 ---
 
-## Beta 51 — 2026-10-31
+## 2026.10.31.22 — Beta 51
 ### Achievements
 - **Tech Support w/RAD_Natalie is easier:** time near a teammate over one week is now 22 / 27 / 32 / 40 / 55 % for
   bronze / silver / gold / platinum / diamond (was 25 / 30 / 35 / 45 / 60). In the archive about 56 % of players
@@ -397,7 +419,7 @@ Checked against a window of about 120 days / 17 weeks. Medals recalculate by the
 
 ---
 
-## Beta 50 — 2026-10-31
+## 2026.10.31.21 — Beta 50
 ### Achievements
 - **Super Ultra Hyper Turbo is a little easier:** top speed in one game is now 13 / 17 / 21 / 25 / 30 m/s for bronze /
   silver / gold / platinum / diamond (was 14 / 18 / 22 / 26 / 32). In the archive about 82 % of players (10+ games)
@@ -406,7 +428,7 @@ Checked against a window of about 120 days / 17 weeks. Medals recalculate by the
 
 ---
 
-## Beta 49 — 2026-10-31
+## 2026.10.31.20 — Beta 49
 ### Achievements: sections with their own filters
 - **Section order:** In one game, In one day, In one week, All time, then Experimental gear, Gear mastery, Wins,
   Payload, Capture Point, Activity, Emotes. Each section still folds away.
@@ -420,7 +442,7 @@ Checked against a window of about 120 days / 17 weeks. Medals recalculate by the
 
 ---
 
-## Beta 48 — 2026-10-31
+## 2026.10.31.19 — Beta 48
 ### Achievements
 - **Every section can be folded away:** In one day / week / game / All time, the New challenges block and each of its
   themes. Click a heading (the count of achievements is shown), or use **Expand all / Collapse all**. Your choice is
@@ -428,7 +450,7 @@ Checked against a window of about 120 days / 17 weeks. Medals recalculate by the
 
 ---
 
-## Beta 47 — 2026-10-31
+## 2026.10.31.18 — Beta 47
 ### Achievements
 - **Completed achievements move to a "Completed" tab** (diamond for ladders, 100 % for single-step ones). The page
   opens on **In progress**, so only what is still to do is shown; **All** shows everything. The tabs show their counts.
@@ -436,7 +458,7 @@ Checked against a window of about 120 days / 17 weeks. Medals recalculate by the
 
 ---
 
-## Beta 46 — 2026-10-31
+## 2026.10.31.17 — Beta 46
 ### Achievements: medal ladders for (almost) everything
 - **Every achievement is now its own bronze / silver / gold / platinum / diamond ladder** (114 of 122; the yes / no
   ones such as Jack of All Trades, Forbidden Arsenal and Pew Pew Proof keep their single step). Each stays a separate
@@ -468,7 +490,7 @@ Checked against a window of about 120 days / 17 weeks. Medals recalculate by the
 
 ---
 
-## Beta 45 — 2026-10-31
+## 2026.10.31.16 — Beta 45
 ### Achievements
 - **Name and status take the colour of the medal reached** (white, bronze, silver, gold, platinum, diamond), in both themes.
 - **Progress to every medal is visible:** the bar is split into one segment per medal, each filled in that medal's
@@ -478,7 +500,7 @@ Checked against a window of about 120 days / 17 weeks. Medals recalculate by the
 
 ---
 
-## Beta 44 — 2026-10-31
+## 2026.10.31.15 — Beta 44
 ### Gear use (match and player pages)
 - **New "Gear use" section** for every weapon, ordnance and tac mod: **times picked** (switched to it, including
   the first one held; a blank gap such as a respawn is not a new pick), **games used** (player page) and **share
@@ -506,26 +528,26 @@ Checked against a window of about 120 days / 17 weeks. Medals recalculate by the
 
 - Nothing to do: restart the server.
 
-## Beta 43 — 2026-10-31
+## 2026.10.31.14 — Beta 43
 ### Home page
 - **Announcement under the site description:** "Echo Combat has been released to Quest Standalone as of Oct 30th
   2026", with links to the [Discord](https://discord.gg/echo-vr-lounge) and [echovrce.com](https://echovrce.com).
 - Nothing to do: refresh the page.
 
-## Beta 42 — 2026-10-31
+## 2026.10.31.13 — Beta 42
 ### Home page
 - **Latest matches beside the live video are a compact, scrollable list:** one short row per match (small minimap,
   map, mode, score, winner, date and length), as tall as the video, scrolling to all 8 newest matches. Replaces the
   big cards, which did not fit next to the video. On narrow screens the list sits below the video and scrolls too.
 - Nothing to do: refresh the page.
 
-## Beta 41 — 2026-10-31
+## 2026.10.31.12 — Beta 41
 ### Home page
 - **Fixed:** the latest-match cards beside the live video were squashed to thin strips (every card shown, each
   cut to a sliver of minimap). Cards keep their full size again; only the ones that fit beside the video show.
 - Nothing to do: refresh the page (restart the server if it was not restarted after Beta 40).
 
-## Beta 40 — 2026-10-31
+## 2026.10.31.11 — Beta 40
 ### Home page
 - **Live stream in Latest matches:** the Echo Combat spectator bot
   ([twitch.tv/combat_stream_bot](https://www.twitch.tv/combat_stream_bot)) plays muted on the left, the newest
@@ -534,7 +556,7 @@ Checked against a window of about 120 days / 17 weeks. Medals recalculate by the
   works on the public site but not when opened by a plain-http LAN address.
 - Nothing to do: restart the server to serve the new pages.
 
-## Beta 39 — 2026-10-31
+## 2026.10.31.10 — Beta 39
 ### Player merges
 - **Merging players is now near-instant.** In every match where only one of the player's ids played (the usual
   case for an alt), the records are moved to the main player straight away instead of the replay being re-read from
@@ -547,7 +569,7 @@ Checked against a window of about 120 days / 17 weeks. Medals recalculate by the
   came from.
 - Nothing to do: no re-read needed after updating.
 
-## Beta 38 — 2026-10-31
+## 2026.10.31.9 — Beta 38
 ### Achievements
 - **12 new achievements for the formerly unreleased gear (101-112), now 108 in total.** Found by scanning the 84
   new replays of 30-31 Oct: no gear codes the site did not already know, but Quark is now in 75 of 84 games,
@@ -569,7 +591,7 @@ Checked against a window of about 120 days / 17 weeks. Medals recalculate by the
 
 ---
 
-## Beta 37 — 2026-10-31
+## 2026.10.31.8 — Beta 37
 ### Website
 - **Five achievements revealed early** in the sneak peek on the "Coming soon" page, in full (badge, name,
   description): Yeet and Delete (in one day), Sakura's Dancing Flamingo (in one week), My Other Chassis Is a
@@ -585,7 +607,7 @@ Checked against a window of about 120 days / 17 weeks. Medals recalculate by the
 
 ---
 
-## Beta 36 — 2026-10-31
+## 2026.10.31.7 — Beta 36
 ### Website
 - **Sneak peek on the "Coming soon" achievements page.** Below the Coming soon message, visitors see six mystery
   badges (blurred, grey, locked, named "???") and how many achievements each section holds: from the original
@@ -599,7 +621,7 @@ Checked against a window of about 120 days / 17 weeks. Medals recalculate by the
 
 ---
 
-## Beta 35 — 2026-10-31
+## 2026.10.31.6 — Beta 35
 ### Website
 - **The "Achievements" menu item says "Coming soon · 96"** before the Flamingo Challenge start date: the number of
   achievements and challenges available (hover for "96 achievements available"). The "Coming soon" page on
@@ -611,7 +633,7 @@ Checked against a window of about 120 days / 17 weeks. Medals recalculate by the
 
 ---
 
-## Beta 34 — 2026-10-31
+## 2026.10.31.5 — Beta 34
 ### Website
 - **Player profiles no longer show "Achievements — coming soon"** before the Flamingo Challenge start date set in
   the console. The achievements section appears on profiles from the start date on (Discord preview-role members
@@ -622,7 +644,7 @@ Checked against a window of about 120 days / 17 weeks. Medals recalculate by the
 
 ---
 
-## Beta 33 — 2026-10-31
+## 2026.10.31.4 — Beta 33
 ### Website
 - **"Matches recorded over time" has a "Per day" tab** next to per month / per year. It shows the 90 days up to the
   newest recorded match (the archive may stop before today), one bar per day split by map, with days without
@@ -634,7 +656,7 @@ Checked against a window of about 120 days / 17 weeks. Medals recalculate by the
 
 ---
 
-## Beta 32 — 2026-10-31
+## 2026.10.31.3 — Beta 32
 ### Stats
 - **A match recorded twice now counts once.** The archive has 426 matches saved in two (or more) files: same
   session, same time, usually one of them re-saved later at twice the size. Until now both copies counted, in every
@@ -661,7 +683,7 @@ Checked against a window of about 120 days / 17 weeks. Medals recalculate by the
 
 ---
 
-## Beta 31 — 2026-10-31
+## 2026.10.31.2 — Beta 31
 ### Website
 - **Merged players no longer show up twice in the search box** at the top of the site. The Players page already
   hid them; the quick search still listed the merged ID with 0 games.
@@ -673,7 +695,7 @@ Checked against a window of about 120 days / 17 weeks. Medals recalculate by the
 
 ---
 
-## Beta 30 — 2026-10-31
+## 2026.10.31.1 — Beta 30
 ### Import
 - **New replays reach the site within ~2-3 minutes** instead of up to ~7. Between the full scans (every 5 min) the
   server now checks the replay folders every 15 s (~16 ms on the share, vs ~4 s for a full scan); when a file is
@@ -690,7 +712,7 @@ Checked against a window of about 120 days / 17 weeks. Medals recalculate by the
 
 ---
 
-## Beta 29 — 2026-10-30
+## 2026.10.30.29 — Beta 29
 ### Import
 - **Reading a replay takes ~12 % less processor time** (parser and stats; same results, checked on 13 replays:
   stats, events and position files byte for byte). Helps where the processor is the limit (the NAS, 4 processes);
@@ -703,7 +725,7 @@ Checked against a window of about 120 days / 17 weeks. Medals recalculate by the
 
 ---
 
-## Beta 28 — 2026-10-30
+## 2026.10.30.28 — Beta 28
 ### Website
 - **Player heatmaps 7–11x faster** (D50), same picture as before (checked cell by cell on 600 real matches, every
   mode and cell size). 1000 matches: team 5.1 → 0.6 s, speed 8.1 → 0.8 s, loadout 5.4 → 0.7 s, 0.1 m cells
@@ -718,7 +740,7 @@ Checked against a window of about 120 days / 17 weeks. Medals recalculate by the
 
 ---
 
-## Beta 27 — 2026-10-30
+## 2026.10.30.27 — Beta 27
 ### Website
 - **Home, "Matches recorded over time"**: one stacked bar per month (or year) split into the four maps (Combustion,
   Dyson, Fission, Surge), with a key above the chart; hovering a bar lists the matches on each map.
@@ -730,7 +752,7 @@ Checked against a window of about 120 days / 17 weeks. Medals recalculate by the
 
 ---
 
-## Beta 26 — 2026-10-30
+## 2026.10.30.26 — Beta 26
 ### Website
 - **Faster pages: important data is kept in RAM** (D49). First loads measured on the full archive (29k matches):
   leaderboard 680 → 235 ms (2.9x), player profile 150 → 60 ms (2.6x), home page 560 → 480 ms. Reading a match's
@@ -747,7 +769,7 @@ Checked against a window of about 120 days / 17 weeks. Medals recalculate by the
 
 ---
 
-## Beta 25 — 2026-10-30
+## 2026.10.30.25 — Beta 25
 ### Website
 - **Protection against scrapers** (D48). Visitors notice nothing; the website's data now only goes to the website
   itself:
@@ -768,7 +790,7 @@ Checked against a window of about 120 days / 17 weeks. Medals recalculate by the
 
 ---
 
-## Beta 24 — 2026-10-30
+## 2026.10.30.24 — Beta 24
 ### Website
 - **Player profiles**: the **This is me / Not me** button and the **Export CSV · JSON** links are gone (user,
   2026-10-30). With "This is me" goes what it did: your own rank is no longer pinned above the leaderboard or
@@ -781,7 +803,7 @@ Checked against a window of about 120 days / 17 weeks. Medals recalculate by the
 
 ---
 
-## Beta 23 — 2026-10-30
+## 2026.10.30.23 — Beta 23
 Speed-ups only: every number, heatmap and achievement is the same as in Beta 22 (checked by comparing the old and
 new results on the full database and on real replays).
 
@@ -806,7 +828,7 @@ new results on the full database and on real replays).
 
 ---
 
-## Beta 22 — 2026-10-30
+## 2026.10.30.22 — Beta 22
 ### Website
 - **Home page rearranged, most useful first**: search, then what is happening now (matches today, this week, how
   long ago the last match was, most played map), the **latest matches**, **most active this week** next to
@@ -819,7 +841,7 @@ new results on the full database and on real replays).
 
 ---
 
-## Beta 21 — 2026-10-30
+## 2026.10.30.21 — Beta 21
 ### Website
 - **The Admin tab is gone.** Everything it did is on the Console page: **Export achievements and challenges**
   lists every achievement with its rule and icon, changes icons and downloads a CSV (the Excel download is
@@ -834,7 +856,7 @@ new results on the full database and on real replays).
 
 ---
 
-## Beta 20 — 2026-10-30
+## 2026.10.30.20 — Beta 20
 ### Website
 - **Status page** (menu: *Status*, for admins and Console users): live progress of replay processing, updated
   every 10 seconds. Tiles for finished %, waiting, speed, time left and failed; a progress bar per stage (replays
@@ -851,7 +873,7 @@ new results on the full database and on real replays).
 
 ---
 
-## Beta 19 — 2026-10-30
+## 2026.10.30.19 — Beta 19
 ### Website
 - **Permissions page** (menu: *Permissions*, for Console users): give or take away the **Admin tab**, the
   **Console** and the **Preview**, each by **Discord role** (everyone with it; picked from the server's roles by
@@ -875,7 +897,7 @@ new results on the full database and on real replays).
 
 ---
 
-## Beta 18 — 2026-10-30
+## 2026.10.30.18 — Beta 18
 ### Website
 - **Console page > Achievements > Export achievements and challenges**: every achievement and challenge with just
   its **Name** and **How to win it** (the rule text shown on the website; "(deaths are estimated)" where that
@@ -888,7 +910,7 @@ new results on the full database and on real replays).
 
 ---
 
-## Beta 17 — 2026-10-30
+## 2026.10.30.17 — Beta 17
 ### Website
 - **Console page tidied up**: plain names instead of menu numbers, clearer help text, results as cards (Done /
   Failed, time, Clear), and messages that name the page's buttons instead of console commands.
@@ -908,7 +930,7 @@ new results on the full database and on real replays).
 
 ---
 
-## Beta 16 — 2026-10-30
+## 2026.10.30.16 — Beta 16
 ### Website
 - Console page: `ECHOVR_DISCORD_PREVIEW_ROLES` may also hold a **person's Discord user id** (right-click them >
   Copy User ID), not only role ids: that person gets the Console tab whatever their roles.
@@ -926,7 +948,7 @@ new results on the full database and on real replays).
 
 ---
 
-## Beta 15 — 2026-10-30
+## 2026.10.30.15 — Beta 15
 ### Website
 - **Console page** (menu: *Console*): `admin.bat` on the website, for Discord members with a role listed in
   `ECHOVR_DISCORD_PREVIEW_ROLES` (docker-compose.yml / environment). Roles picked as preview roles in the admin
@@ -945,7 +967,7 @@ new results on the full database and on real replays).
 
 ---
 
-## Beta 14 — 2026-10-30
+## 2026.10.30.14 — Beta 14
 ### Admin console
 - **Option 17, Discord admin users** (`admin.bat admin-users --add <user id>`): make a **person** an admin by
   their Discord user id (right-click them > Copy User ID). They get the Admin tab and the preview whatever their
@@ -962,7 +984,7 @@ new results on the full database and on real replays).
 
 ---
 
-## Beta 13 — 2026-10-30
+## 2026.10.30.13 — Beta 13
 ### Admin console
 - **Option 16, check a Discord member's access** (`admin.bat discord-check <discord user id>`): asks Discord what
   the website sees for one person: whether they are in the server, their roles (by name, marked admin / preview),
@@ -979,7 +1001,7 @@ new results on the full database and on real replays).
 
 ---
 
-## Beta 12 — 2026-10-30
+## 2026.10.30.12 — Beta 12
 ### Admin console
 - **Option 14, Discord preview roles**: lists the roles in your Discord server (by name, via the bot) and marks the
   preview ones. Type a number to give that role the preview, `-` + number to take it away. Changes apply on the
@@ -1010,7 +1032,7 @@ new results on the full database and on real replays).
 
 ---
 
-## Beta 11 — 2026-10-30
+## 2026.10.30.11 — Beta 11
 ### Website
 - **Preview with Discord**: before the launch date, members of the EchoVR Combat Discord server with the preview
   role can see achievements and challenges. On the "Coming soon" page: *Have preview access? Log in with Discord*.
@@ -1029,7 +1051,7 @@ new results on the full database and on real replays).
 
 ---
 
-## Beta 10 — 2026-10-30
+## 2026.10.30.10 — Beta 10
 ### Website
 - **Achievements and challenges are "Coming soon"** until their start date. The Achievements page shows a
   "Coming soon" message (with the start date once one is set), the menu entry gets a "soon" tag, player pages show
@@ -1048,7 +1070,7 @@ new results on the full database and on real replays).
 
 ---
 
-## Beta 9 — 2026-10-30
+## 2026.10.30.9 — Beta 9
 ### Website
 - **Processing indicator**: while replays are still being read in the background, a small spinning wheel with
   "Processing N replays" shows in the top bar next to the site name, on every page. It checks every 15 seconds and
@@ -1061,7 +1083,7 @@ new results on the full database and on real replays).
 
 ---
 
-## Beta 8 — 2026-10-30
+## 2026.10.30.8 — Beta 8
 ### Website
 - **Long player names stay on one line**: in stat cards (home page Global stats, match page highlights) and on the
   leaderboard podium the name's text gets smaller until it fits the box. Extremely long names stop shrinking at a
@@ -1074,7 +1096,7 @@ new results on the full database and on real replays).
 
 ---
 
-## Beta 7 — 2026-10-30
+## 2026.10.30.7 — Beta 7
 ### Website
 - **Global stats** is back on the home page (https://echocombat.com), between "Most popular gear" and "Matches per
   map". The separate Global stats page and its menu entry are removed.
@@ -1086,7 +1108,7 @@ new results on the full database and on real replays).
 
 ---
 
-## Beta 6 — 2026-10-30
+## 2026.10.30.6 — Beta 6
 ### Website
 - **Global stats** has its own page in the menu (`/stats`); it is no longer on the home page.
 - **Import page removed** from the public website (admin information): no menu entry, no page, and the import /
@@ -1105,7 +1127,7 @@ new results on the full database and on real replays).
 
 ---
 
-## Beta 5 — 2026-10-30
+## 2026.10.30.5 — Beta 5
 ### Server
 - The QNAP NAS no longer builds the app (its Docker has no `git`, so building from GitHub failed). GitHub Actions now
   builds the image on every upload and publishes it to `ghcr.io/vibinator/echocombat-replay-stats` (Intel/AMD and
@@ -1120,7 +1142,7 @@ new results on the full database and on real replays).
 
 ---
 
-## Beta 4 — 2026-10-30
+## 2026.10.30.4 — Beta 4
 ### Website
 - Ready to be public at **https://echocombat.com**: `docker-compose.yml` now also runs a Cloudflare Tunnel
   (`cloudflared`), so the NAS needs no open router ports and the home IP stays hidden. Steps in Setup.MD
@@ -1136,7 +1158,7 @@ new results on the full database and on real replays).
 
 ---
 
-## Beta 3 — 2026-10-30
+## 2026.10.30.3 — Beta 3
 ### Server
 - Can run on a QNAP NAS (or any Docker host): new `Dockerfile`, `docker-compose.yml` and `.dockerignore`. Pasting
   `docker-compose.yml` into Container Station downloads the app from GitHub, builds it and starts it; replays are
@@ -1149,7 +1171,7 @@ new results on the full database and on real replays).
 
 ---
 
-## Beta 2 — 2026-10-30
+## 2026.10.30.2 — Beta 2
 ### GitHub
 - The replay share's network address is no longer in the repository: Setup.MD and Architecture.MD show a placeholder
   (`\\<server>\<share>\Replays`). Your own setup is unchanged (`Z:\ECRanked\Replays`, or `ECHOVR_REPLAY_SOURCE`).
@@ -1160,7 +1182,7 @@ new results on the full database and on real replays).
 
 ---
 
-## Beta 1 — 2026-10-30
+## 2026.10.30.1 — Beta 1
 Baseline: everything up to and including Phase 9 (see Status.MD), plus the changes below.
 
 ### Website

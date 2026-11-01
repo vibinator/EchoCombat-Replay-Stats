@@ -24,6 +24,25 @@ def test_no_channel_is_not_asked(monkeypatch):
     assert twitch.live("") == {"live": None, "since": None}
 
 
+def test_live_endpoint_is_never_cached(monkeypatch, tmp_path):
+    # "Game in progress" (user 2026-11-01): no browser or Cloudflare copy, even with the edge cache on
+    from app_helpers import app_client, make_settings
+
+    from backend import twitch as app_twitch  # the module the app imported
+
+    monkeypatch.setattr(app_twitch, "live", lambda channel: {"live": True, "since": "2026-11-01T18:56:08"})
+    with app_client(make_settings(tmp_path, edge_cache_s=60)) as client:
+        r = client.get("/api/overview/live")
+        assert r.json() == {"live": True, "since": "2026-11-01T18:56:08"}
+        assert r.headers["cache-control"] == "no-store"
+        assert r.headers["cloudflare-cdn-cache-control"] == "no-store"
+        assert "in_progress" not in client.get("/api/overview/last-match").json()
+
+
+def test_twitch_is_checked_every_10_seconds():
+    assert twitch.CHECK_S <= 10
+
+
 def test_answer_is_remembered(monkeypatch):
     calls = []
     monkeypatch.setattr(twitch, "_memo", {})

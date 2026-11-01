@@ -857,15 +857,17 @@ export const getMe = () => request<Me>("/api/auth/me");
 /** Full-page navigation (not a fetch): Discord's login page, then back to `next`. */
 export const loginUrl = (next: string) => `/api/auth/login?next=${encodeURIComponent(next)}`;
 export const LOGOUT_URL = "/api/auth/logout";
-export const getHealth = () => request<{ version: string }>("/api/health");
+/** `version` e.g. "2026.11.01.6 (beta)"; `released` local date-time "YYYY-MM-DDTHH:MM" */
+export const getHealth = () => request<{ version: string; released: string }>("/api/health");
 // The home page starts its chart requests together with the overview; request() lets the charts reuse them.
 export const getOverview = () => request<Overview>("/api/overview");
 /** Live queue length for the top bar: always asked (Cloudflare may answer it), never reused from the cache. */
 export const getProcessing = () => send<{ pending: number }>("/api/overview/processing");
-/** Newest match end time for the home page, and whether a game is being played now (the spectator bot is live on
- * Twitch; live null = could not tell). Polled: never reused from the cache (Cloudflare may answer it). */
-export const getLastMatch = () =>
-  send<{ last_match_at: string | null; in_progress?: { live: boolean | null; since: string | null } }>("/api/overview/last-match");
+/** Newest match end time for the home page. Polled: never reused from the cache (Cloudflare may answer it). */
+export const getLastMatch = () => send<{ last_match_at: string | null }>("/api/overview/last-match");
+/** Is a game being played now (the spectator bot is live on Twitch; live null = could not tell)? Never cached
+ * anywhere: no-store for the browser and Cloudflare, and send() keeps no copy. */
+export const getLive = () => send<{ live: boolean | null; since: string | null }>("/api/overview/live");
 export const getActivity = (bucket: "day" | "week" | "month" | "year") =>
   request<{ bucket: string; items: { period: string; matches: number; hours: number; maps: Record<string, number> }[] }>(`/api/overview/activity?bucket=${bucket}`);
 export const getPlayersSeen = (range: PlayersSeen["range"], anchor: PlayersSeen["anchor"]) =>

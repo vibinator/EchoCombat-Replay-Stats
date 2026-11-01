@@ -23,9 +23,9 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Read beta version
+      - name: Read app version
         id: version
-        run: echo "beta=$(sed -n 's/^BETA = //p' app/backend/version.py)" >> "$GITHUB_OUTPUT"
+        run: echo "version=$(sed -n 's/^VERSION = "\(.*\)"/\1/p' app/backend/version.py)" >> "$GITHUB_OUTPUT"
       - uses: docker/build-push-action@v6
         with:
           context: .
@@ -33,6 +33,6 @@ jobs:
           push: true
           tags: |
             ghcr.io/vibinator/echocombat-replay-stats:latest
-            ghcr.io/vibinator/echocombat-replay-stats:beta-${{ steps.version.outputs.beta }}
+            ghcr.io/vibinator/echocombat-replay-stats:${{ steps.version.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

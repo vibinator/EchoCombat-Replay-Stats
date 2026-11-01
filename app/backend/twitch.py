@@ -2,8 +2,9 @@
 a game is in progress (home page, next to "Last match"). Asked through decapi.me (user 2026-11-01: no Twitch app to
 set up): plain text, "<channel> is offline" or the uptime ("1 hour, 3 minutes, 52 seconds").
 
-The answer is remembered CHECK_S seconds, wrong answers too, so decapi is asked at most once a minute however many
-visitors there are; one request at a time (the others wait for it and get its answer)."""
+The answer is shared for CHECK_S seconds, wrong answers too, so decapi is asked at most every 10 s however many
+visitors there are (asking per visitor would get the site rate-limited, and then nothing is known); one request at a
+time (the others wait for it and get its answer). Nothing else keeps it: /api/overview/live is no-store."""
 
 import re
 import threading
@@ -12,7 +13,7 @@ from datetime import datetime, timedelta
 
 import httpx
 
-CHECK_S = 60
+CHECK_S = 10
 TIMEOUT_S = 4
 URL = "https://decapi.me/twitch/uptime/{channel}"
 _PART = re.compile(r"(\d+)\s+(day|hour|minute|second)s?")

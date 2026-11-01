@@ -72,7 +72,7 @@ before anything is sent. Needs Git for Windows (https://git-scm.com/download/win
 ## QNAP NAS (Docker / Container Station)
 Every upload to GitHub (`upload_to_github.bat`) makes GitHub Actions build the app image (`Dockerfile`: website +
 server in one container) and publish it as `ghcr.io/vibinator/echocombat-replay-stats` (tags `latest` and
-`beta-N`); watch it on the repository's **Actions** tab (a few minutes). The NAS only downloads that image: its Docker
+the app version, e.g. `2026.11.01.6`; older images are tagged `beta-N`); watch it on the repository's **Actions** tab (a few minutes). The NAS only downloads that image: its Docker
 has no `git`, so it cannot build from the repository itself.
 1. Upload with `upload_to_github.bat` and wait for the Actions run to finish (green tick).
 2. Token for downloading the image: GitHub > Settings > Developer settings > Personal access tokens >

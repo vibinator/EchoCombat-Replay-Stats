@@ -93,9 +93,9 @@ if not "!BLOCKED_SIZE!"=="0" (
   goto :fail
 )
 
-rem --- commit, labelled with the beta version (app\backend\version.py) ----------------------------
-set "BETA=?"
-for /f "tokens=3" %%v in ('findstr /B /C:"BETA = " app\backend\version.py') do set "BETA=%%v"
+rem --- commit, labelled with the app version (app\backend\version.py) -----------------------------
+set "VER=?"
+for /f "tokens=3" %%v in ('findstr /B /C:"VERSION = " app\backend\version.py') do set "VER=%%~v"
 
 git diff --cached --quiet
 if errorlevel 1 (
@@ -104,8 +104,8 @@ if errorlevel 1 (
   git diff --cached --stat
   echo.
   set "MSG="
-  set /p "MSG=Short description of this update (Enter = just "Beta !BETA!"): "
-  if "!MSG!"=="" (set "MSG=Beta !BETA!") else (set "MSG=Beta !BETA!: !MSG!")
+  set /p "MSG=Short description of this update (Enter = just "!VER!"): "
+  if "!MSG!"=="" (set "MSG=!VER!") else (set "MSG=!VER!: !MSG!")
   git commit -q -m "!MSG!"
   if errorlevel 1 goto :error
 ) else (
@@ -118,7 +118,7 @@ echo Uploading to GitHub ^(the first time, a GitHub sign-in window may open^)...
 git push -u origin main
 if errorlevel 1 goto :error
 echo.
-echo Done: Beta !BETA! is on GitHub.
+echo Done: !VER! is on GitHub.
 pause
 exit /b 0
 
