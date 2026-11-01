@@ -14,6 +14,7 @@ export function PlayerSearch({ initial = "", large = false }: { initial?: string
     <form className={`search${large ? " large" : ""}`} onSubmit={submit} role="search">
       <input
         type="search"
+        maxLength={64} // the API refuses longer searches
         placeholder="Search player name"
         aria-label="Search player name"
         value={q}

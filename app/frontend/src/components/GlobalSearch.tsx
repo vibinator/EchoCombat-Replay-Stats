@@ -67,6 +67,7 @@ export function GlobalSearch() {
       <input
         ref={input}
         type="search"
+        maxLength={64} // the API refuses longer searches
         placeholder="Search players or #match  ( / )"
         aria-label="Search players or match id"
         value={q}

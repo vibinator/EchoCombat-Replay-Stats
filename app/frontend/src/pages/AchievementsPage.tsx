@@ -19,7 +19,7 @@ function PlayerPicker() {
   return (
     <>
       <form className="search" onSubmit={submit} role="search">
-        <input type="search" placeholder="Find a player" aria-label="Find a player" value={q} onChange={(e) => setQ(e.target.value)} />
+        <input type="search" maxLength={64} placeholder="Find a player" aria-label="Find a player" value={q} onChange={(e) => setQ(e.target.value)} />
         <button type="submit">Search</button>
       </form>
       {search && <Status loading={found.loading} error={found.error} />}

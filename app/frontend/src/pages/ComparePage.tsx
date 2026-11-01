@@ -32,7 +32,7 @@ function AddPlayer({ onAdd }: { onAdd: (id: string) => void }) {
   return (
     <div>
       <form className="search" onSubmit={(e) => (e.preventDefault(), setTerm(q.trim()))}>
-        <input type="search" placeholder="Add a player" aria-label="Add a player" value={q} onChange={(e) => setQ(e.target.value)} />
+        <input type="search" maxLength={64} placeholder="Add a player" aria-label="Add a player" value={q} onChange={(e) => setQ(e.target.value)} />
         <button type="submit">Find</button>
       </form>
       {found.data && (

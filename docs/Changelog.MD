@@ -18,6 +18,11 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.01.11 — 18:14
+### Search boxes stop at 64 characters
+- The previous update made the server refuse searches longer than 64 characters; the search boxes (top bar, home,
+  compare, achievements, matches' player filter) now stop there too, so a long paste no longer shows an error.
+
 ## 2026.11.01.10 — 18:10
 ### Performance and security review
 **Faster**

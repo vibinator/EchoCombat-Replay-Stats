@@ -108,7 +108,7 @@ export function MatchesPage() {
         >
           <label>
             Player name
-            <input type="search" value={name} placeholder="contains…" onChange={(e) => setName(e.target.value)} onBlur={() => set("player_name", name.trim())} />
+            <input type="search" maxLength={64} value={name} placeholder="contains…" onChange={(e) => setName(e.target.value)} onBlur={() => set("player_name", name.trim())} />
           </label>
         </form>
         {active > 0 && (
