@@ -76,17 +76,21 @@ function loadoutAt(p: Player, gear: Playback["gear"], i: number): [string, strin
   return [gear.weapon[w]?.name ?? "–", gear.ordnance[o]?.name ?? "–", gear.tacmod[t]?.name ?? "–"];
 }
 
+/** Gear names of a loadout swap: weapon, ordnance, tac mod (empty slots left out). */
+function swapParts(e: MatchEvent): string[] {
+  return [e.data?.weapon, e.data?.ordnance, e.data?.tacmod].filter(Boolean).map(String);
+}
+
 function swapText(e: MatchEvent): string {
-  return [e.data?.weapon, e.data?.ordnance, e.data?.tacmod].filter(Boolean).join(" · ");
+  return swapParts(e).join(" · ");
 }
 
 /** Feed line for a loadout swap, with gear icons next to the names. */
 function SwapLabel({ e }: { e: MatchEvent }) {
-  const parts = [e.data?.weapon, e.data?.ordnance, e.data?.tacmod].filter(Boolean).map(String);
   return (
     <>
       {e.name ?? "Player"} switched to{" "}
-      {parts.map((g, k) => (
+      {swapParts(e).map((g, k) => (
         <span key={k}>
           {k > 0 && " · "}
           <GearLabel name={g} />
@@ -626,7 +630,15 @@ export function PlaybackView({ playback, clock, compact = false, label }: { play
                     title="Click to highlight this player"
                   >
                     <span className="pb-name">{died && <img className="pb-skull" src="/icons/death.png" alt="died" />}{p.name}</span>
-                    <span className="pb-gear">{here ? <><GearLabel name={weapon} /> · <GearLabel name={ordnance} /> · <GearLabel name={tacmod} /></> : "off the map / left"}</span>
+                    <span className="pb-gear">
+                      {here ? (
+                        <>
+                          <GearLabel name={weapon} /> · <GearLabel name={ordnance} /> · <GearLabel name={tacmod} />
+                        </>
+                      ) : (
+                        "off the map / left"
+                      )}
+                    </span>
                     <span className="pb-nums">
                       {here && sp != null ? `${num(sp, 1)} m/s` : "–"}
                       {killsDeaths > 0 && ` · ${killsDeaths} death${killsDeaths === 1 ? "" : "s"}*`}
@@ -644,7 +656,8 @@ export function PlaybackView({ playback, clock, compact = false, label }: { play
         {recent.map((e, k) => (
           <li key={`${e.frame}-${e.type}-${k}`} className={e.type === "death_est" ? "death" : e.type === "loadout_change" ? "swap" : ""}>
             <span className="muted">{duration(e.t_s)}</span>{" "}
-            {e.type === "death_est" ? <img className="pb-skull" src="/icons/death.png" alt="" /> : e.type === "loadout_change" ? <span>⇄</span> : e.team && <span className={`dot ${e.team}`} />} {e.type === "loadout_change" ? <SwapLabel e={e} /> : eventLabel(e)}
+            {e.type === "death_est" ? <img className="pb-skull" src="/icons/death.png" alt="" /> : e.type === "loadout_change" ? <span>⇄</span> : e.team && <span className={`dot ${e.team}`} />}{" "}
+            {e.type === "loadout_change" ? <SwapLabel e={e} /> : eventLabel(e)}
           </li>
         ))}
       </ul>
