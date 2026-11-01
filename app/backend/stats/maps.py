@@ -35,6 +35,27 @@ def map_name(map_code: str) -> str:
     return MAP_NAMES.get(map_code, "unknown")
 
 
+# Load-in spot per map (measured 2026-11-01 from the replays, 2021-2026): a player who loads into the server is put
+# at this exact head position, inside the play area, for ~10-17 s, then teleported out to the war room. Not a place
+# anyone plays from (real positions near it are never exact), so those frames are neither in nor out of bounds: no
+# death_est when the player is moved on, no in-bounds stats, and absent in the position tracks. Every load-in (game
+# start, mid-game join, reconnect), whatever the objective progress. A map not listed has no load-in rule.
+LOAD_IN_SPOTS: dict[str, Vec3] = {
+    "dyson": (0.0, 0.0, 0.0),
+    "combustion": (0.0, 0.0, 0.0),
+    "fission": (0.0, 0.0, 0.0),
+    "surge": (0.0, 0.0, 0.0),
+}
+
+
+def load_in_spot(map_code: str) -> Vec3 | None:
+    return LOAD_IN_SPOTS.get(map_name(map_code))
+
+
+def is_load_in(position: Vec3, spot: Vec3 | None) -> bool:
+    return spot is not None and position[0] == spot[0] and position[1] == spot[1] and position[2] == spot[2]
+
+
 def in_bounds(position: Vec3, b: Bounds) -> bool:
     x, _, z = position
     return b.x_min <= x <= b.x_max and b.z_min <= z <= b.z_max

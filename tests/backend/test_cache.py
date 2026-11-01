@@ -122,6 +122,25 @@ def test_static_cache_headers(path, content_type, expected):
     assert headers["cache-control"] == expected
 
 
+def test_page_addresses_fall_back_to_the_site(tmp_path):
+    """Client-side routes get index.html, including profile addresses with the player's name (which may contain a
+    dot: only the last segment, the user id, decides whether it is a file); missing files stay 404."""
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from backend.main import SinglePageApp
+
+    (tmp_path / "index.html").write_text("<!doctype html>site")
+    app = FastAPI()
+    app.mount("/", SinglePageApp(directory=tmp_path, html=True))
+    client = TestClient(app)
+    for path in ("/players/123", "/players/ATM/1176721616202375269", "/players/david.yarker/42",
+                 "/players/Big-Name%20%C3%A9/42", "/matches/12"):
+        r = client.get(path)
+        assert r.status_code == 200 and r.text.endswith("site"), path
+    assert client.get("/missing.txt").status_code == 404
+
+
 def test_stamp_is_read_at_most_every_couple_of_seconds(tmp_path, monkeypatch):
     with app_client(make_settings(tmp_path)) as client:
         sessions = client.app.state.sessionmaker

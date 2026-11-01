@@ -16,6 +16,7 @@ from pydantic import BaseModel
 import admin_console as console
 
 from .. import auth, icons
+from .. import merge_suggestions as suggestions
 from ..achievement_sheet import csv_bytes, name_and_rule
 from ..errors import ApiError
 
@@ -102,6 +103,14 @@ def achievements(request: Request):
         chosen = icons.overrides(db)
     return [r | {"default_icon": icons.default(r["id"]), "icon": chosen.get(r["id"], icons.default(r["id"]))}
             for r in name_and_rule()]
+
+
+@router.get("/merge-suggestions")
+def merge_suggestions(request: Request):
+    """Player records that used the same name: candidates for "Merge player records" (only suggestions)."""
+    require_console(request, "merge-suggestions")
+    with request.app.state.sessionmaker() as db:
+        return suggestions.suggestions(db)
 
 
 @router.get("/achievements.csv")

@@ -2,6 +2,8 @@
 2 Hz samples are joined with a line unless the player jumped (respawn / teleport)."""
 
 import math
+import struct
+import zlib
 from collections import Counter
 from collections.abc import Callable, Iterable
 from functools import lru_cache
@@ -280,3 +282,46 @@ def build_layers(layout: HeatmapLayout, decoded: Iterable[tuple[dict, dict]], us
         order = [k for _, k, _ in SPEED_BANDS]
         layers = {k: layers[k] for k in order if k in layers}
     return layers, labels
+
+
+# Match card thumbnails: both teams' heat drawn server-side into one small transparent PNG laid over the minimap
+# thumbnail, so a page of cards costs one request instead of one heatmap each. 1 m cells: about one cell per pixel on a
+# card (the browser smooths it); ~5 KB each. Colours and alpha curve as HeatCanvas in HeatmapView.tsx.
+THUMB_CELL_M = 1.0
+TEAM_RGB = {"blue": (0x19, 0xD9, 0xFC), "orange": (0xEA, 0x79, 0x24)}
+
+
+def _png(rgba: np.ndarray) -> bytes:
+    """Minimal 8-bit RGBA PNG (no filters) from a rows x cols x 4 uint8 array."""
+    height, width, _ = rgba.shape
+    raw = np.concatenate([np.zeros((height, 1), np.uint8), rgba.reshape(height, width * 4)], axis=1).tobytes()
+
+    def chunk(kind: bytes, data: bytes) -> bytes:
+        return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data))
+
+    header = struct.pack(">IIBBBBB", width, height, 8, 6, 0, 0, 0)  # 8 bits, RGBA
+    return b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", header) + chunk(b"IDAT", zlib.compress(raw, 9)) + chunk(b"IEND", b"")
+
+
+def thumbnail_png(layout: HeatmapLayout, decoded: tuple[dict, dict]) -> bytes | None:
+    """Team heat of one match as a PNG covering the whole minimap; None when nobody was on the map."""
+    layers, _ = build_layers(layout, [decoded], None, "team", THUMB_CELL_M)
+    if not any(layers.values()):
+        return None
+    cols, rows = grid_size(layout, THUMB_CELL_M)
+    out = np.zeros((rows, cols, 4))
+    for team in ("blue", "orange"):  # composited "over", blue first, like the full heatmap
+        counts = layers.get(team)
+        if not counts:
+            continue
+        cells = np.array(list(counts.keys()))
+        n = np.array(list(counts.values()), dtype=np.float64)
+        col, row = cells[:, 0], cells[:, 1]
+        a = 0.25 + 0.75 * np.log1p(n) / math.log1p(n.max())
+        prev = out[row, col, 3]
+        alpha = a + prev * (1 - a)
+        for ch, value in enumerate(TEAM_RGB[team]):
+            out[row, col, ch] = (value * a + out[row, col, ch] * prev * (1 - a)) / alpha
+        out[row, col, 3] = alpha
+    out[..., 3] *= 255
+    return _png(np.clip(np.rint(out), 0, 255).astype(np.uint8))

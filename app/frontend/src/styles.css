@@ -1172,7 +1172,7 @@ kbd {
   align-items: center;
   gap: 0;
 }
-.match-cards.compact .match-card img {
+.match-cards.compact .match-card-thumb {
   width: 108px;
   height: 66px;
   flex-shrink: 0;
@@ -1324,12 +1324,40 @@ kbd {
 .map-card {
   padding: 8px;
 }
-.map-card img,
-.match-card img {
+.map-card img {
   width: 100%;
   height: 90px;
   object-fit: contain;
   background: #101216;
+}
+/* match card thumbnail: the minimap, with the team heat PNG laid exactly over it (same box, same object-fit) */
+.match-card-thumb {
+  position: relative;
+  width: 100%;
+  height: 90px;
+  flex-shrink: 0;
+  background: #101216;
+}
+.match-card-thumb img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+/* dim the (orange / teal) map art under the heat so the team colours read, as the full heatmap does */
+.match-card-thumb.has-heat img:first-child {
+  filter: saturate(0.4) brightness(0.7);
+}
+.match-card-heat {
+  pointer-events: none;
+  animation: match-heat-in 0.3s ease-out;
+}
+@keyframes match-heat-in {
+  from { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .match-card-heat { animation: none; }
 }
 .map-card:hover,
 .match-card:hover {
@@ -1778,6 +1806,33 @@ td.best {
   flex-wrap: wrap;
   align-items: center;
   gap: 4px 8px;
+}
+/* merge suggestions (Console, under the merge form) */
+.merge-suggestions {
+  margin-top: 12px;
+}
+.merge-suggestion {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+.merge-suggestion header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+.merge-suggestion header button {
+  margin-left: auto;
+}
+.merge-suggestion td .tag {
+  margin-left: 6px;
+}
+.merge-suggestion code {
+  font-size: 0.8rem;
+  overflow-wrap: anywhere;
 }
 .console-output header .muted {
   margin-left: auto;

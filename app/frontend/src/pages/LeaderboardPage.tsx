@@ -2,7 +2,7 @@ import { Link, useSearchParams } from "react-router";
 import { getGear, getLeaderboard, getLeaderboardStats, type LeaderboardRow, type Period } from "../api";
 import { Status, TableWrap } from "../components/common";
 import { EmptyState, FitText, Skeleton } from "../components/ui";
-import { MAPS, duration, num, pct, title } from "../format";
+import { MAPS, duration, num, pct, playerPath, title } from "../format";
 import { useApi } from "../useApi";
 
 const PAGE_SIZE = 50;
@@ -137,7 +137,7 @@ export function LeaderboardPage() {
                 {[1, 0, 2].map((i) => {
                   const r = board.data!.items[i];
                   return (
-                    <Link key={r.user_id} to={`/players/${r.user_id}`} className={`podium-step place-${r.rank}`}>
+                    <Link key={r.user_id} to={playerPath(r.user_id, r.name)} className={`podium-step place-${r.rank}`}>
                       <span className="podium-rank">{r.rank}</span>
                       <strong><FitText title={r.name}>{r.name}</FitText></strong>
                       <span>{formatValue(stat, r.value)}</span>
@@ -164,7 +164,7 @@ export function LeaderboardPage() {
                         {r.rank} <RankChange r={r} />
                       </td>
                       <td data-label="Player">
-                        <Link to={`/players/${r.user_id}`}>{r.name}</Link>
+                        <Link to={playerPath(r.user_id, r.name)}>{r.name}</Link>
                       </td>
                       <td data-label="Games" className="num">{r.games}</td>
                       <td data-label={board.data!.label} className="num">{formatValue(stat, r.value)}</td>

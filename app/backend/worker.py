@@ -26,6 +26,7 @@ from .models import Match, MatchPlayerLoadout, PriorityReplay, RepairRequest, Re
 from . import duplicates, tracks
 from .persist import delete_match, save_match
 from .stats import STATS_VERSION, compute
+from .stats.maps import load_in_spot
 from .tracks import TrackRecorder, tracks_path
 
 log = logging.getLogger(__name__)
@@ -59,7 +60,7 @@ def analyse(path: str, tracks_file: str | None = None, repair: bool = False) -> 
     Also writes the 2 Hz position tracks (for heatmaps / timeline) to `tracks_file`."""
     try:
         parsed = open_replay(Path(path), repair=repair)
-        recorder = TrackRecorder(parsed.meta.started_at) if tracks_file else None
+        recorder = TrackRecorder(parsed.meta.started_at, load_in_spot(parsed.meta.map_code)) if tracks_file else None
         stats = compute(parsed.meta, parsed.frames(), recorder)
         warnings = list(parsed.warnings)
         saved = False

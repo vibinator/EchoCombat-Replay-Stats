@@ -13,6 +13,45 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 77 — 2026-11-01
+### Deaths: loading in no longer counts as a death
+- **A player who loads into a server is parked at exactly (0, 0, 0)**, inside the play area, for ~10-17 s, then
+  teleported out to the war room; that jump was counted as a death. Measured on 624 replays (every map, every year
+  2021-2026): it is the load-in spot on Dyson, Combustion, Fission and Surge alike, at game start and for players
+  joining mid-game, and no real death starts from exactly that spot. About 19,000 fake deaths in 7,000 of the 29,500
+  matches.
+- The parked time also no longer counts as time in the arena (it inflated *Stopped*, *Near mate* and *Near enemy*) and
+  is left out of heatmaps, playback and match card thumbnails (a hot spot in the middle of every map).
+- One load-in spot per map (`LOAD_IN_SPOTS` in `app/backend/stats/maps.py`); a new map gets no rule until measured.
+
+### Match cards show where each team played
+- Match cards on the home page and the Matches page show both teams' heat over the minimap. One request for the whole
+  page (~5 KB per card, drawn on the server), so a page of cards costs no more than any other page.
+
+### Home page
+- **"Recently played"** replaces "Most played map": the map of the newest match, with its mode and score.
+
+### Player pages
+- **Profile addresses include the name**: `/players/ATM/1176721616202375269`. Old links (and links with an older name)
+  still work and move to the current address.
+- Fixed: running the site on Windows (`run.bat`), a profile address whose name contains a dot gave "Not found".
+
+### Gear icons
+- Weapons, ordnances and tac mods show their icon next to the name (match, player, home and replay pages); 17 so far.
+
+### Console
+- **Merge suggestions** in "Merge player records": player records that used the same name (ignoring case and
+  punctuation, older names included), with games and first / last seen. "Use" fills in the form; the merge still needs
+  Run. Records that played in the same match are flagged (usually two people with one name).
+- **Merging keeps the earliest "First seen"**, also when the older record's first match is no longer stored.
+
+### To do
+1. Upload, wait for the GitHub Actions build, Recreate the container.
+2. **Every replay is read again** (stats version 8) in the background, newest first. That takes hours on the NAS;
+   pages show the current numbers until each replay is replaced. Progress: Console, "Status and import progress".
+
+---
+
 ## Beta 76 — 2026-11-01
 ### Pages answer at once, even while the server is busy (caching, D53)
 - **No more waiting for a recalculation.** Every new replay used to make the next visitor wait while the home page,

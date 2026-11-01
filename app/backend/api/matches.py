@@ -1,6 +1,9 @@
+import base64
 import json
 from collections import Counter
 from datetime import date, timedelta
+from functools import lru_cache
+from pathlib import Path
 
 from fastapi import APIRouter, Query, Request
 from sqlalchemy import func, select
@@ -92,6 +95,46 @@ def _list_matches(request: Request, map, mode, player, from_, to, private, min_p
     items = [match_summary(m, counts.get(m.id, 0)) | ({"players": names.get(m.id, [])} if with_players else {})
              for m in matches]
     return {"items": items, "total": total}
+
+
+MAX_THUMBNAILS = 48  # two pages of match cards
+
+
+# Declared before /{match_id}: otherwise "thumbnails" would be read as a match id.
+@router.get("/thumbnails")
+def get_thumbnails(request: Request, ids: str = Query(..., pattern=r"^\d+(,\d+)*$", description="match ids, comma-separated")):
+    """Team heat over the minimap for a page of match cards, as PNG data URLs keyed by match id (matches without
+    position data are left out). One ordinary request for the whole page, not a heavy heatmap request per card."""
+    wanted = tuple(sorted({int(i) for i in ids.split(",")}))
+    if len(wanted) > MAX_THUMBNAILS:
+        raise ApiError(400, "too_many", f"At most {MAX_THUMBNAILS} matches at once")
+    return cached_response(request, "match-thumbnails", wanted, lambda: _thumbnails(request, wanted))
+
+
+def _thumbnails(request: Request, ids: tuple[int, ...]) -> dict:
+    with request.app.state.sessionmaker() as db:
+        rows = db.execute(select(Match.id, Match.map, Match.replay_id).where(Match.id.in_(ids))).all()
+    processed = request.app.state.settings.processed_dir
+    out = {}
+    for match_id, map_, replay_id in rows:
+        if map_ in HEATMAP_LAYOUTS and (url := _thumbnail(tracks.tracks_path(processed, replay_id), map_)):
+            out[str(match_id)] = url
+    return {"thumbnails": out}
+
+
+def _thumbnail(path: Path, map_: str) -> str | None:
+    try:
+        stat = path.stat()
+    except FileNotFoundError:
+        return None  # still importing
+    return _thumbnail_for(str(path), stat.st_mtime_ns, stat.st_size, map_)
+
+
+@lru_cache(maxsize=512)  # ~5 KB each; keyed on the file's mtime and size, so a reprocessed replay is drawn again
+def _thumbnail_for(path: str, _mtime_ns: int, _size: int, map_: str) -> str | None:
+    data = tracks.read(Path(path))
+    png = heatmaps.thumbnail_png(HEATMAP_LAYOUTS[map_], data) if data else None
+    return "data:image/png;base64," + base64.b64encode(png).decode("ascii") if png else None
 
 
 def player_row(mp: MatchPlayer, user_id: str, loadouts: list[MatchPlayerLoadout], picks=None) -> dict:

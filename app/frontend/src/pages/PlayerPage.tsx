@@ -9,7 +9,7 @@ import { LineChart } from "../components/charts";
 import { GearName, MatchTable, Status, TableWrap, TeamBadge } from "../components/common";
 import { CELL_SIZES, HEATMAP_MODES, HeatmapView } from "../components/HeatmapView";
 import { InfoTip, Skeleton, WhenVisible } from "../components/ui";
-import { MAPS, dateTime, duration, num, pct, periodLabel, title } from "../format";
+import { MAPS, dateTime, duration, nameSlug, num, pct, periodLabel, playerPath, title } from "../format";
 import { useApi } from "../useApi";
 
 const PERIODS: [Period, string][] = [
@@ -186,7 +186,7 @@ function CompanionTable({ title: heading, rows, together }: { title: string; row
             <tbody>
               {rows.map((c) => (
                 <tr key={c.user_id}>
-                  <td data-label="Player"><Link to={`/players/${c.user_id}`}>{c.name}</Link></td>
+                  <td data-label="Player"><Link to={playerPath(c.user_id, c.name)}>{c.name}</Link></td>
                   <td data-label="Games" className="num">{c.games}</td>
                   <td data-label={together ? "Won together" : "Won against"} className="num">
                     {c.wins} – {c.losses}
@@ -281,7 +281,7 @@ function PlayerHeatmap({ userId, period, maps }: { userId: string; period: Perio
 }
 
 export function PlayerPage() {
-  const userId = useParams().userId ?? "";
+  const { userId = "", name: nameInUrl = "" } = useParams();
   const [params, setParams] = useSearchParams();
   const period = (params.get("period") as Period) || "all";
   const map = params.get("map") ?? "";
@@ -295,10 +295,11 @@ export function PlayerPage() {
     setParams(next);
   }
 
-  // a merged ID answers with its main player: show that player's own address (old links keep working)
-  if (p && p.user_id !== userId) {
+  // show the player's own address, /players/<name>/<id>: old links without the name, an outdated name and a merged ID
+  // (answers with its main player) all keep working and move to it
+  if (p && (p.user_id !== userId || nameInUrl !== nameSlug(p.name))) {
     const search = params.toString();
-    return <Navigate replace to={`/players/${encodeURIComponent(p.user_id)}${search ? `?${search}` : ""}`} />;
+    return <Navigate replace to={`${playerPath(p.user_id, p.name)}${search ? `?${search}` : ""}`} />;
   }
 
   return (

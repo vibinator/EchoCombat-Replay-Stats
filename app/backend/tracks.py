@@ -18,6 +18,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
+from .stats.maps import is_load_in
+
 FORMAT_VERSION = 2
 HZ = 2
 ABSENT, BLUE, ORANGE = 0, 1, 2
@@ -47,8 +49,9 @@ class Tracks:
 class TrackRecorder:
     """Fed every frame by stats.compute(); keeps the first frame of each 0.5 s slot."""
 
-    def __init__(self, started_at: datetime):
+    def __init__(self, started_at: datetime, load_in=None):
         self.started_at = started_at
+        self.load_in = load_in  # the map's load-in spot (stats.maps.load_in_spot): those samples stay absent
         self.samples = 0
         self.players: dict[str, dict[str, list]] = {}
         self.series: dict[str, list] = {"blue_points": [], "orange_points": [], "payload_distance": []}
@@ -72,6 +75,8 @@ class TrackRecorder:
         self.series["payload_distance"][index] = frame.payload.distance if frame.payload else None
         for team, players in (("blue", frame.blue), ("orange", frame.orange)):
             for p in players:
+                if is_load_in(p.head_position, self.load_in):
+                    continue  # parked at the load-in spot: absent (stats/maps.py), not a hot spot at the map centre
                 track = self.players.get(p.user_id)
                 if track is None:
                     track = self.players[p.user_id] = {

@@ -513,6 +513,10 @@ export type HeatmapMode = "team" | "weapons" | "deaths";
 export const getMatchHeatmap = (id: number, player?: string) =>
   request<Heatmap>(`/api/matches/${id}/heatmap${query({ player })}`);
 
+/** Team heat PNGs (data URLs) for a page of match cards, keyed by match id; one request for the whole page. */
+export const getMatchThumbnails = (ids: number[]) =>
+  request<{ thumbnails: Record<string, string> }>(`/api/matches/thumbnails${query({ ids: [...ids].sort((a, b) => a - b).join(",") })}`);
+
 export const getTimeline = (id: number) => request<Timeline>(`/api/matches/${id}/timeline`);
 
 export const getPlayerHeatmap = (userId: string, map: string, mode: HeatmapMode, period: Period, last: number) =>
@@ -753,6 +757,30 @@ export interface ConsoleAchievement extends IconRow {
 /** Console export: every achievement and challenge, name + the rule to win it + its icon. */
 export const getConsoleAchievements = () => send<ConsoleAchievement[]>("/api/admin/console/achievements");
 export const CONSOLE_ACHIEVEMENTS_CSV = "/api/admin/console/achievements.csv";
+
+/** Console merge suggestions: player records that used the same name (backend/merge_suggestions.py). */
+export interface MergeCandidate {
+  user_id: string;
+  name: string;
+  /** other names this id was seen with */
+  names: string[];
+  games: number;
+  first_seen_at: string;
+  last_seen_at: string;
+  /** ids already merged into this one */
+  merged_ids: number;
+}
+export interface MergeSuggestion {
+  name: string;
+  /** every id's current name is the same (else they match ignoring case and punctuation, or by an older name) */
+  exact: boolean;
+  /** matches where two of these ids played: usually different people */
+  played_together: number;
+  /** suggested player to keep */
+  keep: string;
+  players: MergeCandidate[];
+}
+export const getMergeSuggestions = () => send<MergeSuggestion[]>("/api/admin/console/merge-suggestions");
 
 /** Status page (admins and console users): live replay processing progress. Never cached. */
 export interface ProcessingStatus {

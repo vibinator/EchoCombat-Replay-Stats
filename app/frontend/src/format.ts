@@ -2,6 +2,17 @@ import type { MatchSummary, Team } from "./api";
 
 export const MAPS = ["combustion", "dyson", "fission", "surge"];
 
+/** Display name as it appears in a profile address: spaces and slashes become "-" so it stays one path segment. */
+export function nameSlug(name: string | null | undefined): string {
+  return (name ?? "").trim().replace(/[\s/\\]+/g, "-");
+}
+
+/** Profile address: /players/<name>/<user id> (the name is only for people reading it; the id decides). */
+export function playerPath(userId: string, name?: string | null): string {
+  const slug = nameSlug(name);
+  return `/players/${slug ? `${encodeURIComponent(slug)}/` : ""}${encodeURIComponent(userId)}`;
+}
+
 export function duration(seconds: number | null | undefined): string {
   if (seconds == null) return "–";
   const s = Math.round(seconds);

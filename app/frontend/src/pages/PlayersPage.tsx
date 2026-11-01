@@ -2,7 +2,7 @@ import { Link, useSearchParams } from "react-router";
 import { searchPlayers } from "../api";
 import { Status, TableWrap } from "../components/common";
 import { PlayerSearch } from "../components/PlayerSearch";
-import { dateTime } from "../format";
+import { dateTime, playerPath } from "../format";
 import { useApi } from "../useApi";
 
 export function PlayersPage() {
@@ -32,7 +32,7 @@ export function PlayersPage() {
                 {result.data.items.map((p) => (
                   <tr key={p.user_id}>
                     <td>
-                      <Link to={`/players/${p.user_id}`}>{p.name}</Link>
+                      <Link to={playerPath(p.user_id, p.name)}>{p.name}</Link>
                     </td>
                     <td className="num">{p.games}</td>
                     <td>{dateTime(p.last_seen_at)}</td>

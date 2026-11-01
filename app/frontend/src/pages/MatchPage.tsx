@@ -9,7 +9,7 @@ import { CELL_SIZES, HEATMAP_MODES, HeatmapView } from "../components/HeatmapVie
 import { PlaybackCompare, PlaybackView } from "../components/PlaybackView";
 import { TimelineView } from "../components/TimelineView";
 import { FitText, InfoTip, STAT_HELP, Skeleton } from "../components/ui";
-import { dateTime, duration, modeLabel, num, pct, teamLabel, title } from "../format";
+import { dateTime, duration, modeLabel, num, pct, playerPath, teamLabel, title } from "../format";
 import { useApi } from "../useApi";
 
 function resultText(m: MatchDetail): string {
@@ -36,7 +36,7 @@ function TeamColumn({ team, m }: { team: Team; m: MatchDetail }) {
       <ul>
         {players.map((p) => (
           <li key={p.user_id}>
-            <Link to={`/players/${p.user_id}`}>{p.name}</Link>
+            <Link to={playerPath(p.user_id, p.name)}>{p.name}</Link>
             {p.level != null && <span className="muted"> lvl {p.level}</span>}
           </li>
         ))}
@@ -95,7 +95,7 @@ function Highlights({ m }: { m: MatchDetail }) {
       {shown.map((h) => (
         <div key={h.label} className={`card team-${h.player.team}`} title={h.hint}>
           <span className="label">{h.label}</span>
-          <strong><FitText title={h.player.name}><Link to={`/players/${h.player.user_id}`}>{h.player.name}</Link></FitText></strong>
+          <strong><FitText title={h.player.name}><Link to={playerPath(h.player.user_id, h.player.name)}>{h.player.name}</Link></FitText></strong>
           <span className="muted">{h.value}</span>
         </div>
       ))}
@@ -128,7 +128,7 @@ function TeamTable({ team, players, payload }: { team: Team; players: MatchPlaye
             {players.map((p) => (
               <tr key={p.user_id}>
                 <td data-label="Player">
-                  <Link to={`/players/${p.user_id}`}>{p.name}</Link>
+                  <Link to={playerPath(p.user_id, p.name)}>{p.name}</Link>
                   {p.left_early && <span className="tag" title="Last seen more than 45 s before the end">left early</span>}
                 </td>
                 <td data-label="Play time" className="num">{duration(p.play_time_s)}</td>
@@ -191,7 +191,7 @@ function GearUseTable({ m }: { m: MatchDetail }) {
           <tbody>
             {players.map((p) => (
               <tr key={p.user_id}>
-                <td data-label="Player"><Link to={`/players/${p.user_id}`} className={`team-text ${p.team}`}>{p.name}</Link></td>
+                <td data-label="Player"><Link to={playerPath(p.user_id, p.name)} className={`team-text ${p.team}`}>{p.name}</Link></td>
                 <td data-label="Weapons"><GearList items={p.gear.weapons} /></td>
                 <td data-label="Ordnance"><GearList items={p.gear.ordnances} /></td>
                 <td data-label="Tac mods"><GearList items={p.gear.tacmods} /></td>

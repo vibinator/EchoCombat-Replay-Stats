@@ -4,7 +4,7 @@ import { comparePlayers, getPlayerHeatmapBy, searchPlayers, type Period, type Pl
 import { Status, TableWrap } from "../components/common";
 import { HeatmapView } from "../components/HeatmapView";
 import { EmptyState, Skeleton, WhenVisible } from "../components/ui";
-import { MAPS, duration, num, pct, title } from "../format";
+import { MAPS, duration, num, pct, playerPath, title } from "../format";
 import { useApi } from "../useApi";
 
 const ROWS: [string, (s: PlayerStats) => string, (s: PlayerStats) => number | null, boolean][] = [
@@ -98,7 +98,7 @@ export function ComparePage() {
                   <th>Stat</th>
                   {c.players.map((p) => (
                     <th key={p.user_id} className="num">
-                      <Link to={`/players/${p.user_id}`}>{p.name}</Link>{" "}
+                      <Link to={playerPath(p.user_id, p.name)}>{p.name}</Link>{" "}
                       <button className="link danger" aria-label={`Remove ${p.name}`} onClick={() => setIds(ids.filter((x) => x !== p.user_id))}>×</button>
                     </th>
                   ))}

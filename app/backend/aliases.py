@@ -60,6 +60,7 @@ def merge(db: Session, main_user_id: str, alias_user_ids: list[str]) -> MergeRes
         db.execute(update(PlayerAlias).where(PlayerAlias.main_user_id == alias_id).values(main_user_id=main_user_id))
         db.merge(PlayerAlias(alias_user_id=alias_id, main_user_id=main_user_id, created_at=utcnow()))
     db.flush()
+    _keep_first_seen(db, main_user_id)
 
     pid = dict(db.execute(select(Player.user_id, Player.id).where(Player.user_id.in_(ids_of(db, main_user_id)))).all())
     main_pid = pid.get(main_user_id)
@@ -109,6 +110,16 @@ def _group_by_pid(rows) -> dict[int, list]:
 def _chunks(values: list, size: int = 500):
     for i in range(0, len(values), size):
         yield values[i:i + size]
+
+
+def _keep_first_seen(db: Session, main_user_id: str) -> None:
+    """The merged player was first seen when the earliest of its ids was, also when the main id is the newer account.
+    Set at merge time from each id's own record: matches that are re-read would get there too, but the worker takes
+    them newest first, so the oldest one (the one that decides this) would come last."""
+    seen = dict(db.execute(select(Player.user_id, Player.first_seen_at)
+                           .where(Player.user_id.in_(ids_of(db, main_user_id)))).all())
+    if main_user_id in seen and (earliest := min(seen.values())) < seen[main_user_id]:
+        db.execute(update(Player).where(Player.user_id == main_user_id).values(first_seen_at=earliest))
 
 
 def _touch_main_player(db: Session, main_pid: int, rows) -> None:

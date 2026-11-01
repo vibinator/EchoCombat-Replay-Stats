@@ -1,3 +1,4 @@
+import os
 import threading
 from contextlib import asynccontextmanager
 
@@ -31,7 +32,9 @@ class SinglePageApp(StaticFiles):
             return await super().get_response(path, scope)
         except HTTPException as e:
             # only page routes (/matches/12) fall back to index.html; a missing file (/x.txt, /a.echoreplay) stays a 404
-            if e.status_code != 404 or path.startswith("api") or "." in path.rsplit("/", 1)[-1]:
+            # `path` uses the OS separator (backslashes on Windows): basename, so a dot in an earlier segment (a player
+            # name in /players/<name>/<id>) does not make it look like a file
+            if e.status_code != 404 or path.startswith("api") or "." in os.path.basename(path):
                 raise
             return await super().get_response("index.html", scope)
 

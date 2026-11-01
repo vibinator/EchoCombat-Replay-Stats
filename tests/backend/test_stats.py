@@ -77,7 +77,7 @@ def scripted_match() -> list[dict]:
     for i in range(100):
         blue = rf.player()
         out = 40 <= i < 60
-        blue["head"] = _pose((200.0, 0.0, 0.0) if out else (0.0, 0.0, 0.0))
+        blue["head"] = _pose((200.0, 0.0, 0.0) if out else (0.5, 0.0, 0.0))  # not exactly 0: the load-in spot
         blue["body"] = _pose((0.0, 0.0, 0.0), up=(0.0, -1.0, 0.0) if 60 <= i < 80 else (0.0, 1.0, 0.0))
         blue["velocity"] = [3.0, 0.0, 4.0] if i < 40 else [0.0, 0.0, 0.0]
         if i >= 60:
@@ -124,7 +124,7 @@ def test_timeline_events(tmp_path):
         ("loadout_change", 60),
     ]
     death = next(e for e in events if e.type == "death_est")
-    assert death.data == {"x": 0.0, "z": 0.0} and death.team == "blue"
+    assert death.data == {"x": 0.5, "z": 0.0} and death.team == "blue"
     assert death.t_s == pytest.approx(2.0)
     won = next(e for e in events if e.type == "round_won")
     assert won.team == "blue" and won.data == {"blue": 1, "orange": 0}
@@ -158,7 +158,71 @@ def test_saved_rows_include_loadouts_and_events(tmp_path):
         with client.app.state.sessionmaker() as db:
             assert db.scalar(select(func.count()).select_from(MatchPlayerLoadout)) == 3
             death = db.scalar(select(Event).where(Event.type == "death_est"))
-            assert death.player_id is not None and json.loads(death.data) == {"x": 0.0, "z": 0.0}
+            assert death.player_id is not None and json.loads(death.data) == {"x": 0.5, "z": 0.0}
+
+
+MAP_CODES = {"dyson": "mpl_combat_dyson", "surge": "mpl_combat_gauss", "fission": "mpl_combat_fission",
+             "combustion": "mpl_combat_combustion"}
+
+
+def load_in_match(join_at: int = 0, n: int = 120, map_code: str = "mpl_combat_dyson") -> list[dict]:
+    """The real load-in sequence (measured 2026-11-01): blue appears at exactly (0, 0, 0) for 20 frames, is
+    teleported to the war room (out of bounds) for 20, enters the arena, then really dies at frame 100.
+    `join_at` > 0: blue joins mid-game (capture already above 0 %)."""
+    frames = []
+    for i in range(n):
+        orange = rf.player(42, "Other", 1)
+        orange["head"] = _pose((0.4, 0.0, 0.3))  # parked next to the load-in spot: would be "near" it
+        players = {"orange": [orange], "blue": []}
+        k = i - join_at
+        if k >= 0:
+            blue = rf.player()
+            pos = ((0.0, 0.0, 0.0) if k < 20 else (-158.49, -7.97, 202.76) if k < 40
+                   else (200.0, 0.0, 0.0) if i >= 100 else (5.0, 1.0, 5.0))
+            blue["head"] = _pose(pos)
+            players["blue"].append(blue)
+        frame = rf.frame(teams=[{"players": players["blue"]}, {"players": players["orange"]}, {}],
+                         blue_points=30.0 if join_at else 0.0)
+        frame["map_name"] = map_code
+        frames.append(frame)
+    return frames
+
+
+@pytest.mark.parametrize("map_", list(MAP_CODES))
+@pytest.mark.parametrize("join_at", [0, 30])
+def test_load_in_teleport_is_not_a_death(tmp_path, map_, join_at):
+    """On every map, at game start and on a mid-game join alike: only the real death counts; the load-in frames are
+    not in-bounds time (no stopped / near-enemy frames at the spot) and are absent in the position tracks."""
+    from backend.stats.maps import load_in_spot
+    from backend.tracks import TrackRecorder
+
+    path = tmp_path / "r.echoreplay"
+    path.write_bytes(rf.plain(rf.lines_from(load_in_match(join_at, map_code=MAP_CODES[map_]))))
+    replay = open_replay(path)
+    recorder = TrackRecorder(replay.meta.started_at, load_in_spot(replay.meta.map_code))
+    s = compute(replay.meta, replay.frames(), recorder)
+    blue = next(p for p in s.players if p.team == "blue")
+    assert blue.deaths_est == 1
+    assert [(e.type, e.frame - join_at) for e in s.events if e.user_id == blue.user_id and e.type in
+            ("death_est", "respawn")] == [("respawn", 40), ("death_est", 100 - join_at)]
+    assert blue.frames_in_bounds == 100 - join_at - 40  # arena frames only
+    assert blue.frames_near_enemy == 0  # never counted while parked beside orange at the load-in spot
+    assert s.map == map_
+    track = next(t for t in recorder.result().players if t.user_id == blue.user_id)
+    assert all(not (x == 0.0 and z == 0.0) for x, z in zip(track.x, track.z) if x is not None)
+
+
+def test_unknown_map_has_no_load_in_rule(tmp_path):
+    """A map not in LOAD_IN_SPOTS keeps the old behaviour until its spot is measured (unknown maps have no bounds
+    either, so every frame counts as in bounds)."""
+    from backend.stats.maps import LOAD_IN_SPOTS, load_in_spot
+
+    assert set(LOAD_IN_SPOTS) == set(MAP_CODES) and load_in_spot("mpl_combat_new") is None
+    path = tmp_path / "r.echoreplay"
+    path.write_bytes(rf.plain(rf.lines_from(load_in_match(map_code="mpl_combat_new"))))
+    replay = open_replay(path)
+    blue = next(p for p in compute(replay.meta, replay.frames()).players if p.team == "blue")
+    assert blue.frames_in_bounds == 120  # the load-in frames included
 
 
 def test_reprocess_replaces_match(tmp_path):

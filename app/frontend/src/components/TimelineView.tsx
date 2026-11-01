@@ -1,7 +1,7 @@
 import { useMemo, useState, type MouseEvent } from "react";
 import { Link } from "react-router";
 import type { Timeline } from "../api";
-import { duration } from "../format";
+import { duration, playerPath } from "../format";
 
 // Chart-mark versions of the team colours, validated for the dark chart surface (dataviz validator).
 const SERIES = {
@@ -349,7 +349,7 @@ export function TimelineView({ timeline }: { timeline: Timeline }) {
                   <td>
                     <span className={e.team ? `dot ${e.team}` : "dot none"} /> {EVENT_ICONS[e.type] ?? ""} {EVENT_LABELS[e.type] ?? e.type}
                   </td>
-                  <td>{e.user_id ? <Link to={`/players/${e.user_id}`}>{e.name}</Link> : e.team ? `${e.team} team` : "–"}</td>
+                  <td>{e.user_id ? <Link to={playerPath(e.user_id, e.name)}>{e.name}</Link> : e.team ? `${e.team} team` : "–"}</td>
                   <td className="muted">{describe(e.type, e.data)}</td>
                 </tr>
               ))}

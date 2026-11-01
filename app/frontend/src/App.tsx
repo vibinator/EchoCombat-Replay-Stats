@@ -168,6 +168,7 @@ function Layout() {
           <Route path="/matches/:id" element={<MatchPage />} />
           <Route path="/players" element={<PlayersPage />} />
           <Route path="/players/:userId" element={<PlayerPage />} />
+          <Route path="/players/:name/:userId" element={<PlayerPage />} />
           <Route path="/compare" element={<ComparePage />} />
           <Route path="/leaderboard" element={<LeaderboardPage />} />
           <Route path="/achievements" element={<AchievementsPage />} />

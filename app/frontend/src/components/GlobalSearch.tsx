@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { useNavigate } from "react-router";
 import { search, type SearchResult } from "../api";
-import { dateTime, title } from "../format";
+import { dateTime, playerPath, title } from "../format";
 
 /** Top-bar search: players by name, or a match by "#id". Press "/" anywhere to focus it. */
 export function GlobalSearch() {
@@ -44,7 +44,7 @@ export function GlobalSearch() {
 
   const options = [
     ...(result?.matches ?? []).map((m) => ({ key: `m${m.id}`, label: `Match #${m.id} · ${title(m.map)} · ${dateTime(m.started_at)}`, to: `/matches/${m.id}` })),
-    ...(result?.players ?? []).map((p) => ({ key: p.user_id, label: `${p.name} · ${p.games} games`, to: `/players/${p.user_id}` })),
+    ...(result?.players ?? []).map((p) => ({ key: p.user_id, label: `${p.name} · ${p.games} games`, to: playerPath(p.user_id, p.name) })),
   ];
 
   function go(to: string) {

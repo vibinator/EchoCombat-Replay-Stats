@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { CONSOLE_ACHIEVEMENTS_CSV, forgetResponses, getConsoleAchievements, getMe, loginUrl, runConsole } from "../api";
+import { CONSOLE_ACHIEVEMENTS_CSV, forgetResponses, getConsoleAchievements, getMe, getMergeSuggestions, loginUrl, runConsole } from "../api";
+import { playerPath } from "../format";
 import { Status, TableWrap } from "../components/common";
 import { EmptyState } from "../components/ui";
 import { GENERIC_ICON, IconEditor, IMG } from "../components/IconEditor";
@@ -328,6 +329,15 @@ function Console() {
               </div>
             </form>
           )}
+          {selected.name === "merge" && (
+            <MergeSuggestions
+              version={results.length}
+              onUse={(keep, others) => {
+                setValues({ main: keep, others: others.join("\n") });
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
+            />
+          )}
           {results.length > 0 && (
             <div className="section-head">
               <h2>Results</h2>
@@ -349,6 +359,89 @@ function Console() {
         </div>
       </div>
     </section>
+  );
+}
+
+/** Player records that used the same name, as candidates for the merge form above. Only suggestions: "Use" fills in
+ * the form, the merge itself still needs Run and its confirmation. Reloaded after every command (`version`). */
+function MergeSuggestions({ version, onUse }: { version: number; onUse: (keep: string, others: string[]) => void }) {
+  const list = useApi(getMergeSuggestions, `merge-suggestions-${version}`);
+  const [q, setQ] = useState("");
+  const term = q.trim().toLowerCase();
+  const groups = (list.data ?? []).filter(
+    (g) => !term || g.players.some((p) => `${p.name} ${p.user_id} ${p.names.join(" ")}`.toLowerCase().includes(term)),
+  );
+
+  return (
+    <div className="panel console-form merge-suggestions">
+      <h2>Suggestions</h2>
+      <p className="muted">
+        Player records that used the same name (ignoring case and punctuation, including names used earlier). Check before merging: two
+        people can share a name. Records that played in the same match are flagged and listed last.
+      </p>
+      <input type="search" placeholder="Filter by name or id" aria-label="Filter suggestions" value={q} onChange={(e) => setQ(e.target.value)} />
+      <Status loading={list.loading && !list.data} error={list.error} />
+      {list.data && (
+        <p className="muted">
+          {groups.length === list.data.length ? `${groups.length} suggestions` : `${groups.length} of ${list.data.length} suggestions`}
+        </p>
+      )}
+      {list.data?.length === 0 && <p className="muted">No records share a name.</p>}
+      {groups.map((g) => {
+        const others = g.players.filter((p) => p.user_id !== g.keep).map((p) => p.user_id);
+        return (
+          <article key={g.players.map((p) => p.user_id).join(",")} className="merge-suggestion">
+            <header>
+              <strong>{g.name}</strong>
+              <span className="tag">{g.exact ? "Same name" : "Similar name"}</span>
+              {g.played_together > 0 && (
+                <span className="tag error" title="Two of these records were in the same match: probably different people">
+                  Played together in {g.played_together} match{g.played_together === 1 ? "" : "es"}
+                </span>
+              )}
+              <button type="button" className="secondary" onClick={() => onUse(g.keep, others)}>
+                Use
+              </button>
+            </header>
+            <TableWrap>
+              <table className="stack">
+                <thead>
+                  <tr>
+                    <th>Player</th>
+                    <th>Id</th>
+                    <th className="num">Games</th>
+                    <th>Seen</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {g.players.map((p) => (
+                    <tr key={p.user_id}>
+                      <td data-label="Player">
+                        <a href={playerPath(p.user_id, p.name)} target="_blank" rel="noopener noreferrer">
+                          {p.name}
+                        </a>
+                        {p.user_id === g.keep && <span className="tag">keep</span>}
+                        {p.merged_ids > 0 && <span className="muted"> +{p.merged_ids} merged</span>}
+                        {p.names.length > 0 && <div className="muted">also: {p.names.join(", ")}</div>}
+                      </td>
+                      <td data-label="Id">
+                        <code>{p.user_id}</code>
+                      </td>
+                      <td data-label="Games" className="num">
+                        {p.games.toLocaleString()}
+                      </td>
+                      <td data-label="Seen">
+                        {p.first_seen_at.slice(0, 10)} – {p.last_seen_at.slice(0, 10)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </TableWrap>
+          </article>
+        );
+      })}
+    </div>
   );
 }
 

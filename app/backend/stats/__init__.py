@@ -4,12 +4,12 @@ from collections.abc import Iterable
 
 from parser import Frame, ReplayMeta
 
-from .maps import BOUNDS, MAP_MODES, map_name
+from .maps import BOUNDS, LOAD_IN_SPOTS, MAP_MODES, map_name
 from .payload import PayloadAccumulator
 from .player import PlayerAccumulator
 from .results import EventRecord, MatchStats, PlayerStats
 
-STATS_VERSION = "7"
+STATS_VERSION = "8"  # 8: the map's load-in spot (maps.LOAD_IN_SPOTS) is no longer a death, in-bounds time or track sample
 
 MAX_FRAME_GAP_S = 1.0  # cap per-frame time credit so a recording gap does not count as play time
 
@@ -52,6 +52,7 @@ def compute(meta: ReplayMeta, frames: Iterable[Frame], recorder=None) -> MatchSt
     """`recorder` (backend.tracks.TrackRecorder) optionally collects 2 Hz position tracks."""
     name = map_name(meta.map_code)
     bounds = BOUNDS.get(name)
+    load_in = LOAD_IN_SPOTS.get(name)
     events: list[EventRecord] = []
     match_events = _MatchEvents(meta, events)
     payload = PayloadAccumulator()
@@ -80,7 +81,7 @@ def compute(meta: ReplayMeta, frames: Iterable[Frame], recorder=None) -> MatchSt
             for p in own:
                 acc = players.get(p.user_id)
                 if acc is None:
-                    acc = players[p.user_id] = PlayerAccumulator(p.user_id, bounds, meta.started_at, events)
+                    acc = players[p.user_id] = PlayerAccumulator(p.user_id, bounds, meta.started_at, events, load_in)
                     if frame.index > 0:
                         acc.team = team
                         acc.event(frame, "player_join")

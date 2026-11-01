@@ -124,6 +124,45 @@ def test_heatmap_resolution(client):
     assert player["matches"] == 2 and player["cell_m"] == 0.5
 
 
+def _png_info(url: str) -> tuple[int, int, bytes]:
+    import base64
+    import struct
+    import zlib
+
+    assert url.startswith("data:image/png;base64,")
+    png = base64.b64decode(url.split(",", 1)[1])
+    assert png[:8] == b"\x89PNG\r\n\x1a\n"
+    width, height, depth, color = struct.unpack(">IIBB", png[16:26])
+    assert (depth, color) == (8, 6)  # 8-bit RGBA
+    idat_len = struct.unpack(">I", png[33:37])[0]
+    return width, height, zlib.decompress(png[41:41 + idat_len])
+
+
+def test_match_thumbnails(client):
+    from backend import heatmaps
+    from backend.stats.maps import HEATMAP_LAYOUTS
+
+    a, b = mid(client, "dyson/a.echoreplay"), mid(client, "dyson/b.echoreplay")
+    r = client.get("/api/matches/thumbnails", params={"ids": f"{b},{a},{a},999999"})
+    assert r.status_code == 200
+    thumbs = r.json()["thumbnails"]
+    assert set(thumbs) == {str(a), str(b)}  # unknown ids left out, duplicates once
+    width, height, raw = _png_info(thumbs[str(a)])
+    assert (width, height) == heatmaps.grid_size(HEATMAP_LAYOUTS["dyson"], heatmaps.THUMB_CELL_M)
+    pixels = [raw[row * (width * 4 + 1) + 1:(row + 1) * (width * 4 + 1)] for row in range(height)]
+    painted = [px[i:i + 4] for px in pixels for i in range(0, len(px), 4) if px[i + 3]]
+    assert painted and all(p[3] >= 0.25 * 255 - 1 for p in painted)  # mostly transparent, heat at least 25 % opaque
+    assert any(tuple(p[:3]) == heatmaps.TEAM_RGB["blue"] for p in painted)
+    assert any(tuple(p[:3]) == heatmaps.TEAM_RGB["orange"] for p in painted)
+
+
+def test_match_thumbnails_limits(client):
+    assert client.get("/api/matches/thumbnails").status_code == 422
+    assert client.get("/api/matches/thumbnails", params={"ids": "1,x"}).status_code == 422
+    many = ",".join(str(i) for i in range(1, 50))
+    assert client.get("/api/matches/thumbnails", params={"ids": many}).json()["error_code"] == "too_many"
+
+
 def test_playback(client):
     p = client.get(f"/api/matches/{mid(client, 'dyson/a.echoreplay')}/playback").json()
     assert p["hz"] == 2 and p["samples"] == 8 and p["image"] == "/minimaps/dyson.png"  # 80 frames = 4 s

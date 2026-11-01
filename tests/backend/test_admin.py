@@ -141,6 +141,56 @@ def test_alias_and_main_in_same_match_stay_separate(client):
     assert {p["name"] for t in players.values() for p in t} == {"Main", "Alt"}  # nobody dropped
 
 
+def test_merge_keeps_the_earliest_first_seen(client):
+    """Merging an older account into a newer main one keeps the older first-seen date: from the moved matches, and
+    from the account's own record when the match that set it is no longer stored (a removed replay keeps players)."""
+    from backend import persist
+
+    later = rf.START + timedelta(days=30)
+    add(client, {"dyson/4.echoreplay": match([rf.player(500, "New")], [rf.player(300, "Mate", 1)], start=later),
+                 "dyson/5.echoreplay": match([rf.player(600, "Old")], [rf.player(300, "Mate", 1)],
+                                             start=later - timedelta(days=10)),
+                 "dyson/6.echoreplay": match([rf.player(600, "Old")], [rf.player(300, "Mate", 1)],
+                                             start=later - timedelta(days=20))})
+    oldest = client.get("/api/players/600").json()["first_seen_at"]  # set by dyson/6
+    assert oldest < client.get("/api/players/500").json()["first_seen_at"]
+    with client.app.state.sessionmaker() as db:
+        persist.delete_match(db, replay_by_path(client, "dyson/6.echoreplay")["id"])
+        db.commit()
+
+    act(client, actions.merge_players, "500", ["600"])  # newer main, older alt
+    wait(client)
+    merged = client.get("/api/players/500").json()
+    assert merged["first_seen_at"] == oldest
+    assert merged["stats"]["games"] == 2  # dyson/4 + dyson/5 (dyson/6 is no longer stored)
+
+
+def test_merge_suggestions(client):
+    """Same name ignoring case / punctuation (also an earlier name), never an already merged id; ids that played
+    together are flagged and listed last; the player with the most games is suggested as the one to keep."""
+    from backend.merge_suggestions import suggestions
+
+    add(client, {
+        "dyson/4.echoreplay": match([rf.player(400, "main")], [rf.player(300, "Mate", 1)]),  # "Main", other case
+        "dyson/5.echoreplay": match([rf.player(500, "Mate-")], [rf.player(300, "Mate", 1)]),  # played with 300
+        "dyson/6.echoreplay": match([rf.player(600, "Al")], [rf.player(300, "Mate", 1)]),  # too short to suggest
+    })
+    with client.app.state.sessionmaker() as db:
+        groups = {frozenset(p["user_id"] for p in g["players"]): g for g in suggestions(db)}
+    assert set(groups) == {frozenset({"100", "400"}), frozenset({"300", "500"})}
+    main = groups[frozenset({"100", "400"})]
+    assert (main["keep"], main["exact"], main["played_together"]) == ("100", False, 0)  # 100 has 2 games
+    mate = groups[frozenset({"300", "500"})]
+    assert mate["played_together"] == 1 and mate["keep"] == "300"
+    with client.app.state.sessionmaker() as db:
+        assert [g["played_together"] for g in suggestions(db)] == [0, 1]  # flagged last
+
+    act(client, actions.merge_players, "100", ["400"])
+    wait(client)
+    with client.app.state.sessionmaker() as db:
+        assert [sorted(p["user_id"] for p in g["players"]) for g in suggestions(db)] == [["300", "500"]]
+
+
 def test_merge_validation(client):
     with pytest.raises(actions.AdminError, match="at least one"):
         act(client, actions.merge_players, "100", ["100"])

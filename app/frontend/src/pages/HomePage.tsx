@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
-import { getActivity, getLastMatch, getOverview, getPlayersSeen, type GearShare, type PlayersSeen } from "../api";
+import { getActivity, getLastMatch, getOverview, getPlayersSeen, type GearShare, type MatchSummary, type PlayersSeen } from "../api";
 import { BarChart, StackedBarChart } from "../components/charts";
 import { MatchCards } from "../components/MatchCards";
 import { PlayerSearch } from "../components/PlayerSearch";
 import { EmptyState, FitText, Skeleton } from "../components/ui";
 import { GearLabel, Status } from "../components/common";
-import { MAPS, dateTime, duration, num, pct, periodLabel, title } from "../format";
+import { MAPS, dateTime, duration, modeLabel, num, pct, periodLabel, playerPath, scoreText, title } from "../format";
 import { useApi, useWhileVisible } from "../useApi";
 
 function GearTop({ label, items }: { label: string; items: GearShare[] }) {
@@ -179,6 +179,17 @@ const TICK_MS = 20_000;
  * match time is asked separately because the overview is rebuilt only every few minutes (and then refreshed too).
  * While the spectator bot is live on Twitch a game is being played: a "Game in progress" card appears beside it
  * (none at all otherwise, user 2026-11-01). */
+/** Map of the newest match, linking to it; mode and score underneath. */
+function RecentlyPlayedCard({ latest }: { latest: MatchSummary | undefined }) {
+  return (
+    <div className="card">
+      <span className="label">Recently played</span>
+      <strong>{latest ? <Link to={`/matches/${latest.id}`}>{title(latest.map)}</Link> : "–"}</strong>
+      {latest && <span className="muted">{modeLabel(latest.mode)} · {scoreText(latest)}</span>}
+    </div>
+  );
+}
+
 function LastMatchCard({ fromOverview }: { fromOverview: string | null }) {
   const [live, setLive] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
@@ -252,11 +263,7 @@ export function HomePage() {
                 <div className="card"><span className="label">Matches today</span><strong>{o.today.toLocaleString()}</strong></div>
                 <div className="card"><span className="label">This week</span><strong>{o.this_week.toLocaleString()}</strong></div>
                 <LastMatchCard fromOverview={o.last_match_at} />
-                <div className="card">
-                  <span className="label">Most played map</span>
-                  <strong>{o.most_played_map ? <Link to={`/matches?map=${o.most_played_map}`}>{title(o.most_played_map)}</Link> : "–"}</strong>
-                  {o.most_played_map && <span className="muted">{pct(o.by_map[o.most_played_map] / o.matches)} of matches</span>}
-                </div>
+                <RecentlyPlayedCard latest={o.latest[0]} />
               </div>
 
               <div className="section-head">
@@ -290,7 +297,7 @@ export function HomePage() {
                         <li key={p.user_id} className={`active-row place-${i + 1}`}>
                           <span className="active-rank">{i + 1}</span>
                           <div className="active-main">
-                            <Link to={`/players/${p.user_id}`} className="active-name">{p.name}</Link>
+                            <Link to={playerPath(p.user_id, p.name)} className="active-name">{p.name}</Link>
                             <div className="active-bar" aria-hidden="true">
                               <div style={{ width: `${(p.games / o.top_this_week[0].games) * 100}%` }} />
                             </div>
@@ -353,12 +360,12 @@ export function HomePage() {
                 <div className="card" title="Estimated from players leaving the play area"><span className="label">Deaths (est.)</span><strong>{g.deaths_est.toLocaleString()}</strong></div>
                 <div className="card">
                   <span className="label">Fastest player</span>
-                  <strong>{g.fastest ? <FitText title={g.fastest.name}><Link to={`/players/${g.fastest.user_id}`}>{g.fastest.name}</Link></FitText> : "–"}</strong>
+                  <strong>{g.fastest ? <FitText title={g.fastest.name}><Link to={playerPath(g.fastest.user_id, g.fastest.name)}>{g.fastest.name}</Link></FitText> : "–"}</strong>
                   {g.fastest && <span className="muted">{num(g.fastest.top_speed)} m/s</span>}
                 </div>
                 <div className="card">
                   <span className="label">Most matches</span>
-                  <strong>{g.most_active ? <FitText title={g.most_active.name}><Link to={`/players/${g.most_active.user_id}`}>{g.most_active.name}</Link></FitText> : "–"}</strong>
+                  <strong>{g.most_active ? <FitText title={g.most_active.name}><Link to={playerPath(g.most_active.user_id, g.most_active.name)}>{g.most_active.name}</Link></FitText> : "–"}</strong>
                   {g.most_active && <span className="muted">{g.most_active.games.toLocaleString()} matches</span>}
                 </div>
                 <div className="card">

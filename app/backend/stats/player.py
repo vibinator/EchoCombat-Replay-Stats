@@ -1,13 +1,15 @@
 """Per-player accumulator. Rules follow the old app (ReplayData.MD): ping over all frames (except the 999 placeholder),
-everything else over in-bounds frames only; a death is an in-bounds -> out-of-bounds step."""
+everything else over in-bounds frames only; a death is an in-bounds -> out-of-bounds step. Frames at the load-in
+spot (maps.LOAD_IN_SPOTS, per map) are neither: leaving it for the war room is not a death."""
 
 import math
 from collections import Counter, deque
 from datetime import datetime
 
 from parser import Frame, PlayerFrame
+from parser.models import Vec3
 
-from .maps import Bounds, in_bounds
+from .maps import Bounds, in_bounds, is_load_in
 from .results import EventRecord, PlayerStats
 
 LEFT_EARLY_S = 45.0  # last seen more than 45 s before the end (old "crashed")
@@ -18,9 +20,11 @@ TOP_SPEED_WINDOW_S = 1.0  # top speed = highest speed held for a full window
 
 
 class PlayerAccumulator:
-    def __init__(self, user_id: str, bounds: Bounds | None, started_at: datetime, events: list[EventRecord]):
+    def __init__(self, user_id: str, bounds: Bounds | None, started_at: datetime, events: list[EventRecord],
+                 load_in: Vec3 | None = None):
         self.user_id = user_id
         self.bounds = bounds  # None for unknown maps: every frame counts as in bounds, no deaths
+        self.load_in = load_in  # this map's load-in spot (maps.LOAD_IN_SPOTS); None: no load-in rule
         self.started_at = started_at
         self.events = events
         self.first_frame = self.last_frame = -1
@@ -77,13 +81,14 @@ class PlayerAccumulator:
             self.ping_sum += p.ping
             self.ping_frames += 1
 
-        inside = self.bounds is None or in_bounds(p.head_position, self.bounds)
+        loading_in = is_load_in(p.head_position, self.load_in)  # parked at the load-in spot: neither in nor out
+        inside = not loading_in and (self.bounds is None or in_bounds(p.head_position, self.bounds))
         if inside:
             if self._was_in_bounds is False:
                 self.event(frame, "respawn")
             self._last_in_bounds_position = p.head_position
             self._add_in_bounds(frame, p, teammates, enemies)
-        elif self._was_in_bounds:
+        elif self._was_in_bounds and not loading_in:
             self.deaths += 1
             x, _, z = self._last_in_bounds_position
             self.event(frame, "death_est", {"x": round(x, 2), "z": round(z, 2)})
