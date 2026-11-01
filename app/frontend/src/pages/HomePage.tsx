@@ -5,7 +5,7 @@ import { BarChart, StackedBarChart } from "../components/charts";
 import { MatchCards } from "../components/MatchCards";
 import { PlayerSearch } from "../components/PlayerSearch";
 import { EmptyState, FitText, Skeleton } from "../components/ui";
-import { Status } from "../components/common";
+import { GearLabel, Status } from "../components/common";
 import { MAPS, dateTime, duration, num, pct, periodLabel, title } from "../format";
 import { useApi, useWhileVisible } from "../useApi";
 
@@ -18,14 +18,14 @@ function GearTop({ label, items }: { label: string; items: GearShare[] }) {
       ) : (
         <>
           <strong>
-            {items[0].name}
+            <GearLabel name={items[0].name} />
             {items[0].cut && <sup className="cut">cut</sup>}
           </strong>
           <span className="muted">{pct(items[0].share)} of the time</span>
           <ol className="runner-up muted">
             {items.slice(1).map((g) => (
               <li key={g.code}>
-                {g.name} {pct(g.share)}
+                <GearLabel name={g.name} /> {pct(g.share)}
               </li>
             ))}
           </ol>

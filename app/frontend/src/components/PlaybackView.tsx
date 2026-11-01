@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MatchEvent, Playback } from "../api";
 import { duration, num } from "../format";
+import { GearLabel } from "./common";
 
 const TEAM_COLORS = ["", "#19d9fc", "#ea7924"];
 const SPEEDS = [0.5, 1, 2, 4, 8, 16];
@@ -77,6 +78,22 @@ function loadoutAt(p: Player, gear: Playback["gear"], i: number): [string, strin
 
 function swapText(e: MatchEvent): string {
   return [e.data?.weapon, e.data?.ordnance, e.data?.tacmod].filter(Boolean).join(" · ");
+}
+
+/** Feed line for a loadout swap, with gear icons next to the names. */
+function SwapLabel({ e }: { e: MatchEvent }) {
+  const parts = [e.data?.weapon, e.data?.ordnance, e.data?.tacmod].filter(Boolean).map(String);
+  return (
+    <>
+      {e.name ?? "Player"} switched to{" "}
+      {parts.map((g, k) => (
+        <span key={k}>
+          {k > 0 && " · "}
+          <GearLabel name={g} />
+        </span>
+      ))}
+    </>
+  );
 }
 
 function eventLabel(e: MatchEvent): string {
@@ -609,7 +626,7 @@ export function PlaybackView({ playback, clock, compact = false, label }: { play
                     title="Click to highlight this player"
                   >
                     <span className="pb-name">{died && <img className="pb-skull" src="/icons/death.png" alt="died" />}{p.name}</span>
-                    <span className="pb-gear">{here ? `${weapon} · ${ordnance} · ${tacmod}` : "off the map / left"}</span>
+                    <span className="pb-gear">{here ? <><GearLabel name={weapon} /> · {ordnance} · {tacmod}</> : "off the map / left"}</span>
                     <span className="pb-nums">
                       {here && sp != null ? `${num(sp, 1)} m/s` : "–"}
                       {killsDeaths > 0 && ` · ${killsDeaths} death${killsDeaths === 1 ? "" : "s"}*`}
@@ -627,7 +644,7 @@ export function PlaybackView({ playback, clock, compact = false, label }: { play
         {recent.map((e, k) => (
           <li key={`${e.frame}-${e.type}-${k}`} className={e.type === "death_est" ? "death" : e.type === "loadout_change" ? "swap" : ""}>
             <span className="muted">{duration(e.t_s)}</span>{" "}
-            {e.type === "death_est" ? <img className="pb-skull" src="/icons/death.png" alt="" /> : e.type === "loadout_change" ? <span>⇄</span> : e.team && <span className={`dot ${e.team}`} />} {eventLabel(e)}
+            {e.type === "death_est" ? <img className="pb-skull" src="/icons/death.png" alt="" /> : e.type === "loadout_change" ? <span>⇄</span> : e.team && <span className={`dot ${e.team}`} />} {e.type === "loadout_change" ? <SwapLabel e={e} /> : eventLabel(e)}
           </li>
         ))}
       </ul>

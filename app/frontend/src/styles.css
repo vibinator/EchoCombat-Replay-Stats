@@ -442,6 +442,21 @@ td.num {
   white-space: nowrap;
 }
 
+/* Inline gear icon: sized to the surrounding text so it scales with every font size it sits in. */
+.gear-label {
+  white-space: nowrap;
+}
+.gear-icon {
+  display: inline-block;
+  width: 1.1em;
+  height: 1.1em;
+  margin-right: 0.25em;
+  vertical-align: -0.2em;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+}
+
 /* loadouts: rank, then a bar scaled to the most used loadout with the percentage beside it */
 .loadouts td.rank {
   width: 2rem;

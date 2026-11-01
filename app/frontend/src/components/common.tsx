@@ -34,10 +34,33 @@ export function TeamBadge({ team }: { team: Team | null }) {
   return team ? <span className={`team-badge ${team}`}>{teamLabel(team)}</span> : <span className="muted">–</span>;
 }
 
+/** In-game gear name -> small inline icon (public/icons). Add more names here as icons arrive. */
+const GEAR_ICONS: Record<string, string> = {
+  Comet: "/icons/comet.webp",
+};
+
+/** Decorative icon shown before a gear name; renders nothing for gear without an icon. */
+export function GearIcon({ name }: { name: string }) {
+  const src = GEAR_ICONS[name];
+  return src ? <img className="gear-icon" src={src} alt="" aria-hidden="true" width={96} height={96} loading="lazy" decoding="async" /> : null;
+}
+
+/** Gear name with its icon (if any), kept on one line. */
+export function GearLabel({ name }: { name: string }) {
+  return GEAR_ICONS[name] ? (
+    <span className="gear-label">
+      <GearIcon name={name} />
+      {name}
+    </span>
+  ) : (
+    <>{name}</>
+  );
+}
+
 export function GearName({ item }: { item: GearItem }) {
   return (
     <span title={item.cut ? `${item.code} — cut / unreleased gear` : item.code}>
-      {item.name}
+      <GearLabel name={item.name} />
       {item.cut && <sup className="cut">cut</sup>}
     </span>
   );
