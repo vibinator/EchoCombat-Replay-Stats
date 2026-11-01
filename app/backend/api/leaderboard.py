@@ -56,9 +56,9 @@ def _aggregate(where):
     )
 
 
-def _values(db, request, stat, period, map, private, weapon, tacmod, ordnance, shift_days: int = 0):
-    """(label, higher_is_better, [(player_id, games, value)]); shift_days moves the window back
-    (for rank changes): period windows move back one period, all-time stops `shift_days` ago."""
+def _where(period, map, private, shift_days: int = 0):
+    """Match filter; shift_days moves the window back (for rank changes): period windows move back one period,
+    all-time stops `shift_days` ago."""
     conditions = [counted(Match.id)]  # duplicate recordings left out (D13)
     start = period_start(period)
     if shift_days:
@@ -77,7 +77,25 @@ def _values(db, request, stat, period, map, private, weapon, tacmod, ordnance, s
         conditions.append(Match.map == map)
     if private is not None:
         conditions.append(Match.private_match == private)
-    where = and_(True, *conditions)
+    return and_(True, *conditions)
+
+
+def _aggregate_rows(db, request, period, map, private, shift_days: int = 0):
+    # one scan computes every stat: keep the rows per filter set so switching the stat (or asking for the rank
+    # change arrows, or the per-player summary columns) does not scan the archive again
+    return cached(request, "leaderboard-aggregate", (period, map, private, shift_days),
+                  lambda: db.execute(_aggregate(_where(period, map, private, shift_days))).all())
+
+
+def _summary(r) -> dict:
+    """Context columns shown beside every leaderboard row, whatever the ranked stat."""
+    return {"wins": r.wins or 0, "losses": r.losses or 0,
+            "win_rate": STATS["win_rate"][2](r), "hours_played": STATS["hours_played"][2](r)}
+
+
+def _values(db, request, stat, period, map, private, weapon, tacmod, ordnance, shift_days: int = 0):
+    """(label, higher_is_better, [(player_id, games, value)]); shift_days as in _where."""
+    where = _where(period, map, private, shift_days)
     if stat == "achievements":
         return "Achievements (overall %)", True, achievement_ranking(request)  # career-wide, not shifted
     if stat == "loadout":
@@ -95,9 +113,7 @@ def _values(db, request, stat, period, map, private, weapon, tacmod, ordnance, s
         ).all()
         return "Loadout time (hours)", True, [(r.player_id, r.games, round((r.seconds or 0) / 3600, 3)) for r in rows]
     label, higher, value_of = STATS[stat]
-    # one scan computes every stat: keep the rows per filter set so switching the stat (or asking for the rank
-    # change arrows) does not scan the archive again
-    rows = cached(request, "leaderboard-aggregate", (period, map, private, shift_days), lambda: db.execute(_aggregate(where)).all())
+    rows = _aggregate_rows(db, request, period, map, private, shift_days)
     return label, higher, [(r.player_id, r.games, value_of(r)) for r in rows]
 
 
@@ -150,10 +166,15 @@ def _leaderboard(request, stat, period, map, private, min_games, weapon, tacmod,
         page = ranking[offset : offset + limit]
         people = {pid: (name, user_id) for pid, name, user_id in
                   db.execute(select(Player.id, Player.name, Player.user_id).where(Player.id.in_([pid for pid, _, _ in page])))}
+        on_page = {pid for pid, _, _ in page}
+        summary = {r.player_id: _summary(r) for r in _aggregate_rows(db, request, period, map, private) if r.player_id in on_page}
 
+    empty = {"wins": None, "losses": None, "win_rate": None, "hours_played": None}
     ranked = [
         {"rank": offset + i + 1, "user_id": people[pid][1], "name": people[pid][0], "games": games, "value": value,
-         "previous_rank": previous.get(pid) if compare else None}
+         "previous_rank": previous.get(pid) if compare else None,
+         # same period / map, all modes and gear: the loadout board's `games` counts only games with that gear
+         **summary.get(pid, empty)}
         for i, (pid, games, value) in enumerate(page)
     ]
     result = {

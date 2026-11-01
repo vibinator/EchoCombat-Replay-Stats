@@ -13,6 +13,14 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 80 — 2026-11-01
+### Leaderboard: wins, losses, win rate and hours on every board
+- The table showed *Games* twice when ranking by games. Every board now shows Games, Wins, Losses, Win rate and
+  Hours played beside the ranked stat; the column that is the ranked stat is not repeated.
+- Podium cards show games, wins and win rate (again leaving out the ranked stat).
+- These columns cover the same period and map as the board, all modes. Payload games have no winner, so they
+  count as games but not as wins or losses.
+
 ## Beta 79 — 2026-11-01
 ### Playback: Fission payload track fixed
 - One measured point of the Fission payload route (metre 160) sat at the end of the track, so once the payload

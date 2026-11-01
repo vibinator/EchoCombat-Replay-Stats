@@ -486,6 +486,11 @@ export interface LeaderboardRow {
   games: number;
   value: number;
   previous_rank: number | null;
+  /** same period / map, all modes and gear; null when the player has no plain match rows */
+  wins: number | null;
+  losses: number | null;
+  win_rate: number | null;
+  hours_played: number | null;
 }
 
 export interface Leaderboard {

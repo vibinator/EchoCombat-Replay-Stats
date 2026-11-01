@@ -188,6 +188,16 @@ def test_leaderboard_rank_change(client):
     assert all("previous_rank" in r for r in board["items"])
 
 
+def test_leaderboard_summary_columns(client):
+    # every row carries wins / losses / win rate / hours beside the ranked stat, whichever stat is ranked
+    for stat in ("games", "avg_speed", "loadout"):
+        board = client.get("/api/leaderboard", params={"stat": stat, "min_games": 1}).json()
+        assert board["items"]
+        for r in board["items"]:
+            assert {"wins", "losses", "win_rate", "hours_played"} <= r.keys()
+            assert r["wins"] is not None and r["hours_played"] is not None
+
+
 def test_import_throughput_and_years(client):
     s = client.get("/api/import").json()
     assert len(s["throughput"]) == 60 and sum(m["replays"] for m in s["throughput"]) == 3

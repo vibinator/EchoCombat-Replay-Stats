@@ -23,6 +23,23 @@ function formatValue(stat: string, value: number): string {
   return value.toLocaleString();
 }
 
+/** Context columns shown on every board; the one matching the ranked stat is left out (it is the value column). */
+const SUMMARY: [keyof LeaderboardRow & string, string][] = [
+  ["games", "Games"],
+  ["wins", "Wins"],
+  ["losses", "Losses"],
+  ["win_rate", "Win rate"],
+  ["hours_played", "Hours played"],
+];
+
+function podiumLine(stat: string, r: LeaderboardRow): string {
+  const parts: string[] = [];
+  if (stat !== "games") parts.push(`${r.games.toLocaleString()} games`);
+  if (stat !== "wins" && r.wins != null) parts.push(`${r.wins.toLocaleString()} wins`);
+  if (stat !== "win_rate" && r.win_rate != null) parts.push(`${pct(r.win_rate)} win rate`);
+  return parts.join(" · ");
+}
+
 export function LeaderboardPage() {
   const [params, setParams] = useSearchParams();
   const stat = params.get("stat") ?? "games";
@@ -55,6 +72,7 @@ export function LeaderboardPage() {
   }
 
   const total = board.data?.total ?? 0;
+  const columns = SUMMARY.filter(([key]) => key !== stat);
 
   return (
     <section>
@@ -141,7 +159,7 @@ export function LeaderboardPage() {
                       <span className="podium-rank">{r.rank}</span>
                       <strong><FitText title={r.name}>{r.name}</FitText></strong>
                       <span>{formatValue(stat, r.value)}</span>
-                      <span className="muted">{r.games} games</span>
+                      <span className="muted">{podiumLine(stat, r)}</span>
                     </Link>
                   );
                 })}
@@ -153,7 +171,7 @@ export function LeaderboardPage() {
                   <tr>
                     <th className="num">#</th>
                     <th>Player</th>
-                    <th className="num">Games</th>
+                    {columns.map(([key, label]) => <th key={key} className="num">{label}</th>)}
                     <th className="num">{board.data.label}</th>
                   </tr>
                 </thead>
@@ -166,7 +184,10 @@ export function LeaderboardPage() {
                       <td data-label="Player">
                         <Link to={playerPath(r.user_id, r.name)}>{r.name}</Link>
                       </td>
-                      <td data-label="Games" className="num">{r.games}</td>
+                      {columns.map(([key, label]) => {
+                        const v = r[key] as number | null;
+                        return <td key={key} data-label={label} className="num">{v == null ? "–" : formatValue(key, v)}</td>;
+                      })}
                       <td data-label={board.data!.label} className="num">{formatValue(stat, r.value)}</td>
                     </tr>
                   ))}
