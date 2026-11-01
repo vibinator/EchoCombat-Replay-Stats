@@ -5,7 +5,7 @@ import {
   type GearUse, type HeatmapLayerMode, type MatchDetail, type MatchPlayer, type Team,
 } from "../api";
 import { GearName, LoadoutText, Status, TableWrap } from "../components/common";
-import { CELL_SIZES, HEATMAP_MODES, HeatmapView } from "../components/HeatmapView";
+import { HEATMAP_CELL_M, HEATMAP_MODES, HeatmapView } from "../components/HeatmapView";
 import { PlaybackCompare, PlaybackView } from "../components/PlaybackView";
 import { TimelineView } from "../components/TimelineView";
 import { FitText, InfoTip, STAT_HELP, Skeleton } from "../components/ui";
@@ -231,7 +231,7 @@ function HeatmapTab({ m }: { m: MatchDetail }) {
   const [params, setParams] = useSearchParams();
   const player = params.get("hm_player") ?? "";
   const mode = (params.get("hm_mode") as HeatmapLayerMode | "player") || "team";
-  const cell = Number(params.get("hm_cell") ?? 0.25);
+  const cell = HEATMAP_CELL_M;
   const h = useApi(() => getMatchHeatmapBy(m.id, mode, cell, player || undefined), `${m.id}|${mode}|${cell}|${player}`);
   const everyone = [...(m.teams.blue ?? []), ...(m.teams.orange ?? [])];
   function set(key: string, value: string, fallback: string) {
@@ -256,14 +256,7 @@ function HeatmapTab({ m }: { m: MatchDetail }) {
             <option value="">All players</option>
             {everyone.map((p) => <option key={p.user_id} value={p.user_id}>{p.name} ({p.team})</option>)}
           </select>
-        </label>
-        <label>
-          Detail
-          <select value={cell} onChange={(e) => set("hm_cell", e.target.value, "0.25")}>
-            {CELL_SIZES.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
-          </select>
-        </label>
-      </div>
+        </label>      </div>
       {h.loading && <Skeleton lines={5} />}
       <Status loading={false} error={h.error} />
       {h.data && <HeatmapView heatmap={h.data} />}

@@ -12,8 +12,9 @@ import numpy as np
 
 from .stats.maps import HEATMAP_LAYOUTS, HeatmapLayout
 
-CELL_M = 0.25  # default; 0.1 (positions are stored to 0.1 m), 0.5 and 1.0 also offered
-CELL_SIZES = (0.1, 0.25, 0.5, 1.0)
+CELL_M = 0.25  # playback position snapping
+HEATMAP_CELL_M = 0.1  # heatmaps: super fine only (positions are stored to 0.1 m)
+CELL_SIZES = (HEATMAP_CELL_M,)
 MAX_STEP_M = 12.0  # > 24 m/s between 0.5 s samples = respawn or teleport: do not draw a line
 NO_GEAR = 255  # tracks.NO_WEAPON
 

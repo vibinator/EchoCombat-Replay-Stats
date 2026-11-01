@@ -368,3 +368,10 @@ def test_missing_loadout_fields_are_not_counted(tmp_path):
     assert player.loadouts == {} and player.frames_in_bounds == 5
     assert (player.frames_left_arm, player.frames_right_arm) == (0, 0)
     assert not [e for e in s.events if e.type == "loadout_change"]
+
+def test_payload_routes_have_no_jumps():
+    # one point per metre of payload distance: neighbours ~1 m apart (a stray point drew a spike in playback)
+    from backend.stats.map_objects import PAYLOAD_ROUTES
+    for name, route in PAYLOAD_ROUTES.items():
+        for i, ((x0, z0), (x1, z1)) in enumerate(zip(route, route[1:])):
+            assert ((x1 - x0) ** 2 + (z1 - z0) ** 2) ** 0.5 < 2.5, f"{name} metre {i}->{i + 1}"

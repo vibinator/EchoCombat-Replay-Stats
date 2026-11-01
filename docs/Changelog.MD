@@ -13,6 +13,17 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## Beta 79 — 2026-11-01
+### Playback: Fission payload track fixed
+- One measured point of the Fission payload route (metre 160) sat at the end of the track, so once the payload
+  passed 160 m the orange progress line shot ahead to the finish and back, and the cart briefly jumped there. The
+  point is corrected; a test now checks every payload route for jumps.
+
+## Beta 78 — 2026-11-01
+### Heatmaps: super fine only
+- Heatmaps on match and player pages are always drawn at **super fine (0.1 m)** detail. The *Detail* picker (fine,
+  medium, coarse) is gone; the API's `cell` parameter now only accepts 0.1.
+
 ## Beta 77 — 2026-11-01
 ### Deaths: loading in no longer counts as a death
 - **A player who loads into a server is parked at exactly (0, 0, 0)**, inside the play area, for ~10-17 s, then

@@ -109,7 +109,7 @@ def test_match_filters_and_cards(client):
 def test_heatmap_modes(client, mode, keys):
     h = client.get(f"/api/matches/{mid(client, 'dyson/a.echoreplay')}/heatmap", params={"mode": mode}).json()
     assert {layer["key"] for layer in h["layers"]} == keys
-    assert h["mode"] == mode and h["cell_m"] == 0.25
+    assert h["mode"] == mode and h["cell_m"] == 0.1
     labels = {layer["key"]: layer["label"] for layer in h["layers"]}
     if mode == "loadout":
         assert labels["rocket|stun|heal"] == "Meteor · Stun Field · Repair Matrix"
@@ -117,11 +117,11 @@ def test_heatmap_modes(client, mode, keys):
 
 def test_heatmap_resolution(client):
     url = f"/api/matches/{mid(client, 'dyson/a.echoreplay')}/heatmap"
-    fine, coarse = client.get(url).json(), client.get(url, params={"cell": 1}).json()
-    assert abs(fine["cols"] - coarse["cols"] * 4) <= 4  # edges round up
-    assert client.get(url, params={"cell": 0.3}).json()["error_code"] == "bad_cell"
-    player = client.get(f"/api/players/{BLUE}/heatmap", params={"map": "dyson", "mode": "loadout", "cell": 0.5}).json()
-    assert player["matches"] == 2 and player["cell_m"] == 0.5
+    assert client.get(url).json()["cell_m"] == 0.1  # super fine is the only resolution
+    for cell in (0.25, 0.5, 1, 0.3):
+        assert client.get(url, params={"cell": cell}).json()["error_code"] == "bad_cell"
+    player = client.get(f"/api/players/{BLUE}/heatmap", params={"map": "dyson", "mode": "loadout"}).json()
+    assert player["matches"] == 2 and player["cell_m"] == 0.1
 
 
 def _png_info(url: str) -> tuple[int, int, bytes]:

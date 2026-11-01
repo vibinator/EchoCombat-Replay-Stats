@@ -256,7 +256,7 @@ def get_player_heatmap(
     mode: str = Query("team", pattern="^(" + "|".join(HEATMAP_MODES) + ")$"),
     period: str = Query("all", pattern="^(" + "|".join(PERIODS) + ")$"),
     last: int = Query(200, ge=1, le=5000, description="most recent N matches"),
-    cell: float = Query(heatmaps.CELL_M, description="cell size in metres: 0.1, 0.25, 0.5 or 1"),
+    cell: float = Query(heatmaps.HEATMAP_CELL_M, description="cell size in metres: 0.1 only"),
 ):
     if cell not in heatmaps.CELL_SIZES:
         raise ApiError(400, "bad_cell", f"cell must be one of {heatmaps.CELL_SIZES}")

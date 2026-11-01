@@ -7,7 +7,7 @@ import {
 import { AchievementsSummary } from "../components/AchievementsView";
 import { LineChart } from "../components/charts";
 import { GearName, MatchTable, Status, TableWrap, TeamBadge } from "../components/common";
-import { CELL_SIZES, HEATMAP_MODES, HeatmapView } from "../components/HeatmapView";
+import { HEATMAP_CELL_M, HEATMAP_MODES, HeatmapView } from "../components/HeatmapView";
 import { InfoTip, Skeleton, WhenVisible } from "../components/ui";
 import { MAPS, dateTime, duration, nameSlug, num, pct, periodLabel, playerPath, title } from "../format";
 import { useApi } from "../useApi";
@@ -234,7 +234,7 @@ function PlayerHeatmap({ userId, period, maps }: { userId: string; period: Perio
   const map = played.includes(params.get("hm_map") ?? "") ? params.get("hm_map")! : played[0] ?? "dyson";
   const mode = (params.get("hm_mode") as HeatmapLayerMode | "deaths") || "team";
   const last = Number(params.get("hm_last") ?? 200);
-  const cell = Number(params.get("hm_cell") ?? 0.25);
+  const cell = HEATMAP_CELL_M;
   const h = useApi(() => getPlayerHeatmapBy(userId, map, mode, period, last, cell), `${userId}|${map}|${mode}|${period}|${last}|${cell}`);
   function set(key: string, value: string, fallback: string) {
     const next = new URLSearchParams(params);
@@ -265,14 +265,7 @@ function PlayerHeatmap({ userId, period, maps }: { userId: string; period: Perio
           <select value={last} onChange={(e) => set("hm_last", e.target.value, "200")}>
             {[20, 50, 200, 1000, 5000].map((n) => <option key={n} value={n}>{n === 5000 ? "All" : `Last ${n}`}</option>)}
           </select>
-        </label>
-        <label>
-          Detail
-          <select value={cell} onChange={(e) => set("hm_cell", e.target.value, "0.25")}>
-            {CELL_SIZES.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
-          </select>
-        </label>
-      </div>
+        </label>      </div>
       {h.loading && <Skeleton lines={5} />}
       <Status loading={false} error={h.error} />
       {h.data && <HeatmapView heatmap={h.data} caption={`${h.data.matches} match${h.data.matches === 1 ? "" : "es"}.`} />}

@@ -27,12 +27,7 @@ export const HEATMAP_MODES: [HeatmapLayerMode, string][] = [
   ["loadout", "Full loadout"],
   ["speed", "Speed"],
 ];
-export const CELL_SIZES: [number, string][] = [
-  [0.1, "Super fine (0.1 m)"],
-  [0.25, "Fine (0.25 m)"],
-  [0.5, "Medium (0.5 m)"],
-  [1, "Coarse (1 m)"],
-];
+export const HEATMAP_CELL_M = 0.1; // super fine; the only heatmap resolution offered
 
 // Per-player layers: shades around the team colour, so the team still reads at a glance.
 const TEAM_SHADES: Record<string, string[]> = {

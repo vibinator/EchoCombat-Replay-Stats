@@ -283,7 +283,7 @@ def get_match_heatmap(
     match_id: int,
     player: str | None = Query(None, description="user_id"),
     mode: str = Query("team", pattern="^(" + "|".join(MATCH_HEATMAP_MODES) + ")$"),
-    cell: float = Query(heatmaps.CELL_M, description="cell size in metres: 0.1, 0.25, 0.5 or 1"),
+    cell: float = Query(heatmaps.HEATMAP_CELL_M, description="cell size in metres: 0.1 only"),
 ):
     """One layer per team, player, weapon, ordnance, tac mod, loadout or speed band; `player` = one player."""
     if cell not in heatmaps.CELL_SIZES:
