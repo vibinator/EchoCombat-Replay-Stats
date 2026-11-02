@@ -110,9 +110,10 @@
 
 ### Phase 2 — 3D track data (backend)
 - **Status:** Done 2026-11-02.
-  - The parser keeps `head.forward` (`PlayerFrame.head_forward`), and `PARSER_VERSION` is now 4, so the first start after the update reprocesses every replay.
-  - `app/backend/tracks3d.py` writes `tracks3d.bin` next to `tracks.bin` from the same single pass over the frames (`Recorders`). It holds 5 Hz head x/y/z (int16 dm), yaw (uint8), pitch (int8 °), team, and the payload cart position per sample in the header.
-  - **Measured on 8 real replays:** 16–118 KB per match, about 4× `tracks.bin`.
+  - The parser keeps `head.forward` and the hand positions (`PlayerFrame.head_forward`, `lhand`, `rhand`). `PARSER_VERSION` stays 3, so **nothing is reprocessed**.
+  - `app/backend/tracks3d.py` writes `tracks3d.bin` next to `tracks.bin` from the same single pass over the frames (`Recorders`). It holds 5 Hz head x/y/z (int16 dm), yaw (uint8), pitch (int8 °), team, hands (format 2), and the payload cart position per sample in the header.
+  - **Low CPU (user, 2026-11-02: "whatever is the most efficient / low CPU usage"):** matches processed before 3D playback get their file **on first view**. The build reads the replay once (no stats) in the worker's below-normal-priority processes, about 1 s per 10-minute match (0.6–1.0 s measured on 71–110 MB replays). There is one build per replay, however many visitors ask, and files in an older format are rebuilt the same way. Only matches someone opens cost anything, instead of a full-archive reprocess.
+  - **Measured on 8 real replays:** 140–210 KB per 10-minute match with hands.
   - Tests in `tests/backend/test_tracks3d.py`.
 - **Goal:** A derived per-match file with everything 3D needs and nothing more.
 - **Tasks:**
@@ -126,7 +127,8 @@
 - **Status:** Done 2026-11-02.
   - `GET /api/matches/{id}/playback3d` returns: map, model URL, play extent, hz, samples, payload cart positions, route / capture point in metres, and per player x/y/z/yaw/pitch/team.
   - It is cached and gzipped like the other match endpoints: 137–159 KB for a 9–12 minute match with 10–12 players.
-  - It answers 404 `no_tracks3d` until a match is reprocessed.
+  - A match without a file gets one built while the request waits (up to 25 s, then 503 `tracks3d_building`). It answers 404 `no_tracks3d` only when the replay cannot be read.
+  - The model URL carries `?v=<release>`, and `/maps3d/` is served `immutable`, so each visitor (and Cloudflare) fetches a map once per release.
   - Documented in `docs/Architecture.MD`; tested in `test_gui_api.py`.
 - **Goal:** `GET /api/matches/{id}/playback3d`.
 - **Tasks:**
@@ -168,7 +170,8 @@
   - **Skulls** appear for 5 s at the player's last 3D position.
   - **Trails** are 3D segments in team or speed colour; respawn jumps are left out.
   - Absent players are hidden, and everything is disposed on unmount.
-  - **Not done:** gear icons inside the 3D labels. The roster beside the map keeps them.
+  - Labels show the icon of the weapon held now.
+  - **Hands** (a toggle, on by default): small spheres in team colour with arms from the shoulders, which show aiming and throwing.
 - **Goal:** Players that are easy to read in 3D.
 - **Tasks:**
   - Draw team-coloured capsules (the site's team colours, not the upstream hex values) with a facing cone.
@@ -231,7 +234,8 @@
   - **Copy link / Copy clip:** "Copy link" copies the current moment; "Copy clip" copies the last 10 s. A clip link stops playback at `until`.
   - **Reduced motion:** the chase camera jumps instead of gliding, and the banner does not animate.
   - **Credit:** ec-web-replayer (MIT) is credited in the 3D footnote.
-  - **Not done:** 3D compare (`?vs=` stays 2D), and a separate settings panel (the existing trail / label / swap toggles and the camera picker cover it).
+  - **3D compare:** `?vs=<match>&view=3d&cam=` shows both matches in 3D on the shared clock, with one camera picker for both.
+  - A separate settings panel was not added: the existing trail / label / swap / hands toggles and the camera picker cover it.
 - **Goal:** Make it worth sending to someone.
 - **Tasks:**
   - Deep links `?view=3d&t=<s>&cam=<mode>&player=<id>`, plus a "copy link at this moment" button.
@@ -242,13 +246,25 @@
   - Credits for ec-web-replayer and the map mesh source on the About page.
 - **Done when:** a pasted link opens at the same moment, camera and player.
 
+## Optional improvements (2026-11-02, after the 10 phases)
+- **Done:**
+  - 3D compare.
+  - Gear icons in the 3D labels.
+  - Hands and arms (tracks format 2).
+  - 3D tracks built on first view instead of a full reprocess.
+  - Map models cached for good.
+- **Not possible yet: better map models.**
+  - The only meshes available are the ec-web-replayer hologram minimaps, which are accurate to about 1 m.
+  - Better geometry needs a new source, for example models exported from the game files, if that were allowed.
+  - Until then, follow and first person keep the see-through map.
+
 ## Open questions
 - **Mesh provenance (Phase 1 finding):** the FBXs were built in Maya by the upstream author, most likely from meshes extracted from the game's hologram minimaps.
-  - Should the public site serve them? The site already serves the old site's minimap images.
-  - **The 3D view now loads them**, so decide before deploying. If the answer is no, delete `app/frontend/public/maps3d/`: the view then shows players over a grid.
+  - **User, 2026-11-02:** "whatever is the most efficient / low CPU usage". So they are kept: they are static files the browser draws, cost the server almost nothing, and are cached for good.
+  - Whether publishing them is acceptable remains the owner's call. Deleting `app/frontend/public/maps3d/` makes the view show players over a grid.
 
 ## Verification (2026-11-02)
-- **Backend:** 277 tests pass (new: `test_tracks3d.py`, `test_playback3d`).
+- **Backend:** 279 tests pass (new: `test_tracks3d.py`, `test_playback3d`, `test_playback3d_built_on_first_view`).
 - **Map meshes:** `app/tools/maps3d/check.mjs` passes on 10 replays per map.
 - **Test site:** a local copy on 4 real replays (one per map, temporary data folder) answered `/playback3d` on every map.
 - **Headless Chrome** (software WebGL), with no console errors:
@@ -256,6 +272,11 @@
   - 2D → 3D → 2D switching works (the 2D canvas redraws);
   - C / 1–0 / Esc and play / pause work;
   - `?t=` and clip `?until=` work.
+- **Optional improvements**, checked on the test site with no console errors:
+  - a missing file was built on first view in 3.5 s, while the import queue was busy;
+  - outdated files were rebuilt;
+  - the model is served with `Cache-Control: immutable`;
+  - hands and weapon icons render, and 3D compare renders both maps.
 - **Not checked:** a real GPU and a phone.
 - **Sample rate and storage:** is 5 Hz enough for first person, or should it be 10 Hz? Measure the `tracks3d.bin` size on real matches before choosing.
 - **Pose:** should hands be added too (`lhand`/`rhand` position)? It roughly triples the storage but would show aiming and throwing.

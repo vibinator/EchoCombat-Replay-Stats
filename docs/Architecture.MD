@@ -92,7 +92,7 @@ All JSON. No upload, delete or replay-download endpoints: replays come only from
 | GET | /api/matches/{id}/timeline | `{hz, duration_s, series{blue_points, orange_points \| payload_distance}, events}`; series empty for old-format replays | 7 |
 | GET | /api/matches/{id}/heatmap | `mode` team / weapons / ordnance / tacmod / loadout / speed, `cell` 0.25 / 0.5 / 1, `player`. 404 `no_tracks` until processed | 7, D35 |
 | GET | /api/matches/{id}/playback | Positions per player at 2 Hz in image space (u, v, team) | D37 |
-| GET | /api/matches/{id}/playback3d | Head position (dm), facing (yaw 0–255, pitch °) and team per player at 5 Hz in world space, payload cart position, payload route / capture point in metres, map model URL (`tracks3d.bin`; 404 `no_tracks3d` until reprocessed) | 3D playback |
+| GET | /api/matches/{id}/playback3d | Head position (dm), facing (yaw 0–255, pitch °), team and hands (relative to the head, 2 cm steps) per player at 5 Hz in world space, payload cart position, payload route / capture point in metres, play extent, map model URL (`/maps3d/<map>.glb?v=<release>`, cached for good). From `tracks3d.bin`; a match without one (processed before 3D playback) gets it built on first view in the worker's low-priority processes (~1 s; 503 `tracks3d_building` after 25 s, 404 `no_tracks3d` when the replay cannot be read) | 3D playback |
 | GET | /api/players/{user_id}/heatmap | `map` (required), `mode` = the match modes + deaths, `period`, `last` (default 200, max 5000), `cell`. Cached per data stamp | 7, D35 |
 | GET | /api/players/{user_id}/trends | Per week / month / year: games, win rate, deaths/game, avg + top speed, ping | D37 |
 | GET | /api/players/{user_id}/companions | Most frequent teammates / opponents with record | D37 |

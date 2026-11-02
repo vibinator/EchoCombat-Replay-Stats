@@ -432,7 +432,11 @@ export function PlayerPage() {
           </div>
 
           {p.stats.games === 0 ? (
-            <p className="muted">No matches in this period.</p>
+            <>
+              <p className="muted">No matches in this period.</p>
+              {/* achievements do not follow the period filter: still shown when the period has no games */}
+              <WhenVisible><AchievementsSummary userId={p.user_id} /></WhenVisible>
+            </>
           ) : (
             <>
               <div className="cards">
@@ -455,7 +459,7 @@ export function PlayerPage() {
               </div>
               <p className="muted footnote">* Estimated.</p>
 
-              {/* above Loadouts (user, 2026-11-02); players with no games have nothing to show here */}
+              {/* above Loadouts (user, 2026-11-02) */}
               <WhenVisible><AchievementsSummary userId={p.user_id} /></WhenVisible>
 
               <h2>Loadouts</h2>

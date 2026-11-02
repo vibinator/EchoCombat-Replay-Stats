@@ -18,6 +18,19 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.02.5 — 23:21
+### 3D playback: low CPU, plus the optional improvements
+- **No full reprocess:**
+  - Matches get their 3D positions the first time someone opens their 3D view, in about 1 s (a short "Loading 3D positions…"), instead of every replay being read again.
+  - New imports get them as before.
+  - The work runs in the low-priority replay processes, so the website stays fast.
+- **Map models are cached for good**, per release: each visitor downloads a map once.
+- **3D compare:** comparing two matches (`Compare with match #`) now has a **2D maps / 3D** switch and one camera picker for both.
+- **Hands:** a **Hands** toggle shows each player's hands and arms, so you can see where they aim and throw.
+- **Weapon icons** in the 3D name labels.
+- **Not done:** better map models. There is no better source than the current hologram meshes, which are accurate to about 1 m.
+- **To do:** restart, and rebuild the site (`run.bat` does it).
+
 ## 2026.11.02.4 — 21:26
 ### 3D playback (all 10 phases of docs/WebReplayer-Review.MD)
 - **3D view on the Playback tab:**
@@ -31,7 +44,7 @@ Working record of what changed in each release, newest first.
   - Combustion's placement is corrected.
   - **Hosting these meshes publicly is still to be decided:** see Open questions in `docs/WebReplayer-Review.MD`.
 - **To do:**
-  - **Restart.** The parser version changed, so **every replay is processed again** on the first start; until a match is reprocessed its 3D view says the positions are not ready.
+  - Restart (2026.11.02.5 replaced the full reprocess this version planned: nothing is reprocessed).
   - Rebuild the site (`run.bat` does it; the Docker image installs the new `three` package).
 
 ## 2026.11.02.3 — 20:45

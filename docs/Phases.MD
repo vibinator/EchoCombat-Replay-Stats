@@ -75,5 +75,5 @@ Last updated: 2026-10-29 (Phase 2 complete)
 - **Depends on:** 8
 
 ## Future — 3D playback
-- **Status:** All 10 phases built 2026-11-02 (3D view on the Playback tab: `components/Map3D.tsx`, `GET /api/matches/{id}/playback3d`, `tracks3d.bin`, meshes from `app/tools/maps3d/`). Not yet seen on a real GPU or phone; mesh hosting still to be decided (WebReplayer-Review.MD, Open questions).
+- **Status:** All 10 phases built 2026-11-02 (3D view on the Playback tab: `components/Map3D.tsx`, `GET /api/matches/{id}/playback3d`, `tracks3d.bin`, meshes from `app/tools/maps3d/`). Optional improvements also done (3D compare, gear icons, hands, 3D tracks built on first view: no reprocess). Not yet seen on a real GPU or phone.
 - **Plan:** [WebReplayer-Review.MD](WebReplayer-Review.MD): review of duncancarroll/ec-web-replayer and a 10-phase port of 3D playback into the Playback tab (derived 3D tracks only; no raw replay downloads).

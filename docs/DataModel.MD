@@ -185,9 +185,9 @@ No table: computed from `match_players` + loadouts + `matches` on request (`back
 
 ## 3D tracks file (3D playback, docs/WebReplayer-Review.MD Phase 2)
 `data/processed/<replay_id>/tracks3d.bin` = zlib( uint32 header length | header JSON | arrays ), little-endian (`app/backend/tracks3d.py`).
-- Header: `{version: 1, hz: 5, samples, players: [user_id…], payload?: [[x, y, z] metres | null per sample]}`.
-- Per player, in header order: `x`, `y`, `z` int16[samples] (head position, decimetres), `yaw` uint8 (256 steps, 0 = facing +z, 64 = +x), `pitch` int8 (degrees, + = up), `team` uint8 (0 absent, 1 blue, 2 orange).
-- First frame of each 0.2 s slot, from the same pass as `tracks.bin`; load-in spot samples absent. ≈ 16–118 KB per match (about 4× `tracks.bin`). Overwritten on reprocess; rebuildable.
+- Header: `{version: 2, hz: 5, samples, players: [user_id…], payload?: [[x, y, z] metres | null per sample]}`.
+- Per player, in header order: `x`, `y`, `z` int16[samples] (head position, decimetres), `yaw` uint8 (256 steps, 0 = facing +z, 64 = +x), `pitch` int8 (degrees, + = up), `team` uint8 (0 absent, 1 blue, 2 orange); version 2 adds hands `lx, ly, lz, rx, ry, rz` int8[samples] (relative to the head, 2 cm steps, ±2.54 m clamped).
+- First frame of each 0.2 s slot; load-in spot samples absent. Written by the worker with `tracks.bin` for every replay it processes; for matches processed earlier (or in an older format) built on first view (`tracks3d.build`, ~1 s per 10-minute match). ≈ 140–210 KB per 10-minute match. Overwritten on reprocess; rebuildable.
 
 ## Heatmap cache (D18)
 In memory (`functools.lru_cache`, 64 entries) keyed by player, map, mode, period, last N and a data stamp (done count + latest `processed_at`), so any import change recomputes. Not persisted; cold requests read the player's tracks files (≈ 1–3 s for 200 matches).
