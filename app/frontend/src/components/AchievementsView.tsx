@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router";
 import { LEVELS, getAchievements, getChallenges, getMe, loginUrl, type Achievement, type AchievementPeek, type AchievementRarity, type AchievementRule } from "../api";
-import { pct } from "../format";
+import { achievementsPath, pct } from "../format";
 import { useApi } from "../useApi";
 import { Status } from "./common";
 import { EmptyState } from "./ui";
@@ -178,10 +178,19 @@ export function Badge({ a }: { a: AchievementRule & Partial<Pick<Achievement, "p
   const tier = a.tier ?? null;
   const catalogue = a.progress === undefined;
   const frame = tier ? `${tier}.png` : "white_lock.png";
+  const src = IMG + (a.icon ?? GENERIC_ICON);
+  // The glyph takes the colour of the tier reached; grey = not started, plain = started, no tier yet (user,
+  // 2026-11-02). Built-in art is one colour on transparent, so it is used as a mask; uploads keep their own colours.
+  const state = catalogue ? "" : tier ? " tinted" : a.progress! > 0 ? " tinted started" : " not-started";
+  const tinted = state.includes("tinted") && a.icon != null && !a.icon.startsWith("custom/");
   return (
-    <div className={`badge-card${tier || catalogue ? "" : " locked"}${tier ? ` t-${tier}` : ""}`} title={`${a.description}${a.estimated ? " (estimated)" : ""}`}>
+    <div className={`badge-card${tier || catalogue ? "" : " locked"}${tier ? ` t-${tier}` : ""}${tinted ? state : state.replace(" tinted", "")}`} title={`${a.description}${a.estimated ? " (estimated)" : ""}`}>
       <div className="badge-art">
-        <img className="icon" src={IMG + (a.icon ?? GENERIC_ICON)} alt="" />
+        {tinted ? (
+          <span className="icon glyph" style={{ WebkitMaskImage: `url(${src})`, maskImage: `url(${src})` }} aria-hidden="true" />
+        ) : (
+          <img className="icon" src={src} alt="" />
+        )}
         {!catalogue && <img className="tier" src={IMG + frame} alt={tier ?? "locked"} />}
       </div>
       <div className="badge-text">
@@ -382,7 +391,7 @@ function LaunchedSummary({ userId }: { userId: string }) {
     <>
       <div className="section-head">
         <h2>Achievements</h2>
-        <Link to={`/achievements?player=${encodeURIComponent(userId)}`}>View all achievements</Link>
+        <Link to={achievementsPath(d.user_id, d.name)}>View all achievements</Link>
       </div>
       <div className="cards">
         <div className="card">
@@ -402,7 +411,7 @@ function LaunchedSummary({ userId }: { userId: string }) {
           </strong>
         </div>
         {added.length > 0 && (
-          <Link className="card link-card" to={`/achievements?player=${encodeURIComponent(userId)}#new`}>
+          <Link className="card link-card" to={`${achievementsPath(d.user_id, d.name)}#new`}>
             <span className="label">New challenges</span>
             <strong>
               {added.filter((a) => a.progress >= 1).length} / {added.length}

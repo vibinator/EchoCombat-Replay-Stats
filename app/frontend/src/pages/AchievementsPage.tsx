@@ -1,9 +1,9 @@
 import { useState, type FormEvent } from "react";
-import { Link, useSearchParams } from "react-router";
+import { Link, Navigate, useLocation, useParams, useSearchParams } from "react-router";
 import { getAchievements, getLeaderboard, getRarity, getRecentUnlocks, searchPlayers } from "../api";
 import { AchievementsView, ChallengeBanner, ComingSoon, GroupedBadges, JumpToNew, useAchievementsAccess } from "../components/AchievementsView";
 import { Status, TableWrap } from "../components/common";
-import { int, pct } from "../format";
+import { achievementsPath, int, nameSlug, pct, playerPath } from "../format";
 import { useApi } from "../useApi";
 
 function PlayerPicker() {
@@ -30,7 +30,7 @@ function PlayerPicker() {
           <ul className="picker">
             {found.data.items.map((p) => (
               <li key={p.user_id}>
-                <Link to={`/achievements?player=${encodeURIComponent(p.user_id)}`}>{p.name}</Link>{" "}
+                <Link to={achievementsPath(p.user_id, p.name)}>{p.name}</Link>{" "}
                 <span className="muted">{int(p.games)} games</span>
               </li>
             ))}
@@ -64,7 +64,7 @@ function TopPlayers() {
               <tr key={r.user_id}>
                 <td className="num">{r.rank}</td>
                 <td>
-                  <Link to={`/achievements?player=${encodeURIComponent(r.user_id)}`}>{r.name}</Link>
+                  <Link to={achievementsPath(r.user_id, r.name)}>{r.name}</Link>
                 </td>
                 <td className="num">{int(r.games)}</td>
                 <td className="num">{pct(r.value)}</td>
@@ -88,7 +88,7 @@ function RecentUnlocks() {
           <li key={`${e.user_id}-${e.id}-${i}`}>
             <img src={`/achievements/${e.icon ?? "happy_cubesat.png"}`} alt="" />
             <span>
-              <Link to={`/achievements?player=${encodeURIComponent(e.user_id)}`}>{e.name}</Link> completed <strong>{e.achievement}</strong>
+              <Link to={achievementsPath(e.user_id, e.name)}>{e.name}</Link> completed <strong>{e.achievement}</strong>
             </span>
             <span className="muted">{e.date}</span>
           </li>
@@ -127,8 +127,20 @@ export function AchievementsPage() {
 
 function LaunchedAchievementsPage() {
   const [params] = useSearchParams();
-  const player = params.get("player");
+  const { userId, name: nameInUrl = "" } = useParams();
+  const { hash } = useLocation();
+  const player = userId ?? params.get("player");
   const name = useApi(() => (player ? getAchievements(player) : Promise.resolve(null)), player ?? "");
+  const d = name.data;
+
+  // show the player's own address, /achievements/<name>/<id>: old ?player= links, an outdated name and a merged ID all
+  // move to it (as profiles do)
+  if (d && (!userId || d.user_id !== userId || nameInUrl !== nameSlug(d.name))) {
+    const rest = new URLSearchParams(params);
+    rest.delete("player");
+    const search = rest.toString();
+    return <Navigate replace to={`${achievementsPath(d.user_id, d.name)}${search ? `?${search}` : ""}${hash}`} />;
+  }
 
   return (
     <section>
@@ -136,7 +148,7 @@ function LaunchedAchievementsPage() {
         <h1>Achievements{player && name.data && <span className="muted"> · {name.data.name}</span>}</h1>
         {player && (
           <span>
-            <Link to={`/players/${encodeURIComponent(player)}`}>Player profile</Link> · <Link to="/achievements">All achievements</Link>
+            <Link to={d ? playerPath(d.user_id, d.name) : `/players/${encodeURIComponent(player)}`}>Player profile</Link> · <Link to="/achievements">All achievements</Link>
           </span>
         )}
       </div>

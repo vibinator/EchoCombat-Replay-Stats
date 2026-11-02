@@ -180,6 +180,8 @@ function Layout() {
           <Route path="/compare" element={<ComparePage />} />
           <Route path="/leaderboard" element={<LeaderboardPage />} />
           <Route path="/achievements" element={<AchievementsPage />} />
+          <Route path="/achievements/:userId" element={<AchievementsPage />} />
+          <Route path="/achievements/:name/:userId" element={<AchievementsPage />} />
           <Route path="/console" element={<ConsolePage />} />
           <Route path="/permissions" element={<PermissionsPage />} />
           <Route path="/status" element={<StatusPage />} />

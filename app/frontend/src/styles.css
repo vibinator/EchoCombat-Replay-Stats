@@ -845,9 +845,26 @@ svg .crosshair {
   background: var(--panel);
 }
 
+/* Not started: grey. Started without a tier yet: the plain glyph. A tier: the glyph in the tier colour. */
 .badge-card.locked .icon {
   opacity: 0.35;
   filter: grayscale(1);
+}
+
+.badge-card.started .icon {
+  opacity: 1;
+  filter: none;
+}
+
+.badge-art .glyph {
+  display: block;
+  background: var(--tier, var(--text));
+  -webkit-mask: no-repeat center / contain;
+  mask: no-repeat center / contain;
+}
+
+.badge-card.started .glyph {
+  background: var(--text);
 }
 
 /* "Coming soon" sneak peek: the badge art is only a silhouette */
@@ -866,7 +883,8 @@ svg .crosshair {
   height: 64px;
 }
 
-.badge-art img {
+.badge-art img,
+.badge-art .glyph {
   position: absolute;
 }
 

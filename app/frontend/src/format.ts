@@ -7,6 +7,13 @@ export function nameSlug(name: string | null | undefined): string {
   return (name ?? "").trim().replace(/[\s/\\]+/g, "-");
 }
 
+/** Achievements address: /achievements/<name>/<user id>, like a profile's, so a shared link shows whose they are
+ *  (user, 2026-11-02). The old /achievements?player=<id> links still work and move to it. */
+export function achievementsPath(userId: string, name?: string | null): string {
+  const slug = nameSlug(name);
+  return `/achievements/${slug ? `${encodeURIComponent(slug)}/` : ""}${encodeURIComponent(userId)}`;
+}
+
 /** Profile address: /players/<name>/<user id> (the name is only for people reading it; the id decides). */
 export function playerPath(userId: string, name?: string | null): string {
   const slug = nameSlug(name);
