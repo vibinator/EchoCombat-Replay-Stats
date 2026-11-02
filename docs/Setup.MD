@@ -28,6 +28,7 @@ npm install
 | `ECHOVR_PUBLIC_URL` | `http://127.0.0.1:8000` | Address people use; Discord sends them back to `<it>/api/auth/callback` |
 | `ECHOVR_DISCORD_CLIENT_SECRET` | – | Discord login (D41). Secret: never in GitHub |
 | `ECHOVR_DISCORD_BOT_TOKEN` | – | Bot that checks the preview role (D41). Secret: never in GitHub |
+| `ECHOVR_BOT_LINK_SECRET` | – | Shared secret the Discord bot sends as `Authorization: Bearer <secret>` to link Discord accounts to players (D54). Unset = bot linking off. Secret: never in GitHub |
 | `ECHOVR_DISCORD_PREVIEW_ROLES` | – | Optional: role id(s) and / or Discord user id(s), comma-separated. Those people get the preview **and the website's Console page (admin.bat on the website, D45)**. For the preview alone use admin console option 14 |
 | `ECHOVR_RATE_LIMIT_PER_MIN` | `60` | Scraper protection (D48): website data requests per visitor per minute, bursts up to twice that; heatmaps, playback, compare and downloads count 5. `0` = no limit |
 | `ECHOVR_RATE_LIMIT_PER_HOUR` | `1500` | Same, per visitor per hour (no burst above it). `0` = no hourly limit |

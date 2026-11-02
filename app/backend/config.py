@@ -33,6 +33,8 @@ class Settings:
     discord_bot_token: str = ""
     discord_guild_id: str = DISCORD_GUILD_ID
     discord_preview_roles: tuple[str, ...] = ()  # role ids; any one of them gives preview access
+    # Shared secret the Discord bot sends (Authorization: Bearer ...) to link Discord accounts to players; "" = off
+    bot_link_secret: str = ""
     # Scraper protection (D48, guard.py): /api only for the site's own pages, no bots; tests turn it off
     scraper_guard: bool = True
     rate_limit_per_min: int = 30  # /api requests per visitor per minute (bursts up to 2x); 0 = no limit
@@ -69,6 +71,7 @@ class Settings:
             cache_refresh_s=float(env("ECHOVR_CACHE_REFRESH_S", 300)),
             edge_cache_s=int(env("ECHOVR_EDGE_CACHE_S", 60)),
             twitch_channel=env("ECHOVR_TWITCH_CHANNEL", "combat_stream_bot"),
+            bot_link_secret=_secret(env("ECHOVR_BOT_LINK_SECRET")),
             discord_preview_roles=tuple(r.strip() for r in _secret(env("ECHOVR_DISCORD_PREVIEW_ROLES")).split(",") if r.strip()),
         )
 

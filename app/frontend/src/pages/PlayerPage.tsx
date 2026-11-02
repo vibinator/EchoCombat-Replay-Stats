@@ -9,6 +9,7 @@ import { ShareBar, Sparkline, SplitBar, VsAverage } from "../components/bars";
 import { LineChart } from "../components/charts";
 import { GearName, MatchTable, Status, TableWrap, TeamBadge } from "../components/common";
 import { HEATMAP_CELL_M, HEATMAP_MODES, HeatmapView } from "../components/HeatmapView";
+import { PlayerAvatar, PlayerBio, usePlayerBio } from "../components/PlayerBio";
 import { InfoTip, Skeleton, WhenVisible } from "../components/ui";
 import { MAPS, dateTime, hoursMinutes, int, nameSlug, num, pct, periodLabel, playerPath, title } from "../format";
 import { useApi } from "../useApi";
@@ -132,12 +133,15 @@ function ProfileHeader({ p }: { p: PlayerProfile }) {
   const favourite = Object.entries(p.stats.games_by_map).sort((a, b) => b[1] - a[1])[0];
   // no `result` while win-loss stats are hidden from players: no form strip then
   const form = p.recent_matches.slice(0, 10).filter((m) => m.result !== undefined);
+  const bio = usePlayerBio(p.user_id);
   return (
     <div className="profile-header">
-      <div>
-        <h1>
-          {p.name}
-        </h1>
+      <div className="profile-identity">
+        <PlayerAvatar profile={bio.profile} />
+        <div>
+          <h1>
+            {p.name}
+          </h1>
         <p className="muted">
           {p.level != null && `Level ${p.level} · `}First seen {dateTime(p.first_seen_at).slice(0, 10)} · Last seen {dateTime(p.last_seen_at).slice(0, 10)}
           {p.merged_ids.length > 0 && ` · merged with ${p.merged_ids.length} other ID${p.merged_ids.length > 1 ? "s" : ""}`}
@@ -163,6 +167,8 @@ function ProfileHeader({ p }: { p: PlayerProfile }) {
               ))}
             </span>
           )}
+        </div>
+          <PlayerBio userId={p.user_id} profile={bio.profile} onSaved={bio.set} />
         </div>
       </div>
       <div className="profile-actions">

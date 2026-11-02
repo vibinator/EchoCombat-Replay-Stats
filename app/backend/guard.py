@@ -36,7 +36,7 @@ HEAVY_COST = 5
 REPLAY_FILE = re.compile(r"\.(echoreplay|replay)(\.|$|/)", re.IGNORECASE)
 CONTENT_SECURITY_POLICY = (
     "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
-    "font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-src https://player.twitch.tv; "
+    "font-src https://fonts.gstatic.com; img-src 'self' data: https://cdn.discordapp.com; connect-src 'self'; frame-src https://player.twitch.tv; "
     "object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"
 )
 SECURITY_HEADERS = {
@@ -118,9 +118,10 @@ def check(request, limiter: RateLimiter | None, hourly: RateLimiter | None = Non
         return _refuse(403, "crawler", "Automated crawling of this site is not allowed.")
     if not path.startswith("/api/") or path.startswith("/api/health"):
         return None
-    if not agent or SCRIPT_AGENTS.search(agent):
+    bot = path.startswith("/api/bot/")  # the Discord bot is a script: its endpoints check its secret instead
+    if not bot and (not agent or SCRIPT_AGENTS.search(agent)):
         return _refuse(403, "automated", "Automated access to this site's data is not allowed.")
-    exempt = path.startswith(HEADER_EXEMPT) or path.endswith(HEADER_EXEMPT_SUFFIXES)
+    exempt = bot or path.startswith(HEADER_EXEMPT) or path.endswith(HEADER_EXEMPT_SUFFIXES)
     if not exempt and request.headers.get("x-echovr") != "1":
         return _refuse(403, "automated", "Automated access to this site's data is not allowed.")
     if limiter is not None:

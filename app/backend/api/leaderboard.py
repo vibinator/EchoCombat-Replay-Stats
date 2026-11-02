@@ -130,6 +130,25 @@ def _rank(values, higher: bool, min_games: int) -> list[tuple[int, int, float]]:
     return eligible
 
 
+SORTS = ("games", "wins", "losses", "win_rate", "hours_played")  # summary columns the # column can be re-ranked by
+
+
+def _resort(ranking, rows, sort: str | None, wl: bool, hidden) -> list[tuple[int, int, float]]:
+    """Re-order the ranked players by a summary column (highest first, empty values last); ties keep the stat order.
+    The set of players is unchanged: still the ones eligible for the ranked stat."""
+    if not sort:
+        return ranking
+    if sort == "games":
+        def key(v):
+            return v[1]  # the games shown in the row (the loadout board counts only games with that gear)
+    else:
+        column = {r.player_id: _summary(r, wl, r.player_id not in hidden).get(sort) for r in rows}
+
+        def key(v):
+            return column.get(v[0])
+    return sorted(ranking, key=lambda v: (key(v) is None, -(key(v) or 0)))
+
+
 @router.get("/stats")
 def list_stats(request: Request):
     launched = visible(request)
@@ -152,19 +171,24 @@ def leaderboard(
     tacmod: str | None = None,
     ordnance: str | None = None,
     compare: bool = Query(False, description="add previous_rank: same board one period earlier"),
+    sort: str | None = Query(None, description="rank by this summary column instead of the stat: " + ", ".join(SORTS)),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
 ):
     if stat not in STATS and stat not in ("loadout", "achievements"):
         raise ApiError(400, "unknown_stat", f"Unknown stat '{stat}'")
+    if sort is not None and sort not in SORTS:
+        raise ApiError(400, "unknown_sort", f"Unknown sort column '{sort[:32]}'")
+    if sort == stat:
+        sort = None  # the stat's own order
     v = visibility.view(request)
     wl = not v.everything
-    if stat in WIN_LOSS_STATS and not wl:
+    if (stat in WIN_LOSS_STATS or sort in WIN_LOSS_STATS + ("losses",)) and not wl:
         raise ApiError(404, "stat_hidden", "This stat is hidden")
     for value, table, what in ((weapon, WEAPONS, "weapon"), (tacmod, TACMODS, "tac mod"), (ordnance, ORDNANCES, "ordnance")):
         if value is not None and value not in table:
             raise ApiError(400, "unknown_gear", f"Unknown {what} '{value[:32]}'")
-    params = (stat, period, map, private, min_games, weapon, tacmod, ordnance, compare, limit, offset, v)
+    params = (stat, period, map, private, min_games, weapon, tacmod, ordnance, compare, limit, offset, v, sort)
     if stat == "achievements":  # has its own background-refreshed cache
         require_launched(request)
         return _leaderboard(request, *params)
@@ -172,7 +196,7 @@ def leaderboard(
 
 
 def _leaderboard(request, stat, period, map, private, min_games, weapon, tacmod, ordnance, compare, limit, offset,
-                 v: visibility.View = visibility.ALL_SHOWN):
+                 v: visibility.View = visibility.ALL_SHOWN, sort: str | None = None):
     wl = not v.everything
     with request.app.state.sessionmaker() as db:
         hidden = visibility.hidden_player_ids(db, v)  # hidden one by one
@@ -184,8 +208,12 @@ def _leaderboard(request, stat, period, map, private, min_games, weapon, tacmod,
             _, _, before = _values(db, request, stat, period, map, private, weapon, tacmod, ordnance, shift_days=7)
             if stat in WIN_LOSS_STATS and hidden:
                 before = [x for x in before if x[0] not in hidden]
-            previous = {pid: i + 1 for i, (pid, _, _) in enumerate(_rank(before, higher, min_games))}
+            before_rows = _aggregate_rows(db, request, period, map, private, 7) if sort else []
+            previous = {pid: i + 1 for i, (pid, _, _) in
+                        enumerate(_resort(_rank(before, higher, min_games), before_rows, sort, wl, hidden))}
         ranking = _rank(values, higher, min_games)
+        if sort:
+            ranking = _resort(ranking, _aggregate_rows(db, request, period, map, private), sort, wl, hidden)
         page = ranking[offset : offset + limit]
         people = {pid: (name, user_id) for pid, name, user_id in
                   db.execute(select(Player.id, Player.name, Player.user_id).where(Player.id.in_([pid for pid, _, _ in page])))}
@@ -201,7 +229,7 @@ def _leaderboard(request, stat, period, map, private, min_games, weapon, tacmod,
         for i, (pid, games, value) in enumerate(page)
     ]
     result = {
-        "stat": stat, "label": label, "higher_is_better": higher, "period": period, "map": map,
+        "stat": stat, "label": label, "higher_is_better": higher, "sort": sort, "period": period, "map": map,
         "min_games": min_games, "total": len(ranking), "items": ranked,
         # biggest value on the whole board (not just this page): the bars in the value column are scaled to it
         "max_value": max((v for _, _, v in ranking), default=None),

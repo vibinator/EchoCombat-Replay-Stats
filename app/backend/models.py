@@ -155,6 +155,21 @@ class AppSetting(Base):
     updated_at: Mapped[str]
 
 
+class PlayerProfile(Base):
+    """Discord link + what the player may change about their page (user, 2026-11-02): the bio and whether their
+    Discord avatar is shown. Linked by the Discord bot (trusted, POST /api/bot/link); edited on the website by the
+    linked Discord account only. Kept across rebuilds."""
+
+    __tablename__ = "player_profiles"
+
+    user_id: Mapped[str] = mapped_column(primary_key=True)  # EchoVR user id (the main id when merged, D34)
+    discord_id: Mapped[str] = mapped_column(unique=True)  # one player per Discord account
+    bio: Mapped[str | None]
+    show_avatar: Mapped[bool] = mapped_column(default=True)
+    linked_at: Mapped[str]
+    updated_at: Mapped[str]
+
+
 class PlayerAlias(Base):
     """Admin player merge (D34): `alias_user_id` is the same person as `main_user_id`. Kept across rebuilds."""
 

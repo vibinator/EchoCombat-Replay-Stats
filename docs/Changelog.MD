@@ -18,6 +18,27 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.02.1 — 18:34
+### Leaderboard: re-rank by any column
+- Click a column header (Games, Wins, Losses, Win rate, Hours played) to re-rank the **#** column by it, highest
+  first; the podium shows that value too. Click the ranked stat's header (or pick another stat) to go back. The same
+  players stay on the board (still filtered by the stat and minimum games); rank arrows compare the same ordering one
+  period earlier. API: `GET /api/leaderboard?sort=<column>`.
+
+### Discord-linked profiles: bio and profile picture (D54)
+- Your Discord bot can link a Discord account to a player: `POST /api/bot/link {"discord_id", "user_id"}` with
+  `Authorization: Bearer <ECHOVR_BOT_LINK_SECRET>` (also `/api/bot/unlink` and `/api/bot/lookup`, same body shape).
+  The site trusts the bot. Linking again moves the link; one player per Discord account.
+- On their own player page, a linked person logged in with Discord gets **Edit profile**: they can change **only**
+  the profile bio (plain text, up to 500 characters) and whether their Discord avatar is shown as the profile
+  picture. Name, stats and everything else stay read-only.
+- **To do:** set `ECHOVR_BOT_LINK_SECRET` (docker-compose.yml) to a long random value and give the same value to the
+  bot, then Recreate. Unset = bot linking off. The new `player_profiles` table is kept across rebuilds.
+
+### Match ID on every match
+- Match cards (home, matches page) show `#<id>` beside the mode, and match tables (player page etc.) have a
+  **Match** column linking to it — the same number as the match page title.
+
 ## 2026.11.01.11 — 18:14
 ### Search boxes stop at 64 characters
 - The previous update made the server refuse searches longer than 64 characters; the search boxes (top bar, home,

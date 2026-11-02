@@ -539,6 +539,8 @@ export interface Leaderboard {
   stat: string;
   label: string;
   higher_is_better: boolean;
+  /** summary column the ranks follow instead of the stat; null = the stat */
+  sort?: string | null;
   total: number;
   items: LeaderboardRow[];
   /** biggest value on the whole board: the value bars are scaled to it */
@@ -582,6 +584,8 @@ export interface LeaderboardQuery {
   offset?: number;
   limit?: number;
   compare?: boolean;
+  /** rank by this summary column (games, wins, losses, win_rate, hours_played) instead of the stat */
+  sort?: string;
 }
 
 export const getLeaderboard = (q: LeaderboardQuery) =>
@@ -993,3 +997,21 @@ export const getMatchHeatmapBy = (id: number, mode: HeatmapLayerMode | "player",
   heatmapRequest(`/api/matches/${id}/heatmap${query({ mode, cell, player })}`);
 export const getPlayerHeatmapBy = (userId: string, map: string, mode: HeatmapLayerMode | "deaths", period: Period, last: number, cell: number) =>
   heatmapRequest(`/api/players/${encodeURIComponent(userId)}/heatmap${query({ map, mode, period, last, cell })}`);
+
+/** Discord-linked player profile (user, 2026-11-02): linked by the Discord bot; the linked person may change only the
+ * bio and whether their Discord avatar is shown. Per visitor (`editable`), never cached. */
+export interface PlayerBioProfile {
+  linked: boolean;
+  bio: string | null;
+  show_avatar: boolean;
+  avatar_url: string | null;
+  editable: boolean;
+}
+export const BIO_MAX = 500;
+export const getPlayerBio = (userId: string) => send<PlayerBioProfile>(`/api/profiles/${encodeURIComponent(userId)}`);
+export const savePlayerBio = (userId: string, edit: { bio: string | null; show_avatar: boolean }) =>
+  send<PlayerBioProfile>(`/api/profiles/${encodeURIComponent(userId)}`, {
+    method: "POST",
+    headers: { ...ADMIN_WRITE, "Content-Type": "application/json" },
+    body: JSON.stringify(edit),
+  });

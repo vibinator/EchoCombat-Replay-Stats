@@ -85,6 +85,36 @@ def user_name(settings: Settings, user_id: str) -> str:
         return "?"
 
 
+AVATAR_CHECK_S = 3600  # a changed Discord avatar shows within an hour (or at once when the player saves their profile)
+_avatars: dict[str, tuple[float, str | None]] = {}  # discord user id -> (valid until, avatar hash or None)
+
+
+def avatar_url(settings: Settings, user_id: str, fresh: bool = False) -> str | None:
+    """Discord avatar of a user (asked via the bot, remembered AVATAR_CHECK_S), Discord's default one when they have
+    none, or None when Discord cannot be asked."""
+    if not is_discord_id(user_id):
+        return None
+    now = time.monotonic()
+    hit = _avatars.get(user_id)
+    if not hit or hit[0] <= now or fresh:
+        if not settings.discord_bot_token:
+            return None
+        try:
+            r = _bot_get(settings, f"/users/{user_id}")
+            r.raise_for_status()
+            hit = (now + AVATAR_CHECK_S, r.json().get("avatar"))
+        except (httpx.HTTPError, ValueError) as e:
+            log.warning("Discord avatar of %s failed: %s", user_id, e)
+            if not hit:
+                return None
+            hit = (now + ROLE_RETRY_S, hit[1])
+        _avatars[user_id] = hit
+    avatar = hit[1]
+    if avatar and avatar.replace("a_", "", 1).isalnum():
+        return f"https://cdn.discordapp.com/avatars/{user_id}/{avatar}.png?size=256"
+    return f"https://cdn.discordapp.com/embed/avatars/{(int(user_id) >> 22) % 6}.png"
+
+
 def redirect_uri(settings: Settings) -> str:
     return settings.public_url.rstrip("/") + "/api/auth/callback"
 

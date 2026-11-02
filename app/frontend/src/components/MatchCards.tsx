@@ -37,7 +37,9 @@ export function MatchCards({ matches, compact = false }: { matches: MatchSummary
           <div className="match-card-body">
             <div className="match-card-head">
               <strong>{title(m.map)}</strong>
-              <span className="muted">{modeLabel(m.mode)}</span>
+              <span className="muted">
+                {modeLabel(m.mode)} · <span className="match-id">#{m.id}</span>
+              </span>
             </div>
             <div className="match-card-score">
               <span>{scoreText(m)}</span>

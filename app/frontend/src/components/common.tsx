@@ -112,6 +112,7 @@ export function MatchTable({ matches, extra }: { matches: MatchSummary[]; extra?
       <table>
         <thead>
           <tr>
+            <th className="num">Match</th>
             <th>Date</th>
             <th>Map</th>
             <th>Mode</th>
@@ -124,6 +125,9 @@ export function MatchTable({ matches, extra }: { matches: MatchSummary[]; extra?
         <tbody>
           {matches.map((m) => (
             <tr key={m.id}>
+              <td className="num match-id">
+                <Link to={`/matches/${m.id}`}>#{m.id}</Link>
+              </td>
               <td>
                 <Link to={`/matches/${m.id}`}>{dateTime(m.started_at)}</Link>
               </td>

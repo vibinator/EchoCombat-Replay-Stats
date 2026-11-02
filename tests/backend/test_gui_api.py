@@ -222,3 +222,14 @@ def test_import_throughput_and_years(client):
     s = client.get("/api/import").json()
     assert len(s["throughput"]) == 60 and sum(m["replays"] for m in s["throughput"]) == 3
     assert sum(y["done"] for y in s["by_year"]) == 3
+
+
+def test_leaderboard_sort_by_summary_column(client):
+    # clicking a column header re-ranks the # column by that column, highest first; same players as the stat board
+    base = client.get("/api/leaderboard", params={"stat": "avg_speed", "min_games": 1}).json()
+    board = client.get("/api/leaderboard", params={"stat": "avg_speed", "min_games": 1, "sort": "hours_played", "compare": "true"}).json()
+    assert board["sort"] == "hours_played" and board["total"] == base["total"]
+    hours = [r["hours_played"] for r in board["items"]]
+    assert hours == sorted(hours, reverse=True)
+    assert [r["rank"] for r in board["items"]] == list(range(1, len(hours) + 1))
+    assert client.get("/api/leaderboard", params={"sort": "avg_speed"}).status_code == 400

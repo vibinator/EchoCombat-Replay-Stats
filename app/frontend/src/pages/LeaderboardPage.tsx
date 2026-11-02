@@ -51,6 +51,8 @@ export function LeaderboardPage() {
   const weapon = params.get("weapon") ?? "";
   const ordnance = params.get("ordnance") ?? "";
   const tacmod = params.get("tacmod") ?? "";
+  const sortParam = params.get("sort") ?? "";
+  const sort = sortParam && sortParam !== stat ? sortParam : "";
 
   const stats = useApi(getLeaderboardStats, "stats");
   const gear = useApi(getGear, "gear");
@@ -60,6 +62,7 @@ export function LeaderboardPage() {
         stat, period, map: map || undefined, min_games: minGames, offset, limit: PAGE_SIZE,
         weapon: weapon || undefined, ordnance: ordnance || undefined, tacmod: tacmod || undefined,
         compare: stat !== "achievements",
+        sort: sort || undefined,
       }),
     params.toString(),
   );
@@ -69,12 +72,27 @@ export function LeaderboardPage() {
     if (value) next.set(key, value);
     else next.delete(key);
     if (key !== "offset") next.delete("offset");
+    if (key === "stat") next.delete("sort");
     setParams(next);
   }
 
   const total = board.data?.total ?? 0;
   // win-loss columns are left out of the answer while they are hidden from players
   const columns = SUMMARY.filter(([key]) => key !== stat && (!board.data || board.data.items.some((r) => key in r)));
+  const sortLabel = SUMMARY.find(([key]) => key === sort)?.[1];
+
+  /** Clickable header: ranks the # column by this column; the ranked stat's own column (key "") restores the default. */
+  function sortHeader(k: string, label: string, isNum = true) {
+    const active = sort === k;
+    return (
+      <th key={k} className={isNum ? "num" : undefined} aria-sort={active ? "descending" : undefined}>
+        <button type="button" className={active ? "th-sort active" : "th-sort"} onClick={() => set("sort", k)} title={`Rank by ${label}`}>
+          {label}
+          {active && " ▼"}
+        </button>
+      </th>
+    );
+  }
 
   return (
     <section>
@@ -160,7 +178,11 @@ export function LeaderboardPage() {
                     <Link key={r.user_id} to={playerPath(r.user_id, r.name)} className={`podium-step place-${r.rank}`}>
                       <span className="podium-rank">{r.rank}</span>
                       <strong><FitText title={r.name}>{r.name}</FitText></strong>
-                      <span>{formatValue(stat, r.value)}</span>
+                      <span>
+                        {sort
+                          ? `${(r[sort as keyof LeaderboardRow] as number | null) == null ? "–" : formatValue(sort, r[sort as keyof LeaderboardRow] as number)} ${sortLabel?.toLowerCase()}`
+                          : formatValue(stat, r.value)}
+                      </span>
                       <span className="muted">{podiumLine(stat, r)}</span>
                     </Link>
                   );
@@ -173,8 +195,13 @@ export function LeaderboardPage() {
                   <tr>
                     <th className="num">#</th>
                     <th>Player</th>
-                    {columns.map(([key, label]) => <th key={key} className="num">{label}</th>)}
-                    <th>{board.data.label}</th>
+                    {columns.map(([key, label]) => sortHeader(key, label))}
+                    <th aria-sort={sort ? undefined : board.data.higher_is_better ? "descending" : "ascending"}>
+                      <button type="button" className={sort ? "th-sort" : "th-sort active"} onClick={() => set("sort", "")} title={`Rank by ${board.data.label}`}>
+                        {board.data.label}
+                        {!sort && (board.data.higher_is_better ? " ▼" : " ▲")}
+                      </button>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -199,7 +226,8 @@ export function LeaderboardPage() {
               </table>
             </TableWrap>
             <p className="muted footnote">
-              {board.data.higher_is_better ? "Highest first" : "Lowest first"} · {int(total)} ranked players · Arrows compare with one period earlier
+              {sort ? `Ranked by ${sortLabel?.toLowerCase()}, highest first` : board.data.higher_is_better ? "Highest first" : "Lowest first"} · Click a column header to re-rank ·{" "}
+              {int(total)} ranked players · Arrows compare with one period earlier
               (all time: with 7 days ago).
             </p>
             {total > PAGE_SIZE && (

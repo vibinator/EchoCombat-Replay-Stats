@@ -22,8 +22,9 @@ from starlette.requests import Request
 from . import guard
 from .cache import STATUS_HEADER
 
-PER_VISITOR = ("/api/auth", "/api/admin")
-WRITES = ("/api/admin/achievements/", "/api/admin/console/", "/api/admin/permissions")
+PER_VISITOR = ("/api/auth", "/api/admin", "/api/profiles", "/api/bot")
+WRITES = ("/api/admin/achievements/", "/api/admin/console/", "/api/admin/permissions", "/api/profiles/")
+BOT = "/api/bot/"  # the Discord bot: POST with its shared secret (checked by the endpoint), no X-EchoVR header
 STATIC_MAX_AGE_S = 4 * 3600
 EDGE_STALE_IF_ERROR_S = 600
 
@@ -33,7 +34,8 @@ def _refusal(request: Request, settings, limiter, hourly):
     if guard.asks_for_replay_file(path):
         return JSONResponse({"error_code": "not_found", "message": "Not found"}, status_code=404)
     if request.method not in ("GET", "HEAD", "OPTIONS") and not (
-            request.method in ("PUT", "POST") and path.startswith(WRITES) and request.headers.get("x-echovr") == "1"):
+            request.method in ("PUT", "POST") and path.startswith(WRITES) and request.headers.get("x-echovr") == "1"
+    ) and not (request.method == "POST" and path.startswith(BOT)):
         return JSONResponse({"error_code": "read_only", "message": "The website is read-only. Use the admin console (admin.bat)."},
                             status_code=405)  # the allowed writes check the visitor's role themselves
     if settings.scraper_guard:
