@@ -24,6 +24,8 @@ rule and the affected replays are re-processed from the original files, so it ca
     admin.bat hidden [--unhide <path> | --unhide-all] [--yes]
     admin.bat reprocess <replay id or path>
     admin.bat repair <replay id or path>
+    admin.bat repair-aggressive <replay id or path>   broken data that repair mode could not fix
+    admin.bat repair-aggressive-failed [--yes]
     admin.bat scan
     admin.bat reprocess-all [--yes]        rescan the folder, then read every replay again
 """
@@ -41,7 +43,7 @@ from sqlalchemy.orm import Session, sessionmaker  # noqa: E402
 
 from backend import admin_actions as actions  # noqa: E402
 from backend import aliases, auth  # noqa: E402
-from backend.admin_actions import REPAIRABLE, AdminError, hidden_failure, unrepairable  # noqa: E402
+from backend.admin_actions import AGGRESSIVE_REPAIRABLE, REPAIRABLE, AdminError, hidden_failure, unrepairable  # noqa: E402
 from backend.config import Settings  # noqa: E402
 from backend.version import APP_VERSION  # noqa: E402
 from backend.models import HiddenReplay, Match, MatchPlayer, Player, PlayerAlias, Replay  # noqa: E402
@@ -402,6 +404,9 @@ def cmd_status(sessions) -> None:
                                  .group_by(Replay.error_code)).all())
         hidden = db.scalar(select(func.count()).select_from(Replay).where(hidden_failure()))
         stuck = db.scalar(select(func.count()).select_from(Replay).where(unrepairable(), not_(hidden_failure())))
+        repaired = dict(db.execute(select(Replay.warnings.like('["Repaired (aggressive)%'), func.count())
+                                   .where(Replay.status == "done", Replay.warnings.like('["Repaired%'))
+                                   .group_by(Replay.warnings.like('["Repaired (aggressive)%'))).all())
         merges = db.scalar(select(func.count()).select_from(PlayerAlias))
         players = db.scalar(select(func.count()).select_from(Player))
     print(f"Server: {'running' if server_running() else 'not running'} (http://{SERVER[0]}:{SERVER[1]})")
@@ -420,6 +425,9 @@ def cmd_status(sessions) -> None:
         print(f"Last replay finished: {last.replace('T', ' ')[:19]} UTC")
     if failed:
         print("Failed by reason: " + ", ".join(f"{k or 'unknown'} {n}" for k, n in sorted(failed.items(), key=lambda kv: -kv[1])))
+    if repaired:
+        print(f"Repaired successfully: {sum(repaired.values())} replays"
+              + (f" ({repaired.get(1, 0)} with aggressive repair)" if repaired.get(1) else ""))
     if stuck or hidden:
         print(f"Cannot be repaired: {stuck} shown on the website, {hidden} hidden")
     print(f"Players: {players}  ·  merges: {merges}")
@@ -430,6 +438,8 @@ def cmd_repair_failed(sessions, yes: bool) -> None:
         failed = actions.repairable_failures(db)
         if not failed:
             print("No damaged or incomplete replays left to try (each one gets one repair attempt here).")
+            if actions.aggressive_failures(db):
+                print("Replays that repair mode could not fix: 'repair-aggressive-failed' tries harder.")
             stuck = db.scalar(select(func.count()).select_from(Replay).where(unrepairable(), not_(hidden_failure())))
             if stuck:
                 print(f"{stuck} failed replays cannot be repaired: 'cannot-repair' lists them and can hide them.")
@@ -439,11 +449,29 @@ def cmd_repair_failed(sessions, yes: bool) -> None:
             return
         actions.repair_all_failed(db)
     print(f"{len(failed)} replays queued for repair. {when_applied()}")
-    print("Any that still fail afterwards show up under 'cannot-repair', where they can be hidden.")
+    print("Any that still fail afterwards can be tried with 'repair-aggressive-failed'.")
+
+
+def cmd_repair_aggressive_failed(sessions, yes: bool) -> None:
+    with sessions() as db:
+        failed = actions.aggressive_failures(db)
+        if not failed:
+            print("No broken replays left for aggressive repair (it is for replays repair mode could not fix; "
+                  "run 'repair-failed' first).")
+            return
+        if not confirm(f"Re-process {len(failed)} broken replays in aggressive repair mode?", yes):
+            print("Nothing changed.")
+            return
+        actions.repair_aggressive_all_failed(db)
+    print(f"{len(failed)} replays queued for aggressive repair. {when_applied()}")
+    print("Only frames that read correctly are kept. Any that still fail afterwards show up under 'cannot-repair', "
+          "where they can be hidden.")
 
 
 def describe_replay(r: Replay) -> str:
-    if r.error_code in REPAIRABLE:
+    if r.error_code in AGGRESSIVE_REPAIRABLE:
+        why = f"{r.error_code}, still failing after aggressive repair"
+    elif r.error_code in REPAIRABLE:
         why = f"{r.error_code}, still failing after repair"
     else:
         why = REASONS.get(r.error_code, r.error_code or "unknown error")
@@ -528,6 +556,12 @@ def cmd_repair(sessions, term: str) -> None:
     print(f"Queued {replay.source_path} for repair (salvage mode). {when_applied()}")
 
 
+def cmd_repair_aggressive(sessions, term: str) -> None:
+    with sessions() as db:
+        replay = actions.repair_aggressive(db, find_replay(db, term).id)
+    print(f"Queued {replay.source_path} for aggressive repair. {when_applied()}")
+
+
 def cmd_scan(sessions, settings: Settings) -> None:
     print(f"Scanning {settings.source_dir} ...")
     state = actions.scan(sessions, settings)
@@ -579,6 +613,8 @@ EchoVR Replay Stats - admin console ({APP_VERSION})
   16 Check a Discord member's access (Admin, Preview, Console)
   17 Discord admin users (admins by user id)
   18 Hide stats from players (win-loss)
+  19 Aggressive repair of broken replays (after 7)
+  20 Aggressive repair of one replay
   q  Quit"""
 
 
@@ -693,8 +729,14 @@ def interactive(sessions, settings: Settings) -> None:
                         cmd_hide_stats(sessions, show=pick)
                     else:
                         cmd_hide_stats(sessions, hide=pick)
+            elif choice == "19":
+                cmd_repair_aggressive_failed(sessions, yes=False)
+            elif choice == "20":
+                term = ask("Replay id or file path: ")
+                if term:
+                    cmd_repair_aggressive(sessions, term)
             else:
-                print("Choose 1-18 or q.")
+                print("Choose 1-20 or q.")
         except ConsoleError as e:
             print(f"! {e}")
 
@@ -703,7 +745,8 @@ def interactive(sessions, settings: Settings) -> None:
 
 # subcommands that change something: written to the audit log (Console page) with the Windows / container user
 LOGGED = {"merge", "unmerge", "challenge", "preview-roles", "admin-roles", "admin-users", "hide-stats", "repair-failed",
-          "cannot-repair", "hidden", "reprocess", "repair", "scan", "reprocess-all"}
+          "cannot-repair", "hidden", "reprocess", "repair", "scan", "reprocess-all", "repair-aggressive",
+          "repair-aggressive-failed"}
 
 
 def _run_logged(sessions, settings: Settings, args) -> int:
@@ -761,6 +804,10 @@ def main_command(sessions, settings: Settings, args) -> None:
             cmd_reprocess(sessions, args.replay)
         case "repair":
             cmd_repair(sessions, args.replay)
+        case "repair-aggressive":
+            cmd_repair_aggressive(sessions, args.replay)
+        case "repair-aggressive-failed":
+            cmd_repair_aggressive_failed(sessions, args.yes)
         case "scan":
             cmd_scan(sessions, settings)
         case "reprocess-all":
@@ -809,6 +856,10 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--yes", action="store_true")
     sub.add_parser("reprocess", help="read one replay again").add_argument("replay", help="replay id or file path")
     sub.add_parser("repair", help="re-process one damaged replay in repair mode").add_argument("replay", help="replay id or file path")
+    sub.add_parser("repair-aggressive", help="re-process one broken replay in aggressive repair mode") \
+        .add_argument("replay", help="replay id or file path")
+    p = sub.add_parser("repair-aggressive-failed", help="aggressive repair of broken replays repair mode could not fix")
+    p.add_argument("--yes", action="store_true")
     sub.add_parser("scan", help="look for new / changed files in the replay folder now")
     p = sub.add_parser("reprocess-all", help="rescan the folder, then read every replay again (hours)")
     p.add_argument("--yes", action="store_true")

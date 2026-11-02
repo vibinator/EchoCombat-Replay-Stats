@@ -175,6 +175,7 @@ No table: computed from `match_players` + loadouts + `matches` on request (`back
 | app_settings | key PK, value, updated_at | Admin settings: `challenge_start`, `challenge_end` (D33) |
 | player_aliases | alias_user_id PK, main_user_id (index), created_at | Player merges, applied in `save_match` (D34) |
 | repair_requests | source_path PK, requested_at | Replays processed in repair mode (D36) |
+| aggressive_repairs | source_path PK, requested_at | Replays processed in aggressive repair mode (D36b) |
 
 ## Tracks file (Phase 7, D11, D30)
 `data/processed/<replay_id>/tracks.bin` = zlib( uint32 header length | header JSON | arrays ), little-endian.

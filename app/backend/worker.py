@@ -22,7 +22,7 @@ from parser import PARSER_VERSION, ReplayError, open_replay
 from .cache import bump_generation
 from .config import Settings
 from .db import utcnow
-from .models import Match, MatchPlayerLoadout, PriorityReplay, RepairRequest, Replay
+from .models import AggressiveRepair, Match, MatchPlayerLoadout, PriorityReplay, RepairRequest, Replay
 from . import duplicates, tracks
 from .persist import delete_match, save_match
 from .stats import STATS_VERSION, compute
@@ -55,7 +55,7 @@ def _lower_priority() -> None:
         pass
 
 
-def analyse(path: str, tracks_file: str | None = None, repair: bool = False) -> tuple:
+def analyse(path: str, tracks_file: str | None = None, repair: bool | str = False) -> tuple:
     """Runs in a pool process. Returns ("ok", meta, stats, warnings, tracks_saved) or ("failed", code, message).
     Also writes the 2 Hz position tracks (for heatmaps / timeline) to `tracks_file`."""
     try:
@@ -239,9 +239,13 @@ class Worker:
             db.commit()
             for r in replays:
                 self._started[r.id] = (r.source_path, time.monotonic())
-            repair = set(db.scalars(select(RepairRequest.source_path)
-                                    .where(RepairRequest.source_path.in_([r.source_path for r in replays]))))
-            return [(r.id, str(self.settings.source_dir / r.source_path), r.source_path in repair) for r in replays]
+            paths = [r.source_path for r in replays]
+            repair = set(db.scalars(select(RepairRequest.source_path).where(RepairRequest.source_path.in_(paths))))
+            aggressive = set(db.scalars(select(AggressiveRepair.source_path)
+                                        .where(AggressiveRepair.source_path.in_(paths))))
+            # repair mode: False, True, or "aggressive" (D36b)
+            return [(r.id, str(self.settings.source_dir / r.source_path),
+                     "aggressive" if r.source_path in aggressive else r.source_path in repair) for r in replays]
 
     def _tracks_file(self, replay_id: int) -> str:
         return str(tracks_path(self.settings.processed_dir, replay_id))

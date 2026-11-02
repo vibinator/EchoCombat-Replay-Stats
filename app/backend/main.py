@@ -10,7 +10,7 @@ from starlette.exceptions import HTTPException
 
 from parser import PARSER_VERSION
 
-from . import auth, guard, icons, tracks
+from . import auth, discord_names, guard, icons, tracks
 from .api import achievements, admin, auth as auth_api, console, imports, profiles, leaderboard, matches, overview, permissions, players, replays
 from .config import PROJECT_ROOT, Settings
 from .db import open_db, warm
@@ -59,6 +59,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 achievements.warm(app.state.sessionmaker, previews=auth.enabled(settings))
 
             threading.Thread(target=warm_caches, name="warm-caches", daemon=True).start()
+            discord_names.refresh_soon(settings)  # player pictures by Discord name, read in the background
         yield
         if settings.auto_scan:
             app.state.scanner.stop()

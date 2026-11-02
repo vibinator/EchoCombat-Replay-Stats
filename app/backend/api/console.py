@@ -67,6 +67,8 @@ COMMANDS = {  # name as in admin.bat -> (sessions, settings, args) -> None
     "hidden": lambda s, st, a: console.cmd_hidden(s, a.unhide or None, a.unhide_all, yes=True),
     "reprocess": lambda s, st, a: console.cmd_reprocess(s, _required(a.replay, "a replay id or path")),
     "repair": lambda s, st, a: console.cmd_repair(s, _required(a.replay, "a replay id or path")),
+    "repair-aggressive": lambda s, st, a: console.cmd_repair_aggressive(s, _required(a.replay, "a replay id or path")),
+    "repair-aggressive-failed": lambda s, st, a: console.cmd_repair_aggressive_failed(s, yes=True),
     "scan": lambda s, st, a: console.cmd_scan(s, st),
     "reprocess-all": lambda s, st, a: console.cmd_reprocess_all(s, st, yes=True),
     "hide-stats": lambda s, st, a: console.cmd_hide_stats(s, "win_loss" if a.hide_win_loss else None,
@@ -81,6 +83,9 @@ WEB_WORDING = (
     ("Use the merged id from 'merges'.", "Use the merged id from “List merges”."),
     ("'cannot-repair' lists them", "“Replays that cannot be repaired” lists them"),
     ("show up under 'cannot-repair'", "show up under “Replays that cannot be repaired”"),
+    ("'repair-aggressive-failed' tries harder", "“Aggressive repair of broken replays” tries harder"),
+    ("can be tried with 'repair-aggressive-failed'", "can be tried with “Aggressive repair of broken replays”"),
+    ("run 'repair-failed' first", "run “Repair all failed replays” first"),
     ("'hidden' lists them", "“Hidden replays” lists them"),
     ("Progress: 'admin.bat status'.", "Progress: “Status and import progress”."),
 )
@@ -144,6 +149,7 @@ def overview(request: Request):
             "merges": db.scalar(select(func.count()).select_from(PlayerAlias)),
             "cannot_repair": db.scalar(select(func.count()).select_from(Replay).where(unrepairable(), not_(hidden_failure()))),
             "repairable": len(actions.repairable_failures(db)),
+            "aggressive_repairable": len(actions.aggressive_failures(db)),
             "hidden_replays": db.scalar(select(func.count()).select_from(Replay).where(hidden_failure())),
             "challenge": {"start": start, "end": end, "launched": actions.achievements_launched(db)},
             "stat_groups": [{"key": g, "label": label, "hidden": g in hidden, "players": hidden_players[g]}

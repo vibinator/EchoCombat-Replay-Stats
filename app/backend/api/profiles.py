@@ -14,9 +14,9 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 
-from .. import auth
+from .. import auth, discord_names
 from ..errors import ApiError
 from ..models import Player, PlayerAlias, PlayerProfile
 
@@ -53,10 +53,28 @@ def clean_bio(text: str | None) -> str | None:
     return text[:BIO_MAX] or None
 
 
-def _public(request: Request, profile: PlayerProfile | None, viewer: dict | None) -> dict:
+def _name_match_avatar(request: Request, db, user_id: str) -> str | None:
+    """Avatar of the one Discord member with this player's name, when no other player has it (discord_names.py)."""
+    name = db.scalar(select(Player.name).where(Player.user_id == user_id))
+    if not name:
+        return None
+    hit = discord_names.match(request.app.state.settings, name)
+    if hit is None:
+        return None
+    discord_id, url = hit
+    if db.scalar(select(PlayerProfile.user_id).where(PlayerProfile.discord_id == discord_id)) is not None:
+        return None  # linked by the bot to another player: shown only there
+    same_name = db.scalars(select(Player.user_id).where(func.lower(Player.name) == name.lower())).all()
+    if len({_main_id(db, u) for u in same_name} | {user_id}) > 1:
+        return None  # two players with this name: not 1:1
+    return url
+
+
+def _public(request: Request, profile: PlayerProfile | None, viewer: dict | None, name_avatar: str | None = None) -> dict:
     settings = request.app.state.settings
     if profile is None:
-        return {"linked": False, "bio": None, "avatar_url": None, "show_avatar": False, "editable": False}
+        return {"linked": False, "bio": None, "avatar_url": name_avatar, "show_avatar": name_avatar is not None,
+                "editable": False}
     return {
         "linked": True,
         "bio": profile.bio,
@@ -73,8 +91,9 @@ def get_profile(request: Request, user_id: str):
     """Bio and picture of a player, and whether the visitor may edit them (their own linked player)."""
     viewer = auth.viewer(request)  # per visitor: never kept in a shared cache
     with request.app.state.sessionmaker() as db:
-        profile = db.get(PlayerProfile, _main_id(db, user_id))
-        return _public(request, profile, viewer)
+        main = _main_id(db, user_id)
+        profile = db.get(PlayerProfile, main)
+        return _public(request, profile, viewer, None if profile else _name_match_avatar(request, db, main))
 
 
 class ProfileEdit(BaseModel):

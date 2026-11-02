@@ -17,7 +17,7 @@ from ..gear import ORDNANCES, TACMODS, WEAPONS
 from ..gear import lookup as gear_lookup
 from ..stats.map_objects import CAPTURE_POINTS, PAYLOAD_ROUTES
 from ..stats.maps import HEATMAP_LAYOUTS
-from ..models import DuplicateMatch, Event, Match, MatchPlayer, MatchPlayerLoadout, Player
+from ..models import DuplicateMatch, Event, Match, MatchPlayer, MatchPlayerLoadout, Player, Replay
 from .derived import ID_MAX, MAP_PATTERN, MODE_PATTERN, TEXT_MAX, dominant_arm, loadout, match_summary, ratio
 from .downloads import download_csv, download_json
 
@@ -190,6 +190,7 @@ def match_detail(request: Request, match_id: int) -> dict:
         root = duplicate_of or match_id
         copies = db.scalars(select(DuplicateMatch.match_id).where(DuplicateMatch.counted_match_id == root)).all()
         also = sorted({root, *copies} - {match_id})
+        repaired = repair_note(db.scalar(select(Replay.warnings).where(Replay.id == match.replay_id)))
 
         picks = gear_use.picks_in_match(db, match_id)
         teams: dict[str, list] = {"blue": [], "orange": []}
@@ -214,7 +215,20 @@ def match_detail(request: Request, match_id: int) -> dict:
             "teams": teams,
             "also_recorded_in": list(also),
             "duplicate_of": duplicate_of,  # another recording of this match counts in the stats instead (D13)
+            "repaired": repaired,
         }
+
+
+def repair_note(warnings: str | None) -> dict | None:
+    """Read from a damaged file by a repair (D36, D36b): {"aggressive": bool, "frames": n}, else None."""
+    try:
+        first = (json.loads(warnings) if warnings else [None])[0]
+    except (ValueError, IndexError, TypeError):
+        return None
+    if not isinstance(first, str) or not first.startswith("Repaired"):
+        return None
+    frames = first.split(": ", 1)[1].split(" ", 1)[0].replace(",", "") if ": " in first else ""
+    return {"aggressive": first.startswith("Repaired (aggressive)"), "frames": int(frames) if frames.isdigit() else None}
 
 
 @router.get("/{match_id}/events")

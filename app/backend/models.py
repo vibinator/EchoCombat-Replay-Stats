@@ -189,6 +189,16 @@ class RepairRequest(Base):
     requested_at: Mapped[str]
 
 
+class AggressiveRepair(Base):
+    """Replays to process in aggressive repair mode (D36b): failed ones that repair mode could not fix. Kept across
+    rebuilds, keyed by file path."""
+
+    __tablename__ = "aggressive_repairs"
+
+    source_path: Mapped[str] = mapped_column(primary_key=True)
+    requested_at: Mapped[str]
+
+
 class PriorityReplay(Base):
     """Queued replays to process before the backlog (admin console merges / repairs). Removed when claimed."""
 

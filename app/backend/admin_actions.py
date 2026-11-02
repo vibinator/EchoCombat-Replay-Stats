@@ -12,9 +12,11 @@ from . import aliases
 from .cache import bump_generation
 from .config import Settings
 from .db import utcnow
-from .models import AppSetting, ConsoleLog, HiddenReplay, Player, PlayerAlias, PriorityReplay, RepairRequest, Replay
+from .models import AggressiveRepair, AppSetting, ConsoleLog, HiddenReplay, Player, PlayerAlias, PriorityReplay, RepairRequest, Replay
 
 REPAIRABLE = ("corrupt", "incomplete", "internal", "crashed")  # not: unsupported (not Combat), unreadable (I/O)
+# Aggressive repair (D36b) only for broken replay data, after repair mode failed: not "internal" (a bug in the app)
+AGGRESSIVE_REPAIRABLE = ("corrupt", "incomplete", "crashed")
 WINDOW_KEYS = ("challenge_start", "challenge_end")
 # Discord ids, comma-separated, per permission (D41, D42, D45; Permissions page, user 2026-10-30): "<permission>" =
 # role ids, "<permission>_user" = people's user ids. preview = achievements before the launch, admin = the Admin
@@ -39,10 +41,13 @@ def hidden_failure():
 
 
 def unrepairable():
-    """Failed, and repair cannot help: not a repairable error, or repair was already tried."""
+    """Failed, and repair cannot help: not a repairable error, or every repair mode left for it was tried (repair, then
+    aggressive repair for broken data)."""
+    repaired = Replay.source_path.in_(select(RepairRequest.source_path))
     return and_(Replay.status == "failed", or_(
         Replay.error_code.is_(None), Replay.error_code.not_in(REPAIRABLE),
-        Replay.source_path.in_(select(RepairRequest.source_path)),
+        and_(repaired, Replay.error_code.not_in(AGGRESSIVE_REPAIRABLE)),
+        and_(repaired, Replay.source_path.in_(select(AggressiveRepair.source_path))),
     ))
 
 
@@ -102,6 +107,45 @@ def repair_all_failed(db: Session) -> list[int]:
     failed = repairable_failures(db)
     for replay in failed:
         _request_repair(db, replay)
+    prioritise(db, [r.id for r in failed])
+    db.commit()
+    return [r.id for r in failed]
+
+
+def repair_aggressive(db: Session, replay_id: int) -> Replay:
+    """Re-process a failed replay in aggressive repair mode (D36b): for broken replay data that repair mode could
+    not fix. Rebuilds wiped zip headers, takes damaged parts from the zip's second copy of the frames and keeps
+    every frame that reads correctly; nothing is guessed. Reads the original only; the share is never written to."""
+    replay = _replay(db, replay_id)
+    if replay.status != "failed" or replay.error_code not in AGGRESSIVE_REPAIRABLE:
+        raise AdminError("Only failed replays with damaged or incomplete data can be repaired aggressively"
+                         if replay.status == "failed" else "This replay was processed successfully")
+    _request_aggressive(db, replay)
+    prioritise(db, [replay.id])
+    db.commit()
+    return replay
+
+
+def _request_aggressive(db: Session, replay: Replay) -> None:
+    now = utcnow()
+    db.merge(RepairRequest(source_path=replay.source_path, requested_at=now))
+    db.merge(AggressiveRepair(source_path=replay.source_path, requested_at=now))
+    replay.status = "queued"
+
+
+def aggressive_failures(db: Session) -> list[Replay]:
+    """Broken replays that repair mode did not fix, not tried in aggressive mode yet (and not hidden)."""
+    return db.scalars(select(Replay).where(
+        Replay.status == "failed", Replay.error_code.in_(AGGRESSIVE_REPAIRABLE), ~hidden_failure(),
+        Replay.source_path.in_(select(RepairRequest.source_path)),
+        Replay.source_path.not_in(select(AggressiveRepair.source_path)),
+    )).all()
+
+
+def repair_aggressive_all_failed(db: Session) -> list[int]:
+    failed = aggressive_failures(db)
+    for replay in failed:
+        _request_aggressive(db, replay)
     prioritise(db, [r.id for r in failed])
     db.commit()
     return [r.id for r in failed]

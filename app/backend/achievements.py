@@ -350,20 +350,20 @@ def _build_rules() -> list[Rule]:
                 lambda g: g.play_time_s >= FULL_GAME_S and g.deaths <= 3, (1, 5, 15, 50, 250), estimated=True),
         _tiered(19, "Point Captured", "Play Capture Point games in one day: the most in a single day counts", "capture_point", _capture, (4, 6, 8, 12, 20), "day"),
         _tiered(20, "Checkpoint Reached", "Play Payload games in one day: the most in a single day counts", "payload", _payload, (4, 6, 8, 12, 20), "day"),
-        _ladder(21, "Full Team Salvo", "Time near a teammate in one game of 3+ minutes: your best game counts", None,
+        _ladder(21, "Full Team Salvo", "Time near a teammate in one game of 3+ minutes: your best game counts", "team_proximity",
                 _full(_pct("near_mate")), (45, 55, 65, 80, 92), "game", "%"),
-        _ladder(22, "Can We Talk About This?", "Time near an enemy in one game of 3+ minutes: your best game counts", None,
+        _ladder(22, "Can We Talk About This?", "Time near an enemy in one game of 3+ minutes: your best game counts", "enemy_proximity",
                 _full(_pct("near_enemy")), (2, 15, 30, 50, 75), "game", "%"),
-        _ladder(23, "Super Ultra Hyper Turbo", "Top speed reached in one game: your best game counts", None,
+        _ladder(23, "Super Ultra Hyper Turbo", "Top speed reached in one game: your best game counts", "speed",
                 lambda gs: gs[0].top_speed, (14, 18, 22, 27, 32), "game", " m/s"),
-        _ladder(24, "I’m Bat Bot", "Time spent inverted in one game of 3+ minutes: your best game counts", None,
+        _ladder(24, "I’m Bat Bot", "Time spent inverted in one game of 3+ minutes: your best game counts", "inverted",
                 _full(_pct("upside")), (15, 30, 55, 80, 92), "game", "%"),
     ]
     for rid, name, m in ((25, "Constant Contesting", "dyson"), (26, "Blast Furnace", "combustion"),
                          (27, "Techneium-99", "fission"), (28, "Bird of Prey", "surge")):
         rules.append(_tiered(rid, name, f"Play games of {m.title()} in one day: the most in a single day counts", m,
                              lambda g, m=m: g.map == m, (2, 3, 4, 6, 10), "day"))
-    rules.append(_tiered(29, "Combat on Quest When?", "Play Combat pubs in one day: the most in a single day counts", None, _pub, (10, 15, 20, 30, 40), "day"))
+    rules.append(_tiered(29, "Combat on Quest When?", "Play Combat pubs in one day: the most in a single day counts", "pubs", _pub, (10, 15, 20, 30, 40), "day"))
 
     # Weekly (30-54): the most in one calendar week (Monday start)
     names = {
@@ -378,21 +378,21 @@ def _build_rules() -> list[Rule]:
                                  _only_games(slot, code), (5, 10, 15, 30, 50), "week"))
             i += 1
     rules += [
-        _ladder(42, "Gearhead", "Games in a row using only one loadout in any 7 days: your best 7 days count", None, _gearhead_run, (4, 8, 15, 30, 50), "week"),
+        _ladder(42, "Gearhead", "Games in a row using only one loadout in any 7 days: your best 7 days count", "loadout", _gearhead_run, (4, 8, 15, 30, 50), "week"),
         Rule(43, "Pew Pew Proof", "Average fewer than 5 deaths per game over any 7 days (25+ games)", "week", "deaths", _pew_pew_proof, estimated=True),
         _tiered(44, "I'd Rather Be on Kronos II", "Play Capture Point games in any 7 days: the most in any 7 days counts", "capture_point", _capture, (10, 18, 25, 40, 50), "week"),
         _tiered(45, "Sakura's Dancing Flamingo", "Play Payload games in any 7 days: the most in any 7 days counts", "payload", _payload, (10, 18, 25, 40, 50), "week"),
-        _ladder(46, "Tech Support w/RAD_Natalie", "Time near a teammate over any 7 days: your best 7 days count", None, _pct("near_mate"), (22, 27, 32, 40, 55), "week", "%"),
-        _ladder(47, "Hug Your Frenemy", "Time near an enemy over any 7 days: your best 7 days count", None, _pct("near_enemy"), (10, 15, 20, 30, 50), "week", "%"),
-        _ladder(48, "The Wings of RAD_Wyvern", "Average speed over any 7 days: your best 7 days count", None, _AvgValue("speed_sum", 1.0), (3.5, 4, 4.5, 5, 6), "week", " m/s"),
-        _ladder(49, "I’ɯ ꓭɐʇ ꓭoʇ", "Time spent inverted over any 7 days: your best 7 days count", None, _pct("upside"), (5, 10, 15, 30, 50), "week", "%"),
+        _ladder(46, "Tech Support w/RAD_Natalie", "Time near a teammate over any 7 days: your best 7 days count", "team_proximity", _pct("near_mate"), (22, 27, 32, 40, 55), "week", "%"),
+        _ladder(47, "Hug Your Frenemy", "Time near an enemy over any 7 days: your best 7 days count", "enemy_proximity", _pct("near_enemy"), (10, 15, 20, 30, 50), "week", "%"),
+        _ladder(48, "The Wings of RAD_Wyvern", "Average speed over any 7 days: your best 7 days count", "speed", _AvgValue("speed_sum", 1.0), (3.5, 4, 4.5, 5, 6), "week", " m/s"),
+        _ladder(49, "I’ɯ ꓭɐʇ ꓭoʇ", "Time spent inverted over any 7 days: your best 7 days count", "inverted", _pct("upside"), (5, 10, 15, 30, 50), "week", "%"),
     ]
     for rid, name, m in ((50, "Frame-Drop Hell", "dyson"), (51, "I've Got a Fever, and the Only Prescription Is Pew Pew Pew!", "combustion"),
                          (52, "Phoeniconaias minor", "fission"), (53, "Phoenicopterus ruber", "surge")):
         rules.append(_tiered(rid, name, f"Play games of {m.title()} in any 7 days: the most in any 7 days counts", m,
                              lambda g, m=m: g.map == m, (4, 6, 8, 16, 30), "week"))
     rules.append(_tiered(54, "Who Do I Have to Pew Pew Pew to Get a Combat Update Around Here?",
-                         "Play Combat pubs in any 7 days: the most in any 7 days counts", None, _pub, (15, 30, 60, 100, 150), "week"))
+                         "Play Combat pubs in any 7 days: the most in any 7 days counts", "pubs", _pub, (15, 30, 60, 100, 150), "week"))
 
     # All time (55-79). 55-66 have no title in the old code (A: names generated).
     i = 55
@@ -401,23 +401,23 @@ def _build_rules() -> list[Rule]:
             rules.append(_ladder(i, f"{label} Veteran", f"Play games using {label}", icon, _games_using(slot, code), (5, 15, 50, 150, 500)))
             i += 1
     rules += [
-        _ladder(67, "5th Loadout when? \"Soon™\"", "Different loadout combinations used, 3+ minutes each (of 64)", None, _loadouts_used, (6, 12, 24, 40, 56)),
+        _ladder(67, "5th Loadout when? \"Soon™\"", "Different loadout combinations used, 3+ minutes each (of 64)", "loadout", _loadouts_used, (6, 12, 24, 40, 56)),
         _ladder(68, "Pixel Party!", "Die in total", "deaths", lambda gs: sum(g.deaths for g in gs), (100, 300, 750, 2500, 10000), estimated=True),
         _tiered(69, "King of the Hill", "Play Capture Point games", "capture_point", _capture, (10, 25, 50, 150, 500)),
         _tiered(70, "Feed the Flamingo", "Play Payload games", "payload", _payload, (10, 25, 50, 150, 500)),
-        _ladder(71, "Robot Wrecking Squad", "Time near a teammate, all-time average (50+ games)", None,
+        _ladder(71, "Robot Wrecking Squad", "Time near a teammate, all-time average (50+ games)", "team_proximity",
                 _AvgValue("near_mate", 100.0, SEASON_MIN_GAMES), (14, 15.5, 17, 19.5, 22.5), "all", "%"),
-        _ladder(72, "Roboticide", "Time near an enemy, all-time average (50+ games)", None,
+        _ladder(72, "Roboticide", "Time near an enemy, all-time average (50+ games)", "enemy_proximity",
                 _AvgValue("near_enemy", 100.0, SEASON_MIN_GAMES), (6, 8, 10, 12.5, 15), "all", "%"),
-        _ladder(73, "Cyberkinetic Enhancements", "Average speed, all-time average (25+ games)", None,
+        _ladder(73, "Cyberkinetic Enhancements", "Average speed, all-time average (25+ games)", "speed",
                 _AvgValue("speed_sum", 1.0, SPEED_MIN_GAMES), (2.6, 2.8, 3.0, 3.2, 3.5), "all", " m/s"),
-        _ladder(74, "toB taB m'I", "Time spent inverted, all-time average (50+ games)", None,
+        _ladder(74, "toB taB m'I", "Time spent inverted, all-time average (50+ games)", "inverted",
                 _AvgValue("upside", 100.0, SEASON_MIN_GAMES), (2, 4, 8, 20, 40), "all", "%"),
     ]
     for rid, name, m in ((75, "Brute Force Attack", "dyson"), (76, "Molten Mechanical Mayhem", "combustion"),
                          (77, "George and I Go Way Back", "fission"), (78, "Good ol' George", "surge")):
         rules.append(_tiered(rid, name, f"Play games of {m.title()}", m, lambda g, m=m: g.map == m, (5, 10, 25, 75, 250)))
-    rules.append(_tiered(79, "King/Queen of Pubs", "Play Combat pubs", None, _pub, (25, 75, 150, 350, 1000)))
+    rules.append(_tiered(79, "King/Queen of Pubs", "Play Combat pubs", "pubs", _pub, (25, 75, 150, 350, 1000)))
 
     # New (80+): data the old site never used.
     starts = {"rifle": ("Starburst Beta Tester", (1, 5, 25, 50, 100)), "magnum": ("Protostar Prototype", (1, 5, 25, 50, 100)),

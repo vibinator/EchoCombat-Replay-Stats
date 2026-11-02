@@ -73,3 +73,7 @@ Last updated: 2026-10-29 (Phase 2 complete)
 - **Done when:** Features built, tested, end-to-end checked on real replays.
 - **Notes:** 120 tests. Merge round-trip test proves merge → undo restores every player's stats exactly. High-res minimaps re-oriented per map by data. Stats v7 / tracks v2 → one more full reprocess.
 - **Depends on:** 8
+
+## Future — 3D playback
+- **Status:** Planned 2026-11-02, not started.
+- **Plan:** [WebReplayer-Review.MD](WebReplayer-Review.MD): review of duncancarroll/ec-web-replayer and a 10-phase port of 3D playback into the Playback tab (derived 3D tracks only; no raw replay downloads).

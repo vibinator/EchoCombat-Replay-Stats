@@ -113,6 +113,18 @@ const GROUPS: { title: string; commands: Command[] }[] = [
         confirm: () => "Repair every damaged or incomplete replay?",
       },
       {
+        name: "repair-aggressive",
+        label: "Aggressively repair a replay",
+        help: "For broken replay data that repair mode could not fix: rebuilds wiped zip headers, takes damaged parts from the zip's second copy of the frames and keeps every frame that reads correctly. Nothing is guessed.",
+        fields: [{ key: "replay", label: "Replay", hint: "Replay id or part of its file path" }],
+      },
+      {
+        name: "repair-aggressive-failed",
+        label: "Aggressive repair of broken replays",
+        help: "Try aggressive repair once on every broken replay that repair mode could not fix.",
+        confirm: () => "Aggressively repair every broken replay that repair mode could not fix?",
+      },
+      {
         name: "cannot-repair",
         label: "Replays that cannot be repaired",
         help: "Failed replays that repair cannot fix. Hiding them leaves them out of the failed lists and counts; nothing is deleted.",
@@ -494,9 +506,13 @@ function Dashboard({ api }: { api: ConsoleApi }) {
         </DashCard>
         <DashCard label="Failed replays" value={int(c.failed)} bad={overview.repairable > 0}>
           {overview.repairable > 0 && <>{int(overview.repairable)} can be repaired · </>}
+          {overview.aggressive_repairable > 0 && <>{int(overview.aggressive_repairable)} for aggressive repair · </>}
           {int(overview.cannot_repair)} cannot · {int(overview.hidden_replays)} hidden
           {overview.repairable > 0 && (
             <button type="button" className="secondary small" onClick={() => api.open("repair-failed")}>Repair…</button>
+          )}
+          {overview.repairable === 0 && overview.aggressive_repairable > 0 && (
+            <button type="button" className="secondary small" onClick={() => api.open("repair-aggressive-failed")}>Aggressive repair…</button>
           )}
         </DashCard>
         <DashCard label="Players" value={int(overview.players)}>

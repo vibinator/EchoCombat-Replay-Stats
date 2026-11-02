@@ -177,6 +177,12 @@ Old `skims.py` `CaculateSkims` run read-only on the 4 plain samples (16 players)
 - Unreadable lines, including the first, are skipped without limit; still needs ≥ 2 readable frames and `Echo_Combat`.
 - Check (2026-10-30): a real zipped replay cut to 60 % → normal parse `corrupt`; repair recovered 3,764 frames (190 s of play).
 
+## Aggressive repair (D36b)
+- What the 80 replays still failing after repair (2026-11-02) look like: 60 empty or all zero bytes (nothing to recover); 20 with 4 KB disk blocks overwritten by zeros or by another file's data, local zip headers wiped, sometimes another match's entries in the central directory.
+- Recorded zips hold the frames twice with identical compressed bytes (`.echoreplay` and `images/image.png`): damage in one copy is patched from the other.
+- zlib decodes zeros / foreign data without an error into junk, so each decoded line must parse as a frame; reading stops at the first one that does not. Nothing after a gap in both copies is recoverable (back-references into the lost window).
+- Check (2026-11-02): 12 of the 20 recovered (5 complete via the second copy); the other 8 lost the start of the compressed stream in every copy.
+
 ## Limitations / edge cases / version differences
 - Two scoring schemas by map type: capture-point (`blue_points`/`orange_points`) vs payload (`payload`/`timers`). Parser must treat both as optional.
 - Players may join/leave mid-match; slots (`playerid`) are reused. Key players by `userid`.

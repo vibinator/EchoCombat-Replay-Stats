@@ -18,6 +18,11 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.02.3 — 20:45
+### Docs: 3D replay viewer review and plan
+- New `docs/WebReplayer-Review.MD`: review of duncancarroll/ec-web-replayer (Three.js Echo Combat viewer; its ecranked.ddns.net data source is offline, 15 bugs listed) and a 10-phase plan to add a 3D view to the Playback tab using derived 3D tracks (no raw replay downloads). Linked from `docs/Phases.MD`.
+- No code changes. **To do:** nothing.
+
 ## 2026.11.02.2 — 20:08
 ### Cloudflare tunnel: cloudflared pinned to 2026.10.7
 - `docker-compose.yml` now runs `cloudflare/cloudflared:2026.10.7` (newest release) instead of `latest`, so the

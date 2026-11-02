@@ -7,8 +7,8 @@ import {
 } from "../api";
 import { useApi } from "../useApi";
 
-/** Profile picture (the linked Discord account's avatar) shown beside the player's name; nothing when not linked or
- * the player turned it off. */
+/** Profile picture beside the player's name: the linked Discord account's avatar, or the avatar of the one Discord
+ * member with exactly this name (served by Discord's CDN); nothing when neither, or the player turned it off. */
 export function PlayerAvatar({
   profile,
 }: {

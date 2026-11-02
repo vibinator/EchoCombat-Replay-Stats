@@ -375,6 +375,15 @@ export function MatchPage() {
             </p>
           )}
 
+          {m.repaired && (
+            <p className="note">
+              Repaired replay: the file was damaged and was recovered
+              {m.repaired.aggressive ? " with aggressive repair" : " in repair mode"}
+              {m.repaired.frames != null && <> ({m.repaired.frames.toLocaleString()} frames read correctly)</>}. Parts of
+              the match may be missing, so its stats can be incomplete; nothing was guessed.
+            </p>
+          )}
+
           <Scoreboard m={m} />
           <Highlights m={m} />
           <TeamComparison m={m} />

@@ -352,6 +352,7 @@ export interface MatchDetail extends MatchSummary {
   teams: Record<Team, MatchPlayer[]>;
   also_recorded_in: number[]; // other recordings of the same match
   duplicate_of: number | null; // set: that recording counts in the stats, this one does not
+  repaired: { aggressive: boolean; frames: number | null } | null; // read from a damaged file by a repair
 }
 
 export interface PlayerListItem {
@@ -855,6 +856,7 @@ export interface ConsoleOverview {
   merges: number;
   cannot_repair: number;
   repairable: number;
+  aggressive_repairable: number;
   hidden_replays: number;
   challenge: { start: string | null; end: string | null; launched: boolean };
   stat_groups: { key: string; label: string; hidden: boolean; players: { user_id: string; name: string }[] }[];
