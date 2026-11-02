@@ -406,6 +406,8 @@ export interface PlayerProfile {
   period: Period;
   map: string | null;
   stats: PlayerStats;
+  /** every player's shares over the same period / map */
+  site_avg?: Partial<Record<"pct_stopped" | "pct_upside_down" | "pct_near_mate" | "pct_near_enemy" | "pct_left_early", number | null>>;
   loadouts: Loadout[];
   gear: GearUseSet;
   recent_matches: PlayerMatch[];
@@ -539,6 +541,8 @@ export interface Leaderboard {
   higher_is_better: boolean;
   total: number;
   items: LeaderboardRow[];
+  /** biggest value on the whole board: the value bars are scaled to it */
+  max_value?: number | null;
 }
 
 export interface StatOption {
@@ -827,6 +831,48 @@ export interface MergeSuggestion {
   players: MergeCandidate[];
 }
 export const getMergeSuggestions = () => send<MergeSuggestion[]>("/api/admin/console/merge-suggestions");
+
+/** Console audit log: one command run on the Console page or with admin.bat. */
+export interface ConsoleLogEntry {
+  id: number;
+  at: string; // UTC
+  source: "website" | "admin.bat";
+  who: string;
+  who_id: string | null;
+  command: string;
+  args: Record<string, unknown>;
+  ok: boolean;
+  output: string;
+}
+
+/** Console dashboard facts (processing progress comes from getProcessingStatus). */
+export interface ConsoleOverview {
+  players: number;
+  merges: number;
+  cannot_repair: number;
+  repairable: number;
+  hidden_replays: number;
+  challenge: { start: string | null; end: string | null; launched: boolean };
+  stat_groups: { key: string; label: string; hidden: boolean; players: { user_id: string; name: string }[] }[];
+  recent: ConsoleLogEntry[];
+}
+
+/** Console player tools: a search result. */
+export interface ConsolePlayer {
+  user_id: string;
+  name: string;
+  games: number;
+  first_seen_at: string;
+  last_seen_at: string;
+  merged_into: { user_id: string; name: string } | null;
+  merged_ids: { user_id: string; name: string }[];
+  win_loss_hidden: boolean;
+}
+
+export const getConsoleOverview = () => send<ConsoleOverview>("/api/admin/console/overview");
+export const searchConsolePlayers = (q: string) => send<ConsolePlayer[]>(`/api/admin/console/players${query({ q })}`);
+export const getConsoleLog = (q = "", before?: number) =>
+  send<ConsoleLogEntry[]>(`/api/admin/console/log${query({ q: q || undefined, before, limit: 100 })}`);
 
 /** Status page (admins and console users): live replay processing progress. Never cached. */
 export interface ProcessingStatus {

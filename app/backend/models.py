@@ -190,3 +190,20 @@ class HiddenReplay(Base):
 
     source_path: Mapped[str] = mapped_column(primary_key=True)
     hidden_at: Mapped[str]
+
+
+class ConsoleLog(Base):
+    """Audit log of console commands (user, 2026-11-02): who ran what, from the website's Console page or admin.bat.
+    Kept across rebuilds."""
+
+    __tablename__ = "console_log"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    at: Mapped[str] = mapped_column(index=True)  # UTC, ISO
+    source: Mapped[str]  # "website" / "admin.bat"
+    who_id: Mapped[str | None]  # Discord user id (website)
+    who_name: Mapped[str]
+    command: Mapped[str]
+    args: Mapped[str | None]  # JSON
+    ok: Mapped[bool]
+    output: Mapped[str | None]  # what it printed, cut to OUTPUT_MAX

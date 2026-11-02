@@ -65,7 +65,7 @@ def _add_missing_indexes(engine: Engine) -> None:
 # Derived tables, children first: a change here keeps `replays` and only recomputes stats.
 DERIVED_TABLES = ("duplicate_matches", "events", "match_player_loadouts", "match_players", "matches")
 # Kept across every rebuild: admin settings are not derived from the share.
-PRESERVED_TABLES = ("app_settings", "player_aliases", "repair_requests", "hidden_replays")
+PRESERVED_TABLES = ("app_settings", "player_aliases", "repair_requests", "hidden_replays", "console_log")
 
 
 def _stale(inspector, name: str) -> bool:

@@ -77,3 +77,58 @@ def test_console_command(tmp_path, discord, capsys):  # noqa: F811
             assert "not a stat group" in str(e)
         else:
             raise AssertionError("unknown group accepted")
+
+
+def test_hidden_for_one_player(tmp_path, discord):  # noqa: F811
+    with app_client(settings(tmp_path)) as client:
+        add(client, {"dyson/0.echoreplay": rf.plain(rf.lines(20))})
+        act(client, actions.add_discord_role, "admin_user", MEMBER)
+        other = next(p["user_id"] for p in client.get("/api/players").json()["items"] if p["user_id"] != BLUE)
+        console.cmd_hide_stats(client.app.state.sessionmaker, hide="win_loss", player=BLUE)
+        visibility._memo.clear()
+
+        assert "wins" not in client.get(f"/api/players/{BLUE}").json()["stats"]
+        assert "win_rate" not in client.get(f"/api/players/{BLUE}/trends").json()["items"][0]
+        assert "wins" in client.get(f"/api/players/{other}").json()["stats"]  # only that player
+        board = {r["user_id"]: r for r in client.get("/api/leaderboard?min_games=1").json()["items"]}
+        assert board[BLUE]["wins"] is None and board[other]["wins"] is not None
+        wins_board = [r["user_id"] for r in client.get("/api/leaderboard?stat=wins&min_games=1").json()["items"]]
+        assert BLUE not in wins_board and other in wins_board
+        cmp = client.get(f"/api/players/compare/{BLUE},{other}").json()  # either hidden: no record at all
+        assert all("wins" not in p["stats"] for p in cmp["players"])
+
+        login(client, MEMBER)  # admins still see it
+        assert "wins" in client.get(f"/api/players/{BLUE}").json()["stats"]
+
+        console.cmd_hide_stats(client.app.state.sessionmaker, show="win_loss", player=BLUE)
+        visibility._memo.clear()
+        client.cookies.clear()
+        assert "wins" in client.get(f"/api/players/{BLUE}").json()["stats"]
+
+
+def test_console_tools_and_audit_log(tmp_path, discord):  # noqa: F811
+    """Dashboard facts, player tools and the audit log (Console page); console users only."""
+    with app_client(settings(tmp_path)) as client:
+        add(client, {"dyson/0.echoreplay": rf.plain(rf.lines(20))})
+        for path in ("/api/admin/console/overview", "/api/admin/console/players?q=a", "/api/admin/console/log"):
+            assert client.get(path).status_code == 403
+        login(client, MEMBER)  # MEMBER has the console role (ECHOVR_DISCORD_PREVIEW_ROLES)
+
+        found = client.get("/api/admin/console/players", params={"q": BLUE}).json()
+        assert found[0]["user_id"] == BLUE and found[0]["win_loss_hidden"] is False and found[0]["games"] == 1
+
+        r = client.post("/api/admin/console/hide-stats", json={"hide_win_loss": True, "player": BLUE},
+                        headers={"X-EchoVR": "1"})
+        assert r.status_code == 200 and r.json()["ok"], r.text
+        assert client.get("/api/admin/console/players", params={"q": BLUE}).json()[0]["win_loss_hidden"] is True
+
+        overview = client.get("/api/admin/console/overview").json()
+        group = overview["stat_groups"][0]
+        assert group["key"] == "win_loss" and group["hidden"] is False and group["players"][0]["user_id"] == BLUE
+        assert overview["players"] >= 1
+
+        log = client.get("/api/admin/console/log").json()
+        assert log[0]["command"] == "hide-stats" and log[0]["source"] == "website" and log[0]["ok"]
+        assert log[0]["args"] == {"hide_win_loss": True, "player": BLUE} and log[0]["who_id"] == MEMBER
+        assert overview["recent"][0]["id"] == log[0]["id"]
+        assert client.get("/api/admin/console/log", params={"q": "nothing-like-this"}).json() == []

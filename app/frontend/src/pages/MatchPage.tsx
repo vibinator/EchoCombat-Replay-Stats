@@ -4,6 +4,7 @@ import {
   getMatch, getMatchHeatmapBy, getPlayback, getTimeline,
   type GearUse, type HeatmapLayerMode, type MatchDetail, type MatchPlayer, type Team,
 } from "../api";
+import { SplitBar } from "../components/bars";
 import { GearName, LoadoutText, Status, TableWrap } from "../components/common";
 import { HEATMAP_CELL_M, HEATMAP_MODES, HeatmapView } from "../components/HeatmapView";
 import { PlaybackCompare, PlaybackView } from "../components/PlaybackView";
@@ -65,6 +66,43 @@ function Scoreboard({ m }: { m: MatchDetail }) {
         )}
       </div>
       <TeamColumn team="orange" m={m} />
+    </div>
+  );
+}
+
+/** Blue vs orange, one split bar per stat: why the match went the way it did. Averages are over the team's players
+ * with a value; totals are summed. */
+function TeamComparison({ m }: { m: MatchDetail }) {
+  const blue = m.teams.blue ?? [];
+  const orange = m.teams.orange ?? [];
+  if (blue.length === 0 || orange.length === 0) return null;
+  const sum = (ps: MatchPlayer[], f: (p: MatchPlayer) => number) => ps.reduce((t, p) => t + f(p), 0);
+  const mean = (ps: MatchPlayer[], f: (p: MatchPlayer) => number | null) => {
+    const vs = ps.map(f).filter((v): v is number => v != null);
+    return vs.length ? vs.reduce((a, b) => a + b, 0) / vs.length : null;
+  };
+  const rows: { label: string; hint: string; b: number | null; o: number | null; show: (v: number) => string }[] = [
+    { label: "Deaths*", hint: "Estimated, team total", b: sum(blue, (p) => p.deaths_est), o: sum(orange, (p) => p.deaths_est), show: (v) => int(v) },
+    { label: "Average speed", hint: "Average of the team's players", b: mean(blue, (p) => p.avg_speed), o: mean(orange, (p) => p.avg_speed), show: (v) => `${num(v)} m/s` },
+    { label: "Near an enemy", hint: "Average of the team's players", b: mean(blue, (p) => p.pct_near_enemy), o: mean(orange, (p) => p.pct_near_enemy), show: (v) => pct(v) },
+    { label: "Time idle", hint: "Average of the team's players", b: mean(blue, (p) => p.pct_stopped), o: mean(orange, (p) => p.pct_stopped), show: (v) => pct(v) },
+  ];
+  if (m.mode === "payload") {
+    rows.push({ label: "Time on the payload*", hint: "Pushing or blocking, team total", b: sum(blue, (p) => p.payload_push_s + p.payload_block_s),
+      o: sum(orange, (p) => p.payload_push_s + p.payload_block_s), show: (v) => duration(v) });
+  }
+  return (
+    <div className="panel team-compare">
+      <h2>Blue vs orange</h2>
+      {rows.filter((r) => r.b != null && r.o != null && r.b + r.o > 0).map((r) => (
+        <div key={r.label} className="team-compare-row" title={r.hint}>
+          <span className="label">{r.label}</span>
+          <SplitBar percentages={false} parts={[
+            { label: "Blue", value: r.b!, color: "var(--blue)", detail: r.show(r.b!) },
+            { label: "Orange", value: r.o!, color: "var(--orange)", detail: r.show(r.o!) },
+          ]} />
+        </div>
+      ))}
     </div>
   );
 }
@@ -339,6 +377,7 @@ export function MatchPage() {
 
           <Scoreboard m={m} />
           <Highlights m={m} />
+          <TeamComparison m={m} />
 
           <div className="tabs section-tabs" role="tablist" aria-label="Match views">
             {TABS.map(([t, hint]) => (

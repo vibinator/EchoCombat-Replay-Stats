@@ -16,7 +16,8 @@ rule and the affected replays are re-processed from the original files, so it ca
     admin.bat admin-roles [--server] [--add <role id>] [--remove <role id>]     Discord roles: admins (Status page)
     admin.bat admin-users [--add <user id>] [--remove <user id>]   Discord users that are admins (no role needed)
     admin.bat discord-check <discord user id>   what the bot sees for one person: in the server, roles, access
-    admin.bat hide-stats [--hide <group>] [--show <group>]   stats hidden from players (admins still see them)
+    admin.bat hide-stats [--hide <group>] [--show <group>] [--player <name or id>]   stats hidden from players
+                                       (site-wide, or one player's with --player; admins still see them)
     admin.bat status
     admin.bat repair-failed [--yes]
     admin.bat cannot-repair [--hide] [--yes]   failed replays repair cannot fix; --hide hides them on the website
@@ -354,19 +355,33 @@ def cmd_discord_check(sessions, settings: Settings, user_id: str) -> dict:
     return {"member": bool(member), "admin": is_admin, "preview": has_preview, "console": has_console}
 
 
-def cmd_hide_stats(sessions, hide: str | None = None, show: str | None = None) -> list[str]:
-    """Stat groups hidden on the website from everyone except logged-in admins (against pub stomping)."""
+def cmd_hide_stats(sessions, hide: str | None = None, show: str | None = None, player: str | None = None,
+                   interactive: bool = False) -> list[str]:
+    """Stat groups hidden on the website from everyone except logged-in admins (against pub stomping): site-wide,
+    or only one player's (`player`: name or id)."""
     with sessions() as db:
-        if hide:
-            actions.set_stats_hidden(db, hide.strip(), True)
-            print(f"Hidden. Only logged-in admins see {hide.strip()} stats on the website now.")
-        if show:
-            actions.set_stats_hidden(db, show.strip(), False)
-            print(f"Shown. Everyone sees {show.strip()} stats on the website again.")
+        who = resolve(db, player.strip(), interactive) if player and player.strip() else None
+        for group, hidden in ((hide, True), (show, False)):
+            if not group:
+                continue
+            group = group.strip()
+            if who:
+                actions.set_player_stats_hidden(db, group, who.user_id, hidden)
+                print(f"{'Hidden' if hidden else 'Shown'}. {who.name}'s {group} stats are "
+                      + ("seen by logged-in admins only now." if hidden else "visible to everyone again (unless hidden site-wide)."))
+            else:
+                actions.set_stats_hidden(db, group, hidden)
+                print(f"Hidden. Only logged-in admins see {group} stats on the website now." if hidden
+                      else f"Shown. Everyone sees {group} stats on the website again (except players hidden one by one).")
         hidden = actions.hidden_stats(db)
+        players = {g: [(u, name_of(db, u)) for u in actions.hidden_players(db, g)] for g in actions.STAT_GROUPS}
     print("Stats on the website (hidden = only logged-in admins see them):")
     for group, what in actions.STAT_GROUPS.items():
         print(f"  {group:<10} {'HIDDEN' if group in hidden else 'shown ':<6}  {what}")
+        if players[group]:
+            print(f"             hidden for {len(players[group])} player(s):")
+            for u, name in players[group]:
+                print(f"               {name:<24} id {u}")
     return hidden
 
 
@@ -668,7 +683,13 @@ def interactive(sessions, settings: Settings) -> None:
                 if pick.isdigit() and 1 <= int(pick) <= len(groups):
                     pick = groups[int(pick) - 1]
                 if pick:
-                    if pick in hidden:
+                    player = ask("One player only? Name or id (Enter = site-wide): ")
+                    if player:
+                        with sessions() as db:
+                            who = resolve(db, player, interactive=True)
+                            on = who.user_id in actions.hidden_players(db, pick)
+                        cmd_hide_stats(sessions, show=pick if on else None, hide=None if on else pick, player=who.user_id)
+                    elif pick in hidden:
                         cmd_hide_stats(sessions, show=pick)
                     else:
                         cmd_hide_stats(sessions, hide=pick)
@@ -679,6 +700,72 @@ def interactive(sessions, settings: Settings) -> None:
 
 
 # --- entry point ------------------------------------------------------------------------------
+
+# subcommands that change something: written to the audit log (Console page) with the Windows / container user
+LOGGED = {"merge", "unmerge", "challenge", "preview-roles", "admin-roles", "admin-users", "hide-stats", "repair-failed",
+          "cannot-repair", "hidden", "reprocess", "repair", "scan", "reprocess-all"}
+
+
+def _run_logged(sessions, settings: Settings, args) -> int:
+    import contextlib
+    import getpass
+    import io
+
+    class Tee(io.StringIO):
+        def write(self, text):
+            sys.__stdout__.write(text)
+            return super().write(text)
+
+    out, ok = Tee(), True
+    with contextlib.redirect_stdout(out):
+        try:
+            main_command(sessions, settings, args)
+        except ConsoleError as e:
+            ok = False
+            print(f"! {e}")
+    try:
+        user = getpass.getuser()
+    except Exception:
+        user = "unknown"
+    values = {k: v for k, v in vars(args).items() if k != "command" and v not in (None, False, [], "")}
+    try:
+        with sessions() as db:
+            actions.log_command(db, "admin.bat", user, args.command, values, ok, out.getvalue().strip())
+    except Exception:  # no console_log table yet (server not updated / started): the command itself still ran
+        pass
+    return 0 if ok else 1
+
+
+def main_command(sessions, settings: Settings, args) -> None:
+    """One subcommand (not the menu)."""
+    match args.command:
+        case "merge":
+            cmd_merge(sessions, args.main, args.others, args.yes, interactive=sys.stdin.isatty())
+        case "unmerge":
+            cmd_unmerge(sessions, args.alias, args.yes)
+        case "challenge":
+            cmd_challenge(sessions, args.start, args.end, args.clear)
+        case "preview-roles" | "admin-roles":
+            cmd_discord_roles(sessions, settings, args.command.removesuffix("-roles"), args.add, args.remove, args.server)
+        case "admin-users":
+            cmd_admin_users(sessions, settings, args.add, args.remove)
+        case "hide-stats":
+            cmd_hide_stats(sessions, args.hide, args.show, args.player, interactive=sys.stdin.isatty())
+        case "repair-failed":
+            cmd_repair_failed(sessions, args.yes)
+        case "cannot-repair":
+            cmd_cannot_repair(sessions, args.hide, args.yes)
+        case "hidden":
+            cmd_hidden(sessions, args.unhide, args.unhide_all, args.yes)
+        case "reprocess":
+            cmd_reprocess(sessions, args.replay)
+        case "repair":
+            cmd_repair(sessions, args.replay)
+        case "scan":
+            cmd_scan(sessions, settings)
+        case "reprocess-all":
+            cmd_reprocess_all(sessions, settings, args.yes)
+
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="admin.bat", description=f"EchoVR Replay Stats admin console ({APP_VERSION})")
@@ -709,6 +796,7 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("hide-stats", help="stats hidden from players (logged-in admins still see them)")
     p.add_argument("--hide", metavar="GROUP", help="hide this group: " + ", ".join(actions.STAT_GROUPS))
     p.add_argument("--show", metavar="GROUP", help="show this group again")
+    p.add_argument("--player", metavar="NAME_OR_ID", help="only this player's stats (default: site-wide)")
     sub.add_parser("status", help="import progress, replay and player counts")
     p = sub.add_parser("repair-failed", help="re-process damaged / incomplete replays in repair mode")
     p.add_argument("--yes", action="store_true")
@@ -729,43 +817,19 @@ def main(argv: list[str] | None = None) -> int:
     try:
         settings = Settings.from_env()
         sessions = open_sessions(settings)
+        if args.command in LOGGED:
+            return _run_logged(sessions, settings, args)
         match args.command:
             case None:
                 interactive(sessions, settings)
             case "find":
                 cmd_find(sessions, args.term)
-            case "merge":
-                cmd_merge(sessions, args.main, args.others, args.yes, interactive=sys.stdin.isatty())
             case "merges":
                 cmd_merges(sessions)
-            case "unmerge":
-                cmd_unmerge(sessions, args.alias, args.yes)
-            case "challenge":
-                cmd_challenge(sessions, args.start, args.end, args.clear)
-            case "preview-roles" | "admin-roles":
-                cmd_discord_roles(sessions, settings, args.command.removesuffix("-roles"), args.add, args.remove, args.server)
-            case "admin-users":
-                cmd_admin_users(sessions, settings, args.add, args.remove)
             case "discord-check":
                 cmd_discord_check(sessions, settings, args.user_id)
-            case "hide-stats":
-                cmd_hide_stats(sessions, args.hide, args.show)
             case "status":
                 cmd_status(sessions)
-            case "repair-failed":
-                cmd_repair_failed(sessions, args.yes)
-            case "cannot-repair":
-                cmd_cannot_repair(sessions, args.hide, args.yes)
-            case "hidden":
-                cmd_hidden(sessions, args.unhide, args.unhide_all, args.yes)
-            case "reprocess":
-                cmd_reprocess(sessions, args.replay)
-            case "repair":
-                cmd_repair(sessions, args.replay)
-            case "scan":
-                cmd_scan(sessions, settings)
-            case "reprocess-all":
-                cmd_reprocess_all(sessions, settings, args.yes)
     except ConsoleError as e:
         print(f"! {e}", file=sys.stderr)
         return 1

@@ -5,18 +5,23 @@ Who gets the preview / admin / console is managed on the Permissions page (api/p
 
 import contextlib
 import io
+import json
 import logging
 import re
 import threading
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Query, Request
 from fastapi.responses import Response
 from pydantic import BaseModel
+from sqlalchemy import func, not_, select
 
 import admin_console as console
 
+from .. import admin_actions as actions
 from .. import auth, icons
 from .. import merge_suggestions as suggestions
+from ..admin_actions import hidden_failure, unrepairable
+from ..models import Player, PlayerAlias, Replay
 from ..achievement_sheet import csv_bytes, name_and_rule
 from ..errors import ApiError
 
@@ -40,6 +45,7 @@ class Args(BaseModel):
     user_id: str = ""
     hide_win_loss: bool = False
     show_win_loss: bool = False
+    player: str = ""
 
 
 def _required(value: str, what: str) -> str:
@@ -64,7 +70,7 @@ COMMANDS = {  # name as in admin.bat -> (sessions, settings, args) -> None
     "scan": lambda s, st, a: console.cmd_scan(s, st),
     "reprocess-all": lambda s, st, a: console.cmd_reprocess_all(s, st, yes=True),
     "hide-stats": lambda s, st, a: console.cmd_hide_stats(s, "win_loss" if a.hide_win_loss else None,
-                                                          "win_loss" if a.show_win_loss else None),
+                                                          "win_loss" if a.show_win_loss else None, a.player),
     "discord-check": lambda s, st, a: console.cmd_discord_check(s, st, _required(a.user_id, "a Discord user id")),
 }
 
@@ -89,10 +95,11 @@ def for_the_page(text: str) -> str:
     return OPTION.sub(r"admin.bat option \1", text).replace(" -> ", " → ")
 
 
-def require_console(request: Request, what: str) -> dict:
-    """The logged-in visitor, if they may use the console; roles are asked from Discord every time."""
+def require_console(request: Request, what: str, fresh: bool = True) -> dict:
+    """The logged-in visitor, if they may use the console; roles are asked from Discord every time (fresh), except
+    for the views the page refreshes by itself (dashboard, lists): those use the roles remembered for 5 minutes."""
     user = auth.viewer(request)
-    if not auth.has_console(request, fresh=True):
+    if not auth.has_console(request, fresh=fresh):
         if user:
             log.warning("Console %s refused for %s (%s): no console access", what, user["name"], user["id"])
         raise ApiError(403, "console_only", "You do not have access to the console")
@@ -115,6 +122,66 @@ def merge_suggestions(request: Request):
     require_console(request, "merge-suggestions")
     with request.app.state.sessionmaker() as db:
         return suggestions.suggestions(db)
+
+
+def _log_row(r) -> dict:
+    return {"id": r.id, "at": r.at, "source": r.source, "who": r.who_name, "who_id": r.who_id, "command": r.command,
+            "args": json.loads(r.args) if r.args else {}, "ok": r.ok, "output": r.output or ""}
+
+
+@router.get("/overview")
+def overview(request: Request):
+    """Dashboard facts the Status page does not have: players, merges, failures, hidden stats, the challenge period
+    and the latest console commands. Processing progress comes from /api/admin/status."""
+    require_console(request, "overview", fresh=False)
+    with request.app.state.sessionmaker() as db:
+        start, end = actions.challenge_window(db)
+        hidden = actions.hidden_stats(db)
+        hidden_players = {g: [{"user_id": u, "name": console.name_of(db, u)} for u in actions.hidden_players(db, g)]
+                          for g in actions.STAT_GROUPS}
+        return {
+            "players": db.scalar(select(func.count()).select_from(Player)),
+            "merges": db.scalar(select(func.count()).select_from(PlayerAlias)),
+            "cannot_repair": db.scalar(select(func.count()).select_from(Replay).where(unrepairable(), not_(hidden_failure()))),
+            "repairable": len(actions.repairable_failures(db)),
+            "hidden_replays": db.scalar(select(func.count()).select_from(Replay).where(hidden_failure())),
+            "challenge": {"start": start, "end": end, "launched": actions.achievements_launched(db)},
+            "stat_groups": [{"key": g, "label": label, "hidden": g in hidden, "players": hidden_players[g]}
+                            for g, label in actions.STAT_GROUPS.items()],
+            "recent": [_log_row(r) for r in actions.command_log(db, 8)],
+        }
+
+
+@router.get("/players")
+def players(request: Request, q: str = Query("", max_length=100)):
+    """Player tools: players matching a name or id, with their merges and whether their win-loss is hidden."""
+    require_console(request, "players", fresh=False)
+    q = q.strip()
+    if not q:
+        return []
+    with request.app.state.sessionmaker() as db:
+        hidden = set(actions.hidden_players(db, "win_loss"))
+        rows = []
+        for p in console.find_players(db, q, 20):
+            alias = db.get(PlayerAlias, p.user_id)
+            merged = db.scalars(select(PlayerAlias.alias_user_id).where(PlayerAlias.main_user_id == p.user_id)).all()
+            rows.append({
+                "user_id": p.user_id, "name": p.name, "games": console.games(db, p.id),
+                "first_seen_at": p.first_seen_at, "last_seen_at": p.last_seen_at,
+                "merged_into": {"user_id": alias.main_user_id, "name": console.name_of(db, alias.main_user_id)} if alias else None,
+                "merged_ids": [{"user_id": u, "name": console.name_of(db, u)} for u in merged],
+                "win_loss_hidden": (alias.main_user_id if alias else p.user_id) in hidden,
+            })
+        return rows
+
+
+@router.get("/log")
+def command_log(request: Request, q: str = Query("", max_length=100), limit: int = Query(100, ge=1, le=500),
+                before: int | None = Query(None, ge=1)):
+    """Audit log: console commands, newest first (`before`: the id to continue from)."""
+    require_console(request, "log", fresh=False)
+    with request.app.state.sessionmaker() as db:
+        return [_log_row(r) for r in actions.command_log(db, limit, q.strip(), before)]
 
 
 @router.get("/achievements.csv")
@@ -141,4 +208,11 @@ def run(request: Request, command: str, args: Args):
             ok = False
         finally:
             console.server_running = running
-    return {"ok": ok, "output": for_the_page(out.getvalue()).strip()}
+    output = for_the_page(out.getvalue()).strip()
+    try:  # the audit log must never make a command fail
+        with request.app.state.sessionmaker() as db:
+            actions.log_command(db, "website", user["name"], command, args.model_dump(exclude_defaults=True), ok, output,
+                                who_id=user["id"])
+    except Exception:
+        log.exception("Could not write the console audit log")
+    return {"ok": ok, "output": output}

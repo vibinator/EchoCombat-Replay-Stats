@@ -12,7 +12,7 @@ from . import aliases
 from .cache import bump_generation
 from .config import Settings
 from .db import utcnow
-from .models import AppSetting, HiddenReplay, Player, PlayerAlias, PriorityReplay, RepairRequest, Replay
+from .models import AppSetting, ConsoleLog, HiddenReplay, Player, PlayerAlias, PriorityReplay, RepairRequest, Replay
 
 REPAIRABLE = ("corrupt", "incomplete", "internal", "crashed")  # not: unsupported (not Combat), unreadable (I/O)
 WINDOW_KEYS = ("challenge_start", "challenge_end")
@@ -269,3 +269,57 @@ def set_stats_hidden(db: Session, group: str, hidden: bool) -> list[str]:
     db.merge(AppSetting(key=HIDDEN_STATS_KEY, value=",".join(sorted(groups)) or None, updated_at=utcnow()))
     db.commit()
     return sorted(groups)
+
+
+def _players_key(group: str) -> str:
+    return f"{HIDDEN_STATS_KEY}_players:{group}"
+
+
+def hidden_players(db: Session, group: str) -> list[str]:
+    """Players (main user ids) whose `group` stats are hidden, whatever the site-wide setting (user, 2026-11-02)."""
+    value = db.scalar(select(AppSetting.value).where(AppSetting.key == _players_key(group)))
+    return [u for u in (value or "").split(",") if u]
+
+
+def set_player_stats_hidden(db: Session, group: str, user_id: str, hidden: bool) -> list[str]:
+    """Hide / show one player's `group` stats. A merged id is stored as its main player (who owns the stats)."""
+    if group not in STAT_GROUPS:
+        raise AdminError(f"'{group}' is not a stat group ({', '.join(STAT_GROUPS)})")
+    if (alias := db.get(PlayerAlias, user_id)) is not None:
+        user_id = alias.main_user_id
+    players = hidden_players(db, group)
+    if hidden and user_id not in players:
+        players.append(user_id)
+    elif not hidden:
+        if user_id not in players:
+            raise AdminError(f"{user_id}'s {group} stats are not hidden")
+        players.remove(user_id)
+    db.merge(AppSetting(key=_players_key(group), value=",".join(players) or None, updated_at=utcnow()))
+    db.commit()
+    return players
+
+
+# --- audit log -----------------------------------------------------------------------------------
+
+LOG_OUTPUT_MAX = 4000
+
+
+def log_command(db: Session, source: str, who_name: str, command: str, args: dict | None, ok: bool, output: str,
+                who_id: str | None = None) -> None:
+    """One line in the audit log (Console page: Audit log)."""
+    import json
+    db.add(ConsoleLog(at=utcnow(), source=source, who_id=who_id, who_name=who_name, command=command,
+                      args=json.dumps(args, ensure_ascii=False) if args else None, ok=ok,
+                      output=(output or "")[:LOG_OUTPUT_MAX] or None))
+    db.commit()
+
+
+def command_log(db: Session, limit: int = 100, term: str = "", before_id: int | None = None) -> list[ConsoleLog]:
+    """Newest first; `term` matches the command, who ran it or the arguments."""
+    query = select(ConsoleLog).order_by(ConsoleLog.id.desc()).limit(limit)
+    if term:
+        like = f"%{term}%"
+        query = query.where(or_(ConsoleLog.command.ilike(like), ConsoleLog.who_name.ilike(like), ConsoleLog.args.ilike(like)))
+    if before_id is not None:
+        query = query.where(ConsoleLog.id < before_id)
+    return list(db.scalars(query))

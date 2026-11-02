@@ -1,5 +1,6 @@
 import { Link, useSearchParams } from "react-router";
 import { getGear, getLeaderboard, getLeaderboardStats, type LeaderboardRow, type Period } from "../api";
+import { ShareBar } from "../components/bars";
 import { Status, TableWrap } from "../components/common";
 import { EmptyState, FitText, Skeleton } from "../components/ui";
 import { MAPS, duration, int, num, pct, playerPath, title } from "../format";
@@ -173,7 +174,7 @@ export function LeaderboardPage() {
                     <th className="num">#</th>
                     <th>Player</th>
                     {columns.map(([key, label]) => <th key={key} className="num">{label}</th>)}
-                    <th className="num">{board.data.label}</th>
+                    <th>{board.data.label}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -189,7 +190,9 @@ export function LeaderboardPage() {
                         const v = r[key] as number | null;
                         return <td key={key} data-label={label} className="num">{v == null ? "–" : formatValue(key, v)}</td>;
                       })}
-                      <td data-label={board.data!.label} className="num">{formatValue(stat, r.value)}</td>
+                      <td data-label={board.data!.label}>
+                        <ShareBar value={r.value} max={board.data!.max_value ?? board.data!.items[0]?.value ?? 0}>{formatValue(stat, r.value)}</ShareBar>
+                      </td>
                     </tr>
                   ))}
                 </tbody>

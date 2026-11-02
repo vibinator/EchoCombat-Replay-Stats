@@ -19,11 +19,12 @@ router = APIRouter(tags=["overview"])
 @router.get("/api/overview")
 def overview(request: Request):
     """Archive totals, today / this week, most-played map, top players this week, latest matches."""
-    wl = visibility.win_loss(request)
-    return cached_response(request, "overview", (wl,), lambda: _overview(request, wl))
+    v = visibility.view(request)
+    return cached_response(request, "overview", (v,), lambda: _overview(request, v))
 
 
-def _overview(request: Request, wl: bool = True) -> dict:
+def _overview(request: Request, v: visibility.View = visibility.ALL_SHOWN) -> dict:
+    wl = not v.everything
     today, week = period_start("day"), period_start("week")
     m, mp = counted(Match.id), counted(MatchPlayer.match_id)  # duplicate recordings left out (D13)
     with request.app.state.sessionmaker() as db:
@@ -58,7 +59,7 @@ def _overview(request: Request, wl: bool = True) -> dict:
         "most_played_map": max(by_map, key=by_map.get) if by_map else None,
         "first_match_at": first,
         "last_match_at": last,
-        "top_this_week": [{"user_id": u, "name": n, "games": g} | ({"wins": w or 0} if wl else {})
+        "top_this_week": [{"user_id": u, "name": n, "games": g} | ({} if v.hides(u) else {"wins": w or 0})
                           for u, n, g, w in top_week],
         "latest": [match_summary(m) for m in latest],
     }

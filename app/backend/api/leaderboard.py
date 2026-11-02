@@ -89,10 +89,13 @@ def _aggregate_rows(db, request, period, map, private, shift_days: int = 0):
                   lambda: db.execute(_aggregate(_where(period, map, private, shift_days))).all())
 
 
-def _summary(r, wl: bool = True) -> dict:
-    """Context columns shown beside every leaderboard row, whatever the ranked stat."""
+def _summary(r, wl: bool = True, player_shown: bool = True) -> dict:
+    """Context columns shown beside every leaderboard row, whatever the ranked stat. wl: win-loss shown site-wide;
+    player_shown: not hidden for this player (their columns are empty then)."""
     if not wl:
         return {"hours_played": STATS["hours_played"][2](r)}
+    if not player_shown:
+        return {"wins": None, "losses": None, "win_rate": None, "hours_played": STATS["hours_played"][2](r)}
     return {"wins": r.wins or 0, "losses": r.losses or 0,
             "win_rate": STATS["win_rate"][2](r), "hours_played": STATS["hours_played"][2](r)}
 
@@ -154,13 +157,14 @@ def leaderboard(
 ):
     if stat not in STATS and stat not in ("loadout", "achievements"):
         raise ApiError(400, "unknown_stat", f"Unknown stat '{stat}'")
-    wl = visibility.win_loss(request)
+    v = visibility.view(request)
+    wl = not v.everything
     if stat in WIN_LOSS_STATS and not wl:
         raise ApiError(404, "stat_hidden", "This stat is hidden")
     for value, table, what in ((weapon, WEAPONS, "weapon"), (tacmod, TACMODS, "tac mod"), (ordnance, ORDNANCES, "ordnance")):
         if value is not None and value not in table:
             raise ApiError(400, "unknown_gear", f"Unknown {what} '{value[:32]}'")
-    params = (stat, period, map, private, min_games, weapon, tacmod, ordnance, compare, limit, offset, wl)
+    params = (stat, period, map, private, min_games, weapon, tacmod, ordnance, compare, limit, offset, v)
     if stat == "achievements":  # has its own background-refreshed cache
         require_launched(request)
         return _leaderboard(request, *params)
@@ -168,19 +172,25 @@ def leaderboard(
 
 
 def _leaderboard(request, stat, period, map, private, min_games, weapon, tacmod, ordnance, compare, limit, offset,
-                 wl: bool = True):
+                 v: visibility.View = visibility.ALL_SHOWN):
+    wl = not v.everything
     with request.app.state.sessionmaker() as db:
+        hidden = visibility.hidden_player_ids(db, v)  # hidden one by one
         label, higher, values = _values(db, request, stat, period, map, private, weapon, tacmod, ordnance)
+        if stat in WIN_LOSS_STATS and hidden:
+            values = [x for x in values if x[0] not in hidden]
         previous = {}
         if compare and stat != "achievements":
             _, _, before = _values(db, request, stat, period, map, private, weapon, tacmod, ordnance, shift_days=7)
+            if stat in WIN_LOSS_STATS and hidden:
+                before = [x for x in before if x[0] not in hidden]
             previous = {pid: i + 1 for i, (pid, _, _) in enumerate(_rank(before, higher, min_games))}
         ranking = _rank(values, higher, min_games)
         page = ranking[offset : offset + limit]
         people = {pid: (name, user_id) for pid, name, user_id in
                   db.execute(select(Player.id, Player.name, Player.user_id).where(Player.id.in_([pid for pid, _, _ in page])))}
         on_page = {pid for pid, _, _ in page}
-        summary = {r.player_id: _summary(r, wl) for r in _aggregate_rows(db, request, period, map, private) if r.player_id in on_page}
+        summary = {r.player_id: _summary(r, wl, r.player_id not in hidden) for r in _aggregate_rows(db, request, period, map, private) if r.player_id in on_page}
 
     empty = {"wins": None, "losses": None, "win_rate": None, "hours_played": None} if wl else {"hours_played": None}
     ranked = [
@@ -193,6 +203,8 @@ def _leaderboard(request, stat, period, map, private, min_games, weapon, tacmod,
     result = {
         "stat": stat, "label": label, "higher_is_better": higher, "period": period, "map": map,
         "min_games": min_games, "total": len(ranking), "items": ranked,
+        # biggest value on the whole board (not just this page): the bars in the value column are scaled to it
+        "max_value": max((v for _, _, v in ranking), default=None),
     }
     if stat == "loadout":
         result["loadout"] = {

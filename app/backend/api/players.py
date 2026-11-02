@@ -7,7 +7,7 @@ from sqlalchemy import and_, case, func, select
 
 from .. import gear_use, heatmaps, tracks, visibility
 from ..aliases import ids_of
-from ..cache import cached_response
+from ..cache import cached, cached_response
 from ..duplicates import counted
 from ..errors import ApiError
 from ..gear import WEAPONS
@@ -116,14 +116,38 @@ def _profile(db, where) -> dict:
     }
 
 
+def _site_averages(request: Request, period: str, map_: str | None) -> dict:
+    """Every player's shares over the same period / map, for the "site average" tick on the profile cards. One scan
+    of match_players, so it is kept per filter like the leaderboard aggregate."""
+    def build():
+        conditions = [counted(MatchPlayer.match_id)]
+        if start := period_start(period):
+            conditions.append(Match.started_at >= start)
+        if map_:
+            conditions.append(Match.map == map_)
+        s = func.sum
+        with request.app.state.sessionmaker() as db:
+            row = db.execute(
+                select(func.count().label("games"), s(MatchPlayer.frames_in_bounds).label("in_bounds"),
+                       s(MatchPlayer.frames_stopped).label("stopped"), s(MatchPlayer.frames_upside_down).label("upside"),
+                       s(MatchPlayer.frames_near_mate).label("mate"), s(MatchPlayer.frames_near_enemy).label("enemy"),
+                       s(case((MatchPlayer.left_early, 1), else_=0)).label("left_early"))
+                .select_from(MatchPlayer).join(Match, Match.id == MatchPlayer.match_id).where(and_(*conditions))
+            ).one()
+        return {"pct_stopped": ratio(row.stopped, row.in_bounds), "pct_upside_down": ratio(row.upside, row.in_bounds),
+                "pct_near_mate": ratio(row.mate, row.in_bounds), "pct_near_enemy": ratio(row.enemy, row.in_bounds),
+                "pct_left_early": ratio(row.left_early, row.games)}
+    return cached(request, "site-averages", (period, map_), build)
+
+
 @router.get("/compare/{user_ids}")
 def compare_players(request: Request, user_ids: str, period: str = Query("all", pattern="^(" + "|".join(PERIODS) + ")$")):
     """Profiles of 2-4 players side by side + head-to-head record of the first two."""
-    wl = visibility.win_loss(request)
-    return cached_response(request, "compare", (user_ids, period, wl), lambda: _compare_players(request, user_ids, period, wl))
+    v = visibility.view(request)
+    return cached_response(request, "compare", (user_ids, period, v), lambda: _compare_players(request, user_ids, period, v))
 
 
-def _compare_players(request: Request, user_ids: str, period: str, wl: bool = True) -> dict:
+def _compare_players(request: Request, user_ids: str, period: str, v: visibility.View = visibility.ALL_SHOWN) -> dict:
     ids = [u for u in user_ids.split(",") if u][:4]
     if len(ids) < 2:
         raise ApiError(400, "need_two", "Give at least two user ids, comma-separated")
@@ -132,6 +156,7 @@ def _compare_players(request: Request, user_ids: str, period: str, wl: bool = Tr
         missing = [u for u in ids if u not in players]
         if missing:
             raise ApiError(404, "not_found", f"Player(s) not found: {', '.join(missing)}")
+        wl = not any(v.hides(*visibility.ids(db, u)) for u in ids)
         profiles = [{"user_id": u, "name": players[u].name, "stats": _profile(db, _filters(players[u].id, period, None))}
                     for u in ids]
         if not wl:
@@ -154,12 +179,12 @@ def get_player(
     period: str = Query("all", pattern="^(" + "|".join(PERIODS) + ")$"),
     map: str | None = Query(None, pattern=MAP_PATTERN),
 ):
-    wl = visibility.win_loss(request)
-    return cached_response(request, "player", (user_id, period, map, wl),
-                           lambda: _get_player(request, user_id, period, map, wl))
+    v = visibility.view(request)
+    return cached_response(request, "player", (user_id, period, map, v),
+                           lambda: _get_player(request, user_id, period, map, v))
 
 
-def _get_player(request: Request, user_id: str, period: str, map: str | None, wl: bool = True) -> dict:
+def _get_player(request: Request, user_id: str, period: str, map: str | None, v: visibility.View = visibility.ALL_SHOWN) -> dict:
     with request.app.state.sessionmaker() as db:
         # a merged id (D34) answers with its main player; the page then moves to the main player's address
         if (alias := db.get(PlayerAlias, user_id)) is not None:
@@ -167,6 +192,7 @@ def _get_player(request: Request, user_id: str, period: str, map: str | None, wl
         player = db.scalar(select(Player).where(Player.user_id == user_id))
         if player is None:
             raise ApiError(404, "not_found", f"Player {user_id} not found")
+        wl = not v.hides(*visibility.ids(db, user_id))
         where = _filters(player.id, period, map)
         stats = _profile(db, where)
         if not wl:
@@ -206,6 +232,7 @@ def _get_player(request: Request, user_id: str, period: str, map: str | None, wl
         "period": period,
         "map": map,
         "stats": stats,
+        "site_avg": _site_averages(request, period, map),  # same period / map, all players
         "loadouts": [loadout(r.weapon, r.tacmod, r.ordnance, r.frames, total_frames) for r in loadout_rows],
         "gear": gear,  # per weapon / ordnance / tac mod: times picked, games used, share of time held
         "recent_matches": [
@@ -272,11 +299,11 @@ def get_player_heatmap(
 
 @router.get("/{user_id}/trends")
 def get_trends(request: Request, user_id: str, bucket: str = Query("month", pattern="^(week|month|year)$")):
-    wl = visibility.win_loss(request)
-    return cached_response(request, "trends", (user_id, bucket, wl), lambda: _get_trends(request, user_id, bucket, wl))
+    v = visibility.view(request)
+    return cached_response(request, "trends", (user_id, bucket, v), lambda: _get_trends(request, user_id, bucket, v))
 
 
-def _get_trends(request: Request, user_id: str, bucket: str, wl: bool = True) -> dict:
+def _get_trends(request: Request, user_id: str, bucket: str, v: visibility.View = visibility.ALL_SHOWN) -> dict:
     """Per-period aggregates for trend charts."""
     expr = {"week": func.strftime("%Y-%W", Match.started_at), "month": func.substr(Match.started_at, 1, 7),
             "year": func.substr(Match.started_at, 1, 4)}[bucket]
@@ -287,6 +314,7 @@ def _get_trends(request: Request, user_id: str, bucket: str, wl: bool = True) ->
         player = db.scalar(select(Player).where(Player.user_id == user_id))
         if player is None:
             raise ApiError(404, "not_found", f"Player {user_id} not found")
+        wl = not v.hides(*visibility.ids(db, user_id))
         rows = db.execute(
             select(expr.label("period"), func.count().label("games"), s(won).label("wins"), s(lost).label("losses"),
                    s(MatchPlayer.deaths_est).label("deaths"), s(MatchPlayer.speed_sum).label("speed"),
@@ -334,18 +362,19 @@ def _together(db, player_id: int, window: str = "all", other: int | None = None)
 def get_companions(request: Request, user_id: str, limit: int = Query(10, ge=1, le=50),
                    window: str = Query("all", pattern="^(24h|7d|1m|3m|6m|12m|all)$")):
     """Most frequent teammates and opponents, with the record together / against, over a rolling time window."""
-    wl = visibility.win_loss(request)
-    return cached_response(request, "companions", (user_id, limit, window, wl),
-                           lambda: _get_companions(request, user_id, limit, window, wl))
+    v = visibility.view(request)
+    return cached_response(request, "companions", (user_id, limit, window, v),
+                           lambda: _get_companions(request, user_id, limit, window, v))
 
 
-def _get_companions(request: Request, user_id: str, limit: int, window: str = "all", wl: bool = True) -> dict:
+def _get_companions(request: Request, user_id: str, limit: int, window: str = "all", v: visibility.View = visibility.ALL_SHOWN) -> dict:
     """Counted in the database (one row per companion and side) and only the names shown are looked up: the busiest
     players share ~60k match slots with others."""
     with request.app.state.sessionmaker() as db:
         player = db.scalar(select(Player).where(Player.user_id == user_id))
         if player is None:
             raise ApiError(404, "not_found", f"Player {user_id} not found")
+        wl = not v.hides(*visibility.ids(db, user_id))
         me = _mine(player.id, window)
         same = MatchPlayer.team == me.c.team
         decided = Match.winner.is_not(None)

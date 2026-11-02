@@ -115,11 +115,19 @@ export function ComparePage() {
                   const values = c.players.map((p) => value(p.stats));
                   const known = values.filter((v): v is number => v != null);
                   const best = known.length > 1 ? (higher ? Math.max(...known) : Math.min(...known)) : null;
+                  const most = Math.max(0, ...known);
                   return (
                     <tr key={label}>
                       <td>{label}</td>
                       {c.players.map((p, i) => (
-                        <td key={p.user_id} className={`num${best != null && values[i] === best ? " best" : ""}`}>{show(p.stats)}</td>
+                        <td key={p.user_id} className={`num${best != null && values[i] === best ? " best" : ""}`}>
+                          {show(p.stats)}
+                          {values[i] != null && most > 0 && (
+                            <span className="mini-track" aria-hidden="true">
+                              <span className="mini-fill" style={{ width: `${Math.max(2, (values[i]! / most) * 100)}%` }} />
+                            </span>
+                          )}
+                        </td>
                       ))}
                     </tr>
                   );

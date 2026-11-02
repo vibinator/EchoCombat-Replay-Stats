@@ -1,10 +1,15 @@
-import { useState } from "react";
-import { CONSOLE_ACHIEVEMENTS_CSV, forgetResponses, getConsoleAchievements, getMe, getMergeSuggestions, loginUrl, runConsole } from "../api";
-import { playerPath } from "../format";
+import { Fragment, type ReactNode, useEffect, useState } from "react";
+import {
+  CONSOLE_ACHIEVEMENTS_CSV, forgetResponses, getConsoleAchievements, getConsoleLog, getConsoleOverview, getMe, getMergeSuggestions,
+  getProcessingStatus, loginUrl, runConsole, searchConsolePlayers,
+  type ConsoleLogEntry, type ConsoleOverview, type ConsolePlayer, type ProcessingStatus,
+} from "../api";
+import { SplitBar } from "../components/bars";
+import { duration, int, num, pct, playerPath } from "../format";
 import { Status, TableWrap } from "../components/common";
 import { EmptyState } from "../components/ui";
 import { GENERIC_ICON, IconEditor, IMG } from "../components/IconEditor";
-import { useApi } from "../useApi";
+import { useApi, useWhileVisible } from "../useApi";
 
 type Field = {
   key: string;
@@ -21,7 +26,7 @@ interface Command {
   /** asked before running, like the console's "[y/N]" */
   confirm?: (values: Record<string, string>) => string | null;
   /** a page of its own instead of a command form */
-  view?: "achievements";
+  view?: "achievements" | "dashboard" | "players" | "hidden-stats" | "log";
 }
 
 const lines = (text = "") =>
@@ -30,89 +35,19 @@ const lines = (text = "") =>
     .map((s) => s.trim())
     .filter(Boolean);
 
-/** The admin.bat menu. Who gets access is managed on the Permissions page. */
+/** The admin.bat menu, plus the Console's own views. Who gets access is managed on the Permissions page. */
 const GROUPS: { title: string; commands: Command[] }[] = [
   {
-    title: "Replays",
+    title: "Overview",
     commands: [
-      {
-        name: "status",
-        label: "Status and import progress",
-        help: "Import progress, replay counts, failures and players.",
-      },
-      {
-        name: "scan",
-        label: "Scan the replay folder",
-        help: "Look for new and changed replay files now. The server also does this every few minutes.",
-      },
-      {
-        name: "reprocess",
-        label: "Re-process a replay",
-        help: "Read one replay again, for example after an update.",
-        fields: [
-          {
-            key: "replay",
-            label: "Replay",
-            hint: "Replay id or part of its file path",
-          },
-        ],
-      },
-      {
-        name: "repair",
-        label: "Repair a replay",
-        help: "Read one damaged or incomplete replay again in repair mode, keeping every part that can be read.",
-        fields: [
-          {
-            key: "replay",
-            label: "Replay",
-            hint: "Replay id or part of its file path",
-          },
-        ],
-      },
-      {
-        name: "repair-failed",
-        label: "Repair all failed replays",
-        help: "Try repair mode once on every damaged or incomplete replay.",
-        confirm: () => "Repair every damaged or incomplete replay?",
-      },
-      {
-        name: "cannot-repair",
-        label: "Replays that cannot be repaired",
-        help: "Failed replays that repair cannot fix. Hiding them leaves them out of the failed lists and counts; nothing is deleted.",
-        fields: [{ key: "hide", label: "Hide them", kind: "check" }],
-        confirm: (v) => (v.hide ? "Hide every failed replay that cannot be repaired?" : null),
-      },
-      {
-        name: "hidden",
-        label: "Hidden replays",
-        help: "Replays hidden from the failed lists. Leave the fields empty to list them.",
-        fields: [
-          {
-            key: "unhide",
-            label: "Show one again",
-            hint: "File path exactly as listed",
-          },
-          { key: "unhide_all", label: "Show all of them again", kind: "check" },
-        ],
-        confirm: (v) => (v.unhide_all ? "Show every hidden replay again?" : v.unhide ? `Show ${v.unhide} again?` : null),
-      },
-      {
-        name: "reprocess-all",
-        label: "Re-process every replay",
-        help: "Scan the folder, then read the whole archive again. This takes hours; current results stay on the website until each replay is replaced.",
-        confirm: () => "Re-process EVERY replay? This takes several hours.",
-      },
+      { name: "dashboard", label: "Dashboard", help: "", view: "dashboard" },
+      { name: "log", label: "Audit log", help: "", view: "log" },
     ],
   },
   {
     title: "Players",
     commands: [
-      {
-        name: "find",
-        label: "Find a player",
-        help: "Search players by name or player id.",
-        fields: [{ key: "term", label: "Name or id" }],
-      },
+      { name: "players", label: "Player tools", help: "", view: "players" },
       {
         name: "merge",
         label: "Merge player records",
@@ -143,6 +78,66 @@ const GROUPS: { title: string; commands: Command[] }[] = [
     ],
   },
   {
+    title: "Website",
+    commands: [{ name: "hidden-stats", label: "Hide stats from players", help: "", view: "hidden-stats" }],
+  },
+  {
+    title: "Replays",
+    commands: [
+      {
+        name: "status",
+        label: "Status and import progress",
+        help: "Import progress, replay counts, failures and players, as text (the Dashboard shows the same live).",
+      },
+      {
+        name: "scan",
+        label: "Scan the replay folder",
+        help: "Look for new and changed replay files now. The server also does this every few minutes.",
+      },
+      {
+        name: "reprocess",
+        label: "Re-process a replay",
+        help: "Read one replay again, for example after an update.",
+        fields: [{ key: "replay", label: "Replay", hint: "Replay id or part of its file path" }],
+      },
+      {
+        name: "repair",
+        label: "Repair a replay",
+        help: "Read one damaged or incomplete replay again in repair mode, keeping every part that can be read.",
+        fields: [{ key: "replay", label: "Replay", hint: "Replay id or part of its file path" }],
+      },
+      {
+        name: "repair-failed",
+        label: "Repair all failed replays",
+        help: "Try repair mode once on every damaged or incomplete replay.",
+        confirm: () => "Repair every damaged or incomplete replay?",
+      },
+      {
+        name: "cannot-repair",
+        label: "Replays that cannot be repaired",
+        help: "Failed replays that repair cannot fix. Hiding them leaves them out of the failed lists and counts; nothing is deleted.",
+        fields: [{ key: "hide", label: "Hide them", kind: "check" }],
+        confirm: (v) => (v.hide ? "Hide every failed replay that cannot be repaired?" : null),
+      },
+      {
+        name: "hidden",
+        label: "Hidden replays",
+        help: "Replays hidden from the failed lists. Leave the fields empty to list them.",
+        fields: [
+          { key: "unhide", label: "Show one again", hint: "File path exactly as listed" },
+          { key: "unhide_all", label: "Show all of them again", kind: "check" },
+        ],
+        confirm: (v) => (v.unhide_all ? "Show every hidden replay again?" : v.unhide ? `Show ${v.unhide} again?` : null),
+      },
+      {
+        name: "reprocess-all",
+        label: "Re-process every replay",
+        help: "Scan the folder, then read the whole archive again. This takes hours; current results stay on the website until each replay is replaced.",
+        confirm: () => "Re-process EVERY replay? This takes several hours.",
+      },
+    ],
+  },
+  {
     title: "Achievements",
     commands: [
       {
@@ -168,32 +163,6 @@ const GROUPS: { title: string; commands: Command[] }[] = [
     ],
   },
   {
-    title: "Website",
-    commands: [
-      {
-        name: "hide-stats",
-        label: "Hide stats from players",
-        help:
-          "Against pub stomping: hidden stats are left out of the website for everyone except logged-in admins. Win-loss covers wins, " +
-          "losses and win rates on profiles, trends, compare, teammates / opponents, the leaderboard and the home page (including the " +
-          "payload attack and capture point team win rates), and the W / L " +
-          "of each match on a profile. Leave both boxes empty to see what is hidden now.",
-        fields: [
-          { key: "hide_win_loss", label: "Hide win-loss stats", kind: "check" },
-          { key: "show_win_loss", label: "Show win-loss stats again", kind: "check" },
-        ],
-        confirm: (v) =>
-          v.hide_win_loss && v.show_win_loss
-            ? "Both boxes are ticked: win-loss stats end up shown. Continue?"
-            : v.hide_win_loss
-              ? "Hide win-loss stats from everyone except logged-in admins?"
-              : v.show_win_loss
-                ? "Show win-loss stats to everyone again?"
-                : null,
-      },
-    ],
-  },
-  {
     title: "Discord access",
     commands: [
       {
@@ -205,6 +174,17 @@ const GROUPS: { title: string; commands: Command[] }[] = [
     ],
   },
 ];
+
+const ALL_COMMANDS = GROUPS.flatMap((g) => g.commands);
+/** The menu label of a command, for the audit log; commands run from a view (hide-stats) get a name of their own. */
+const COMMAND_LABELS: Record<string, string> = {
+  ...Object.fromEntries(ALL_COMMANDS.map((c) => [c.name, c.label])),
+  "hide-stats": "Hide stats from players",
+  find: "Find a player",
+  "preview-roles": "Discord preview roles",
+  "admin-roles": "Discord admin roles",
+  "admin-users": "Discord admin users",
+};
 
 /** What the server expects: text, true / false, and `others` as a list. An empty date is left out (= keep). */
 function toArgs(fields: Field[], values: Record<string, string>): Record<string, unknown> {
@@ -224,6 +204,13 @@ interface Result {
   ok: boolean;
   output: string;
   at: string;
+}
+
+/** What a view needs from the page: run a command (its output goes to Results), open another command's form. */
+interface ConsoleApi {
+  run: (command: string, label: string, args: Record<string, unknown>) => Promise<boolean>;
+  open: (command: string, values?: Record<string, string>) => void;
+  version: number; // goes up after every command: views load their data again
 }
 
 /** admin.bat on the website (D45). Only for people named in ECHOVR_DISCORD_PREVIEW_ROLES; the server checks every
@@ -257,44 +244,66 @@ function Console() {
   const [values, setValues] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [results, setResults] = useState<Result[]>([]);
+  const [filter, setFilter] = useState("");
   const set = (key: string, value: string) => setValues((v) => ({ ...v, [key]: value }));
 
-  async function run() {
-    const question = selected.confirm?.(values);
-    if (question && !window.confirm(question)) return;
+  async function execute(command: string, label: string, args: Record<string, unknown>): Promise<boolean> {
     setBusy(true);
     const add = (ok: boolean, output: string) =>
-      setResults((prev) => [
-        {
-          id: Date.now(),
-          label: selected.label,
-          ok,
-          output,
-          at: new Date().toLocaleTimeString(),
-        },
-        ...prev,
-      ]);
+      setResults((prev) => [{ id: Date.now(), label, ok, output, at: new Date().toLocaleTimeString() }, ...prev].slice(0, 30));
     try {
-      const r = await runConsole(selected.name, toArgs(selected.fields ?? [], values));
+      const r = await runConsole(command, args);
       add(r.ok, r.output || "Done.");
       forgetResponses(); // other pages show the change straight away
+      return r.ok;
     } catch (e) {
       add(false, (e as Error).message);
+      return false;
     } finally {
       setBusy(false);
     }
   }
 
+  function open(name: string, preset: Record<string, string> = {}) {
+    const command = ALL_COMMANDS.find((c) => c.name === name);
+    if (!command) return;
+    setSelected(command);
+    setValues(preset);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  async function submit() {
+    const question = selected.confirm?.(values);
+    if (question && !window.confirm(question)) return;
+    await execute(selected.name, selected.label, toArgs(selected.fields ?? [], values));
+  }
+
+  const api: ConsoleApi = { run: execute, open, version: results.length };
+  const term = filter.trim().toLowerCase();
+  const groups = GROUPS.map((g) => ({
+    ...g,
+    commands: g.commands.filter((c) => !term || `${g.title} ${c.label} ${c.help}`.toLowerCase().includes(term)),
+  })).filter((g) => g.commands.length > 0);
+
   return (
     <section>
-      <h1>Console</h1>
-      <p className="muted">
-        The admin console on the website. Commands run on the server and changes apply straight away. Every command is logged with your
-        Discord name.
-      </p>
+      <div className="console-title">
+        <h1>Console</h1>
+        <p className="muted">
+          Commands run on the server and apply straight away. Every command is written to the audit log with your Discord name.
+        </p>
+      </div>
       <div className="console-layout">
-        <nav className="console-menu" aria-label="Console commands">
-          {GROUPS.map((g) => (
+        <nav className="console-menu" aria-label="Console">
+          <input
+            type="search"
+            className="console-filter"
+            placeholder="Find a command"
+            aria-label="Find a command"
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+          />
+          {groups.map((g) => (
             <div key={g.title}>
               <h2>{g.title}</h2>
               {g.commands.map((c) => (
@@ -302,26 +311,32 @@ function Console() {
                   key={c.name}
                   className={c === selected ? "active" : "secondary"}
                   aria-current={c === selected}
-                  onClick={() => {
-                    setSelected(c);
-                    setValues({});
-                  }}
+                  onClick={() => open(c.name)}
                 >
                   {c.label}
                 </button>
               ))}
             </div>
           ))}
+          {groups.length === 0 && <p className="muted">No command matches.</p>}
         </nav>
         <div className="console-main">
-          {selected.view === "achievements" ? (
+          {selected.view === "dashboard" ? (
+            <Dashboard api={api} />
+          ) : selected.view === "players" ? (
+            <PlayerTools api={api} />
+          ) : selected.view === "hidden-stats" ? (
+            <HiddenStats api={api} />
+          ) : selected.view === "log" ? (
+            <AuditLog api={api} />
+          ) : selected.view === "achievements" ? (
             <AchievementExport />
           ) : (
             <form
               className="panel console-form"
               onSubmit={(e) => {
                 e.preventDefault();
-                run();
+                submit();
               }}
             >
               <h2>{selected.label}</h2>
@@ -373,18 +388,430 @@ function Console() {
             </div>
           )}
           {results.map((r) => (
-            <article key={r.id} className={`panel console-output${r.ok ? "" : " failed"}`}>
-              <header>
-                <strong>{r.label}</strong>
-                <span className={r.ok ? "tag" : "tag error"}>{r.ok ? "Done" : "Failed"}</span>
-                <span className="muted">{r.at}</span>
-              </header>
-              <pre>{r.output}</pre>
-            </article>
+            <OutputPanel key={r.id} label={r.label} ok={r.ok} at={r.at} output={r.output} />
           ))}
         </div>
       </div>
     </section>
+  );
+}
+
+/** What a command printed, with a Copy button. */
+function OutputPanel({ label, ok, at, output }: { label: string; ok: boolean; at: string; output: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <article className={`panel console-output${ok ? "" : " failed"}`}>
+      <header>
+        <strong>{label}</strong>
+        <span className={ok ? "tag" : "tag error"}>{ok ? "Done" : "Failed"}</span>
+        <span className="muted">{at}</span>
+        <button
+          type="button"
+          className="secondary small"
+          onClick={async () => {
+            await navigator.clipboard.writeText(output);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1500);
+          }}
+        >
+          {copied ? "Copied" : "Copy"}
+        </button>
+      </header>
+      <pre>{output}</pre>
+    </article>
+  );
+}
+
+const when = (iso: string) => new Date(iso).toLocaleString();
+
+// --- Dashboard ----------------------------------------------------------------------------------
+
+/** Live: processing progress (the Status page's answer) and the console's own facts, every 10 s while visible. */
+function Dashboard({ api }: { api: ConsoleApi }) {
+  const [status, setStatus] = useState<ProcessingStatus | null>(null);
+  const [overview, setOverview] = useState<ConsoleOverview | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [at, setAt] = useState<Date | null>(null);
+  const load = () =>
+    Promise.all([getProcessingStatus(), getConsoleOverview()]).then(
+      ([s, o]) => {
+        setStatus(s);
+        setOverview(o);
+        setError(null);
+        setAt(new Date());
+      },
+      (e: Error) => setError(e.message),
+    );
+  useWhileVisible(load, 10_000);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (api.version) void load(); // after a command (the first load is the polling's)
+  }, [api.version]);
+
+  if (!status || !overview) return <Status loading={!error} error={error} />;
+  const c = status.counts;
+  const total = c.queued + c.processing + c.done + c.failed;
+  const finished = c.done + c.failed;
+  const waiting = c.queued + c.processing;
+  const winLoss = overview.stat_groups.find((g) => g.key === "win_loss");
+  const scan = status.scan;
+
+  return (
+    <div className="console-view">
+      <div className="section-head">
+        <h2>Dashboard</h2>
+        <span className="muted">{error ? `Could not refresh: ${error}` : at && `Updated ${at.toLocaleTimeString()} · every 10 s`}</span>
+      </div>
+
+      <div className="panel dash-progress">
+        <div className="dash-progress-head">
+          <strong>Import {total ? pct(finished / total) : "–"}</strong>
+          <span className="muted">
+            {int(finished)} of {int(total)} replays
+            {status.redo > 0 && ` · ${int(status.redo)} being redone after an update`}
+          </span>
+        </div>
+        <SplitBar
+          percentages={false}
+          parts={[
+            { label: "Done", value: c.done, color: "var(--ok)", detail: int(c.done) },
+            { label: "Failed", value: c.failed, color: "var(--bad)", detail: int(c.failed) },
+            { label: "Processing", value: c.processing, color: "var(--chart-1)", detail: int(c.processing) },
+            { label: "Queued", value: c.queued, color: "var(--line)", detail: int(c.queued) },
+          ]}
+        />
+        <span className="muted">
+          {waiting
+            ? `${num(status.rate_per_min, 1)} replays/min · ${status.eta_min != null ? `about ${duration(status.eta_min * 60)} left` : "estimating time left"} · ${status.busy}/${status.workers} workers busy`
+            : `Nothing waiting · ${status.workers} workers idle`}
+        </span>
+      </div>
+
+      <div className="cards dash-cards">
+        <DashCard label="Replay folder" value={scan.reachable === false ? "Unreachable" : scan.scanning ? "Scanning…" : "Reachable"} bad={scan.reachable === false}>
+          {scan.error ? <span className="error-text">{scan.error}</span> : scan.last_scan_at && <>Last scan {when(scan.last_scan_at)} · {int(scan.files)} files</>}
+          <button type="button" className="secondary small" onClick={() => api.run("scan", "Scan the replay folder", {})}>Scan now</button>
+        </DashCard>
+        <DashCard label="Failed replays" value={int(c.failed)} bad={overview.repairable > 0}>
+          {overview.repairable > 0 && <>{int(overview.repairable)} can be repaired · </>}
+          {int(overview.cannot_repair)} cannot · {int(overview.hidden_replays)} hidden
+          {overview.repairable > 0 && (
+            <button type="button" className="secondary small" onClick={() => api.open("repair-failed")}>Repair…</button>
+          )}
+        </DashCard>
+        <DashCard label="Players" value={int(overview.players)}>
+          {int(overview.merges)} merges
+          <button type="button" className="secondary small" onClick={() => api.open("players")}>Player tools</button>
+        </DashCard>
+        <DashCard label="Achievements" value={overview.challenge.launched ? "Live" : "Coming soon"}>
+          {overview.challenge.start ? `From ${overview.challenge.start}${overview.challenge.end ? ` to ${overview.challenge.end}` : ""}` : "No launch date set"}
+          <button type="button" className="secondary small" onClick={() => api.open("challenge")}>Change</button>
+        </DashCard>
+        {winLoss && (
+          <DashCard label="Win-loss stats" value={winLoss.hidden ? "Hidden" : "Shown"}>
+            {winLoss.players.length > 0 ? `Hidden for ${winLoss.players.length} player(s)` : "No player hidden one by one"}
+            <button type="button" className="secondary small" onClick={() => api.open("hidden-stats")}>Manage</button>
+          </DashCard>
+        )}
+        <DashCard label="Version" value={status.versions.parser}>
+          stats {status.versions.stats}
+        </DashCard>
+      </div>
+
+      {status.current.length > 0 && (
+        <div className="panel">
+          <h3>Processing now</h3>
+          <ul className="dash-list">
+            {status.current.map((r) => (
+              <li key={r.replay_id}>
+                <code>{r.source_path}</code> <span className="muted">{duration(r.seconds)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div className="section-head">
+        <h3>Latest commands</h3>
+        <button type="button" className="secondary small" onClick={() => api.open("log")}>Audit log</button>
+      </div>
+      <LogTable rows={overview.recent} compact />
+    </div>
+  );
+}
+
+function DashCard({ label, value, bad, children }: { label: string; value: string; bad?: boolean; children?: ReactNode }) {
+  return (
+    <div className={`card dash-card${bad ? " bad" : ""}`}>
+      <span className="label">{label}</span>
+      <strong>{value}</strong>
+      <span className="muted dash-card-detail">{children}</span>
+    </div>
+  );
+}
+
+// --- Player tools -------------------------------------------------------------------------------
+
+function usePlayerSearch(version: number) {
+  const [q, setQ] = useState("");
+  const [term, setTerm] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setTerm(q.trim()), 300);
+    return () => clearTimeout(t);
+  }, [q]);
+  const found = useApi(() => (term ? searchConsolePlayers(term) : Promise.resolve([] as ConsolePlayer[])), `console-players|${term}|${version}`);
+  return { q, setQ, term, found };
+}
+
+/** Search a player, then act on the result: profile, win-loss, merges. */
+function PlayerTools({ api }: { api: ConsoleApi }) {
+  const { q, setQ, term, found } = usePlayerSearch(api.version);
+  return (
+    <div className="console-view">
+      <div className="panel console-form">
+        <h2>Player tools</h2>
+        <p className="muted">Search by name or player id, then act on a player straight from the result.</p>
+        <input type="search" placeholder="Name or player id" aria-label="Find a player" value={q} autoFocus onChange={(e) => setQ(e.target.value)} />
+      </div>
+      <Status loading={found.loading && !found.data} error={found.error} />
+      {term && found.data?.length === 0 && <p className="muted">No player matches “{term}”.</p>}
+      <div className="player-results">
+        {found.data?.map((p) => (
+          <article key={p.user_id} className="panel player-result">
+            <header>
+              <a href={playerPath(p.user_id, p.name)} target="_blank" rel="noopener noreferrer">
+                <strong>{p.name}</strong>
+              </a>
+              <code>{p.user_id}</code>
+              {p.win_loss_hidden && <span className="tag">win-loss hidden</span>}
+              {p.merged_into && <span className="tag">merged into {p.merged_into.name}</span>}
+            </header>
+            <span className="muted">
+              {int(p.games)} games · seen {p.first_seen_at.slice(0, 10)} – {p.last_seen_at.slice(0, 10)}
+              {p.merged_ids.length > 0 && ` · has ${p.merged_ids.length} merged record(s): ${p.merged_ids.map((m) => m.name).join(", ")}`}
+            </span>
+            <div className="player-actions">
+              <button
+                type="button"
+                className="secondary small"
+                onClick={() => {
+                  const hide = !p.win_loss_hidden;
+                  if (!window.confirm(`${hide ? "Hide" : "Show"} ${p.name}'s win-loss stats${hide ? " from everyone except logged-in admins" : " again"}?`)) return;
+                  api.run("hide-stats", `${hide ? "Hide" : "Show"} win-loss: ${p.name}`, { [hide ? "hide_win_loss" : "show_win_loss"]: true, player: p.user_id });
+                }}
+              >
+                {p.win_loss_hidden ? "Show win-loss" : "Hide win-loss"}
+              </button>
+              {p.merged_into ? (
+                <button type="button" className="secondary small" onClick={() => api.open("unmerge", { alias: p.user_id })}>
+                  Undo merge…
+                </button>
+              ) : (
+                <>
+                  <button type="button" className="secondary small" onClick={() => api.open("merge", { main: p.user_id })}>
+                    Keep, merge others into it…
+                  </button>
+                  <button type="button" className="secondary small" onClick={() => api.open("merge", { others: p.user_id })}>
+                    Merge into another…
+                  </button>
+                </>
+              )}
+            </div>
+          </article>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// --- Hidden stats -------------------------------------------------------------------------------
+
+/** The site-wide switch and the players hidden one by one, per stat group. */
+function HiddenStats({ api }: { api: ConsoleApi }) {
+  const overview = useApi(getConsoleOverview, `console-overview|${api.version}`);
+  const { q, setQ, term, found } = usePlayerSearch(api.version);
+  if (!overview.data) return <Status loading={overview.loading} error={overview.error} />;
+  return (
+    <div className="console-view">
+      {overview.data.stat_groups.map((g) => {
+        const flag = (hide: boolean) => ({ [hide ? `hide_${g.key}` : `show_${g.key}`]: true });
+        return (
+          <div key={g.key} className="panel console-form">
+            <h2>Hide stats from players</h2>
+            <p className="muted">Against pub stomping: hidden stats are left out of the website for everyone except logged-in admins. {g.label}.</p>
+
+            <div className="hidden-switch">
+              <div>
+                <strong>Site-wide</strong>
+                <span className={g.hidden ? "tag error" : "tag"}>{g.hidden ? "Hidden for everyone" : "Shown"}</span>
+              </div>
+              <button
+                type="button"
+                className={g.hidden ? "" : "secondary"}
+                onClick={() => {
+                  if (!window.confirm(g.hidden ? "Show win-loss stats to everyone again?" : "Hide win-loss stats from everyone except logged-in admins?")) return;
+                  api.run("hide-stats", g.hidden ? "Show win-loss (site-wide)" : "Hide win-loss (site-wide)", flag(!g.hidden));
+                }}
+              >
+                {g.hidden ? "Show for everyone" : "Hide for everyone"}
+              </button>
+            </div>
+
+            <h3>Hidden for these players</h3>
+            {g.hidden && <p className="muted">Hidden site-wide right now, so this list only matters once it is shown again.</p>}
+            {g.players.length === 0 ? (
+              <p className="muted">None.</p>
+            ) : (
+              <ul className="hidden-players">
+                {g.players.map((p) => (
+                  <li key={p.user_id}>
+                    <a href={playerPath(p.user_id, p.name)} target="_blank" rel="noopener noreferrer">{p.name}</a>
+                    <code>{p.user_id}</code>
+                    <button
+                      type="button"
+                      className="secondary small"
+                      onClick={() => {
+                        if (!window.confirm(`Show ${p.name}'s win-loss stats again?`)) return;
+                        api.run("hide-stats", `Show win-loss: ${p.name}`, { ...flag(false), player: p.user_id });
+                      }}
+                    >
+                      Show again
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            <label className="console-field">
+              <span>Hide for another player</span>
+              <input type="search" placeholder="Name or player id" value={q} onChange={(e) => setQ(e.target.value)} />
+            </label>
+            {term && found.data?.length === 0 && <p className="muted">No player matches “{term}”.</p>}
+            {term && (found.data?.length ?? 0) > 0 && (
+              <ul className="hidden-players">
+                {found.data!.filter((p) => !p.merged_into).slice(0, 8).map((p) => (
+                  <li key={p.user_id}>
+                    <span>{p.name}</span>
+                    <code>{p.user_id}</code>
+                    <span className="muted">{int(p.games)} games</span>
+                    {p.win_loss_hidden ? (
+                      <span className="tag">already hidden</span>
+                    ) : (
+                      <button
+                        type="button"
+                        className="secondary small"
+                        onClick={() => {
+                          if (!window.confirm(`Hide ${p.name}'s win-loss stats from everyone except logged-in admins?`)) return;
+                          api.run("hide-stats", `Hide win-loss: ${p.name}`, { ...flag(true), player: p.user_id }).then((ok) => ok && setQ(""));
+                        }}
+                      >
+                        Hide
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// --- Audit log ----------------------------------------------------------------------------------
+
+function argsText(args: Record<string, unknown>): string {
+  return Object.entries(args)
+    .map(([k, v]) => (v === true ? k.replace(/_/g, " ") : `${k.replace(/_/g, " ")}: ${Array.isArray(v) ? v.join(", ") : String(v)}`))
+    .join(" · ");
+}
+
+function LogTable({ rows, compact }: { rows: ConsoleLogEntry[]; compact?: boolean }) {
+  const [open, setOpen] = useState<number | null>(null);
+  if (rows.length === 0) return <p className="muted">No commands yet.</p>;
+  return (
+    <TableWrap>
+      <table className="stack console-log">
+        <thead>
+          <tr>
+            <th>When</th>
+            <th>Who</th>
+            <th>Command</th>
+            {!compact && <th>Details</th>}
+            <th>Result</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <Fragment key={r.id}>
+              <tr className="log-row" onClick={() => setOpen(open === r.id ? null : r.id)} aria-expanded={open === r.id}>
+                <td data-label="When" className="nowrap">{when(r.at)}</td>
+                <td data-label="Who">
+                  {r.who} {r.source === "admin.bat" && <span className="tag">admin.bat</span>}
+                </td>
+                <td data-label="Command">{COMMAND_LABELS[r.command] ?? r.command}</td>
+                {!compact && <td data-label="Details" className="muted">{argsText(r.args) || "–"}</td>}
+                <td data-label="Result">
+                  <span className={r.ok ? "tag" : "tag error"}>{r.ok ? "Done" : "Failed"}</span>
+                </td>
+              </tr>
+              {open === r.id && (
+                <tr className="log-output">
+                  <td colSpan={compact ? 4 : 5}>
+                    {compact && argsText(r.args) && <p className="muted">{argsText(r.args)}</p>}
+                    <pre>{r.output || "(no output)"}</pre>
+                  </td>
+                </tr>
+              )}
+            </Fragment>
+          ))}
+        </tbody>
+      </table>
+    </TableWrap>
+  );
+}
+
+/** Who ran which command and when, from the website or admin.bat; click a row for its output. */
+function AuditLog({ api }: { api: ConsoleApi }) {
+  const [q, setQ] = useState("");
+  const [term, setTerm] = useState("");
+  const [more, setMore] = useState<ConsoleLogEntry[]>([]);
+  const [end, setEnd] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setTerm(q.trim()), 300);
+    return () => clearTimeout(t);
+  }, [q]);
+  useEffect(() => {
+    setMore([]);
+    setEnd(false);
+  }, [term, api.version]);
+  const first = useApi(() => getConsoleLog(term), `console-log|${term}|${api.version}`);
+  const rows = [...(first.data ?? []), ...more];
+
+  async function loadMore() {
+    const last = rows[rows.length - 1];
+    if (!last) return;
+    const next = await getConsoleLog(term, last.id);
+    setMore((m) => [...m, ...next]);
+    if (next.length < 100) setEnd(true);
+  }
+
+  return (
+    <div className="console-view">
+      <div className="panel console-form">
+        <h2>Audit log</h2>
+        <p className="muted">Every command run on this page or with admin.bat, newest first. Click a row to see what it printed.</p>
+        <input type="search" placeholder="Filter by command, person or player" aria-label="Filter the audit log" value={q} onChange={(e) => setQ(e.target.value)} />
+      </div>
+      <Status loading={first.loading && !first.data} error={first.error} />
+      {first.data && <LogTable rows={rows} />}
+      {first.data && first.data.length === 100 && !end && (
+        <div className="pager">
+          <button type="button" className="secondary" onClick={loadMore}>Older</button>
+        </div>
+      )}
+    </div>
   );
 }
 

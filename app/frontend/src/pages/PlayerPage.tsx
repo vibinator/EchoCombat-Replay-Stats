@@ -2,9 +2,10 @@ import { type ReactNode, useState } from "react";
 import { Link, Navigate, useParams, useSearchParams } from "react-router";
 import {
   getCompanions, getPlayer, getPlayerHeatmapBy, getTrends,
-  type Companion, type CompanionWindow, type GearUse, type GearUseSet, type HeatmapLayerMode, type Period, type PlayerProfile, type PlayerStats,
+  type Companion, type CompanionWindow, type GearUse, type GearUseSet, type HeatmapLayerMode, type Period, type PlayerProfile, type PlayerStats, type TrendPoint,
 } from "../api";
 import { AchievementsSummary } from "../components/AchievementsView";
+import { ShareBar, Sparkline, SplitBar, VsAverage } from "../components/bars";
 import { LineChart } from "../components/charts";
 import { GearName, MatchTable, Status, TableWrap, TeamBadge } from "../components/common";
 import { HEATMAP_CELL_M, HEATMAP_MODES, HeatmapView } from "../components/HeatmapView";
@@ -28,39 +29,6 @@ function leaning(first: number, names: [string, string], strong?: [string, strin
   return "Even split";
 }
 
-interface Part {
-  label: string;
-  value: number;
-  color: string;
-  /** shown in the legend after the percentage, e.g. a count or a time */
-  detail?: string;
-}
-
-/** Parts of one whole as one bar, with a legend (the colours alone are not enough in the light theme). */
-function SplitBar({ parts }: { parts: Part[] }) {
-  const total = parts.reduce((sum, x) => sum + x.value, 0);
-  if (!total) return null;
-  const share = (x: Part) => x.value / total;
-  return (
-    <>
-      <div className="split-bar" role="img" aria-label={parts.map((x) => `${x.label} ${pct(share(x))}`).join(", ")}>
-        {parts.filter((x) => x.value > 0).map((x) => (
-          <div key={x.label} style={{ width: `${share(x) * 100}%`, background: x.color }} title={`${x.label}: ${pct(share(x))}`} />
-        ))}
-      </div>
-      <span className="split-legend muted">
-        {parts.map((x) => (
-          <span key={x.label}>
-            <span className="split-key" style={{ background: x.color }} aria-hidden="true" />
-            {x.label} {pct(share(x))}
-            {x.detail && ` · ${x.detail}`}
-          </span>
-        ))}
-      </span>
-    </>
-  );
-}
-
 /** Right / left split of the in-game dominant arm, with the ratio underneath. */
 function ArmBar({ left }: { left: number | null }) {
   if (left == null) return <strong>–</strong>;
@@ -68,7 +36,7 @@ function ArmBar({ left }: { left: number | null }) {
   const ratio = left === 0 ? "right only" : right === 0 ? "left only" : `${num(right / left, 1)} : 1`;
   return (
     <>
-      <strong>{leaning(right, ["right", "left"], ["Right-handed", "Left-handed"])}</strong>
+      <strong className="lean">{leaning(right, ["right", "left"], ["Right-handed", "Left-handed"])}</strong>
       <SplitBar parts={[
         { label: "R", value: right, color: "var(--chart-1)" },
         { label: "L", value: left, color: "var(--chart-2)" },
@@ -92,7 +60,7 @@ function ModeBar({ games }: { games: Record<string, number> }) {
   if (!(payload + capture)) return <strong>–</strong>;
   return (
     <>
-      <strong>{leaning(payload / (payload + capture), ["payload", "capture point"])}</strong>
+      <strong className="lean">{leaning(payload / (payload + capture), ["payload", "capture"])}</strong>
       <SplitBar parts={[
         { label: "Payload", value: payload, color: "var(--chart-1)", detail: int(payload) },
         { label: "Capture", value: capture, color: "var(--chart-2)", detail: int(capture) },
@@ -106,7 +74,7 @@ function PayloadBar({ push, block }: { push: number; block: number }) {
   if (!(push + block)) return <strong>–</strong>;
   return (
     <>
-      <strong>{leaning(push / (push + block), ["pushing", "blocking"])}</strong>
+      <strong className="lean">{leaning(push / (push + block), ["pushing", "blocking"])}</strong>
       <SplitBar parts={[
         { label: "Push", value: push, color: "var(--chart-1)", detail: hoursMinutes(push) },
         { label: "Block", value: block, color: "var(--chart-2)", detail: hoursMinutes(block) },
@@ -115,11 +83,20 @@ function PayloadBar({ push, block }: { push: number; block: number }) {
   );
 }
 
-type CardRow = [string, ReactNode, string?];
+/** label, value, hint, something under the value (a sparkline) */
+type CardRow = [string, ReactNode, string?, ReactNode?];
 
-function cards(s: PlayerStats): CardRow[] {
+type Averages = NonNullable<PlayerProfile["site_avg"]>;
+
+/** Per month, all time: the line under a card. */
+function trend(items: TrendPoint[] | undefined, key: "games" | "avg_speed" | "deaths_per_game_est" | "avg_ping", label: string): ReactNode {
+  if (!items || items.length < 2) return undefined;
+  return <Sparkline values={items.map((i) => i[key])} label={`${label} per month, all time`} />;
+}
+
+function cards(s: PlayerStats, avg: Averages = {}, months?: TrendPoint[]): CardRow[] {
   const list: CardRow[] = [
-    ["Games", int(s.games)],
+    ["Games", int(s.games), "The line: games per month, all time", trend(months, "games", "Games")],
     // left out of the answer while win-loss stats are hidden from players
     ...(s.wins != null && s.losses != null
       ? ([
@@ -129,17 +106,17 @@ function cards(s: PlayerStats): CardRow[] {
       : []),
     ["Hours played", num(s.hours_played)],
     ["Deaths*", int(s.deaths_est), "Estimated from leaving the map bounds"],
-    ["Deaths / game*", num(s.deaths_per_game_est, 2)],
-    ["Average speed", `${num(s.avg_speed, 2)} m/s`],
+    ["Deaths / game*", num(s.deaths_per_game_est, 2), "The line: per month, all time", trend(months, "deaths_per_game_est", "Deaths per game")],
+    ["Average speed", `${num(s.avg_speed, 2)} m/s`, "The line: per month, all time", trend(months, "avg_speed", "Average speed")],
     ["Top speed", `${num(s.top_speed)} m/s`, "Fastest speed held for a full second"],
-    ["Time idle", pct(s.pct_stopped), "Moving slower than 1 m/s"],
-    ["Inverted", pct(s.pct_upside_down)],
-    ["Near a teammate", pct(s.pct_near_mate)],
-    ["Near an enemy", pct(s.pct_near_enemy)],
-    ["Average ping", num(s.avg_ping, 0)],
+    ["Time idle", <VsAverage value={s.pct_stopped} average={avg.pct_stopped} />, "Moving slower than 1 m/s. The tick: every player's average"],
+    ["Inverted", <VsAverage value={s.pct_upside_down} average={avg.pct_upside_down} />, "The tick: every player's average"],
+    ["Near a teammate", <VsAverage value={s.pct_near_mate} average={avg.pct_near_mate} />, "The tick: every player's average"],
+    ["Near an enemy", <VsAverage value={s.pct_near_enemy} average={avg.pct_near_enemy} />, "The tick: every player's average"],
+    ["Average ping", num(s.avg_ping, 0), "The line: per month, all time", trend(months, "avg_ping", "Average ping")],
     ["Packet loss", s.avg_packet_loss == null ? "–" : `${(s.avg_packet_loss * 100).toFixed(2)}%`],
     ["Emotes", int(s.emote_count)],
-    ["Left early", pct(s.pct_left_early), "Last seen more than 45 s before the end"],
+    ["Left early", <VsAverage value={s.pct_left_early} average={avg.pct_left_early} />, "Last seen more than 45 s before the end. The tick: every player's average"],
     ["Arm", <ArmBar left={s.pct_left_arm} />, "Share of play time with the in-game dominant arm set to right / left"],
   ];
   if (s.games) list.push(["Modes", <ModeBar games={s.games_by_mode} />]);
@@ -198,11 +175,12 @@ function ProfileHeader({ p }: { p: PlayerProfile }) {
 }
 
 function GearUseTable({ heading, items }: { heading: string; items: GearUse[] }) {
+  const top = Math.max(0, ...items.map((g) => g.share ?? 0));
   return (
     <TableWrap>
       <table className="stack">
         <thead>
-          <tr><th>{heading}</th><th className="num">Picked</th><th className="num">Games</th><th className="num">Time held</th></tr>
+          <tr><th>{heading}</th><th className="num">Picked</th><th className="num">Games</th><th>Time held</th></tr>
         </thead>
         <tbody>
           {items.length === 0 && (
@@ -213,7 +191,7 @@ function GearUseTable({ heading, items }: { heading: string; items: GearUse[] })
               <td data-label={heading}><GearName item={g} /></td>
               <td data-label="Picked" className="num">{g.picks.toLocaleString()}</td>
               <td data-label="Games" className="num">{(g.games ?? 0).toLocaleString()}</td>
-              <td data-label="Time held" className="num">{pct(g.share)}</td>
+              <td data-label="Time held"><ShareBar value={g.share} max={top}>{pct(g.share)}</ShareBar></td>
             </tr>
           ))}
         </tbody>
@@ -275,8 +253,22 @@ function Trends({ userId }: { userId: string }) {
   );
 }
 
+/** Wins vs losses as a split bar with the record as text. */
+function RecordBar({ wins, losses }: { wins: number; losses: number }) {
+  if (!wins && !losses) return <span className="muted">–</span>;
+  return (
+    <span className="record-cell">
+      <SplitBar percentages={false} parts={[
+        { label: "W", value: wins, color: "var(--ok)", detail: String(wins) },
+        { label: "L", value: losses, color: "var(--bad)", detail: String(losses) },
+      ]} />
+    </span>
+  );
+}
+
 function CompanionTable({ title: heading, rows, together }: { title: string; rows: Companion[]; together: boolean }) {
   const showRecord = rows.some((c) => c.wins !== undefined); // hidden from players: left out of the answer
+  const most = Math.max(0, ...rows.map((c) => c.games));
   return (
     <div>
       <h3>{heading}</h3>
@@ -288,18 +280,18 @@ function CompanionTable({ title: heading, rows, together }: { title: string; row
             <thead>
               <tr>
                 <th>Player</th>
-                <th className="num">Games</th>
-                {showRecord && <th className="num">{together ? "Won together" : "Won against"}</th>}
+                <th>Games</th>
+                {showRecord && <th>{together ? "Won together" : "Won against"}</th>}
               </tr>
             </thead>
             <tbody>
               {rows.map((c) => (
                 <tr key={c.user_id}>
                   <td data-label="Player"><Link to={playerPath(c.user_id, c.name)}>{c.name}</Link></td>
-                  <td data-label="Games" className="num">{int(c.games)}</td>
+                  <td data-label="Games"><ShareBar value={c.games} max={most}>{int(c.games)}</ShareBar></td>
                   {showRecord && (
-                    <td data-label={together ? "Won together" : "Won against"} className="num">
-                      {c.wins} – {c.losses}
+                    <td data-label={together ? "Won together" : "Won against"}>
+                      <RecordBar wins={c.wins ?? 0} losses={c.losses ?? 0} />
                     </td>
                   )}
                 </tr>
@@ -391,6 +383,8 @@ export function PlayerPage() {
   const map = params.get("map") ?? "";
   const profile = useApi(() => getPlayer(userId, period, map || undefined), `${userId}|${period}|${map}`);
   const p = profile.data;
+  // the same answer the Trends section asks for (shared, cached): the lines under the cards
+  const months = useApi(() => getTrends(userId, "month"), `${userId}|month`);
 
   function set(key: string, value: string) {
     const next = new URLSearchParams(params);
@@ -436,13 +430,14 @@ export function PlayerPage() {
           ) : (
             <>
               <div className="cards">
-                {cards(p.stats).map(([label, value, hint]) => (
+                {cards(p.stats, p.site_avg, months.data?.items).map(([label, value, hint, under]) => (
                   <div className="card" key={label}>
                     <span className="label">
                       {label}
                       <InfoTip text={hint} />
                     </span>
                     {typeof value === "string" ? <strong>{value}</strong> : value}
+                    {under}
                   </div>
                 ))}
                 {p.stats.games > 0 && (
