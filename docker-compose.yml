@@ -40,7 +40,7 @@ services:
   # Connects echocombat.com to the app above (outgoing connection only). In Cloudflare, point the tunnel's public
   # hostnames echocombat.com and www.echocombat.com at http://echovr-replay-stats:8000.
   cloudflared:
-    image: cloudflare/cloudflared:latest
+    image: cloudflare/cloudflared:2026.10.7   # pinned; to upgrade, change the tag (hub.docker.com/r/cloudflare/cloudflared/tags)
     container_name: echovr-cloudflared
     restart: unless-stopped
     command: tunnel --no-autoupdate run

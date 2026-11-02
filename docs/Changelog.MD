@@ -18,6 +18,13 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.02.2 — 20:08
+### Cloudflare tunnel: cloudflared pinned to 2026.10.7
+- `docker-compose.yml` now runs `cloudflare/cloudflared:2026.10.7` (newest release) instead of `latest`, so the
+  tunnel only changes version when the tag is edited.
+- **To do:** in Container Station, recreate the application (or pull `cloudflare/cloudflared:2026.10.7` and recreate
+  the `echovr-cloudflared` container). The tunnel token stays the same.
+
 ## 2026.11.02.1 — 18:34
 ### Leaderboard: re-rank by any column
 - Click a column header (Games, Wins, Losses, Win rate, Hours played) to re-rank the **#** column by it, highest
