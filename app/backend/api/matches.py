@@ -8,7 +8,7 @@ from pathlib import Path
 from fastapi import APIRouter, Query, Request
 from sqlalchemy import func, select
 
-from .. import gear_use, heatmaps, tracks
+from .. import gear_use, heatmaps, tracks, tracks3d
 from ..aliases import alias_map, ids_of
 from ..cache import cached_response
 from ..duplicates import counted
@@ -401,6 +401,44 @@ def _playback(request: Request, match_id: int) -> dict:
 
 
 PLAYBACK_EVENTS = {"round_won", "payload_checkpoint", "death_est", "contest_start", "contest_end", "loadout_change"}
+
+MAPS_3D = {"surge", "fission", "dyson", "combustion"}  # app/frontend/public/maps3d/<map>.glb (app/tools/maps3d)
+
+
+@router.get("/{match_id}/playback3d")
+def get_playback3d(request: Request, match_id: int):
+    """Head positions (decimetres), facing (yaw 0-255, pitch degrees) and team at 5 Hz, in world space, for the 3D view.
+    Derived data only (tracks3d.bin), never replay frames. Events, gear and objective series come from /playback."""
+    return cached_response(request, "playback3d", (match_id,), lambda: _playback3d(request, match_id))
+
+
+def _playback3d(request: Request, match_id: int) -> dict:
+    with request.app.state.sessionmaker() as db:
+        match = _match_or_404(db, match_id)
+        names = dict(db.execute(
+            select(Player.user_id, MatchPlayer.name).join(Player).where(MatchPlayer.match_id == match_id)
+        ).all())
+        aliases = alias_map(db)
+    data = tracks3d.read(tracks3d.tracks3d_path(request.app.state.settings.processed_dir, match.replay_id))
+    if data is None:
+        raise ApiError(404, "no_tracks3d", "3D positions for this match are not ready yet: matches get them when they are "
+                                           "processed again after the update.")
+    header, players = data
+    out = []
+    for uid, t in players.items():
+        main = aliases.get(uid, uid)
+        out.append({"user_id": main, "name": names.get(main, uid), "x": t["x"].tolist(), "y": t["y"].tolist(),
+                    "z": t["z"].tolist(), "yaw": list(t["yaw"]), "pitch": t["pitch"].tolist(), "team": list(t["team"])})
+    objects: dict = {}
+    if route := PAYLOAD_ROUTES.get(match.map):
+        objects["route"] = route
+    if point := CAPTURE_POINTS.get(match.map):
+        objects["point"] = point
+    layout = HEATMAP_LAYOUTS.get(match.map)  # the play area (x min, x max, z min, z max): where the camera looks first
+    extent = [layout.x_min, layout.x_max, layout.z_min, layout.z_max] if layout else None
+    return {"map": match.map, "model": f"/maps3d/{match.map}.glb" if match.map in MAPS_3D else None, "extent": extent, "hz": header["hz"],
+            "samples": header["samples"], "duration_s": match.duration_s, "payload": header.get("payload"),
+            "objects": objects, "players": out}
 
 
 def _map_objects(map_: str, cell_of, cols: int, rows: int) -> dict:

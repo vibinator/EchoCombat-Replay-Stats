@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent, type WheelEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent } from "react";
 import type { Heatmap, HeatmapLayer, HeatmapLayerMode } from "../api";
 
 // Layer colours. Teams use the game's colours (drawn over the minimap, not a chart surface). Gear uses the
@@ -82,10 +82,10 @@ function HeatCanvas({ heatmap, layers, colors, opacity }: { heatmap: Heatmap; la
   return <canvas ref={canvas} aria-label={`Heatmap over the ${heatmap.map} minimap`} />;
 }
 
-function Stage({ heatmap, layers, colors, opacity, lookup, zoom, pan, onPan, onZoom, label }: {
+function Stage({ heatmap, layers, colors, opacity, lookup, zoom, pan, onPan, label }: {
   heatmap: Heatmap; layers: HeatmapLayer[]; colors: Map<string, string>; opacity: number;
   lookup: Map<number, [string, number][]>; zoom: number; pan: [number, number];
-  onPan: (p: [number, number]) => void; onZoom: (z: number, at?: [number, number]) => void; label?: string;
+  onPan: (p: [number, number]) => void; label?: string;
 }) {
   const [hover, setHover] = useState<{ x: number; y: number; lines: string[] } | null>(null);
   const drag = useRef<{ x: number; y: number; pan: [number, number] } | null>(null);
@@ -112,11 +112,6 @@ function Stage({ heatmap, layers, colors, opacity, lookup, zoom, pan, onPan, onZ
     const box = e.currentTarget.getBoundingClientRect();
     onPan([drag.current.pan[0] + (e.clientX - drag.current.x) / box.width, drag.current.pan[1] + (e.clientY - drag.current.y) / box.height]);
   }
-  function onWheel(e: WheelEvent<HTMLDivElement>) {
-    if (!e.ctrlKey && !e.altKey && zoom === 1 && e.deltaY > 0) return; // let the page scroll
-    e.preventDefault();
-    onZoom(zoom * (e.deltaY < 0 ? 1.25 : 0.8));
-  }
 
   return (
     <div className="heatmap-frame">
@@ -128,7 +123,6 @@ function Stage({ heatmap, layers, colors, opacity, lookup, zoom, pan, onPan, onZ
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={() => (drag.current = null)}
-        onWheel={onWheel}
       >
         <div className="heatmap-inner" style={{ transform: `translate(${pan[0] * 100}%, ${pan[1] * 100}%) scale(${zoom})` }}>
           <img src={heatmap.image} alt={`${heatmap.map} minimap`} />
@@ -177,7 +171,7 @@ export function HeatmapView({ heatmap, caption }: { heatmap: Heatmap; caption?: 
   if (heatmap.layers.length === 0) return <p className="muted">No position data for this selection.</p>;
   const visible = heatmap.layers.filter((l) => !hidden.has(l.key));
   const totals = heatmap.layers.map((l) => ({ ...l, total: l.cells.reduce((s, [, , n]) => s + n, 0) }));
-  const stageProps = { heatmap, colors, opacity, lookup, zoom, pan, onPan: setPan, onZoom: setZoom };
+  const stageProps = { heatmap, colors, opacity, lookup, zoom, pan, onPan: setPan };
 
   return (
     <div className="heatmap">

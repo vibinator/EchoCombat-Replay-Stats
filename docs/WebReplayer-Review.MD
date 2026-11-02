@@ -78,6 +78,26 @@
 ## The 10 phases
 
 ### Phase 1 — Audit and map assets
+- **Status:** Done 2026-11-02 (meshes built and checked against replay data; not yet viewed in a browser, which is Phase 4). Details and rebuild steps: `app/tools/maps3d/README.md`.
+- **Result:**
+  - `app/frontend/public/maps3d/{surge,fission,dyson,combustion}.glb`, in replay coordinates (metres, x/y/z as `head.position`, Y up). The placement is baked in, so no offsets table is needed.
+  - 15.3 MB of FBX became 2.96 MB of GLB (surge 1.05 MB, just over the 1 MB aim). This came from weld, light meshopt simplification (about 0.1 m) and `KHR_mesh_quantization`.
+  - No Draco or meshopt decoder is needed: a WASM decoder would need a CSP change.
+  - There are no normals; render with `flatShading`.
+- **Provenance:**
+  - The meshes were exported from Maya 2019 by the upstream author on 2021-12-26.
+  - Their numeric part names suggest they were extracted from the game's hologram minimaps and re-coloured.
+  - The repo's MIT license (inherited copyright lines from three-fbx-viewer) says nothing separately about the meshes.
+  - The old replayviewer.ecranked.com served the same files. **Publishing them is the owner's decision** (Open questions).
+- **Placement:**
+  - Upstream `EC_MAPS` is kept for surge, dyson and fission. A fit found no worthwhile change for surge and dyson, and the change it wanted for fission put 23 % of heads under the floor.
+  - Combustion gets a fitted correction on top of upstream's `rotation.y = 80` rad: x -1.25 m, z +2.06 m, yaw +2.8°, scale 0.990. Its median head-to-surface distance went from 1.20 to 0.75 m on held-out positions, and its capture point mesh is 0.7 m from the centre measured from replays.
+  - The height is not fitted: a free height fit pulled floors up to head height (14–32 % of heads under the floor).
+  - Team colour zones match the side each team starts on, so nothing is mirrored relative to the data.
+- **Check (`app/tools/maps3d/check.mjs`, 10 other replays per map):** median head-to-surface distance surge 0.95 m, fission 1.04, dyson 1.21, combustion 0.83. Heads under the floor: 0–3.5 %.
+- **Later (Phases 4 and 9):**
+  - Handedness was settled from the data (right-handed, as in three.js: no mirror).
+  - The backdrop plates and load-in rooms are cropped at build time: 2.47 MB in total now.
 - **Goal:** Map meshes the site is allowed to ship, that are light, and that are placed correctly in replay coordinates.
 - **Tasks:**
   - Check where the upstream FBX meshes came from and their license. Credit duncancarroll (MIT).
@@ -89,6 +109,11 @@
 - **Done when:** sample head positions from 16 replays (the same check as the 2026-10-29 bounds study) land on the walkable mesh surfaces on all four maps.
 
 ### Phase 2 — 3D track data (backend)
+- **Status:** Done 2026-11-02.
+  - The parser keeps `head.forward` (`PlayerFrame.head_forward`), and `PARSER_VERSION` is now 4, so the first start after the update reprocesses every replay.
+  - `app/backend/tracks3d.py` writes `tracks3d.bin` next to `tracks.bin` from the same single pass over the frames (`Recorders`). It holds 5 Hz head x/y/z (int16 dm), yaw (uint8), pitch (int8 °), team, and the payload cart position per sample in the header.
+  - **Measured on 8 real replays:** 16–118 KB per match, about 4× `tracks.bin`.
+  - Tests in `tests/backend/test_tracks3d.py`.
 - **Goal:** A derived per-match file with everything 3D needs and nothing more.
 - **Tasks:**
   - Have `_player` also keep `head.forward` (yaw/pitch are enough). Bump `PARSER_VERSION` (`app/parser/__init__.py`).
@@ -98,6 +123,11 @@
 - **Done when:** a full reprocess writes the file for every match, and round-trip tests show the quantisation error stays under 0.1 m and 2°.
 
 ### Phase 3 — API endpoint
+- **Status:** Done 2026-11-02.
+  - `GET /api/matches/{id}/playback3d` returns: map, model URL, play extent, hz, samples, payload cart positions, route / capture point in metres, and per player x/y/z/yaw/pitch/team.
+  - It is cached and gzipped like the other match endpoints: 137–159 KB for a 9–12 minute match with 10–12 players.
+  - It answers 404 `no_tracks3d` until a match is reprocessed.
+  - Documented in `docs/Architecture.MD`; tested in `test_gui_api.py`.
 - **Goal:** `GET /api/matches/{id}/playback3d`.
 - **Tasks:**
   - Return world-space metres plus yaw/pitch, `hz`, `samples`, the map key and the player list (names and aliases as in `_playback`). Leave out events and gear, which the client already gets from `/playback`.
@@ -107,6 +137,10 @@
 - **Done when:** the endpoint is documented in `docs/Architecture.MD`, tests in `tests/backend/` cover a fixture, and it returns 404 `no_tracks3d` for matches that have not been reprocessed.
 
 ### Phase 4 — Frontend scaffold
+- **Status:** Done 2026-11-02.
+  - `three` 0.181.0 (pinned) is added. `components/Map3D.tsx` is a lazy chunk (622 kB, 162 kB gzipped) that is downloaded only when someone opens 3D; the main bundle has no three.js.
+  - A "2D map / 3D" switch on the Playback tab is kept in the address as `?view=3d`. The match id reaches `PlaybackView` as `matchId`.
+  - **Handedness settled from the data:** in replays `left = up × forward` (138 of 138 head samples), which is the same right-handed convention as three.js, so the raw coordinates are drawn as they are, with no mirror.
 - **Goal:** A 3D toggle on the Playback tab that loads without slowing anything else.
 - **Tasks:**
   - Add `three` (current release) to `app/frontend`.
@@ -116,6 +150,9 @@
 - **Done when:** the map mesh renders with orbit controls on all four maps, and the main bundle size is unchanged (compare the `vite build` output).
 
 ### Phase 5 — Playback engine
+- **Status:** Done 2026-11-02.
+  - The existing time-based clock (`useClock` in `PlaybackView.tsx`) already did play, seek, step and speed. The 3D stage reads the same clock, so 2D and 3D share the controls, scrubber, event markers and time; switching views keeps the moment.
+  - **3D interpolation:** samples glide at 5 Hz, except across jumps over 3 m (respawns). Yaw turns the short way round.
 - **Goal:** Replace everything in upstream bugs 2–6 with one correct clock.
 - **Tasks:**
   - Use a time-based clock (`requestAnimationFrame` plus elapsed time × speed).
@@ -125,6 +162,13 @@
 - **Done when:** seeking anywhere is instant, real-time playback lasts `duration_s` (±1 %), and toggling 2D↔3D keeps the time.
 
 ### Phase 6 — Player rendering
+- **Status:** Done 2026-11-02.
+  - **Player model:** head, body and a white facing cone (yaw and pitch) in the site's team colours. The picked player gets a white ring.
+  - **Labels:** CSS2D name labels show the loadout swap for 3 s and turn red for 3 s after a death.
+  - **Skulls** appear for 5 s at the player's last 3D position.
+  - **Trails** are 3D segments in team or speed colour; respawn jumps are left out.
+  - Absent players are hidden, and everything is disposed on unmount.
+  - **Not done:** gear icons inside the 3D labels. The roster beside the map keeps them.
 - **Goal:** Players that are easy to read in 3D.
 - **Tasks:**
   - Draw team-coloured capsules (the site's team colours, not the upstream hex values) with a facing cone.
@@ -135,6 +179,11 @@
 - **Done when:** a mid-match join or leave renders correctly, and the heap stays flat over a 10-minute replay (DevTools).
 
 ### Phase 7 — Cameras
+- **Status:** Done 2026-11-02.
+  - **Modes:** orbit, top-down, follow (a chase camera 7 m behind and 4 m above, looking down at the player) and first person (from head position + yaw / pitch).
+  - **Keys and clicks:** C cycles the camera, 1–9 / 0 pick a player in roster order, Esc lets go; clicking a player in 3D picks them.
+  - **See-through map:** in follow and first person the map turns see-through (28 %). The mesh is a coarse hologram (about 1 m), so a head-height camera often sits inside a slab and showed only grey.
+  - The picked player's own model is hidden in first person.
 - **Goal:** Ways of viewing that a 2D map cannot offer.
 - **Tasks:**
   - **Orbit** (default).
@@ -145,6 +194,11 @@
 - **Done when:** every camera works through a seek and through a death or respawn of the followed player.
 
 ### Phase 8 — Objective and event overlays
+- **Status:** Done 2026-11-02.
+  - **Payload:** the route is drawn at the height of the nearest recorded cart position, with the travelled part in the attacker's colour. The cart sits at its recorded 3D position.
+  - **Capture point:** a ring at floor height (from heads standing on the point), with a progress arc in the leading team's colour.
+  - **Banners:** "Round won" / "Checkpoint" banners appear for 3 s over the map, in both views.
+  - Fights stay in the shared scoreboard ("⚔ Fight") and scrubber bands.
 - **Goal:** Show the game state, not just dots.
 - **Tasks:**
   - Draw the payload route as a 3D line, with the cart placed along it from the `payload_distance` series.
@@ -155,6 +209,12 @@
 - **Done when:** overlays match the 2D view at the same time for a payload match and a capture-point match.
 
 ### Phase 9 — Performance and robustness
+- **Status:** Done 2026-11-02, apart from what is listed below.
+  - **Rendering:** a single `requestAnimationFrame` loop that draws only when something changed (a paused view does no GPU work), with the pixel ratio capped at 2.
+  - **Fallbacks:** if WebGL is missing, or the chunk fails or crashes (error boundary), the view says so and offers the 2D map. A map without a model shows the players over a grid.
+  - **Phones:** on narrow screens the stage is 4:5, and touch orbit / pinch works.
+  - **Smaller meshes:** cropped to the play area at build time, now 2.47 MB in total.
+  - **Not done:** instanced meshes (at most 14 players, so they are not needed). Frame rate was checked only in headless Chrome with software WebGL, not on a real GPU.
 - **Goal:** Smooth on an ordinary laptop, and safe everywhere.
 - **Tasks:**
   - Use instanced meshes for players and skulls, with one render loop and no `setInterval`.
@@ -166,6 +226,12 @@
 - **Done when:** 60 fps on a mid-range laptop at 4×, no console errors, and Lighthouse shows no regression on the match page.
 
 ### Phase 10 — Polish and sharing
+- **Status:** Done 2026-11-02, apart from what is listed below.
+  - **Deep links:** `?tab=playback&view=3d&cam=<orbit|top|follow|first>&player=<user id>&t=<s>&until=<s>`.
+  - **Copy link / Copy clip:** "Copy link" copies the current moment; "Copy clip" copies the last 10 s. A clip link stops playback at `until`.
+  - **Reduced motion:** the chase camera jumps instead of gliding, and the banner does not animate.
+  - **Credit:** ec-web-replayer (MIT) is credited in the 3D footnote.
+  - **Not done:** 3D compare (`?vs=` stays 2D), and a separate settings panel (the existing trail / label / swap toggles and the camera picker cover it).
 - **Goal:** Make it worth sending to someone.
 - **Tasks:**
   - Deep links `?view=3d&t=<s>&cam=<mode>&player=<id>`, plus a "copy link at this moment" button.
@@ -177,7 +243,20 @@
 - **Done when:** a pasted link opens at the same moment, camera and player.
 
 ## Open questions
-- **Mesh provenance:** are the minimap FBXs made by the fan community or extracted from the game? This decides whether the site may host them (Phase 1).
+- **Mesh provenance (Phase 1 finding):** the FBXs were built in Maya by the upstream author, most likely from meshes extracted from the game's hologram minimaps.
+  - Should the public site serve them? The site already serves the old site's minimap images.
+  - **The 3D view now loads them**, so decide before deploying. If the answer is no, delete `app/frontend/public/maps3d/`: the view then shows players over a grid.
+
+## Verification (2026-11-02)
+- **Backend:** 277 tests pass (new: `test_tracks3d.py`, `test_playback3d`).
+- **Map meshes:** `app/tools/maps3d/check.mjs` passes on 10 replays per map.
+- **Test site:** a local copy on 4 real replays (one per map, temporary data folder) answered `/playback3d` on every map.
+- **Headless Chrome** (software WebGL), with no console errors:
+  - orbit (surge), top-down (dyson), follow (combustion: capture ring, trails, picked ring) and first person (fission: cart, route, players) all render;
+  - 2D → 3D → 2D switching works (the 2D canvas redraws);
+  - C / 1–0 / Esc and play / pause work;
+  - `?t=` and clip `?until=` work.
+- **Not checked:** a real GPU and a phone.
 - **Sample rate and storage:** is 5 Hz enough for first person, or should it be 10 Hz? Measure the `tracks3d.bin` size on real matches before choosing.
 - **Pose:** should hands be added too (`lhand`/`rhand` position)? It roughly triples the storage but would show aiming and throwing.
 - **Reprocessing:** a new parser version means one full reprocess of every replay.

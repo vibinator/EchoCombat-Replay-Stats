@@ -20,6 +20,9 @@ SLOTS = {"weapon": 0, "tacmod": 1, "ordnance": 2}  # index into the (weapon, tac
 MEDAL_LEVELS = (5, 10, 25, 50, 75)  # Medal Collector: gold-or-better medals held; archive: 36 % bronze, 20 % silver, 11 % gold, 5 % diamond, 1 % platinum
 MAPS = ("dyson", "combustion", "fission", "surge")
 UNRELEASED_WEAPONS = [("rifle", "Starburst"), ("magnum", "Protostar"), ("smg", "Quark"), ("chain", "Blazar")]
+# Badge art for the gear released 2026-10-30 (made from the loadout icons in public/icons). Dot Field and Overcharge
+# have no art yet: they keep the generic icon (an admin can pick or upload one on the Console page).
+GEAR_ICONS = {"rifle": "starburst", "magnum": "protostar", "smg": "quark", "chain": "blazar", "loc": "translocator"}
 
 ONLY_SHARE = 0.95  # "use only X": X is at least 95 % of the game's loadout time
 USED_SHARE = 0.05  # old loadoutCutoff: below 5 % of the time does not count as "used"
@@ -425,22 +428,22 @@ def _build_rules() -> list[Rule]:
     i = 80
     for code, label in UNRELEASED_WEAPONS:
         name, levels = starts[code]
-        rules.append(_ladder(i, name, f"Play games using {label} (experimental weapon)", None, _games_using("weapon", code), levels,
+        rules.append(_ladder(i, name, f"Play games using {label} (experimental weapon)", GEAR_ICONS[code], _games_using("weapon", code), levels,
                              new=True, group="Experimental gear"))
         i += 1
     rules += [
-        _ladder(84, "Now You See Me", "Play games using Translocator (experimental ordnance)", None, _games_using("ordnance", "loc"), (1, 5, 25, 50, 100),
+        _ladder(84, "Now You See Me", "Play games using Translocator (experimental ordnance)", "translocator", _games_using("ordnance", "loc"), (1, 5, 25, 50, 100),
                 new=True, group="Experimental gear"),
         _ladder(85, "Connect the Dots", "Play games using Dot Field (experimental ordnance)", None, _games_using("ordnance", "dot"), (1, 5, 25, 50, 100),
                 new=True, group="Experimental gear"),
-        Rule(86, "Forbidden Arsenal", "Use all 4 experimental weapons: Starburst, Protostar, Quark and Blazar", "all", None,
+        Rule(86, "Forbidden Arsenal", "Use all 4 experimental weapons: Starburst, Protostar, Quark and Blazar", "all", "loadout",
              _all_used("weapon", {c for c, _ in UNRELEASED_WEAPONS}), new=True, group="Experimental gear"),
-        Rule(87, "Jack of All Trades", "Use Pulsar, Nova, Comet and Meteor in one game", "game", None,
+        Rule(87, "Jack of All Trades", "Use Pulsar, Nova, Comet and Meteor in one game", "game", "loadout",
              _all_used("weapon", {c for c, _, _ in WEAPONS}), new=True, group="Gear mastery"),
-        Rule(88, "Ordnance Sampler", "Use Detonator, Stun Field, Arc Mine and Instant Repair in one game", "game", None,
+        Rule(88, "Ordnance Sampler", "Use Detonator, Stun Field, Arc Mine and Instant Repair in one game", "game", "loadout",
              _all_used("ordnance", {c for c, _, _ in ORDNANCES}), new=True, group="Gear mastery"),
         Rule(89, "Tac Mod Tinkerer", "Use Repair Matrix, Threat Scanner, Energy Barrier and Phase Shift in one game", "game",
-             None, _all_used("tacmod", {c for c, _, _ in TACMODS}), new=True, group="Gear mastery"),
+             "loadout", _all_used("tacmod", {c for c, _, _ in TACMODS}), new=True, group="Gear mastery"),
         _ladder(90, "On a Roll", "Wins in a row (games without a result are skipped)", None, _win_streak, (2, 3, 5, 8, 12), new=True, group="Wins"),
         _ladder(91, "Unstoppable", "Wins in a row (games without a result are skipped)", None, _win_streak, (4, 6, 8, 10, 12), new=True, group="Wins"),
         _tiered(92, "Centurion", "Win games", None, lambda g: g.won, (5, 10, 30, 100, 500), new=True, group="Wins"),
@@ -468,14 +471,14 @@ def _build_rules() -> list[Rule]:
     now_public = (("weapon", "rifle", "Starburst", "Starburst Stream"), ("weapon", "magnum", "Protostar", "Protostar Power Trip"),
                   ("weapon", "smg", "Quark", "Quark Storm"), ("ordnance", "loc", "Translocator", "Here, There and Everywhere"))
     for i, (slot, code, label, name) in enumerate(now_public, 101):
-        rules.append(_ladder(i, name, f"Play games using only {label} in one day: the most in a single day counts", None,
+        rules.append(_ladder(i, name, f"Play games using only {label} in one day: the most in a single day counts", GEAR_ICONS[code],
                              _only_games(slot, code), (3, 6, 10, 15, 20), "day", new=True, group="Experimental gear"))
     for i, (slot, code, label, _) in enumerate(now_public, 105):
-        rules.append(_ladder(i, f"{label} Veteran", f"Play games using {label}", None, _games_using(slot, code),
+        rules.append(_ladder(i, f"{label} Veteran", f"Play games using {label}", GEAR_ICONS[code], _games_using(slot, code),
                              (5, 15, 50, 150, 500),  # released 2026-10-30: the same ladder as the older gear (user, 2026-10-31)
                              new=True, group="Experimental gear"))
     rules += [
-        Rule(109, "Beam Me Up", "Use Translocator and Dot Field in one game", "game", None,
+        Rule(109, "Beam Me Up", "Use Translocator and Dot Field in one game", "game", "translocator",
              _all_used("ordnance", {"loc", "dot"}), new=True, group="Experimental gear"),
         Rule(110, "Arsenal Overload", "Use 6 different weapons in one game", "game", None,
              lambda gs: len(gs[0].used("weapon")) / 6, new=True, group="Gear mastery"),
@@ -499,7 +502,7 @@ def _build_rules() -> list[Rule]:
         _tiered(121, "Cargo Hauler", "Win Payload games", "payload", lambda g: _payload(g) and g.won, (5, 10, 30, 100, 250), new=True, group="Payload"),
         _ladder(122, "Grand Tour", "Wins on each of the 4 maps (the map with the fewest wins counts)", None, _fewest_wins, (1, 3, 8, 25, 75),
                 new=True, group="Wins"),
-        _ladder(123, "Weapons Master", "Games with your least-used weapon of Pulsar, Nova, Comet and Meteor", None, _least_used("weapon", WEAPONS),
+        _ladder(123, "Weapons Master", "Games with your least-used weapon of Pulsar, Nova, Comet and Meteor", "loadout", _least_used("weapon", WEAPONS),
                 (1, 5, 15, 50, 100), new=True, group="Gear mastery"),
         _ladder(124, "Loadout Scholar", "Games with your least-used equipable of all 12 weapons, ordnances and tac mods", None, _least_used_equipable,
                 (1, 5, 15, 50, 100), new=True, group="Gear mastery"),
@@ -514,7 +517,7 @@ def _build_rules() -> list[Rule]:
     weekly = (("weapon", "rifle", "Starburst", "Star Power"), ("weapon", "magnum", "Protostar", "Protostar Powerhouse"),
               ("weapon", "smg", "Quark", "Quark Quake"), ("ordnance", "loc", "Translocator", "Blink and You'll Miss It"))
     for i, (slot, code, label, name) in enumerate(weekly, 127):
-        rules.append(_ladder(i, name, f"Play games using only {label} in any 7 days: the most in any 7 days counts", None,
+        rules.append(_ladder(i, name, f"Play games using only {label} in any 7 days: the most in any 7 days counts", GEAR_ICONS[code],
                              _only_games(slot, code), (5, 10, 15, 30, 50), "week", new=True, group="Experimental gear"))
     rules += [
         _ladder(131, "Full Charge", "Play games using only Overcharge in one day: the most in a single day counts", None,
@@ -522,15 +525,15 @@ def _build_rules() -> list[Rule]:
         _ladder(132, "Charged Up", "Play games using only Overcharge in any 7 days: the most in any 7 days counts", None,
                 _only_games("tacmod", "buff"), (5, 10, 15, 30, 50), "week", new=True, group="Experimental gear"),
         # Blazar and Dot Field were released too (user, 2026-10-31): the same set as the other new gear
-        _ladder(133, "Blazar Veteran", "Play games using Blazar", None, _games_using("weapon", "chain"), (5, 15, 50, 150, 500),
+        _ladder(133, "Blazar Veteran", "Play games using Blazar", "blazar", _games_using("weapon", "chain"), (5, 15, 50, 150, 500),
                 new=True, group="Experimental gear"),
         _ladder(134, "Dot Field Veteran", "Play games using Dot Field", None, _games_using("ordnance", "dot"), (5, 15, 50, 150, 500),
                 new=True, group="Experimental gear"),
-        _ladder(135, "Blazing Trail", "Play games using only Blazar in one day: the most in a single day counts", None,
+        _ladder(135, "Blazing Trail", "Play games using only Blazar in one day: the most in a single day counts", "blazar",
                 _only_games("weapon", "chain"), (3, 6, 10, 15, 20), "day", new=True, group="Experimental gear"),
         _ladder(136, "Dot to Dot", "Play games using only Dot Field in one day: the most in a single day counts", None,
                 _only_games("ordnance", "dot"), (3, 6, 10, 15, 20), "day", new=True, group="Experimental gear"),
-        _ladder(137, "Blazar Barrage", "Play games using only Blazar in any 7 days: the most in any 7 days counts", None,
+        _ladder(137, "Blazar Barrage", "Play games using only Blazar in any 7 days: the most in any 7 days counts", "blazar",
                 _only_games("weapon", "chain"), (5, 10, 15, 30, 50), "week", new=True, group="Experimental gear"),
         _ladder(138, "Dot Matrix", "Play games using only Dot Field in any 7 days: the most in any 7 days counts", None,
                 _only_games("ordnance", "dot"), (5, 10, 15, 30, 50), "week", new=True, group="Experimental gear"),

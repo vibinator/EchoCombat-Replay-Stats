@@ -183,6 +183,12 @@ No table: computed from `match_players` + loadouts + `matches` on request (`back
 - Per player, in header order: `x` int16[samples], `z` int16[samples] (decimetres), `weapon` uint8 (index into `weapons`, 255 = none), `team` uint8 (0 absent, 1 blue, 2 orange); version 2 adds `tacmod`, `ordnance` uint8 (indexes into `tacmods` / `ordnances`). Version-1 files read with no tac mod / ordnance.
 - First frame of each 0.5 s slot; written by the worker while processing; ≈ 9–26 KB per match (≈ 0.6 GB for the archive). Overwritten on reprocess; rebuildable.
 
+## 3D tracks file (3D playback, docs/WebReplayer-Review.MD Phase 2)
+`data/processed/<replay_id>/tracks3d.bin` = zlib( uint32 header length | header JSON | arrays ), little-endian (`app/backend/tracks3d.py`).
+- Header: `{version: 1, hz: 5, samples, players: [user_id…], payload?: [[x, y, z] metres | null per sample]}`.
+- Per player, in header order: `x`, `y`, `z` int16[samples] (head position, decimetres), `yaw` uint8 (256 steps, 0 = facing +z, 64 = +x), `pitch` int8 (degrees, + = up), `team` uint8 (0 absent, 1 blue, 2 orange).
+- First frame of each 0.2 s slot, from the same pass as `tracks.bin`; load-in spot samples absent. ≈ 16–118 KB per match (about 4× `tracks.bin`). Overwritten on reprocess; rebuildable.
+
 ## Heatmap cache (D18)
 In memory (`functools.lru_cache`, 64 entries) keyed by player, map, mode, period, last N and a data stamp (done count + latest `processed_at`), so any import change recomputes. Not persisted; cold requests read the player's tracks files (≈ 1–3 s for 200 matches).
 

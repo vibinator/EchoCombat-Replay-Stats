@@ -9,6 +9,7 @@
 *.db-shm
 *.sqlite
 tracks.bin
+tracks3d.bin
 /tests/sample-replays/
 
 # Reference material from the old site (read-only, not ours to publish)

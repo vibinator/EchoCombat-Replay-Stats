@@ -18,6 +18,22 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.02.4 — 21:26
+### 3D playback (all 10 phases of docs/WebReplayer-Review.MD)
+- **3D view on the Playback tab:**
+  - A new **2D map / 3D** switch shows the match on a 3D map: players' head height, where each player looks (a cone), names, loadout swaps, trails (team or speed colour), skulls where players died, the payload route and cart, the capture point ring with progress, and round / checkpoint banners.
+  - The clock, controls, roster, feed and fights are shared with the 2D view.
+  - **Cameras:** Orbit, Top-down, Follow player and First person; **C** changes the camera, **1–9 / 0** pick a player, **Esc** lets go, and clicking a player picks them.
+  - three.js is downloaded only when 3D is opened. Without WebGL the view says so and offers the 2D map.
+- **Links:** the address keeps the view, camera, player and time (`?view=3d&cam=&player=&t=`). **Copy link** copies the current moment; **Copy clip** copies the last 10 s (`&until=`), and that link stops playback there. Both also work in 2D.
+- **New endpoint:** `GET /api/matches/{id}/playback3d` (5 Hz head position and facing), from a new `tracks3d.bin` per match (16–118 KB). The parser now keeps `head.forward` (parser version 4).
+- **3D map models:** `app/frontend/public/maps3d/*.glb` (2.47 MB), built and checked against replay positions by `app/tools/maps3d/` from the ec-web-replayer minimap meshes (MIT).
+  - Combustion's placement is corrected.
+  - **Hosting these meshes publicly is still to be decided:** see Open questions in `docs/WebReplayer-Review.MD`.
+- **To do:**
+  - **Restart.** The parser version changed, so **every replay is processed again** on the first start; until a match is reprocessed its 3D view says the positions are not ready.
+  - Rebuild the site (`run.bat` does it; the Docker image installs the new `three` package).
+
 ## 2026.11.02.3 — 20:45
 ### Docs: 3D replay viewer review and plan
 - New `docs/WebReplayer-Review.MD`: review of duncancarroll/ec-web-replayer (Three.js Echo Combat viewer; its ecranked.ddns.net data source is offline, 15 bugs listed) and a 10-phase plan to add a 3D view to the Playback tab using derived 3D tracks (no raw replay downloads). Linked from `docs/Phases.MD`.

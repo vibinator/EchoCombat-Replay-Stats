@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Component, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useSearchParams } from "react-router";
 import type { MatchEvent, Playback } from "../api";
 import { duration, num } from "../format";
 import { GearLabel } from "./common";
+import { CAMERAS, isCamera, TEAM_COLORS, type Camera3D } from "./playback3d";
 
-const TEAM_COLORS = ["", "#19d9fc", "#ea7924"];
+const Map3D = lazy(() => import("./Map3D")); // three.js: only downloaded when someone opens the 3D view
 const SPEEDS = [0.5, 1, 2, 4, 8, 16];
 const TRAILS: [number, string][] = [[0, "Off"], [10, "5 s"], [30, "15 s"], [120, "1 min"]]; // in samples (2 Hz)
 const DEATH_FLASH_S = 3; // red ring on the dead player's dot and name in the roster
@@ -11,6 +13,8 @@ const SKULL_S = 5; // skull marker left where someone died
 const SWAP_S = 3; // "⇄ weapon" label after a loadout change
 const FIGHT_GAP_S = 6; // deaths closer together than this belong to the same fight
 const FIGHT_MIN_DEATHS = 3;
+const BANNER_S = 3; // "Round won" / "Checkpoint" banner over the map
+const CLIP_S = 10; // "Copy clip": the last 10 seconds
 const SKULL = new Image();
 SKULL.src = "/icons/death.png";
 
@@ -155,12 +159,30 @@ function findFights(deaths: MatchEvent[]): Fight[] {
   return fights;
 }
 
+/** The 3D chunk failed to load or crashed: say so and offer the 2D map instead of breaking the page. */
+class Stage3DBoundary extends Component<{ onUse2D: () => void; children: ReactNode }, { error: string | null }> {
+  state = { error: null as string | null };
+  static getDerivedStateFromError(e: Error) {
+    return { error: e.message || "unknown error" };
+  }
+  render() {
+    if (!this.state.error) return this.props.children;
+    return (
+      <div className="pb3d-message">
+        <p>The 3D view could not start ({this.state.error}).</p>
+        <button type="button" onClick={this.props.onUse2D}>Show the 2D map</button>
+      </div>
+    );
+  }
+}
+
 /**
  * Animated player dots over the minimap, driven by the 2 Hz position tracks, with scoreboard, objective (payload route /
  * capture point), roster, fights, death summary, loadout changes and event markers.
- * `clock` = a shared clock (compare mode); `compact` = only scoreboard, map and feed.
+ * `clock` = a shared clock (compare mode); `compact` = only scoreboard, map and feed. With `matchId` (single match, not
+ * compare) the map can switch to 3D (Map3D) and the view is kept in the address: ?view=3d&cam=&player=&t=&until=.
  */
-export function PlaybackView({ playback, clock, compact = false, label }: { playback: Playback; clock?: Clock; compact?: boolean; label?: string }) {
+export function PlaybackView({ playback, clock, compact = false, label, matchId }: { playback: Playback; clock?: Clock; compact?: boolean; label?: string; matchId?: number }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const root = useRef<HTMLDivElement>(null);
   const hz = playback.hz;
@@ -171,11 +193,41 @@ export function PlaybackView({ playback, clock, compact = false, label }: { play
   const [trail, setTrail] = useState(10);
   const [trailColor, setTrailColor] = useState<"team" | "speed">("team");
   const [swaps, setSwaps] = useState(true);
-  const [follow, setFollow] = useState<string | null>(null); // highlighted player
+  const [params, setParams] = useSearchParams();
+  const linked = matchId != null && !compact && !clock; // this view owns the address (deep links)
+  const [follow, setFollow] = useState<string | null>(() => (linked ? params.get("player") : null)); // highlighted player
+  const view: "2d" | "3d" = linked && params.get("view") === "3d" ? "3d" : "2d";
+  const camParam = params.get("cam");
+  const camera: Camera3D = isCamera(camParam) ? camParam : "orbit";
+  const cameraNow = useRef(camera);
+  cameraNow.current = camera;
+  const until = linked ? Number(params.get("until")) || 0 : 0; // a clip link: stop here
+  const [copied, setCopied] = useState("");
+  const setParam = useCallback((changes: Record<string, string | null>) => {
+    setParams((prev) => {
+      const next = new URLSearchParams(prev);
+      for (const [k, v] of Object.entries(changes)) {
+        if (v == null) next.delete(k);
+        else next.set(k, v);
+      }
+      return next;
+    }, { replace: true });
+  }, [setParams]);
+  const pick = useCallback((userId: string | null) => setFollow((f) => (f === userId ? null : userId)), []);
 
   const second = Math.min(c.t, end / hz);
   const t = Math.min(end, second * hz); // sample index (float)
   const i = Math.floor(t);
+
+  // deep link: start at ?t= (once), stop at ?until= (clip links)
+  const startAt = useRef(linked ? Number(params.get("t")) || 0 : 0);
+  useEffect(() => {
+    if (startAt.current > 0) c.setT(Math.min(end / hz, startAt.current));
+    startAt.current = 0;
+  }, [c, end, hz]);
+  useEffect(() => {
+    if (until > 0 && c.playing && second >= until) c.setPlaying(false);
+  }, [until, c, second]);
 
   const deaths = useMemo(() => playback.events.filter((e) => e.type === "death_est"), [playback.events]);
   const moments = useMemo(() => playback.events.filter((e) => e.type === "round_won" || e.type === "payload_checkpoint"), [playback.events]);
@@ -222,10 +274,27 @@ export function PlaybackView({ playback, clock, compact = false, label }: { play
     if (f) jump(Math.max(0, f.start - 2));
   };
 
-  // keyboard: space play / pause, arrows ±5 s (shift ±30 s), [ ] speed, N / P next / previous fight
+  // roster order (blue, then orange): keys 1-9, 0 pick a player
+  const order = useMemo(() => [1, 2].flatMap((team) => playback.players.filter((p) => (p.points.find((q) => q)?.[2] ?? 0) === team)), [playback.players]);
+
+  // keyboard: space play / pause, arrows ±5 s (shift ±30 s), [ ] speed, N / P next / previous fight, 1-0 pick a player,
+  // Esc let go; in 3D also C next camera
   function onKey(e: React.KeyboardEvent) {
-    if ((e.target as HTMLElement).tagName === "SELECT" || compact) return;
-    if (e.key === " ") {
+    const tag = (e.target as HTMLElement).tagName;
+    if (tag === "SELECT" || tag === "INPUT" || compact) return;
+    if (/^[0-9]$/.test(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      const p = order[(Number(e.key) + 9) % 10];
+      if (p) setFollow(p.user_id);
+    } else if (e.key === "Escape") {
+      setFollow(null);
+      if (view === "3d" && (camera === "follow" || camera === "first")) setParam({ cam: null });
+    } else if ((e.key === "c" || e.key === "C") && view === "3d") {
+      // from a ref, not the render's value: quick presses (before the address updates) each move one camera on
+      const k = CAMERAS.findIndex((x) => x.value === cameraNow.current);
+      const next = CAMERAS[(k + 1) % CAMERAS.length].value;
+      cameraNow.current = next;
+      setParam({ cam: next === "orbit" ? null : next });
+    } else if (e.key === " ") {
       e.preventDefault();
       toggle();
     } else if (e.key === "ArrowRight") seek(e.shiftKey ? 30 : 5);
@@ -454,7 +523,32 @@ export function PlaybackView({ playback, clock, compact = false, label }: { play
       }
       ctx.globalAlpha = 1;
     }
-  }, [t, i, second, playback, names, trail, trailColor, follow, deaths, changes, swaps, payload, bluePts, orangePts, checkpoints, checkpointDistances, attackerColor]);
+  }, [t, i, second, playback, names, trail, trailColor, follow, deaths, changes, swaps, payload, bluePts, orangePts, checkpoints, checkpointDistances, attackerColor, view]);
+
+  // loadout swap labels shown now (3D labels; the 2D canvas works them out itself)
+  const swapLabels = useMemo(
+    () => new Map(swaps ? changes.filter((e) => second >= e.t_s && second - e.t_s < SWAP_S && e.user_id).map((e) => [e.user_id!, swapText(e)]) : []),
+    [swaps, changes, second],
+  );
+  const banner = moments.filter((e) => second >= e.t_s && second - e.t_s < BANNER_S).pop();
+
+  /** Copy a link to this moment (or to the last 10 s as a clip) with the view, camera and picked player. */
+  function copyLink(clip: boolean) {
+    const u = new URL(window.location.href);
+    const from = clip ? Math.max(0, second - CLIP_S) : second;
+    u.searchParams.set("t", String(Math.floor(from)));
+    if (clip) u.searchParams.set("until", String(Math.ceil(second)));
+    else u.searchParams.delete("until");
+    if (follow) u.searchParams.set("player", follow);
+    else u.searchParams.delete("player");
+    const text = u.toString();
+    const done = () => {
+      setCopied(clip ? "Clip link copied" : "Link copied");
+      setTimeout(() => setCopied(""), 2500);
+    };
+    if (navigator.clipboard?.writeText) navigator.clipboard.writeText(text).then(done, () => window.prompt("Copy this link:", text));
+    else window.prompt("Copy this link:", text);
+  }
 
   // scoreboard
   const roundsSoFar = rounds.filter((e) => e.t_s <= second);
@@ -550,10 +644,33 @@ export function PlaybackView({ playback, clock, compact = false, label }: { play
           <span className="muted">
             {duration(second)} / {duration(end / hz)}
           </span>
+          {linked && (
+            <span className="zoom-buttons">
+              <button className="secondary" onClick={() => copyLink(false)} title="Copy a link that opens this match here, at this moment">Copy link</button>
+              <button className="secondary" onClick={() => copyLink(true)} title={`Copy a link that plays the last ${CLIP_S} seconds`}>Copy clip</button>
+            </span>
+          )}
+          {copied && <span className="muted" role="status">{copied}</span>}
         </div>
       )}
 
       <div className="heatmap-tools">
+        {linked && (
+          <span className="zoom-buttons" role="group" aria-label="Map view">
+            <button className={view === "2d" ? "" : "secondary"} aria-pressed={view === "2d"} onClick={() => setParam({ view: null })}>2D map</button>
+            <button className={view === "3d" ? "" : "secondary"} aria-pressed={view === "3d"} onClick={() => setParam({ view: "3d" })} title="3D map with heights and where players look">3D</button>
+          </span>
+        )}
+        {view === "3d" && (
+          <label title={CAMERAS.find((x) => x.value === camera)?.help}>
+            Camera
+            <select value={camera} onChange={(e) => setParam({ cam: e.target.value === "orbit" ? null : e.target.value })}>
+              {CAMERAS.map((x) => (
+                <option key={x.value} value={x.value}>{x.label}</option>
+              ))}
+            </select>
+          </label>
+        )}
         <label>
           Trails
           <select value={trail} onChange={(e) => setTrail(Number(e.target.value))}>
@@ -610,10 +727,20 @@ export function PlaybackView({ playback, clock, compact = false, label }: { play
 
       <div className={compact ? "pb-main compact" : "pb-main"}>
         <div className="heatmap-stage">
-          <div className="heatmap-inner">
-            <img src={playback.image} alt={`${playback.map} minimap`} />
-            <canvas ref={canvas} className="playback-canvas" />
-          </div>
+          {view === "3d" && matchId != null ? (
+            <Stage3DBoundary onUse2D={() => setParam({ view: null })}>
+              <Suspense fallback={<div className="pb3d-message"><p className="muted">Loading 3D…</p></div>}>
+                <Map3D id={matchId} playback={playback} second={second} follow={follow} onPick={pick} camera={camera} names={names}
+                  trailSeconds={trail / hz} trailColor={trailColor} deaths={deaths} swaps={swapLabels} onUse2D={() => setParam({ view: null })} />
+              </Suspense>
+            </Stage3DBoundary>
+          ) : (
+            <div className="heatmap-inner">
+              <img src={playback.image} alt={`${playback.map} minimap`} />
+              <canvas ref={canvas} className="playback-canvas" />
+            </div>
+          )}
+          {banner && <div className="pb-banner" aria-live="polite">{eventLabel(banner)}</div>}
         </div>
 
         {!compact && (
@@ -707,9 +834,16 @@ export function PlaybackView({ playback, clock, compact = false, label }: { play
         {playback.objects.route ? "Payload route and cart are drawn from the recorded payload distance. " : ""}
         {playback.objects.point ? "The capture point is drawn where players stand while capture progress rises (size is approximate). " : ""}
         Positions are recorded twice per second; dots glide between them. Players off the map image (spawn rooms) are hidden. Click a player to
-        highlight them; keys: space play / pause, ← → skip 5 s (shift 30 s), [ ] speed, N / P next / previous fight. Ticks under the slider are
-        estimated deaths (small), round / checkpoint moments (dots, click to jump) and fights (red bands). * Estimated. Speed is measured between
-        recorded positions.
+        highlight them; keys: space play / pause, ← → skip 5 s (shift 30 s), [ ] speed, N / P next / previous fight, 1–9 and 0 pick a player,
+        Esc let go{view === "3d" ? ", C next camera" : ""}. Ticks under the slider are estimated deaths (small), round / checkpoint moments (dots,
+        click to jump) and fights (red bands). * Estimated. Speed is measured between recorded positions.
+        {view === "3d" && (
+          <>
+            {" "}3D: head positions and where each player looks, five times per second; the cone points where they look. Click a player to pick
+            them; Follow and First person ride along with the picked player. 3D map models from{" "}
+            <a href="https://github.com/duncancarroll/ec-web-replayer" target="_blank" rel="noreferrer">ec-web-replayer</a> (MIT).
+          </>
+        )}
       </p>
     </div>
   );

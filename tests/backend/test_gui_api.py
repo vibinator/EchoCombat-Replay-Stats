@@ -172,6 +172,20 @@ def test_playback(client):
     assert team == 1 and 0 <= v0 <= 1 and u1 > u0  # moves right (+x on dyson)
 
 
+def test_playback3d(client):
+    p = client.get(f"/api/matches/{mid(client, 'dyson/a.echoreplay')}/playback3d").json()
+    assert p["hz"] == 5 and p["samples"] == 20 and p["model"] == "/maps3d/dyson.glb"  # 80 frames = 4 s
+    assert p["objects"]["point"][2] > 0 and p["payload"] is None and p["extent"] == [-54.625, 54.625, -41.125, 28.375]
+    blue = next(x for x in p["players"] if x["user_id"] == BLUE)
+    assert blue["x"][0] == -100 and blue["x"][-1] > blue["x"][0]  # decimetres, moving +x
+    assert set(blue["y"]) == {0} and set(blue["yaw"]) == {0} and set(blue["pitch"]) == {0}  # facing +z, level
+    assert blue["team"].count(0) == 1 and blue["team"][10] == 0  # (0, 0, 0) is dyson's load-in spot: absent, as in 2D
+    assert set(blue["team"]) == {0, 1} and len(blue["x"]) == p["samples"]
+    surge = client.get(f"/api/matches/{mid(client, 'surge/c.echoreplay')}/playback3d").json()
+    assert surge["model"] == "/maps3d/surge.glb" and surge["objects"]["route"] and any(surge["payload"])
+    assert client.get("/api/matches/999/playback3d").status_code == 404
+
+
 def test_trends_companions_compare(client):
     t = client.get(f"/api/players/{BLUE}/trends", params={"bucket": "month"}).json()
     assert t["items"][0]["period"] == "2026-10" and t["items"][0]["games"] == 3

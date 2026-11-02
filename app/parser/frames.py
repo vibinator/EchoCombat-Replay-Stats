@@ -131,6 +131,7 @@ def _player(p: dict) -> PlayerFrame:
         get("ping", 0),
         get("packetlossratio", 0.0),  # packet_loss
         _vec(p["head"]["position"]),  # head_position
+        _vec(p["head"].get("forward") or (0.0, 0.0, 1.0)),  # head_forward
         _vec(p["body"]["up"]),  # body_up
         _vec(p["velocity"]),
         gear_code(get("Weapon", "")),

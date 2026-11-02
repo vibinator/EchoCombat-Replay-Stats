@@ -39,6 +39,10 @@ function setUnreachable(value: boolean) {
 }
 
 const TIMEOUT_MS = 30_000; // a request still unanswered is given up (and a GET asked once more)
+// Heatmaps are built from every game's tracks: a cold one for a busy player takes 8-10 s on the NAS, longer while
+// replays are imported. They rarely change (kept by the server once built), so waiting longer beats "Server busy";
+// kept under Cloudflare's own 100 s limit (user, 2026-11-02).
+const HEATMAP_TIMEOUT_MS = 90_000;
 const RETRY_MS = 2_000;
 const pause = (ms: number) => new Promise((done) => setTimeout(done, ms));
 
@@ -55,7 +59,7 @@ async function fetchReply<T>(path: string, init?: RequestInit): Promise<Reply<T>
   const retryable = !init?.method || init.method === "GET";
   for (let attempt = 0; ; attempt++) {
     const timeout = new AbortController();
-    const timer = setTimeout(() => timeout.abort(), TIMEOUT_MS);
+    const timer = setTimeout(() => timeout.abort(), path.includes("/heatmap") ? HEATMAP_TIMEOUT_MS : TIMEOUT_MS);
     let res: Response;
     try {
       // X-EchoVR: the server answers /api only to this site's own pages (scraper protection, D48)
@@ -720,6 +724,28 @@ export interface Playback {
   }[];
 }
 
+/** 3D playback (5 Hz, world space): GET /api/matches/{id}/playback3d. Positions in decimetres; absent = team 0. */
+export interface Playback3D {
+  map: string;
+  model: string | null; // /maps3d/<map>.glb, null = no 3D map for this map
+  extent?: [number, number, number, number] | null; // play area: x min, x max, z min, z max (metres)
+  hz: number;
+  samples: number;
+  duration_s: number;
+  payload: ([number, number, number] | null)[] | null; // cart position (metres) per sample, payload maps
+  objects: { route?: [number, number][]; point?: [number, number, number] }; // metres: route (x, z), point (x, z, radius)
+  players: {
+    user_id: string;
+    name: string;
+    x: number[];
+    y: number[];
+    z: number[];
+    yaw: number[]; // 0-255 = one turn, 0 = facing +z, 64 = facing +x
+    pitch: number[]; // degrees, + = up
+    team: number[]; // 0 absent, 1 blue, 2 orange
+  }[];
+}
+
 export interface TrendPoint {
   period: string;
   games: number;
@@ -985,6 +1011,7 @@ export const getTrends = (userId: string, bucket: "week" | "month" | "year") =>
   request<{ bucket: string; items: TrendPoint[] }>(`/api/players/${encodeURIComponent(userId)}/trends?bucket=${bucket}`);
 export type CompanionWindow = "24h" | "7d" | "1m" | "3m" | "6m" | "12m" | "all";
 
+export const getPlayback3d = (id: number) => request<Playback3D>(`/api/matches/${id}/playback3d`);
 export const getCompanions = (userId: string, window: CompanionWindow = "all") =>
   request<{ teammates: Companion[]; opponents: Companion[] }>(`/api/players/${encodeURIComponent(userId)}/companions?window=${window}`);
 export const comparePlayers = (userIds: string[], period: Period) =>

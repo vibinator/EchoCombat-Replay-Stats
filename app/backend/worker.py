@@ -23,11 +23,12 @@ from .cache import bump_generation
 from .config import Settings
 from .db import utcnow
 from .models import AggressiveRepair, Match, MatchPlayerLoadout, PriorityReplay, RepairRequest, Replay
-from . import duplicates, tracks
+from . import duplicates, tracks, tracks3d
 from .persist import delete_match, save_match
 from .stats import STATS_VERSION, compute
 from .stats.maps import load_in_spot
 from .tracks import TrackRecorder, tracks_path
+from .tracks3d import Recorders, Track3DRecorder
 
 log = logging.getLogger(__name__)
 
@@ -57,11 +58,16 @@ def _lower_priority() -> None:
 
 def analyse(path: str, tracks_file: str | None = None, repair: bool | str = False) -> tuple:
     """Runs in a pool process. Returns ("ok", meta, stats, warnings, tracks_saved) or ("failed", code, message).
-    Also writes the 2 Hz position tracks (for heatmaps / timeline) to `tracks_file`."""
+    Also writes the 2 Hz position tracks (for heatmaps / timeline) to `tracks_file`, and the 5 Hz 3D tracks (3D playback)
+    next to it (tracks3d.bin)."""
     try:
         parsed = open_replay(Path(path), repair=repair)
-        recorder = TrackRecorder(parsed.meta.started_at, load_in_spot(parsed.meta.map_code)) if tracks_file else None
-        stats = compute(parsed.meta, parsed.frames(), recorder)
+        recorder = recorder3d = None
+        if tracks_file:
+            load_in = load_in_spot(parsed.meta.map_code)
+            recorder = TrackRecorder(parsed.meta.started_at, load_in)
+            recorder3d = Track3DRecorder(parsed.meta.started_at, load_in)
+        stats = compute(parsed.meta, parsed.frames(), Recorders(recorder, recorder3d) if recorder else None)
         warnings = list(parsed.warnings)
         saved = False
         if recorder is not None:
@@ -70,6 +76,10 @@ def analyse(path: str, tracks_file: str | None = None, repair: bool | str = Fals
                 saved = True
             except OSError as e:
                 warnings.append(f"Position tracks not saved: {e}")
+            try:
+                tracks3d.write(Path(tracks_file).with_name("tracks3d.bin"), recorder3d)
+            except OSError as e:
+                warnings.append(f"3D position tracks not saved: {e}")
         return "ok", parsed.meta, stats, warnings, saved
     except ReplayError as e:
         return "failed", e.code, str(e)

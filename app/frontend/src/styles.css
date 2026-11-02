@@ -2740,3 +2740,99 @@ button.small {
     height: 48px;
   }
 }
+
+/* 3D playback (components/Map3D.tsx) */
+.pb3d {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  max-height: 75vh;
+  min-height: 280px;
+  touch-action: none;
+}
+.pb3d canvas {
+  display: block;
+}
+.pb3d-labels {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.pb3d-label {
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(10, 12, 16, 0.72);
+  color: var(--text);
+  font: 600 11px/1.3 system-ui, sans-serif;
+  white-space: pre;
+  text-align: center;
+  border-left: 3px solid var(--muted);
+}
+.pb3d-label.blue {
+  border-left-color: var(--blue);
+}
+.pb3d-label.orange {
+  border-left-color: var(--orange);
+}
+.pb3d-label.picked {
+  outline: 1px solid #fff;
+}
+.pb3d-label.died {
+  color: #ff4d5e;
+}
+.pb3d-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 280px;
+  padding: 24px;
+  text-align: center;
+}
+.pb3d-message.overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(16, 18, 22, 0.9);
+}
+.pb3d-note {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: rgba(10, 12, 16, 0.8);
+  color: var(--muted);
+  font-size: 0.8rem;
+  pointer-events: none;
+}
+.pb-banner {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 16px;
+  border-radius: 6px;
+  background: rgba(10, 12, 16, 0.85);
+  color: #fff;
+  font-weight: 700;
+  pointer-events: none;
+  animation: pb-banner-in 0.25s ease-out;
+}
+@keyframes pb-banner-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -6px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pb-banner {
+    animation: none;
+  }
+}
+@media (max-width: 640px) {
+  .pb3d {
+    aspect-ratio: 4 / 5;
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "name": "maps3d-build",
+  "private": true,
+  "description": "Builds app/frontend/public/maps3d/*.glb from the ec-web-replayer minimap FBX files (3D playback, Phase 1). Not part of the app build.",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "check": "node check.mjs"
+  },
+  "dependencies": {
+    "@gltf-transform/core": "4.2.1",
+    "@gltf-transform/extensions": "4.2.1",
+    "@gltf-transform/functions": "4.2.1",
+    "meshoptimizer": "0.25.0",
+    "three": "0.181.0",
+    "three-mesh-bvh": "0.9.1"
+  }
+}

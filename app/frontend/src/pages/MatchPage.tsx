@@ -328,7 +328,7 @@ function PlaybackTab({ id }: { id: number }) {
       </form>
       {(p.loading || (other > 0 && q.loading)) && <Skeleton lines={5} />}
       <Status loading={false} error={p.error ?? q.error} />
-      {p.data && other > 0 && q.data ? <PlaybackCompare a={p.data} b={q.data} /> : p.data && other === 0 ? <PlaybackView playback={p.data} /> : null}
+      {p.data && other > 0 && q.data ? <PlaybackCompare a={p.data} b={q.data} /> : p.data && other === 0 ? <PlaybackView playback={p.data} matchId={id} /> : null}
     </>
   );
 }

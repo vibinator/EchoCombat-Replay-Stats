@@ -4,7 +4,7 @@ from .errors import CorruptReplay, IncompleteReplay, ReplayError, UnsupportedRep
 from .models import Frame, PayloadState, PlayerFrame, ReplayMeta
 from .reader import ParsedReplay, open_replay
 
-PARSER_VERSION = "3"
+PARSER_VERSION = "4"  # 4: head.forward kept (3D playback tracks)
 
 __all__ = [
     "PARSER_VERSION",
