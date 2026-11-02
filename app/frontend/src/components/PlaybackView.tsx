@@ -670,7 +670,7 @@ export function PlaybackView({ playback, clock, compact = false, label, matchId,
             <button className={view === "3d" ? "" : "secondary"} aria-pressed={view === "3d"} onClick={() => setParam({ view: "3d" })} title="3D map with heights and where players look">3D</button>
           </span>
         )}
-        {view === "3d" && (
+        {view === "3d" && linked && (
           <label title={CAMERAS.find((x) => x.value === camera)?.help}>
             Camera
             <select value={camera} onChange={(e) => setParam({ cam: e.target.value === "orbit" ? null : e.target.value })}>
