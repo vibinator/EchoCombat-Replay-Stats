@@ -174,16 +174,26 @@ def test_playback(client):
 
 def test_playback3d(client):
     p = client.get(f"/api/matches/{mid(client, 'dyson/a.echoreplay')}/playback3d").json()
-    assert p["hz"] == 5 and p["samples"] == 20 and p["model"] == "/maps3d/dyson.glb"  # 80 frames = 4 s
+    assert p["hz"] == 5 and p["samples"] == 20 and p["model"].startswith("/maps3d/dyson.glb?v=")  # 80 frames = 4 s
     assert p["objects"]["point"][2] > 0 and p["payload"] is None and p["extent"] == [-54.625, 54.625, -41.125, 28.375]
     blue = next(x for x in p["players"] if x["user_id"] == BLUE)
     assert blue["x"][0] == -100 and blue["x"][-1] > blue["x"][0]  # decimetres, moving +x
     assert set(blue["y"]) == {0} and set(blue["yaw"]) == {0} and set(blue["pitch"]) == {0}  # facing +z, level
     assert blue["team"].count(0) == 1 and blue["team"][10] == 0  # (0, 0, 0) is dyson's load-in spot: absent, as in 2D
-    assert set(blue["team"]) == {0, 1} and len(blue["x"]) == p["samples"]
+    assert set(blue["team"]) == {0, 1} and len(blue["x"]) == p["samples"] and len(blue["hands"]) == 6
     surge = client.get(f"/api/matches/{mid(client, 'surge/c.echoreplay')}/playback3d").json()
-    assert surge["model"] == "/maps3d/surge.glb" and surge["objects"]["route"] and any(surge["payload"])
+    assert surge["model"].startswith("/maps3d/surge.glb?v=") and surge["objects"]["route"] and any(surge["payload"])
     assert client.get("/api/matches/999/playback3d").status_code == 404
+
+
+def test_playback3d_built_on_first_view(client, tmp_path):
+    # matches processed before 3D playback have no tracks3d.bin: the first view builds it from the replay
+    match_id = mid(client, "dyson/b.echoreplay")
+    replay_id = replay_by_path(client, "dyson/b.echoreplay")["id"]
+    path = client.app.state.settings.processed_dir / str(replay_id) / "tracks3d.bin"
+    path.unlink()
+    p = client.get(f"/api/matches/{match_id}/playback3d").json()
+    assert path.exists() and p["samples"] == 20 and p["model"].startswith("/maps3d/dyson.glb?v=")
 
 
 def test_trends_companions_compare(client):

@@ -193,6 +193,10 @@ class Worker:
     def notify(self) -> None:
         self._wake.set()
 
+    def run_side(self, fn, *args) -> Future:
+        """A one-off job (3D tracks on first view) in the replay processes, which run below the website's priority."""
+        return self._pool.submit(fn, *args)
+
     def stop(self) -> None:
         self._stop.set()
         self._wake.set()

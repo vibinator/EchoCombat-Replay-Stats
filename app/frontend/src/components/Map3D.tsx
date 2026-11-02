@@ -8,12 +8,14 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { CSS2DObject, CSS2DRenderer } from "three/examples/jsm/renderers/CSS2DRenderer.js";
 import { getPlayback3d, type MatchEvent, type Playback, type Playback3D } from "../api";
 import { useApi } from "../useApi";
-import { Status } from "./common";
+import { gearIconUrl, Status } from "./common";
 import { TEAM_COLORS, type Camera3D } from "./playback3d";
 
 const JUMP_M = 3; // positions further apart than this between two samples are a respawn / teleport: no gliding
 const SKULL_S = 5;
 const DEATH_FLASH_S = 3;
+const HAND_STEP_M = 0.02; // hands are sent relative to the head in 2 cm steps
+const SHOULDER_DROP_M = 0.3; // arms are drawn from just below the head
 const FOLLOW_BACK_M = 7; // chase camera: behind and above the picked player, looking down at them
 const FOLLOW_UP_M = 4;
 const RIDE_MAP_OPACITY = 0.28; // follow / first person: the map is a coarse hologram (~1 m), so see through it
@@ -30,6 +32,8 @@ export interface Map3DProps {
   trailColor: "team" | "speed";
   deaths: MatchEvent[];
   swaps: Map<string, string>; // user id -> loadout swap text shown now
+  weapons: Map<string, string>; // user id -> weapon held now (icon in the label)
+  hands: boolean; // draw hands and arms
   onUse2D: () => void;
 }
 
@@ -110,8 +114,20 @@ function speedColor(v: number, out: THREE.Color): THREE.Color {
   return out.setHSL((220 - 220 * s) / 360, 0.9, 0.55); // same ramp as the 2D trails
 }
 
+/** Hand offsets (metres, relative to the head) at a fractional sample: [lx, ly, lz, rx, ry, rz]. */
+function handsAt(p: Track, s: number, out: number[]): boolean {
+  const h = p.hands;
+  if (!h || h.length < 6) return false;
+  const i = Math.floor(s), f = s - i;
+  const glide = f > 0 && present(p, i + 1) && Math.hypot(p.x[i + 1] - p.x[i], p.y[i + 1] - p.y[i], p.z[i + 1] - p.z[i]) / 10 <= JUMP_M;
+  for (let k = 0; k < 6; k++) out[k] = (glide ? h[k][i] + (h[k][i + 1] - h[k][i]) * f : h[k][i]) * HAND_STEP_M;
+  return true;
+}
+
 interface PlayerObj {
   track: Track;
+  hands: THREE.Mesh[];
+  arms: THREE.LineSegments;
   group: THREE.Group;
   head: THREE.Group;
   ring: THREE.Mesh;
@@ -229,6 +245,7 @@ function Stage(props: Map3DProps & { data: Playback3D }) {
     const noseGeo = new THREE.ConeGeometry(0.11, 0.42, 12).rotateX(Math.PI / 2).translate(0, 0, 0.42);
     const bodyGeo = new THREE.CapsuleGeometry(0.26, 0.75, 4, 12).translate(0, -0.85, 0);
     const ringGeo = new THREE.TorusGeometry(0.5, 0.04, 8, 32).rotateX(Math.PI / 2);
+    const handGeo = new THREE.SphereGeometry(0.09, 12, 8);
     const trailMax = Math.ceil(120 * hz) + 2; // longest trail: 1 min (2D: 120 samples at 2 Hz)
     const pickable: THREE.Object3D[] = [];
     const players: PlayerObj[] = data.players.map((track) => {
@@ -260,7 +277,22 @@ function Stage(props: Map3DProps & { data: Playback3D }) {
       trail.frustumCulled = false;
       trail.raycast = () => {};
       scene.add(trail);
-      return { track, group, head, ring, label, labelEl, labelText: "", trail, trailPos, trailCol };
+      // hands are placed in world space (offsets from the head are not turned with the head)
+      const hands = [0, 1].map(() => {
+        const m = new THREE.Mesh(handGeo, teamMats[firstTeam - 1]);
+        m.visible = false;
+        m.raycast = () => {};
+        scene.add(m);
+        return m;
+      });
+      const armGeo = new THREE.BufferGeometry();
+      armGeo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(12), 3).setUsage(THREE.DynamicDrawUsage));
+      const arms = new THREE.LineSegments(armGeo, new THREE.LineBasicMaterial({ color: TEAM_COLORS[firstTeam], transparent: true, opacity: 0.8 }));
+      arms.frustumCulled = false;
+      arms.visible = false;
+      arms.raycast = () => {};
+      scene.add(arms);
+      return { track, hands, arms, group, head, ring, label, labelEl, labelText: "", trail, trailPos, trailCol };
     });
     const byId = new Map(players.map((p) => [p.track.user_id, p]));
 
@@ -382,6 +414,7 @@ function Stage(props: Map3DProps & { data: Playback3D }) {
 
     // --- one frame ---
     const color = new THREE.Color();
+    const offs = [0, 0, 0, 0, 0, 0];
     const desired = new THREE.Vector3();
     let settling = 0; // follow camera still gliding towards its spot
     function update() {
@@ -404,9 +437,42 @@ function Stage(props: Map3DProps & { data: Playback3D }) {
           const hideLabel = (mode === "first" || mode === "follow") && picked;
           o.label.visible = (p.names || picked) && !hideLabel;
           const swap = p.swaps.get(o.track.user_id);
-          const text = `${o.track.name}${swap ? `\n⇄ ${swap}` : ""}`;
-          if (text !== o.labelText) { o.labelText = text; o.labelEl.textContent = text; }
+          const weapon = p.weapons.get(o.track.user_id) ?? "";
+          const text = `${o.track.name}|${weapon}|${swap ?? ""}`;
+          if (text !== o.labelText) {
+            o.labelText = text;
+            const parts: (Node | string)[] = [];
+            const icon = gearIconUrl(weapon);
+            if (icon) {
+              const img = document.createElement("img");
+              img.src = icon;
+              img.alt = "";
+              img.title = weapon;
+              parts.push(img);
+            }
+            parts.push(o.track.name);
+            if (swap) {
+              const line = document.createElement("div");
+              line.className = "pb3d-swap";
+              line.textContent = `⇄ ${swap}`;
+              parts.push(line);
+            }
+            o.labelEl.replaceChildren(...parts);
+          }
           o.labelEl.className = `pb3d-label ${team === 1 ? "blue" : "orange"}${picked ? " picked" : ""}${died.has(o.track.user_id) ? " died" : ""}`;
+        }
+        // hands and arms
+        const showHands = !!pose && p.hands && o.group.visible && handsAt(o.track, s, offs);
+        o.hands[0].visible = o.hands[1].visible = o.arms.visible = !!showHands;
+        if (showHands && pose) {
+          const arm = o.arms.geometry.attributes.position as THREE.BufferAttribute;
+          for (let k = 0; k < 2; k++) {
+            const hx = pose.x + offs[k * 3], hy = pose.y + offs[k * 3 + 1], hz = pose.z + offs[k * 3 + 2];
+            o.hands[k].position.set(hx, hy, hz);
+            arm.setXYZ(k * 2, pose.x, pose.y - SHOULDER_DROP_M, pose.z);
+            arm.setXYZ(k * 2 + 1, hx, hy, hz);
+          }
+          arm.needsUpdate = true;
         }
         // trail: segments between recent samples (gaps and respawn jumps left out)
         let n = 0;

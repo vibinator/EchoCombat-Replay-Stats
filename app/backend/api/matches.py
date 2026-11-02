@@ -1,6 +1,8 @@
 import base64
 import json
+import threading
 from collections import Counter
+from concurrent.futures import Future
 from datetime import date, timedelta
 from functools import lru_cache
 from pathlib import Path
@@ -17,7 +19,8 @@ from ..gear import ORDNANCES, TACMODS, WEAPONS
 from ..gear import lookup as gear_lookup
 from ..stats.map_objects import CAPTURE_POINTS, PAYLOAD_ROUTES
 from ..stats.maps import HEATMAP_LAYOUTS
-from ..models import DuplicateMatch, Event, Match, MatchPlayer, MatchPlayerLoadout, Player, Replay
+from ..models import AggressiveRepair, DuplicateMatch, Event, Match, MatchPlayer, MatchPlayerLoadout, Player, RepairRequest, Replay
+from ..version import VERSION
 from .derived import ID_MAX, MAP_PATTERN, MODE_PATTERN, TEXT_MAX, dominant_arm, loadout, match_summary, ratio
 from .downloads import download_csv, download_json
 
@@ -403,11 +406,46 @@ def _playback(request: Request, match_id: int) -> dict:
 PLAYBACK_EVENTS = {"round_won", "payload_checkpoint", "death_est", "contest_start", "contest_end", "loadout_change"}
 
 MAPS_3D = {"surge", "fission", "dyson", "combustion"}  # app/frontend/public/maps3d/<map>.glb (app/tools/maps3d)
+BUILD_WAIT_S = 25  # a first view waits this long for its 3D tracks (a 10-minute match takes a few seconds)
+_building: dict[int, Future] = {}  # replay id -> build in progress: one build per replay however many visitors ask
+_building_lock = threading.Lock()
+
+
+def _tracks3d(request: Request, replay_id: int):
+    """The match's 3D tracks; built from the replay on first view when missing (matches processed before 3D playback)."""
+    settings = request.app.state.settings
+    path = tracks3d.tracks3d_path(settings.processed_dir, replay_id)
+    if (data := tracks3d.read(path)) is not None and data[0].get("version") == tracks3d.FORMAT_VERSION:
+        return data  # an older format (written before a format change) is built again, like a missing file
+    with request.app.state.sessionmaker() as db:
+        replay = db.get(Replay, replay_id)
+        source = replay.source_path if replay else None
+        repair: bool | str = False
+        if source and db.get(AggressiveRepair, source):
+            repair = "aggressive"
+        elif source and db.get(RepairRequest, source):
+            repair = True
+    worker = getattr(request.app.state, "worker", None)
+    if not source or worker is None:
+        raise ApiError(404, "no_tracks3d", "3D positions for this match are not available.")
+    with _building_lock:
+        job = _building.get(replay_id)
+        if job is None:
+            job = _building[replay_id] = worker.run_side(tracks3d.build, str(settings.source_dir / source), str(path), repair)
+            job.add_done_callback(lambda _f: _building.pop(replay_id, None))
+    try:
+        built = job.result(timeout=BUILD_WAIT_S)
+    except TimeoutError:
+        raise ApiError(503, "tracks3d_building", "The 3D positions for this match are still being prepared. Try again in a moment.")
+    if not built or (data := tracks3d.read(path)) is None:
+        raise ApiError(404, "no_tracks3d", "3D positions for this match are not available (the replay file could not be read).")
+    return data
 
 
 @router.get("/{match_id}/playback3d")
 def get_playback3d(request: Request, match_id: int):
-    """Head positions (decimetres), facing (yaw 0-255, pitch degrees) and team at 5 Hz, in world space, for the 3D view.
+    """Head positions (decimetres), facing (yaw 0-255, pitch degrees), team and hands (relative to the head, 2 cm steps:
+    lx, ly, lz, rx, ry, rz) at 5 Hz, in world space, for the 3D view.
     Derived data only (tracks3d.bin), never replay frames. Events, gear and objective series come from /playback."""
     return cached_response(request, "playback3d", (match_id,), lambda: _playback3d(request, match_id))
 
@@ -419,16 +457,13 @@ def _playback3d(request: Request, match_id: int) -> dict:
             select(Player.user_id, MatchPlayer.name).join(Player).where(MatchPlayer.match_id == match_id)
         ).all())
         aliases = alias_map(db)
-    data = tracks3d.read(tracks3d.tracks3d_path(request.app.state.settings.processed_dir, match.replay_id))
-    if data is None:
-        raise ApiError(404, "no_tracks3d", "3D positions for this match are not ready yet: matches get them when they are "
-                                           "processed again after the update.")
-    header, players = data
+    header, players = _tracks3d(request, match.replay_id)
     out = []
     for uid, t in players.items():
         main = aliases.get(uid, uid)
         out.append({"user_id": main, "name": names.get(main, uid), "x": t["x"].tolist(), "y": t["y"].tolist(),
-                    "z": t["z"].tolist(), "yaw": list(t["yaw"]), "pitch": t["pitch"].tolist(), "team": list(t["team"])})
+                    "z": t["z"].tolist(), "yaw": list(t["yaw"]), "pitch": t["pitch"].tolist(), "team": list(t["team"]),
+                    "hands": [t[k].tolist() for k in tracks3d.HAND_KEYS]})
     objects: dict = {}
     if route := PAYLOAD_ROUTES.get(match.map):
         objects["route"] = route
@@ -436,7 +471,7 @@ def _playback3d(request: Request, match_id: int) -> dict:
         objects["point"] = point
     layout = HEATMAP_LAYOUTS.get(match.map)  # the play area (x min, x max, z min, z max): where the camera looks first
     extent = [layout.x_min, layout.x_max, layout.z_min, layout.z_max] if layout else None
-    return {"map": match.map, "model": f"/maps3d/{match.map}.glb" if match.map in MAPS_3D else None, "extent": extent, "hz": header["hz"],
+    return {"map": match.map, "model": f"/maps3d/{match.map}.glb?v={VERSION}" if match.map in MAPS_3D else None, "extent": extent, "hz": header["hz"],
             "samples": header["samples"], "duration_s": match.duration_s, "payload": header.get("payload"),
             "objects": objects, "players": out}
 

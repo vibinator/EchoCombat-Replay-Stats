@@ -56,6 +56,11 @@ const GEAR_ICONS: Record<string, string> = {
   "Phase Shift": "/icons/phase_shift.webp",
 };
 
+/** Icon URL of a gear name, or undefined (3D playback labels build their own DOM). */
+export function gearIconUrl(name: string): string | undefined {
+  return GEAR_ICONS[name];
+}
+
 /** Decorative icon shown before a gear name; renders nothing for gear without an icon. */
 export function GearIcon({ name }: { name: string }) {
   const src = GEAR_ICONS[name];

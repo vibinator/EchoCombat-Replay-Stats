@@ -119,9 +119,16 @@ def _vec(v) -> Vec3:
     return (float(x), float(y), float(z))
 
 
+def _hand(p: dict, side: str, head: Vec3) -> Vec3:
+    hand = p.get(side)
+    pos = hand.get("pos") if type(hand) is dict else None
+    return _vec(pos) if pos else head
+
+
 def _player(p: dict) -> PlayerFrame:
     # positional, in PlayerFrame field order (faster than keywords: ~100k calls per match)
     get = p.get
+    head = _vec(p["head"]["position"])
     return PlayerFrame(
         str(p["userid"]),  # user_id
         get("name", ""),
@@ -130,8 +137,10 @@ def _player(p: dict) -> PlayerFrame:
         get("level", 0),
         get("ping", 0),
         get("packetlossratio", 0.0),  # packet_loss
-        _vec(p["head"]["position"]),  # head_position
+        head,  # head_position
         _vec(p["head"].get("forward") or (0.0, 0.0, 1.0)),  # head_forward
+        _hand(p, "lhand", head),
+        _hand(p, "rhand", head),
         _vec(p["body"]["up"]),  # body_up
         _vec(p["velocity"]),
         gear_code(get("Weapon", "")),

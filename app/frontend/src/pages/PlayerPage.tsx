@@ -455,6 +455,9 @@ export function PlayerPage() {
               </div>
               <p className="muted footnote">* Estimated.</p>
 
+              {/* above Loadouts (user, 2026-11-02); players with no games have nothing to show here */}
+              <WhenVisible><AchievementsSummary userId={p.user_id} /></WhenVisible>
+
               <h2>Loadouts</h2>
               <TableWrap>
                 <table className="stack loadouts">
@@ -493,8 +496,6 @@ export function PlayerPage() {
           {p.stats.games > 0 && (
             <WhenVisible minHeight={400}><PlayerHeatmap userId={p.user_id} period={period} maps={p.stats.games_by_map} /></WhenVisible>
           )}
-          <WhenVisible><AchievementsSummary userId={p.user_id} /></WhenVisible>
-
           <h2>Recent matches</h2>
           <MatchTable
             matches={p.recent_matches}

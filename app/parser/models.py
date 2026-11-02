@@ -17,6 +17,8 @@ class PlayerFrame:
     packet_loss: float
     head_position: Vec3
     head_forward: Vec3  # unit vector the head faces (3D playback)
+    lhand: Vec3  # hand positions (3D playback); the head position when missing
+    rhand: Vec3
     body_up: Vec3
     velocity: Vec3
     weapon: str

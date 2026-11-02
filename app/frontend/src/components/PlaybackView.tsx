@@ -181,8 +181,11 @@ class Stage3DBoundary extends Component<{ onUse2D: () => void; children: ReactNo
  * capture point), roster, fights, death summary, loadout changes and event markers.
  * `clock` = a shared clock (compare mode); `compact` = only scoreboard, map and feed. With `matchId` (single match, not
  * compare) the map can switch to 3D (Map3D) and the view is kept in the address: ?view=3d&cam=&player=&t=&until=.
+ * In compare mode PlaybackCompare chooses the view for both sides (`view3d`, `camera3d`).
  */
-export function PlaybackView({ playback, clock, compact = false, label, matchId }: { playback: Playback; clock?: Clock; compact?: boolean; label?: string; matchId?: number }) {
+export function PlaybackView({ playback, clock, compact = false, label, matchId, view3d = false, camera3d = "orbit" }: {
+  playback: Playback; clock?: Clock; compact?: boolean; label?: string; matchId?: number; view3d?: boolean; camera3d?: Camera3D;
+}) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const root = useRef<HTMLDivElement>(null);
   const hz = playback.hz;
@@ -193,12 +196,13 @@ export function PlaybackView({ playback, clock, compact = false, label, matchId 
   const [trail, setTrail] = useState(10);
   const [trailColor, setTrailColor] = useState<"team" | "speed">("team");
   const [swaps, setSwaps] = useState(true);
+  const [hands, setHands] = useState(true);
   const [params, setParams] = useSearchParams();
   const linked = matchId != null && !compact && !clock; // this view owns the address (deep links)
   const [follow, setFollow] = useState<string | null>(() => (linked ? params.get("player") : null)); // highlighted player
-  const view: "2d" | "3d" = linked && params.get("view") === "3d" ? "3d" : "2d";
+  const view: "2d" | "3d" = linked ? (params.get("view") === "3d" ? "3d" : "2d") : matchId != null && view3d ? "3d" : "2d";
   const camParam = params.get("cam");
-  const camera: Camera3D = isCamera(camParam) ? camParam : "orbit";
+  const camera: Camera3D = linked ? (isCamera(camParam) ? camParam : "orbit") : camera3d;
   const cameraNow = useRef(camera);
   cameraNow.current = camera;
   const until = linked ? Number(params.get("until")) || 0 : 0; // a clip link: stop here
@@ -531,6 +535,11 @@ export function PlaybackView({ playback, clock, compact = false, label, matchId 
     [swaps, changes, second],
   );
   const banner = moments.filter((e) => second >= e.t_s && second - e.t_s < BANNER_S).pop();
+  // weapon each player holds now (icon in the 3D labels)
+  const weapons = useMemo(
+    () => new Map(view === "3d" ? playback.players.map((p) => [p.user_id, loadoutAt(p, playback.gear, i)[0]] as [string, string]).filter(([, w]) => w !== "–") : []),
+    [view, playback.players, playback.gear, i],
+  );
 
   /** Copy a link to this moment (or to the last 10 s as a clip) with the view, camera and picked player. */
   function copyLink(clip: boolean) {
@@ -697,6 +706,11 @@ export function PlaybackView({ playback, clock, compact = false, label, matchId 
         <label className="inline-check">
           <input type="checkbox" checked={swaps} onChange={(e) => setSwaps(e.target.checked)} /> Loadout changes
         </label>
+        {view === "3d" && (
+          <label className="inline-check" title="Hand positions and arms (where players aim and throw)">
+            <input type="checkbox" checked={hands} onChange={(e) => setHands(e.target.checked)} /> Hands
+          </label>
+        )}
       </div>
 
       {!clock && (
@@ -731,7 +745,8 @@ export function PlaybackView({ playback, clock, compact = false, label, matchId 
             <Stage3DBoundary onUse2D={() => setParam({ view: null })}>
               <Suspense fallback={<div className="pb3d-message"><p className="muted">Loading 3D…</p></div>}>
                 <Map3D id={matchId} playback={playback} second={second} follow={follow} onPick={pick} camera={camera} names={names}
-                  trailSeconds={trail / hz} trailColor={trailColor} deaths={deaths} swaps={swapLabels} onUse2D={() => setParam({ view: null })} />
+                  trailSeconds={trail / hz} trailColor={trailColor} deaths={deaths} swaps={swapLabels} weapons={weapons} hands={hands}
+                  onUse2D={() => setParam({ view: null })} />
               </Suspense>
             </Stage3DBoundary>
           ) : (
@@ -849,10 +864,21 @@ export function PlaybackView({ playback, clock, compact = false, label, matchId 
   );
 }
 
-/** Two matches side by side on one shared clock (both start at 0:00). */
-export function PlaybackCompare({ a, b }: { a: Playback; b: Playback }) {
+/** Two matches side by side on one shared clock (both start at 0:00), as 2D maps or both in 3D (?view=3d&cam=). */
+export function PlaybackCompare({ a, b, aId, bId }: { a: Playback; b: Playback; aId?: number; bId?: number }) {
   const longest = Math.max(a.samples / a.hz, b.samples / b.hz);
   const clock = useClock(longest);
+  const [params, setParams] = useSearchParams();
+  const can3d = aId != null && bId != null;
+  const view3d = can3d && params.get("view") === "3d";
+  const camParam = params.get("cam");
+  const camera: Camera3D = isCamera(camParam) ? camParam : "orbit";
+  const set = (k: string, v: string | null) => {
+    const next = new URLSearchParams(params);
+    if (v == null) next.delete(k);
+    else next.set(k, v);
+    setParams(next, { replace: true });
+  };
   return (
     <div className="pb-compare">
       <div className="heatmap-tools">
@@ -874,12 +900,28 @@ export function PlaybackCompare({ a, b }: { a: Playback; b: Playback }) {
         <span className="muted">
           {duration(clock.t)} / {duration(longest)}
         </span>
+        {can3d && (
+          <span className="zoom-buttons" role="group" aria-label="Map view">
+            <button className={view3d ? "secondary" : ""} aria-pressed={!view3d} onClick={() => set("view", null)}>2D maps</button>
+            <button className={view3d ? "" : "secondary"} aria-pressed={view3d} onClick={() => set("view", "3d")}>3D</button>
+          </span>
+        )}
+        {view3d && (
+          <label title={CAMERAS.find((x) => x.value === camera)?.help}>
+            Camera
+            <select value={camera} onChange={(e) => set("cam", e.target.value === "orbit" ? null : e.target.value)}>
+              {CAMERAS.map((x) => (
+                <option key={x.value} value={x.value}>{x.label}</option>
+              ))}
+            </select>
+          </label>
+        )}
       </div>
       <input className="scrubber" type="range" min={0} max={longest} step={0.5} value={clock.t} aria-label="Shared match time"
         onChange={(e) => { clock.setPlaying(false); clock.setT(Number(e.target.value)); }} />
       <div className="pb-compare-grid">
-        <PlaybackView playback={a} clock={clock} compact label={`${a.map} (left)`} />
-        <PlaybackView playback={b} clock={clock} compact label={`${b.map} (right)`} />
+        <PlaybackView playback={a} clock={clock} compact label={`${a.map} (left)`} matchId={aId} view3d={view3d} camera3d={camera} />
+        <PlaybackView playback={b} clock={clock} compact label={`${b.map} (right)`} matchId={bId} view3d={view3d} camera3d={camera} />
       </div>
     </div>
   );

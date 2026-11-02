@@ -61,7 +61,7 @@ def _static_cache(headers: MutableHeaders, path: str, status: int) -> None:
     name = path.rsplit("/", 1)[-1]
     if "." not in name or name.endswith(".html") or headers.get("content-type", "").startswith("text/html"):
         headers["Cache-Control"] = "no-cache"  # index.html for every page address (SinglePageApp)
-    elif path.startswith("/assets/"):
+    elif path.startswith(("/assets/", "/maps3d/")):  # hashed names / ?v=<release> URLs: kept for good
         headers["Cache-Control"] = "public, max-age=31536000, immutable"
     else:
         headers.setdefault("Cache-Control", f"public, max-age={STATIC_MAX_AGE_S}")
