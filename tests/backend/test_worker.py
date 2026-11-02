@@ -105,3 +105,36 @@ def test_crash_while_stopping_leaves_rows_for_next_start(settings):
         assert db.get(Replay, 1).status == "processing"  # not failed
     assert requeue_unfinished_and_outdated(sessions) == 1
     engine.dispose()
+
+
+def test_side_jobs_run_apart_from_the_replay_pool(settings):
+    """3D builds (run_side) have their own pool: not behind queued replays, and not shared with their crashes."""
+    from backend.worker import Worker
+
+    worker = Worker(None, settings)  # workers=0 in the tests: threads
+    assert worker.run_side(pow, 2, 5).result(timeout=10) == 32
+    assert worker._pool is None and worker._side is not None  # the replay pool was not used (nor created)
+    worker._stop.set()
+    with pytest.raises(RuntimeError):  # stopping: no new jobs
+        worker.run_side(pow, 2, 5)
+    worker._side.shutdown()
+
+
+def test_side_pool_that_crashed_is_replaced_and_leaves_the_replay_pool_alone(settings):
+    import dataclasses
+    import os
+    from concurrent.futures.process import BrokenProcessPool
+
+    from backend.worker import Worker
+
+    worker = Worker(None, dataclasses.replace(settings, workers=2))  # real processes: a job can kill its process
+    worker._pool = main = worker._new_pool()
+    try:
+        with pytest.raises(BrokenProcessPool):
+            worker.run_side(os._exit, 1).result(timeout=60)
+        assert worker.run_side(pow, 2, 5).result(timeout=60) == 32  # a fresh pool took the next job
+        assert worker._pool is main and main.submit(pow, 2, 3).result(timeout=60) == 8  # replay processing never noticed
+        assert not worker._in_flight  # and no replay was blamed for the crash
+    finally:
+        main.shutdown()
+        worker._side.shutdown()

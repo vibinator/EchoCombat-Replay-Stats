@@ -183,6 +183,7 @@ def test_playback3d(client):
     assert set(blue["team"]) == {0, 1} and len(blue["x"]) == p["samples"] and len(blue["hands"]) == 6
     surge = client.get(f"/api/matches/{mid(client, 'surge/c.echoreplay')}/playback3d").json()
     assert surge["model"].startswith("/maps3d/surge.glb?v=") and surge["objects"]["route"] and any(surge["payload"])
+    assert surge["payload_model"].startswith("/maps3d/surge_payload.glb?v=") and p["payload_model"] is None  # dyson has no payload
     assert client.get("/api/matches/999/playback3d").status_code == 404
 
 
@@ -194,6 +195,79 @@ def test_playback3d_built_on_first_view(client, tmp_path):
     path.unlink()
     p = client.get(f"/api/matches/{match_id}/playback3d").json()
     assert path.exists() and p["samples"] == 20 and p["model"].startswith("/maps3d/dyson.glb?v=")
+
+
+def _tracks3d_file(client, name):
+    replay_id = replay_by_path(client, name)["id"]
+    return mid(client, name), client.app.state.settings.processed_dir / str(replay_id) / "tracks3d.bin"
+
+
+def test_playback3d_damaged_file_is_built_again(client):
+    match_id, path = _tracks3d_file(client, "dyson/b.echoreplay")
+    path.write_bytes(b"not a tracks file")  # cut off by a crash, corrupt on disk
+    p = client.get(f"/api/matches/{match_id}/playback3d")
+    assert p.status_code == 200 and p.json()["samples"] == 20
+
+
+def test_playback3d_unreadable_replay_is_a_404_not_a_500_and_not_read_again(client, monkeypatch):
+    from concurrent.futures.process import BrokenProcessPool
+    from backend import tracks3d
+    from backend.api import matches
+    match_id, path = _tracks3d_file(client, "dyson/b.echoreplay")
+    path.unlink()
+    matches._failed.clear()
+    calls = []
+    outcomes = iter([False, KeyError("frame"), BrokenProcessPool("killed")])
+
+    def build(*args):
+        calls.append(args)
+        out = next(outcomes)
+        if isinstance(out, Exception):
+            raise out
+        return out
+
+    monkeypatch.setattr(tracks3d, "build", build)
+    first = client.get(f"/api/matches/{match_id}/playback3d")
+    assert first.status_code == 404 and first.json()["error_code"] == "no_tracks3d"
+    for _ in range(3):  # a repeated view (or a crawler) does not parse the replay again
+        assert client.get(f"/api/matches/{match_id}/playback3d").status_code == 404
+    assert len(calls) == 1
+    # after the wait, it is tried again; an error raised by the build (not just "False") is also a 404
+    matches._failed.clear()
+    assert client.get(f"/api/matches/{match_id}/playback3d").status_code == 404
+    matches._failed.clear()
+    assert client.get(f"/api/matches/{match_id}/playback3d").status_code == 404  # the pool died under it
+    assert len(calls) == 3
+
+
+def test_playback3d_older_file_is_used_when_it_cannot_be_rebuilt(client, monkeypatch):
+    import json, struct, zlib
+    from backend import tracks3d
+    from backend.api import matches
+    match_id, path = _tracks3d_file(client, "dyson/b.echoreplay")
+    raw = zlib.decompress(path.read_bytes())
+    (length,) = struct.unpack_from("<I", raw)
+    header = json.loads(raw[4:4 + length])
+    header["version"] = 1  # written before hands existed
+    new = json.dumps(header).encode()
+    path.write_bytes(zlib.compress(struct.pack("<I", len(new)) + new + raw[4 + length:]))
+    matches._failed.clear()
+    monkeypatch.setattr(tracks3d, "build", lambda *a: False)
+    p = client.get(f"/api/matches/{match_id}/playback3d")
+    assert p.status_code == 200 and p.json()["samples"] == 20  # still has 3D, without hands
+    assert set(p.json()["players"][0]["hands"][0]) <= {0}
+
+
+def test_playback3d_waiting_requests_are_capped(client, monkeypatch):
+    import threading
+    from backend.api import matches
+    match_id, path = _tracks3d_file(client, "dyson/b.echoreplay")
+    path.unlink()
+    matches._failed.clear()
+    monkeypatch.setattr(matches, "_waiters", threading.BoundedSemaphore(0))  # every waiting place is taken
+    r = client.get(f"/api/matches/{match_id}/playback3d")
+    assert r.status_code == 503 and r.json()["error_code"] == "tracks3d_building"
+    assert not path.exists()  # and nothing was started for it
 
 
 def test_trends_companions_compare(client):

@@ -73,6 +73,9 @@ COMMANDS = {  # name as in admin.bat -> (sessions, settings, args) -> None
     "reprocess-all": lambda s, st, a: console.cmd_reprocess_all(s, st, yes=True),
     "hide-stats": lambda s, st, a: console.cmd_hide_stats(s, "win_loss" if a.hide_win_loss else None,
                                                           "win_loss" if a.show_win_loss else None, a.player),
+    "remote-on": lambda s, st, a: console.cmd_remote_processing(s, True),
+    "remote-off": lambda s, st, a: console.cmd_remote_processing(s, False),
+    "remote-status": lambda s, st, a: console.cmd_remote_processing(s, None),
     "discord-check": lambda s, st, a: console.cmd_discord_check(s, st, _required(a.user_id, "a Discord user id")),
 }
 

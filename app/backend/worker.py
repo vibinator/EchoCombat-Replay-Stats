@@ -23,7 +23,7 @@ from .cache import bump_generation
 from .config import Settings
 from .db import utcnow
 from .models import AggressiveRepair, Match, MatchPlayerLoadout, PriorityReplay, RepairRequest, Replay
-from . import duplicates, tracks, tracks3d
+from . import duplicates, remote, tracks, tracks3d
 from .persist import delete_match, save_match
 from .stats import STATS_VERSION, compute
 from .stats.maps import load_in_spot
@@ -33,6 +33,7 @@ from .tracks3d import Recorders, Track3DRecorder
 log = logging.getLogger(__name__)
 
 MAX_CRASHES = 2  # a file in flight during this many pool crashes is marked failed ("crashed")
+SIDE_WORKERS = 2  # processes for one-off jobs (3D tracks on first view), apart from the replay pool
 
 
 def _pool_process_start() -> None:
@@ -167,6 +168,40 @@ def requeue_unfinished_and_outdated(sessions: sessionmaker) -> int:
         return result.rowcount
 
 
+def claim_queued(sessions: sessionmaker, count: int) -> list[tuple[int, str, bool | str]]:
+    """Marks up to `count` queued replays 'processing' and returns (id, source path relative to the share, repair mode).
+    Used by this server's own worker and by the remote PC (remote.py)."""
+    with sessions() as db:
+        # admin console merges / repairs first (priority_replays), then the backlog, newest file first. Priority
+        # replays go newest match first (user, 2026-10-31: a merged player's latest games are right first);
+        # ones without a match yet (e.g. repairs) by newest file.
+        replays = db.scalars(
+            select(Replay).join(PriorityReplay, PriorityReplay.replay_id == Replay.id)
+            .outerjoin(Match, Match.replay_id == Replay.id)
+            .where(Replay.status == "queued")
+            .order_by(Match.started_at.desc().nulls_last(), Replay.source_mtime.desc()).limit(count)
+        ).all()
+        db.execute(delete(PriorityReplay).where(or_(
+            PriorityReplay.replay_id.in_([r.id for r in replays]),
+            PriorityReplay.replay_id.not_in(select(Replay.id).where(Replay.status.in_(("queued", "processing")))),
+        )))
+        if len(replays) < count:
+            replays += db.scalars(
+                select(Replay).where(Replay.status == "queued", Replay.id.not_in([r.id for r in replays]))
+                .order_by(Replay.source_mtime.desc()).limit(count - len(replays))
+            ).all()
+        for r in replays:
+            r.status = "processing"
+        db.commit()
+        paths = [r.source_path for r in replays]
+        repair = set(db.scalars(select(RepairRequest.source_path).where(RepairRequest.source_path.in_(paths))))
+        aggressive = set(db.scalars(select(AggressiveRepair.source_path)
+                                    .where(AggressiveRepair.source_path.in_(paths))))
+        # repair mode: False, True, or "aggressive" (D36b)
+        return [(r.id, r.source_path, "aggressive" if r.source_path in aggressive else r.source_path in repair) for r in replays]
+
+
+
 class Worker:
     def __init__(self, sessions: sessionmaker, settings: Settings):
         self.sessions, self.settings = sessions, settings
@@ -177,6 +212,8 @@ class Worker:
         self._started: dict[int, tuple[str, float]] = {}  # replay_id -> (source_path, monotonic start)
         self._crashes: Counter[int] = Counter()
         self._pool: Executor | None = None
+        self._side: Executor | None = None  # one-off jobs: a crash there never touches replay processing
+        self._side_lock = threading.Lock()
         self._thread = threading.Thread(target=self._run, name="replay-worker", daemon=True)
 
     def start(self) -> None:
@@ -185,23 +222,57 @@ class Worker:
         self._pool = self._new_pool()
         self._thread.start()
 
-    def _new_pool(self) -> Executor:
+    def _new_pool(self, workers: int | None = None) -> Executor:
         if self.settings.workers > 0:
-            return ProcessPoolExecutor(self.settings.workers, initializer=_pool_process_start)
+            return ProcessPoolExecutor(workers or self.settings.workers, initializer=_pool_process_start)
         return ThreadPoolExecutor(1)  # tests: same process, deterministic
 
     def notify(self) -> None:
         self._wake.set()
 
     def run_side(self, fn, *args) -> Future:
-        """A one-off job (3D tracks on first view) in the replay processes, which run below the website's priority."""
-        return self._pool.submit(fn, *args)
+        """A one-off job (3D tracks on first view) in its own small pool of low-priority processes: it does not wait
+        behind a backlog of replays, and a crash in it (a damaged replay running out of memory) is not blamed on the
+        replays in flight. A pool that broke is replaced. RuntimeError = the worker is stopping."""
+        future = pool = None
+        with self._side_lock:
+            for _attempt in range(2):
+                if self._stop.is_set():
+                    raise RuntimeError("The worker is stopping")
+                if self._side is None:
+                    self._side = self._new_pool(SIDE_WORKERS)
+                pool = self._side
+                try:
+                    future = pool.submit(fn, *args)
+                    break
+                except (BrokenProcessPool, RuntimeError):
+                    pool.shutdown(wait=False, cancel_futures=True)
+                    self._side = None
+        if future is None:
+            raise RuntimeError("The side pool could not be started")
+        # outside the lock: a job that is already finished runs the callback at once, and the callback takes the lock
+        future.add_done_callback(lambda f: self._side_done(f, pool))
+        return future
+
+    def _side_done(self, future: Future, pool: Executor) -> None:
+        """A job that died with its pool: drop that pool so the next job gets a fresh one."""
+        if future.cancelled() or not isinstance(future.exception(), BrokenProcessPool):
+            return
+        # no shutdown() here: this runs inside the broken pool's own thread, under its lock (it would wait for itself);
+        # a broken pool has already ended its processes
+        with self._side_lock:
+            if self._side is pool:
+                self._side = None
 
     def stop(self) -> None:
         self._stop.set()
         self._wake.set()
         self._thread.join()
         self._pool.shutdown(wait=True, cancel_futures=True)
+        with self._side_lock:
+            side, self._side = self._side, None
+        if side is not None:
+            side.shutdown(wait=True, cancel_futures=True)
 
     @property
     def busy(self) -> int:
@@ -228,38 +299,18 @@ class Worker:
             time.sleep(0.02)
         raise TimeoutError("worker did not become idle")
 
-    def _claim(self, count: int) -> list[tuple[int, str]]:
+    def _claim(self, count: int) -> list[tuple[int, str, bool | str]]:
+        """(id, absolute path, repair mode) of up to `count` queued replays, now marked 'processing'. Nothing while
+        remote processing is on: another PC reads them then (remote.py)."""
         with self.sessions() as db:
-            # admin console merges / repairs first (priority_replays), then the backlog, newest file first. Priority
-            # replays go newest match first (user, 2026-10-31: a merged player's latest games are right first);
-            # ones without a match yet (e.g. repairs) by newest file.
-            replays = db.scalars(
-                select(Replay).join(PriorityReplay, PriorityReplay.replay_id == Replay.id)
-                .outerjoin(Match, Match.replay_id == Replay.id)
-                .where(Replay.status == "queued")
-                .order_by(Match.started_at.desc().nulls_last(), Replay.source_mtime.desc()).limit(count)
-            ).all()
-            db.execute(delete(PriorityReplay).where(or_(
-                PriorityReplay.replay_id.in_([r.id for r in replays]),
-                PriorityReplay.replay_id.not_in(select(Replay.id).where(Replay.status.in_(("queued", "processing")))),
-            )))
-            if len(replays) < count:
-                replays += db.scalars(
-                    select(Replay).where(Replay.status == "queued", Replay.id.not_in([r.id for r in replays]))
-                    .order_by(Replay.source_mtime.desc()).limit(count - len(replays))
-                ).all()
-            for r in replays:
-                r.status = "processing"
-            db.commit()
-            for r in replays:
-                self._started[r.id] = (r.source_path, time.monotonic())
-            paths = [r.source_path for r in replays]
-            repair = set(db.scalars(select(RepairRequest.source_path).where(RepairRequest.source_path.in_(paths))))
-            aggressive = set(db.scalars(select(AggressiveRepair.source_path)
-                                        .where(AggressiveRepair.source_path.in_(paths))))
-            # repair mode: False, True, or "aggressive" (D36b)
-            return [(r.id, str(self.settings.source_dir / r.source_path),
-                     "aggressive" if r.source_path in aggressive else r.source_path in repair) for r in replays]
+            on = remote.enabled(db)
+        remote.requeue_abandoned(self.sessions, everything=not on)  # off: whatever the PC still holds is ours again
+        if on:
+            return []
+        claimed = claim_queued(self.sessions, count)
+        for replay_id, path, _ in claimed:
+            self._started[replay_id] = (path, time.monotonic())
+        return [(rid, str(self.settings.source_dir / path), repair) for rid, path, repair in claimed]
 
     def _tracks_file(self, replay_id: int) -> str:
         return str(tracks_path(self.settings.processed_dir, replay_id))

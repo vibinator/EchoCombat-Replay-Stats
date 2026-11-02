@@ -1,8 +1,11 @@
 import base64
 import json
 import threading
+import time
 from collections import Counter
-from concurrent.futures import Future
+from concurrent.futures import CancelledError, Future
+from concurrent.futures import TimeoutError as BuildTimeout
+from concurrent.futures.process import BrokenProcessPool
 from datetime import date, timedelta
 from functools import lru_cache
 from pathlib import Path
@@ -406,17 +409,44 @@ def _playback(request: Request, match_id: int) -> dict:
 PLAYBACK_EVENTS = {"round_won", "payload_checkpoint", "death_est", "contest_start", "contest_end", "loadout_change"}
 
 MAPS_3D = {"surge", "fission", "dyson", "combustion"}  # app/frontend/public/maps3d/<map>.glb (app/tools/maps3d)
+PAYLOAD_MODEL_MAPS = {"surge", "fission"}  # <map>_payload.glb: the flamingo, taken out of the map so it can move with the cart
 BUILD_WAIT_S = 25  # a first view waits this long for its 3D tracks (a 10-minute match takes a few seconds)
+MAX_BUILD_WAITERS = 8  # requests waiting for a build at once: each holds one of the server's request threads
+FAILED_TTL_S = 600  # a replay whose build failed is not read again for this long (a repeated view must not cost a parse)
 _building: dict[int, Future] = {}  # replay id -> build in progress: one build per replay however many visitors ask
+_failed: dict[int, float] = {}  # replay id -> time.monotonic() of a failed build
 _building_lock = threading.Lock()
+_waiters = threading.BoundedSemaphore(MAX_BUILD_WAITERS)
+
+
+def _recently_failed(replay_id: int) -> bool:
+    failed_at = _failed.get(replay_id)
+    return failed_at is not None and time.monotonic() - failed_at < FAILED_TTL_S
+
+
+def _remember_failure(replay_id: int) -> None:
+    with _building_lock:
+        now = time.monotonic()
+        if len(_failed) > 1000:  # forget the old ones: bounded however many damaged replays are asked for
+            for rid in [r for r, t in _failed.items() if now - t >= FAILED_TTL_S]:
+                del _failed[rid]
+        _failed[replay_id] = now
 
 
 def _tracks3d(request: Request, replay_id: int):
     """The match's 3D tracks; built from the replay on first view when missing (matches processed before 3D playback)."""
     settings = request.app.state.settings
     path = tracks3d.tracks3d_path(settings.processed_dir, replay_id)
-    if (data := tracks3d.read(path)) is not None and data[0].get("version") == tracks3d.FORMAT_VERSION:
-        return data  # an older format (written before a format change) is built again, like a missing file
+    data = tracks3d.read(path)
+    if data is not None and data[0].get("version") == tracks3d.FORMAT_VERSION:
+        return data
+    older = data  # a readable file of an older format (no hands): built again, but used when that cannot be done
+
+    def unavailable(message: str):
+        if older is not None:
+            return older
+        raise ApiError(404, "no_tracks3d", message)
+
     with request.app.state.sessionmaker() as db:
         replay = db.get(Replay, replay_id)
         source = replay.source_path if replay else None
@@ -427,19 +457,41 @@ def _tracks3d(request: Request, replay_id: int):
             repair = True
     worker = getattr(request.app.state, "worker", None)
     if not source or worker is None:
-        raise ApiError(404, "no_tracks3d", "3D positions for this match are not available.")
-    with _building_lock:
-        job = _building.get(replay_id)
-        if job is None:
-            job = _building[replay_id] = worker.run_side(tracks3d.build, str(settings.source_dir / source), str(path), repair)
-            job.add_done_callback(lambda _f: _building.pop(replay_id, None))
+        return unavailable("3D positions for this match are not available.")
+    if _recently_failed(replay_id):
+        return unavailable("3D positions for this match are not available (the replay file could not be read).")
+    busy = ApiError(503, "tracks3d_building", "The 3D positions for this match are still being prepared. Try again in a moment.")
+    if not _waiters.acquire(blocking=False):
+        raise busy  # enough requests are already waiting for builds: do not tie up another thread
     try:
-        built = job.result(timeout=BUILD_WAIT_S)
-    except TimeoutError:
-        raise ApiError(503, "tracks3d_building", "The 3D positions for this match are still being prepared. Try again in a moment.")
-    if not built or (data := tracks3d.read(path)) is None:
-        raise ApiError(404, "no_tracks3d", "3D positions for this match are not available (the replay file could not be read).")
-    return data
+        with _building_lock:
+            job = _building.get(replay_id)
+            if job is None:
+                try:
+                    job = worker.run_side(tracks3d.build, str(settings.source_dir / source), str(path), repair)
+                except RuntimeError:
+                    raise busy  # the worker is stopping
+                _building[replay_id] = job
+                job.add_done_callback(lambda _f: _building.pop(replay_id, None))
+        try:
+            built = job.result(timeout=BUILD_WAIT_S)
+        except BuildTimeout:
+            raise busy
+        except CancelledError:
+            raise busy
+        except BrokenProcessPool:  # the replay killed its process (out of memory?): the pool is replaced, this replay is not tried again soon
+            built = False
+        except Exception:
+            built = False
+    finally:
+        _waiters.release()
+    if built:
+        data = tracks3d.read(path)
+        if data is not None:
+            _failed.pop(replay_id, None)
+            return data
+    _remember_failure(replay_id)
+    return unavailable("3D positions for this match are not available (the replay file could not be read).")
 
 
 @router.get("/{match_id}/playback3d")
@@ -471,7 +523,8 @@ def _playback3d(request: Request, match_id: int) -> dict:
         objects["point"] = point
     layout = HEATMAP_LAYOUTS.get(match.map)  # the play area (x min, x max, z min, z max): where the camera looks first
     extent = [layout.x_min, layout.x_max, layout.z_min, layout.z_max] if layout else None
-    return {"map": match.map, "model": f"/maps3d/{match.map}.glb?v={VERSION}" if match.map in MAPS_3D else None, "extent": extent, "hz": header["hz"],
+    return {"map": match.map, "model": f"/maps3d/{match.map}.glb?v={VERSION}" if match.map in MAPS_3D else None,
+            "payload_model": f"/maps3d/{match.map}_payload.glb?v={VERSION}" if match.map in PAYLOAD_MODEL_MAPS else None, "extent": extent, "hz": header["hz"],
             "samples": header["samples"], "duration_s": match.duration_s, "payload": header.get("payload"),
             "objects": objects, "players": out}
 

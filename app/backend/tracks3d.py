@@ -17,9 +17,11 @@ Gear and objective series stay in tracks.bin (2 Hz); this file only adds what th
 """
 
 import json
+import logging
 import math
 import os
 import struct
+import threading
 import zlib
 from array import array
 from datetime import datetime
@@ -27,6 +29,8 @@ from pathlib import Path
 
 from .stats.maps import is_load_in, load_in_spot
 from .tracks import ABSENT, TEAM_CODES, _dm
+
+log = logging.getLogger(__name__)
 
 FORMAT_VERSION = 2
 HZ = 5
@@ -147,14 +151,19 @@ def tracks3d_path(processed_dir: Path, replay_id: int) -> Path:
 
 def write(path: Path, recorder: Track3DRecorder) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(".tmp3d")
-    tmp.write_bytes(recorder.encode())
-    os.replace(tmp, path)
+    # one temp file per writer: the worker (processing the replay) and a first-view build can write the same match
+    tmp = path.with_name(f"{path.name}.{os.getpid()}.{threading.get_ident()}.tmp3d")
+    try:
+        tmp.write_bytes(recorder.encode())
+        os.replace(tmp, path)
+    finally:
+        tmp.unlink(missing_ok=True)  # only left behind when writing or replacing failed
 
 
 def build(replay_path: str, out_path: str, repair: bool | str = False) -> bool:
-    """Reads the replay once and writes its 3D tracks (no stats). Runs in a worker pool process. False = unreadable."""
-    from parser import ReplayError, open_replay  # here: the web process only needs it when this runs in-process (tests)
+    """Reads the replay once and writes its 3D tracks (no stats). Runs in a worker pool process. False = unreadable
+    (any error: a damaged replay can fail in many ways, and the caller must not see them as a crash of the website)."""
+    from parser import open_replay  # here: the web process only needs it when this runs in-process (tests)
 
     try:
         parsed = open_replay(Path(replay_path), repair=repair)
@@ -163,12 +172,17 @@ def build(replay_path: str, out_path: str, repair: bool | str = False) -> bool:
             recorder.add(frame)
         write(Path(out_path), recorder)
         return True
-    except (ReplayError, OSError):
+    except Exception as e:
+        log.warning("3D tracks of %s could not be built: %s: %s", replay_path, type(e).__name__, e)
         return False
 
 
 def read(path: Path) -> tuple[dict, dict] | None:
+    """None = missing or damaged (cut off by a crash, corrupt on disk): either way it is built again."""
     try:
         return decode(path.read_bytes())
     except FileNotFoundError:
+        return None
+    except (zlib.error, struct.error, ValueError, KeyError, IndexError, TypeError):
+        log.warning("%s is damaged; it will be built again", path)
         return None

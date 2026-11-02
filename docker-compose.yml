@@ -30,6 +30,8 @@ services:
       ECHOVR_DISCORD_BOT_TOKEN: YOUR_DISCORD_BOT_TOKEN
       # Shared secret your Discord bot sends to link Discord accounts to players (D54); placeholder = off
       ECHOVR_BOT_LINK_SECRET: YOUR_BOT_LINK_SECRET
+      # "Process replays on another PC" (Setup.MD, Remote processing): the PC's remote_worker.bat sends this; placeholder = off
+      ECHOVR_REMOTE_WORKER_SECRET: YOUR_REMOTE_WORKER_SECRET
       ECHOVR_DISCORD_PREVIEW_ROLES: YOUR_PREVIEW_ROLE_ID   # role and / or user id(s), comma-separated: preview + Console page (admin.bat on the website)
     volumes:
       # Replay folder on the NAS (File Station: ECRanked > ECRanked), read-only; subfolders are scanned too

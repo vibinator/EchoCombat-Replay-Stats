@@ -18,6 +18,31 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.02.6 — 23:45
+### Replays can be read on another PC (new, toggle in the Console)
+- **Why:** reading replays is slow on the NAS (5-12x slower than on the PC) and takes CPU away from visitors.
+- **How it works:** with **Console > Process replays on another PC** on (or `admin.bat remote --on`), the NAS stops reading replays itself. `remote_worker.bat` on the PC asks the website for queued replays, reads them from the replay share, and sends the finished results back; the website saves them exactly as if it had read the files. **Process replays on this server again** (`admin.bat remote --off`) turns it back; replays the PC was still holding are queued again at once, and so are ones the PC claimed but never answered for 30 minutes.
+- **Safe by design:** the endpoints exist only when `ECHOVR_REMOTE_WORKER_SECRET` is set (same value on the NAS and the PC); the PC must run the same parser and stats versions (it is told to update otherwise); a result may only contain result data (never other code); damaged track files are left out; a PC that cannot see the share gives the replays back instead of marking them failed.
+- **To do once:** set `ECHOVR_REMOTE_WORKER_SECRET` in the NAS's compose file (recreate the application) and in `settings.local.bat` on the PC; see docs/Setup.MD, "Remote processing". "Where replays are processed" in the Console and `admin.bat status` say which side is working and when the PC last asked for work.
+
+### 3D playback
+- **The payload (flamingo) moves:** it was part of the map file and stood at the start of the route while a box moved instead. It is now its own model (`<map>_payload.glb`, surge and fission), taken out of the map, with a ring in the attacking team's colour under it; it turns with the route.
+- **Payload progress line:** the route is a thick dashed line and what the payload has covered is a thick solid line in the attacking team's colour, drawn over the map (a plain WebGL line is 1 px).
+- **Easier to move around with mouse and keyboard:**
+  - the wheel zooms towards the pointer, movement glides to a stop, right-drag (or Shift + drag) moves sideways, middle-drag zooms and the context menu no longer opens;
+  - **W A S D** fly (Shift = 3x faster), **Q / E** down / up, **R** puts the camera back; speed follows the distance to what you look at.
+- Weapon labels only update when somebody's weapon changes (a new list every tick made the labels redo their work).
+
+### Server fixes found in a review of the 3D build
+- 3D positions are built in their own small pool of processes: not behind a queue of replays, and a crash there is never blamed on the replays being read. A damaged replay answers "not available" (404), is not read again for 10 minutes, and at most 8 requests wait for builds at once.
+- A damaged `tracks3d.bin` is built again; an older readable one is used when a rebuild is not possible; two writers no longer share one temp file.
+- Map models are cached for a year only when asked for with `?v=<version>`.
+
+### Heatmaps and player pages
+- Heatmaps may take up to 90 s before the page says "Server busy" (they can take 10 s+ on the NAS right after a restart); the scroll wheel no longer zooms them (use + / -).
+- Achievement badges: Starburst, Protostar, Quark, Blazar and Translocator challenges have their own icons; glyphs take the colour of the tier reached (grey = not started).
+- Achievements of a player live at `/achievements/<name>/<id>` (old `?player=` links still work and move there); on a profile the Achievements section is above Loadouts and also shows when the chosen period has no games.
+
 ## 2026.11.02.5 — 23:21
 ### 3D playback: low CPU, plus the optional improvements
 - **No full reprocess:**

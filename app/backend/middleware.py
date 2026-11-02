@@ -22,9 +22,9 @@ from starlette.requests import Request
 from . import guard
 from .cache import STATUS_HEADER
 
-PER_VISITOR = ("/api/auth", "/api/admin", "/api/profiles", "/api/bot")
+PER_VISITOR = ("/api/auth", "/api/admin", "/api/profiles", "/api/bot", "/api/worker")
 WRITES = ("/api/admin/achievements/", "/api/admin/console/", "/api/admin/permissions", "/api/profiles/")
-BOT = "/api/bot/"  # the Discord bot: POST with its shared secret (checked by the endpoint), no X-EchoVR header
+BOT = ("/api/bot/", "/api/worker/")  # the Discord bot and the remote processing PC: POST with their shared secret (checked by the endpoint), no X-EchoVR header
 STATIC_MAX_AGE_S = 4 * 3600
 EDGE_STALE_IF_ERROR_S = 600
 
@@ -55,13 +55,20 @@ def _api_cache(headers: MutableHeaders, status: int, per_visitor: bool, edge_s: 
                                                    if edge_s and fresh else "no-store")
 
 
-def _static_cache(headers: MutableHeaders, path: str, status: int) -> None:
+def _versioned(query: bytes | str) -> bool:
+    text = query.decode("latin-1") if isinstance(query, bytes) else query
+    return any(part.startswith("v=") and len(part) > 2 for part in text.split("&"))
+
+
+def _static_cache(headers: MutableHeaders, path: str, status: int, query: bytes | str = b"") -> None:
     if status not in (200, 304):
         return
     name = path.rsplit("/", 1)[-1]
     if "." not in name or name.endswith(".html") or headers.get("content-type", "").startswith("text/html"):
         headers["Cache-Control"] = "no-cache"  # index.html for every page address (SinglePageApp)
-    elif path.startswith(("/assets/", "/maps3d/")):  # hashed names / ?v=<release> URLs: kept for good
+    elif path.startswith("/assets/") or (path.startswith("/maps3d/") and _versioned(query)):
+        # hashed names / ?v=<release> URLs: kept for good. A map model asked for without ?v= is not: a re-exported model
+        # would never reach the browsers and Cloudflare that kept the unversioned address.
         headers["Cache-Control"] = "public, max-age=31536000, immutable"
     else:
         headers.setdefault("Cache-Control", f"public, max-age={STATIC_MAX_AGE_S}")
@@ -96,7 +103,7 @@ class SiteMiddleware:
                     per_visitor = path.startswith(PER_VISITOR) or bool(scope.get("state", {}).get("per_visitor"))
                     _api_cache(headers, status, per_visitor, edge_s)
                 else:
-                    _static_cache(headers, path, status)
+                    _static_cache(headers, path, status, scope.get("query_string", b""))
             await send(message)
 
         app = _refusal(request, self.settings, self.limiter, self.hourly) or self.app

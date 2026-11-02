@@ -5,6 +5,9 @@ import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { Line2 } from "three/examples/jsm/lines/Line2.js";
+import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
+import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 import { CSS2DObject, CSS2DRenderer } from "three/examples/jsm/renderers/CSS2DRenderer.js";
 import { getPlayback3d, type MatchEvent, type Playback, type Playback3D } from "../api";
 import { useApi } from "../useApi";
@@ -195,7 +198,17 @@ function Stage(props: Map3DProps & { data: Playback3D }) {
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.screenSpacePanning = true;
     controls.maxDistance = span * 3;
+    controls.minDistance = 1;
+    controls.enableDamping = true; // glides to a stop instead of halting dead
+    controls.dampingFactor = 0.12;
+    controls.zoomToCursor = true; // the wheel zooms towards what the pointer is over, not the middle of the map
+    controls.zoomSpeed = 1.4;
+    controls.rotateSpeed = 0.8;
+    controls.panSpeed = 1.2;
+    // left drag turns, right drag (or Shift + left drag) moves sideways, wheel zooms, middle drag zooms
+    controls.mouseButtons = { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN };
     controls.addEventListener("change", () => { dirty.current = true; });
+    renderer.domElement.addEventListener("contextmenu", (e) => e.preventDefault()); // right drag moves: no menu
 
     // --- map model ---
     let disposed = false;
@@ -317,29 +330,60 @@ function Stage(props: Map3DProps & { data: Playback3D }) {
     const pb = latest.current.playback;
     const attacker = pb.attacking_team === "blue" ? TEAM_COLORS[1] : pb.attacking_team === "orange" ? TEAM_COLORS[2] : "#ffffff";
     const payloadSamples = (data.payload ?? []).flatMap((q, k) => (q ? [{ k, q }] : []));
-    let cart: THREE.Mesh | null = null;
-    let travelled: THREE.Line | null = null;
+    let cart: THREE.Group | null = null;
+    let travelled: Line2 | null = null;
     let routeLen = 0;
+    const routePts: THREE.Vector3[] = [];
+    const lineMats: LineMaterial[] = [];
     if (payloadSamples.length) {
-      cart = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.0, 1.4), new THREE.MeshStandardMaterial({ color: attacker, emissive: attacker, emissiveIntensity: 0.35 }));
-      cart.raycast = () => {};
+      // the flamingo (its own model, taken out of the map file so it can move); a box stands in until it has loaded
+      cart = new THREE.Group();
+      const stand = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.0, 1.4), new THREE.MeshStandardMaterial({ color: attacker, emissive: attacker, emissiveIntensity: 0.35 }));
+      stand.raycast = () => {};
+      cart.add(stand);
+      // a ring under it in the attacking team's colour (the flamingo itself is pink for both teams)
+      const base = new THREE.Mesh(new THREE.TorusGeometry(1.5, 0.09, 8, 40).rotateX(Math.PI / 2), new THREE.MeshBasicMaterial({ color: attacker }));
+      base.position.y = -0.7;
+      base.raycast = () => {};
+      cart.add(base);
       scene.add(cart);
+      const group = cart;
+      if (data.payload_model)
+        new GLTFLoader().load(data.payload_model, (gltf) => {
+          if (disposed) return;
+          gltf.scene.traverse((o) => {
+            const mesh = o as THREE.Mesh;
+            if (!mesh.isMesh) return;
+            for (const m of ([] as THREE.Material[]).concat(mesh.material)) (m as THREE.MeshStandardMaterial).flatShading = true;
+            mesh.raycast = () => {};
+          });
+          group.remove(stand);
+          group.add(gltf.scene);
+          dirty.current = true;
+        });
     }
     if (data.objects.route?.length) {
       // the route is (x, z) per metre of payload distance; its height comes from the nearest recorded cart position
       let y = payloadSamples[0]?.q[1] ?? center.y - 1.5;
-      const pts = data.objects.route.map(([x, z]) => {
+      for (const [x, z] of data.objects.route) {
         let best = 16;
         for (const { q } of payloadSamples) {
           const d = (q[0] - x) ** 2 + (q[2] - z) ** 2;
           if (d < best) { best = d; y = q[1]; }
         }
-        return new THREE.Vector3(x, y + 0.1, z);
-      });
-      routeLen = pts.length;
-      const full = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineDashedMaterial({ color: "#ffffff", dashSize: 1, gapSize: 1, transparent: true, opacity: 0.45 }));
+        routePts.push(new THREE.Vector3(x, y + 0.15, z));
+      }
+      routeLen = routePts.length;
+      // thick lines (a plain WebGL line is always 1 px): the whole route faint and dashed, what the payload has covered
+      // solid in the attacking team's colour and drawn over the map, so progress reads at a glance from any camera
+      const flat = routePts.flatMap((v) => [v.x, v.y, v.z]);
+      const faint = new LineMaterial({ color: 0xffffff, linewidth: 3, dashed: true, dashSize: 1.2, gapSize: 1, transparent: true, opacity: 0.55 });
+      const full = new Line2(new LineGeometry().setPositions(flat), faint);
       full.computeLineDistances();
-      travelled = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts.map((v) => v.clone().setY(v.y + 0.05))), new THREE.LineBasicMaterial({ color: attacker }));
+      const done = new LineMaterial({ color: new THREE.Color(attacker).getHex(), linewidth: 7, depthTest: false, transparent: true });
+      travelled = new Line2(new LineGeometry().setPositions(flat.map((v, k) => (k % 3 === 1 ? v + 0.05 : v))), done);
+      travelled.renderOrder = 10;
+      lineMats.push(faint, done);
       for (const l of [full, travelled]) { l.raycast = () => {}; scene.add(l); }
     }
 
@@ -385,6 +429,48 @@ function Stage(props: Map3DProps & { data: Playback3D }) {
     engine.current = { setCamera };
     setCamera(mode);
 
+    // --- keyboard: W A S D move (Shift = faster), Q / E down / up, R puts the camera back (orbit and top-down only) ---
+    const held = new Set<string>();
+    let fast = false;
+    const typing = (t: EventTarget | null) => t instanceof HTMLElement && /^(input|textarea|select)$/i.test(t.tagName);
+    const onKeyDown = (e: KeyboardEvent) => {
+      fast = e.shiftKey;
+      if (e.ctrlKey || e.metaKey || e.altKey || typing(e.target) || !controls.enabled) return;
+      const k = e.key.toLowerCase();
+      if (k === "r") { setCamera(mode); return; }
+      if (k.length === 1 && "wasdqe".includes(k)) { held.add(k); e.preventDefault(); dirty.current = true; }
+    };
+    const onKeyUp = (e: KeyboardEvent) => { fast = e.shiftKey; held.delete(e.key.toLowerCase()); };
+    const onBlur = () => { held.clear(); fast = false; };
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("blur", onBlur);
+    const fwd = new THREE.Vector3(), side = new THREE.Vector3(), step = new THREE.Vector3();
+    let lastFly = performance.now();
+    function fly(now: number) {
+      const dt = Math.min(0.1, (now - lastFly) / 1000);
+      lastFly = now;
+      if (!held.size || !controls.enabled) return;
+      // speed grows with the distance to what is being looked at: slow close up, quick from far away
+      const speed = Math.max(4, camera.position.distanceTo(controls.target) * 0.9) * (fast ? 3 : 1);
+      camera.getWorldDirection(fwd);
+      if (mode === "top") fwd.set(0, 0, -1); else fwd.y = 0;
+      fwd.normalize();
+      side.crossVectors(fwd, camera.up).normalize();
+      step.set(0, 0, 0);
+      if (held.has("w")) step.add(fwd);
+      if (held.has("s")) step.sub(fwd);
+      if (held.has("d")) step.add(side);
+      if (held.has("a")) step.sub(side);
+      if (held.has("e")) step.y += 1;
+      if (held.has("q")) step.y -= 1;
+      if (!step.lengthSq()) return;
+      step.normalize().multiplyScalar(speed * dt);
+      camera.position.add(step); // the target moves with the camera, so turning still works from the new spot
+      controls.target.add(step);
+      dirty.current = true;
+    }
+
     // --- picking: a click (not a drag) on a player picks them ---
     const ray = new THREE.Raycaster();
     let down: [number, number] | null = null;
@@ -406,6 +492,7 @@ function Stage(props: Map3DProps & { data: Playback3D }) {
       labels.setSize(w, h);
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
+      for (const m of lineMats) m.resolution.set(w, h);
       dirty.current = true;
     };
     const observer = new ResizeObserver(resize);
@@ -511,9 +598,16 @@ function Stage(props: Map3DProps & { data: Playback3D }) {
         cart.visible = !!q;
         if (q) cart.position.set(q[0], q[1], q[2]);
       }
-      if (travelled) {
-        const dist = Math.max(0, Math.min(routeLen - 1, seriesAt(p.playback.series.payload_distance, sample2d) ?? 0));
-        travelled.geometry.setDrawRange(0, Math.floor(dist) + 1);
+      const dist = Math.max(0, Math.min(routeLen - 1, seriesAt(p.playback.series.payload_distance, sample2d) ?? 0));
+      if (travelled) (travelled.geometry as LineGeometry).instanceCount = Math.max(0, Math.floor(dist));
+      if (cart && routePts.length > 6) {
+        // turn it with the route: the model was built facing along the start of the route
+        const last = routePts.length - 1;
+        const heading = (d: number) => {
+          const a = routePts[Math.max(0, Math.min(last, Math.floor(d) - 2))], b = routePts[Math.max(0, Math.min(last, Math.floor(d) + 3))];
+          return Math.atan2(b.x - a.x, b.z - a.z);
+        };
+        cart.rotation.y = heading(dist) - heading(0);
       }
       if (point && pointRing) {
         const blue = seriesAt(p.playback.series.blue_points, sample2d) ?? 0;
@@ -559,8 +653,12 @@ function Stage(props: Map3DProps & { data: Playback3D }) {
     }
 
     let raf = 0;
-    const loop = () => {
+    const loop = (now: number) => {
       raf = requestAnimationFrame(loop);
+      if (controls.enabled) {
+        fly(now);
+        controls.update(); // damping: carries on gliding after the mouse is released (marks the frame dirty while it moves)
+      }
       if (!dirty.current && !settling) return; // paused and nothing moved: no work (render on demand)
       dirty.current = false;
       update();
@@ -572,6 +670,9 @@ function Stage(props: Map3DProps & { data: Playback3D }) {
     return () => {
       disposed = true;
       cancelAnimationFrame(raf);
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("blur", onBlur);
       observer.disconnect();
       renderer.domElement.removeEventListener("pointerdown", onDown);
       renderer.domElement.removeEventListener("pointerup", onUp);

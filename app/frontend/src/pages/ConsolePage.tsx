@@ -90,6 +90,23 @@ const GROUPS: { title: string; commands: Command[] }[] = [
         help: "Import progress, replay counts, failures and players, as text (the Dashboard shows the same live).",
       },
       {
+        name: "remote-status",
+        label: "Where replays are processed",
+        help: "Whether this server or another PC (remote_worker.bat) reads the replays, and when the PC last asked for work.",
+      },
+      {
+        name: "remote-on",
+        label: "Process replays on another PC",
+        help: "The server stops reading replays itself and leaves them to the PC running remote_worker.bat, so the NAS stays free for visitors. Nothing is processed until that PC is running.",
+        confirm: () => "Stop this server from reading replays and leave it to the other PC?",
+      },
+      {
+        name: "remote-off",
+        label: "Process replays on this server again",
+        help: "The server reads replays itself again. Replays the PC was still working on are queued again.",
+        confirm: () => "Let this server read replays itself again?",
+      },
+      {
         name: "scan",
         label: "Scan the replay folder",
         help: "Look for new and changed replay files now. The server also does this every few minutes.",

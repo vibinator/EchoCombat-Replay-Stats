@@ -728,6 +728,7 @@ export interface Playback {
 export interface Playback3D {
   map: string;
   model: string | null; // /maps3d/<map>.glb, null = no 3D map for this map
+  payload_model: string | null; // /maps3d/<map>_payload.glb (the flamingo, centred on itself), null = draw a box
   extent?: [number, number, number, number] | null; // play area: x min, x max, z min, z max (metres)
   hz: number;
   samples: number;

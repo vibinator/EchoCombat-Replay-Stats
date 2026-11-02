@@ -11,7 +11,7 @@ from starlette.exceptions import HTTPException
 from parser import PARSER_VERSION
 
 from . import auth, discord_names, guard, icons, tracks
-from .api import achievements, admin, auth as auth_api, console, imports, profiles, leaderboard, matches, overview, permissions, players, replays
+from .api import achievements, admin, auth as auth_api, console, imports, profiles, leaderboard, matches, overview, permissions, players, remote_worker, replays
 from .config import PROJECT_ROOT, Settings
 from .db import open_db, warm
 from .errors import ApiError, api_error_handler
@@ -90,6 +90,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(achievements.router)
     app.include_router(overview.router)
     app.include_router(auth_api.router)
+    app.include_router(remote_worker.router)
     app.include_router(admin.router)
     app.include_router(console.router)
     app.include_router(profiles.router)

@@ -122,6 +122,21 @@ def test_static_cache_headers(path, content_type, expected):
     assert headers["cache-control"] == expected
 
 
+@pytest.mark.parametrize("query, expected", [
+    (b"v=2026.11.02.4", "public, max-age=31536000, immutable"),
+    (b"x=1&v=2026.11.02.4", "public, max-age=31536000, immutable"),
+    (b"", "public, max-age=14400"),  # no version: an updated model must reach everyone
+    (b"v=", "public, max-age=14400"),
+    (b"rev=1", "public, max-age=14400"),
+])
+def test_map_models_are_kept_for_good_only_with_a_version(query, expected):
+    message = {"type": "http.response.start", "status": 200, "headers": []}
+    headers = MutableHeaders(scope=message)
+    headers["content-type"] = "model/gltf-binary"
+    _static_cache(headers, "/maps3d/dyson.glb", 200, query)
+    assert headers["cache-control"] == expected
+
+
 def test_page_addresses_fall_back_to_the_site(tmp_path):
     """Client-side routes get index.html, including profile addresses with the player's name (which may contain a
     dot: only the last segment, the user id, decides whether it is a file); missing files stay 404."""

@@ -29,6 +29,7 @@ npm install
 | `ECHOVR_DISCORD_CLIENT_SECRET` | – | Discord login (D41). Secret: never in GitHub |
 | `ECHOVR_DISCORD_BOT_TOKEN` | – | Bot that checks the preview role (D41). Secret: never in GitHub |
 | `ECHOVR_BOT_LINK_SECRET` | – | Shared secret the Discord bot sends as `Authorization: Bearer <secret>` to link Discord accounts to players (D54). Unset = bot linking off. Secret: never in GitHub |
+| `ECHOVR_REMOTE_WORKER_SECRET` | – | "Process replays on another PC" (see Remote processing): the PC sends it as `Authorization: Bearer <secret>`. Unset = the endpoints do not exist. Use a long random value; secret: never in GitHub |
 | `ECHOVR_DISCORD_PREVIEW_ROLES` | – | Optional: role id(s) and / or Discord user id(s), comma-separated. Those people get the preview **and the website's Console page (admin.bat on the website, D45)**. For the preview alone use admin console option 14 |
 | `ECHOVR_RATE_LIMIT_PER_MIN` | `60` | Scraper protection (D48): website data requests per visitor per minute, bursts up to twice that; heatmaps, playback, compare and downloads count 5. `0` = no limit |
 | `ECHOVR_RATE_LIMIT_PER_HOUR` | `1500` | Same, per visitor per hour (no burst above it). `0` = no hourly limit |
@@ -55,6 +56,7 @@ Replays it queues go to the front of the queue: a running server picks them up w
 | `admin.bat reprocess <replay id or path>` | Read one replay again |
 | `admin.bat repair <replay id or path>` / `repair-failed` | Repair (salvage) damaged replays |
 | `admin.bat cannot-repair [--hide]` / `hidden [--unhide <path> \| --unhide-all]` | Replays repair cannot fix: list, hide from the Import page, show again |
+| `admin.bat remote [--on \| --off]` | Read replays on another PC (`remote_worker.bat`) instead of on this server; no option shows the setting and when the PC last asked for work. Menu option 21 |
 | `admin.bat scan` | Look for new files in the replay folder now |
 | `admin.bat reprocess-all` | Rescan the folder, then read every replay again (about 3 hours; current results stay visible until replaced) |
 | `admin.bat status` | Server, import progress (finished %, speed, time left), failures, player counts |
@@ -155,6 +157,22 @@ files (scripts, styles, images) were already kept by Cloudflare and need nothing
 After an admin change (merge, challenge period) Cloudflare can show the old answer for up to 60 s and the server for
 up to 5 minutes; nothing needs purging. Caching > Configuration > *Development Mode* bypasses Cloudflare's cache for
 3 hours when needed.
+
+## Remote processing (read replays on a PC instead of the NAS)
+Reading replays is slow on the NAS. Another Windows PC with the replay share connected can do it:
+1. **On the NAS:** add `ECHOVR_REMOTE_WORKER_SECRET: <a long random value>` to the application's environment in the compose file and recreate the application.
+2. **On the PC:** have the app at the same version as the website (`git pull`, then `run.bat` once), and create `settings.local.bat` (never uploaded) with
+   ```
+   set ECHOVR_REMOTE_WORKER_SECRET=<the same value>
+   set ECHOVR_REMOTE_SERVER=https://echocombat.com
+   set ECHOVR_REPLAY_SOURCE=Z:\ECRanked\Replays
+   ```
+   `ECHOVR_REMOTE_SERVER` may also be the NAS's address on the home network (`http://<nas>:8000`): faster, and it does not go through Cloudflare.
+3. **Turn it on:** Console > *Process replays on another PC* (or `admin.bat remote --on`). From then on the NAS reads no replays itself.
+4. **Run `remote_worker.bat`** on the PC (all cores but two; `--workers N` changes that). It prints what it does; Ctrl+C stops it and gives unfinished replays back.
+5. **Turn it off** with *Process replays on this server again* (or `admin.bat remote --off`) when the PC is not running: until then nothing is read (the Console status says when the PC last asked for work).
+
+Good to know: the PC only reads and sends results; the NAS is the only one that writes to the database. If the PC cannot see a file, it gives the replay back instead of marking it failed. A replay the PC claimed and never answered is queued again after 30 minutes. If Cloudflare turns the PC's requests away (bot protection), use the NAS's home-network address.
 
 ## Discord login (achievement previews, D41)
 Before the achievements launch date (admin console option 5), members of the Discord server

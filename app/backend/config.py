@@ -35,6 +35,8 @@ class Settings:
     discord_preview_roles: tuple[str, ...] = ()  # role ids; any one of them gives preview access
     # Shared secret the Discord bot sends (Authorization: Bearer ...) to link Discord accounts to players; "" = off
     bot_link_secret: str = ""
+    # "Process replays on another PC" (remote.py): the PC (remote_worker.bat) sends this secret; "" = the endpoints do not exist
+    remote_worker_secret: str = ""
     # Scraper protection (D48, guard.py): /api only for the site's own pages, no bots; tests turn it off
     scraper_guard: bool = True
     rate_limit_per_min: int = 30  # /api requests per visitor per minute (bursts up to 2x); 0 = no limit
@@ -72,6 +74,7 @@ class Settings:
             edge_cache_s=int(env("ECHOVR_EDGE_CACHE_S", 60)),
             twitch_channel=env("ECHOVR_TWITCH_CHANNEL", "combat_stream_bot"),
             bot_link_secret=_secret(env("ECHOVR_BOT_LINK_SECRET")),
+            remote_worker_secret=_secret(env("ECHOVR_REMOTE_WORKER_SECRET")),
             discord_preview_roles=tuple(r.strip() for r in _secret(env("ECHOVR_DISCORD_PREVIEW_ROLES")).split(",") if r.strip()),
         )
 

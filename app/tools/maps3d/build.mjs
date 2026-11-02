@@ -67,6 +67,32 @@ function loadFbx(file) {
   return obj;
 }
 
+/** <map>_payload.glb: the payload model on its own, centred on its own middle (x, y, z) so the viewer can put it at the
+ *  cart's recorded position. It keeps the orientation it was baked with, at the start of the route. */
+async function writePayload(io, name, parts, mirrored, outDir) {
+  const merged = mergeGeometries(parts.map((p) => p.g));
+  merged.computeBoundingBox();
+  const centre = merged.boundingBox.getCenter(new THREE.Vector3());
+  const pos = new Float32Array(merged.attributes.position.array);
+  for (let i = 0; i < pos.length; i += 3) { pos[i] -= centre.x; pos[i + 1] -= centre.y; pos[i + 2] -= centre.z; }
+  if (mirrored) for (let i = 0; i < pos.length; i += 9) for (let k = 0; k < 3; k++) [pos[i + 3 + k], pos[i + 6 + k]] = [pos[i + 6 + k], pos[i + 3 + k]];
+  const { mat } = parts[0];
+  const doc = new Document();
+  doc.getRoot().getAsset().generator = "EchoVR-Replay-Stats app/tools/maps3d (ec-web-replayer minimap FBX, MIT)";
+  const buffer = doc.createBuffer();
+  const material = doc.createMaterial("payload").setBaseColorFactor([mat.color.r, mat.color.g, mat.color.b, 1])
+    .setMetallicFactor(0).setRoughnessFactor(1).setDoubleSided(true);
+  const accessor = doc.createAccessor().setType("VEC3").setArray(pos).setBuffer(buffer);
+  const mesh = doc.createMesh("payload").addPrimitive(doc.createPrimitive().setMaterial(material).setAttribute("POSITION", accessor));
+  doc.createScene("payload").addChild(doc.createNode("payload").setMesh(mesh));
+  await doc.transform(weld(), dedup(), prune(), quantize({ quantizePosition: 14 }));
+  const out = path.join(outDir, `${name}_payload.glb`);
+  await io.write(out, doc);
+  const size = merged.boundingBox.getSize(new THREE.Vector3());
+  console.log(`${name}_payload: ${fs.statSync(out).size} B, ${pos.length / 9} triangles, size ${size.toArray().map((v) => v.toFixed(2)).join(" x ")} m, `
+    + `was at (${centre.x.toFixed(1)}, ${centre.y.toFixed(1)}, ${centre.z.toFixed(1)})`);
+}
+
 async function build(srcDir, outDir) {
   await MeshoptSimplifier.ready;
   const io = new NodeIO().registerExtensions([KHRMeshQuantization]);
@@ -76,9 +102,18 @@ async function build(srcDir, outDir) {
     const place = placement(m);
     const mirrored = place.determinant() < 0;
     const byMaterial = new Map();
+    const payloadParts = []; // the flamingo: a part named "payload", baked at the start of the route (surge, fission)
     loadFbx(src).traverse((o) => {
       if (!o.isMesh) return;
       const mat = [].concat(o.material)[0];
+      if (o.name === "payload") {
+        const g = new THREE.BufferGeometry();
+        g.setAttribute("position", o.geometry.attributes.position.clone());
+        if (o.geometry.index) g.setIndex(o.geometry.index.clone());
+        g.applyMatrix4(new THREE.Matrix4().multiplyMatrices(place, o.matrixWorld));
+        payloadParts.push({ mat, g: g.index ? g.toNonIndexed() : g });
+        return; // not part of the map: the viewer moves it along the route (it would stand at the start otherwise)
+      }
       const g = new THREE.BufferGeometry();
       g.setAttribute("position", o.geometry.attributes.position.clone());
       if (o.geometry.index) g.setIndex(o.geometry.index.clone());
@@ -108,6 +143,7 @@ async function build(srcDir, outDir) {
       dedup(), prune(), quantize({ quantizePosition: 14 }));
     const out = path.join(outDir, `${name}.glb`);
     await io.write(out, doc);
+    if (payloadParts.length) await writePayload(io, name, payloadParts, mirrored, outDir);
     const tris = mesh.listPrimitives().reduce((n, p) => n + p.getIndices().getCount() / 3, 0);
     console.log(`${name}: ${fs.statSync(src).size} B fbx -> ${fs.statSync(out).size} B glb, ${tris} triangles, ${byMaterial.size} materials`);
   }

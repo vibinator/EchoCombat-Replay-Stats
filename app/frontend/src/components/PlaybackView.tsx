@@ -536,10 +536,15 @@ export function PlaybackView({ playback, clock, compact = false, label, matchId,
   );
   const banner = moments.filter((e) => second >= e.t_s && second - e.t_s < BANNER_S).pop();
   // weapon each player holds now (icon in the 3D labels)
-  const weapons = useMemo(
-    () => new Map(view === "3d" ? playback.players.map((p) => [p.user_id, loadoutAt(p, playback.gear, i)[0]] as [string, string]).filter(([, w]) => w !== "–") : []),
-    [view, playback.players, playback.gear, i],
-  );
+  // the same Map until somebody's weapon changes: a new one every tick made the 3D labels redo their work for nothing
+  const lastWeapons = useRef(new Map<string, string>());
+  const weapons = useMemo(() => {
+    const next = new Map(view === "3d" ? playback.players.map((p) => [p.user_id, loadoutAt(p, playback.gear, i)[0]] as [string, string]).filter(([, w]) => w !== "–") : []);
+    const last = lastWeapons.current;
+    if (next.size === last.size && [...next].every(([id, w]) => last.get(id) === w)) return last;
+    lastWeapons.current = next;
+    return next;
+  }, [view, playback.players, playback.gear, i]);
 
   /** Copy a link to this moment (or to the last 10 s as a clip) with the view, camera and picked player. */
   function copyLink(clip: boolean) {

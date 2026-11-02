@@ -42,7 +42,7 @@ from sqlalchemy import create_engine, event, func, not_, select  # noqa: E402
 from sqlalchemy.orm import Session, sessionmaker  # noqa: E402
 
 from backend import admin_actions as actions  # noqa: E402
-from backend import aliases, auth  # noqa: E402
+from backend import aliases, auth, remote  # noqa: E402
 from backend.admin_actions import AGGRESSIVE_REPAIRABLE, REPAIRABLE, AdminError, hidden_failure, unrepairable  # noqa: E402
 from backend.config import Settings  # noqa: E402
 from backend.version import APP_VERSION  # noqa: E402
@@ -431,6 +431,8 @@ def cmd_status(sessions) -> None:
     if stuck or hidden:
         print(f"Cannot be repaired: {stuck} shown on the website, {hidden} hidden")
     print(f"Players: {players}  ·  merges: {merges}")
+    with sessions() as db:
+        print(f"Replays are processed {remote.describe(db)}")
 
 
 def cmd_repair_failed(sessions, yes: bool) -> None:
@@ -593,6 +595,21 @@ def cmd_reprocess_all(sessions, settings: Settings, yes: bool) -> None:
 
 # --- interactive menu -------------------------------------------------------------------------
 
+def cmd_remote_processing(sessions, on: bool | None = None) -> bool:
+    """Replays read on another PC (remote_worker.bat) instead of on this server: on = the server's own worker takes no
+    replays, the PC does; off = the server reads them itself again. None only shows the setting."""
+    with sessions() as db:
+        if on is not None:
+            remote.set_enabled(db, on)
+        state = remote.enabled(db)
+        where = remote.describe(db)
+    if on is not None:
+        print("Remote processing is ON: this server no longer reads replays itself. Start remote_worker.bat on the PC."
+              if state else "Remote processing is OFF: this server reads replays itself again (what the PC still holds is queued again).")
+    print(f"Replays are processed {where}")
+    return state
+
+
 MENU = f"""
 EchoVR Replay Stats - admin console ({APP_VERSION})
   1  Find a player
@@ -615,6 +632,7 @@ EchoVR Replay Stats - admin console ({APP_VERSION})
   18 Hide stats from players (win-loss)
   19 Aggressive repair of broken replays (after 7)
   20 Aggressive repair of one replay
+  21 Process replays on another PC (on / off)
   q  Quit"""
 
 
@@ -735,8 +753,13 @@ def interactive(sessions, settings: Settings) -> None:
                 term = ask("Replay id or file path: ")
                 if term:
                     cmd_repair_aggressive(sessions, term)
+            elif choice == "21":
+                cmd_remote_processing(sessions)
+                pick = ask("Turn it on (y), off (n), or leave as it is (Enter): ").lower()
+                if pick in ("y", "n"):
+                    cmd_remote_processing(sessions, pick == "y")
             else:
-                print("Choose 1-20 or q.")
+                print("Choose 1-21 or q.")
         except ConsoleError as e:
             print(f"! {e}")
 
@@ -746,7 +769,7 @@ def interactive(sessions, settings: Settings) -> None:
 # subcommands that change something: written to the audit log (Console page) with the Windows / container user
 LOGGED = {"merge", "unmerge", "challenge", "preview-roles", "admin-roles", "admin-users", "hide-stats", "repair-failed",
           "cannot-repair", "hidden", "reprocess", "repair", "scan", "reprocess-all", "repair-aggressive",
-          "repair-aggressive-failed"}
+          "repair-aggressive-failed", "remote"}
 
 
 def _run_logged(sessions, settings: Settings, args) -> int:
@@ -808,6 +831,8 @@ def main_command(sessions, settings: Settings, args) -> None:
             cmd_repair_aggressive(sessions, args.replay)
         case "repair-aggressive-failed":
             cmd_repair_aggressive_failed(sessions, args.yes)
+        case "remote":
+            cmd_remote_processing(sessions, True if args.on else False if args.off else None)
         case "scan":
             cmd_scan(sessions, settings)
         case "reprocess-all":
@@ -860,6 +885,9 @@ def main(argv: list[str] | None = None) -> int:
         .add_argument("replay", help="replay id or file path")
     p = sub.add_parser("repair-aggressive-failed", help="aggressive repair of broken replays repair mode could not fix")
     p.add_argument("--yes", action="store_true")
+    p = sub.add_parser("remote", help="process replays on another PC (remote_worker.bat) instead of this server")
+    p.add_argument("--on", action="store_true", help="the PC reads replays; this server stops reading them")
+    p.add_argument("--off", action="store_true", help="this server reads replays itself again")
     sub.add_parser("scan", help="look for new / changed files in the replay folder now")
     p = sub.add_parser("reprocess-all", help="rescan the folder, then read every replay again (hours)")
     p.add_argument("--yes", action="store_true")

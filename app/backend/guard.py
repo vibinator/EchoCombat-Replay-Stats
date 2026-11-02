@@ -118,13 +118,14 @@ def check(request, limiter: RateLimiter | None, hourly: RateLimiter | None = Non
         return _refuse(403, "crawler", "Automated crawling of this site is not allowed.")
     if not path.startswith("/api/") or path.startswith("/api/health"):
         return None
-    bot = path.startswith("/api/bot/")  # the Discord bot is a script: its endpoints check its secret instead
+    worker = path.startswith("/api/worker/")  # the remote processing PC: a script too, with a secret; no rate limit (a PC sends a result per replay)
+    bot = worker or path.startswith("/api/bot/")  # the Discord bot is a script: its endpoints check its secret instead
     if not bot and (not agent or SCRIPT_AGENTS.search(agent)):
         return _refuse(403, "automated", "Automated access to this site's data is not allowed.")
     exempt = bot or path.startswith(HEADER_EXEMPT) or path.endswith(HEADER_EXEMPT_SUFFIXES)
     if not exempt and request.headers.get("x-echovr") != "1":
         return _refuse(403, "automated", "Automated access to this site's data is not allowed.")
-    if limiter is not None:
+    if limiter is not None and not worker:
         cost = HEAVY_COST if any(h in path for h in HEAVY) else 1
         # the per-minute bucket stops bursts, the hourly one bounds how much one visitor can copy in a day
         wait = max(limiter.take(client_ip(request), cost), hourly.take(client_ip(request), cost) if hourly else 0.0)
