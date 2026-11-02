@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { Link, Navigate, useParams, useSearchParams } from "react-router";
 import {
   getCompanions, getPlayer, getPlayerHeatmapBy, getTrends,
@@ -19,11 +19,114 @@ const PERIODS: [Period, string][] = [
   ["all", "All time"],
 ];
 
-function cards(s: PlayerStats): [string, string, string?][] {
-  const list: [string, string, string?][] = [
+/** "Mostly right", "Even split"…: which of two parts is bigger, in a word or two. `strong` = label at 90 %+. */
+function leaning(first: number, names: [string, string], strong?: [string, string]): string {
+  const i = first >= 0.5 ? 0 : 1;
+  const share = Math.max(first, 1 - first);
+  if (strong && share >= 0.9) return strong[i];
+  if (share >= 0.6) return `Mostly ${names[i]}`;
+  return "Even split";
+}
+
+interface Part {
+  label: string;
+  value: number;
+  color: string;
+  /** shown in the legend after the percentage, e.g. a count or a time */
+  detail?: string;
+}
+
+/** Parts of one whole as one bar, with a legend (the colours alone are not enough in the light theme). */
+function SplitBar({ parts }: { parts: Part[] }) {
+  const total = parts.reduce((sum, x) => sum + x.value, 0);
+  if (!total) return null;
+  const share = (x: Part) => x.value / total;
+  return (
+    <>
+      <div className="split-bar" role="img" aria-label={parts.map((x) => `${x.label} ${pct(share(x))}`).join(", ")}>
+        {parts.filter((x) => x.value > 0).map((x) => (
+          <div key={x.label} style={{ width: `${share(x) * 100}%`, background: x.color }} title={`${x.label}: ${pct(share(x))}`} />
+        ))}
+      </div>
+      <span className="split-legend muted">
+        {parts.map((x) => (
+          <span key={x.label}>
+            <span className="split-key" style={{ background: x.color }} aria-hidden="true" />
+            {x.label} {pct(share(x))}
+            {x.detail && ` · ${x.detail}`}
+          </span>
+        ))}
+      </span>
+    </>
+  );
+}
+
+/** Right / left split of the in-game dominant arm, with the ratio underneath. */
+function ArmBar({ left }: { left: number | null }) {
+  if (left == null) return <strong>–</strong>;
+  const right = 1 - left;
+  const ratio = left === 0 ? "right only" : right === 0 ? "left only" : `${num(right / left, 1)} : 1`;
+  return (
+    <>
+      <strong>{leaning(right, ["right", "left"], ["Right-handed", "Left-handed"])}</strong>
+      <SplitBar parts={[
+        { label: "R", value: right, color: "var(--chart-1)" },
+        { label: "L", value: left, color: "var(--chart-2)" },
+      ]} />
+      <span className="muted">Right : left {ratio}</span>
+    </>
+  );
+}
+
+/** Games per map (all four, in the site's map colours). */
+function MapBar({ games }: { games: Record<string, number> }) {
+  return (
+    <SplitBar parts={MAPS.map((m) => ({ label: title(m), value: games[m] ?? 0, color: `var(--map-${m})`, detail: int(games[m] ?? 0) }))} />
+  );
+}
+
+/** Games per mode. */
+function ModeBar({ games }: { games: Record<string, number> }) {
+  const payload = games.payload ?? 0;
+  const capture = games.capture_point ?? 0;
+  if (!(payload + capture)) return <strong>–</strong>;
+  return (
+    <>
+      <strong>{leaning(payload / (payload + capture), ["payload", "capture point"])}</strong>
+      <SplitBar parts={[
+        { label: "Payload", value: payload, color: "var(--chart-1)", detail: int(payload) },
+        { label: "Capture", value: capture, color: "var(--chart-2)", detail: int(capture) },
+      ]} />
+    </>
+  );
+}
+
+/** Time near the payload pushing vs blocking it. */
+function PayloadBar({ push, block }: { push: number; block: number }) {
+  if (!(push + block)) return <strong>–</strong>;
+  return (
+    <>
+      <strong>{leaning(push / (push + block), ["pushing", "blocking"])}</strong>
+      <SplitBar parts={[
+        { label: "Push", value: push, color: "var(--chart-1)", detail: hoursMinutes(push) },
+        { label: "Block", value: block, color: "var(--chart-2)", detail: hoursMinutes(block) },
+      ]} />
+    </>
+  );
+}
+
+type CardRow = [string, ReactNode, string?];
+
+function cards(s: PlayerStats): CardRow[] {
+  const list: CardRow[] = [
     ["Games", int(s.games)],
-    ["Wins – losses", `${int(s.wins)} – ${int(s.losses)}`, "Matches without a known winner are not counted"],
-    ["Win rate", s.wins + s.losses ? pct(s.wins / (s.wins + s.losses)) : "–", "Wins out of the games with a known winner"],
+    // left out of the answer while win-loss stats are hidden from players
+    ...(s.wins != null && s.losses != null
+      ? ([
+          ["Wins – losses", `${int(s.wins)} – ${int(s.losses)}`, "Matches without a known winner are not counted"],
+          ["Win rate", s.wins + s.losses ? pct(s.wins / (s.wins + s.losses)) : "–", "Wins out of the games with a known winner"],
+        ] as CardRow[])
+      : []),
     ["Hours played", num(s.hours_played)],
     ["Deaths*", int(s.deaths_est), "Estimated from leaving the map bounds"],
     ["Deaths / game*", num(s.deaths_per_game_est, 2)],
@@ -37,11 +140,12 @@ function cards(s: PlayerStats): [string, string, string?][] {
     ["Packet loss", s.avg_packet_loss == null ? "–" : `${(s.avg_packet_loss * 100).toFixed(2)}%`],
     ["Emotes", int(s.emote_count)],
     ["Left early", pct(s.pct_left_early), "Last seen more than 45 s before the end"],
-    ["Arm", s.dominant_arm ? `${s.dominant_arm} (${pct(s.dominant_arm === "Left" ? s.pct_left_arm : 1 - (s.pct_left_arm ?? 0))})` : "–"],
+    ["Arm", <ArmBar left={s.pct_left_arm} />, "Share of play time with the in-game dominant arm set to right / left"],
   ];
+  if (s.games) list.push(["Modes", <ModeBar games={s.games_by_mode} />]);
   if (s.games_by_mode.payload) {
-    list.push(["Payload push*", hoursMinutes(s.payload_push_s), "Estimated: within 3 m of the payload"]);
-    list.push(["Payload block*", hoursMinutes(s.payload_block_s), "Estimated: within 3 m of the payload"]);
+    list.push(["Payload push / block*", <PayloadBar push={s.payload_push_s} block={s.payload_block_s} />,
+      "Estimated: within 3 m of the payload, attacking (push) or defending (block)"]);
   }
   return list;
 }
@@ -49,7 +153,8 @@ function cards(s: PlayerStats): [string, string, string?][] {
 function ProfileHeader({ p }: { p: PlayerProfile }) {
   const main = p.loadouts[0];
   const favourite = Object.entries(p.stats.games_by_map).sort((a, b) => b[1] - a[1])[0];
-  const form = p.recent_matches.slice(0, 10);
+  // no `result` while win-loss stats are hidden from players: no form strip then
+  const form = p.recent_matches.slice(0, 10).filter((m) => m.result !== undefined);
   return (
     <div className="profile-header">
       <div>
@@ -157,7 +262,9 @@ function Trends({ userId }: { userId: string }) {
         !t.loading && <p className="muted">Not enough periods for a trend yet.</p>
       ) : (
         <div className="small-multiples">
-          <LineChart title="Win rate" data={items.map((i) => ({ label: i.period, value: i.win_rate }))} format={(v) => pct(v)} min={0} />
+          {items.some((i) => i.win_rate !== undefined) && (
+            <LineChart title="Win rate" data={items.map((i) => ({ label: i.period, value: i.win_rate ?? null }))} format={(v) => pct(v)} min={0} />
+          )}
           <LineChart title="Average speed (m/s)" data={items.map((i) => ({ label: i.period, value: i.avg_speed }))} format={(v) => num(v)} />
           <LineChart title="Deaths per game (est.)" data={items.map((i) => ({ label: i.period, value: i.deaths_per_game_est }))} format={(v) => num(v)} color="var(--chart-2)" />
           <LineChart title="Average ping" data={items.map((i) => ({ label: i.period, value: i.avg_ping }))} format={(v) => num(v, 0)} color="var(--chart-2)" />
@@ -169,6 +276,7 @@ function Trends({ userId }: { userId: string }) {
 }
 
 function CompanionTable({ title: heading, rows, together }: { title: string; rows: Companion[]; together: boolean }) {
+  const showRecord = rows.some((c) => c.wins !== undefined); // hidden from players: left out of the answer
   return (
     <div>
       <h3>{heading}</h3>
@@ -181,7 +289,7 @@ function CompanionTable({ title: heading, rows, together }: { title: string; row
               <tr>
                 <th>Player</th>
                 <th className="num">Games</th>
-                <th className="num">{together ? "Won together" : "Won against"}</th>
+                {showRecord && <th className="num">{together ? "Won together" : "Won against"}</th>}
               </tr>
             </thead>
             <tbody>
@@ -189,9 +297,11 @@ function CompanionTable({ title: heading, rows, together }: { title: string; row
                 <tr key={c.user_id}>
                   <td data-label="Player"><Link to={playerPath(c.user_id, c.name)}>{c.name}</Link></td>
                   <td data-label="Games" className="num">{int(c.games)}</td>
-                  <td data-label={together ? "Won together" : "Won against"} className="num">
-                    {c.wins} – {c.losses}
-                  </td>
+                  {showRecord && (
+                    <td data-label={together ? "Won together" : "Won against"} className="num">
+                      {c.wins} – {c.losses}
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -332,13 +442,17 @@ export function PlayerPage() {
                       {label}
                       <InfoTip text={hint} />
                     </span>
-                    <strong>{value}</strong>
+                    {typeof value === "string" ? <strong>{value}</strong> : value}
                   </div>
                 ))}
+                {p.stats.games > 0 && (
+                  <div className="card wide">
+                    <span className="label">Games per map</span>
+                    <MapBar games={p.stats.games_by_map} />
+                  </div>
+                )}
               </div>
-              <p className="muted footnote">
-                Games per map: {Object.entries(p.stats.games_by_map).map(([m, n]) => `${title(m)} ${int(n)}`).join(" · ")}. * Estimated.
-              </p>
+              <p className="muted footnote">* Estimated.</p>
 
               <h2>Loadouts</h2>
               <TableWrap>

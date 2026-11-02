@@ -365,8 +365,9 @@ export type Period = "day" | "week" | "month" | "all";
 
 export interface PlayerStats {
   games: number;
-  wins: number;
-  losses: number;
+  /** wins / losses / result / win_rate: left out while win-loss stats are hidden (Console: Hide stats from players) */
+  wins?: number;
+  losses?: number;
   games_by_map: Record<string, number>;
   games_by_mode: Record<string, number>;
   hours_played: number;
@@ -390,7 +391,7 @@ export interface PlayerStats {
 
 export interface PlayerMatch extends MatchSummary {
   team: Team;
-  result: "win" | "loss" | null;
+  result?: "win" | "loss" | null;
   deaths_est: number;
   play_time_s: number;
 }
@@ -526,9 +527,9 @@ export interface LeaderboardRow {
   value: number;
   previous_rank: number | null;
   /** same period / map, all modes and gear; null when the player has no plain match rows */
-  wins: number | null;
-  losses: number | null;
-  win_rate: number | null;
+  wins?: number | null;
+  losses?: number | null;
+  win_rate?: number | null;
   hours_played: number | null;
 }
 
@@ -645,9 +646,10 @@ export interface GlobalStats {
   fastest: { user_id: string; name: string; top_speed: number; match_id: number } | null;
   most_active: { user_id: string; name: string; games: number } | null;
   busiest_day: { day: string; matches: number } | null;
-  payload_attack_win_rate: number | null;
-  payload_decided: number;
-  capture_wins: { blue: number; orange: number };
+  /** payload_* and capture_wins: left out while win-loss stats are hidden */
+  payload_attack_win_rate?: number | null;
+  payload_decided?: number;
+  capture_wins?: { blue: number; orange: number };
 }
 
 export interface Overview {
@@ -662,7 +664,7 @@ export interface Overview {
   most_played_map: string | null;
   first_match_at: string | null;
   last_match_at: string | null;
-  top_this_week: { user_id: string; name: string; games: number; wins: number }[];
+  top_this_week: { user_id: string; name: string; games: number; wins?: number }[];
   latest: MatchSummary[];
 }
 
@@ -712,7 +714,7 @@ export interface Playback {
 export interface TrendPoint {
   period: string;
   games: number;
-  win_rate: number | null;
+  win_rate?: number | null;
   deaths_per_game_est: number | null;
   avg_speed: number | null;
   top_speed: number;
@@ -723,14 +725,14 @@ export interface Companion {
   user_id: string;
   name: string;
   games: number;
-  wins: number;
-  losses: number;
+  wins?: number;
+  losses?: number;
 }
 
 export interface Comparison {
   period: Period;
   players: { user_id: string; name: string; stats: PlayerStats }[];
-  head_to_head: Record<"together" | "against", { games: number; wins: number; losses: number }>;
+  head_to_head: Record<"together" | "against", { games: number; wins?: number; losses?: number }>;
 }
 
 export interface ChallengeWindow {

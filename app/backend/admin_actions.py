@@ -244,3 +244,28 @@ def set_challenge_window(db: Session, start: str | None, end: str | None) -> tup
         db.merge(AppSetting(key=key, value=value, updated_at=utcnow()))
     db.commit()
     return start or None, end or None
+
+
+# --- stats hidden from players -------------------------------------------------------------------
+
+HIDDEN_STATS_KEY = "hidden_stats"
+# group -> what it covers on the website. Hidden groups are left out of every API answer for visitors who are not
+# logged-in admins (backend/visibility.py), against pub stomping (user, 2026-11-02).
+STAT_GROUPS = {
+    "win_loss": "Win-loss stats: wins, losses and win rates (profiles, trends, compare, teammates / opponents, "
+                "leaderboard, home page, payload / capture point team win rates) and the W / L of each match on a profile",
+}
+
+
+def hidden_stats(db: Session) -> list[str]:
+    value = db.scalar(select(AppSetting.value).where(AppSetting.key == HIDDEN_STATS_KEY))
+    return [g for g in (value or "").split(",") if g in STAT_GROUPS]
+
+
+def set_stats_hidden(db: Session, group: str, hidden: bool) -> list[str]:
+    if group not in STAT_GROUPS:
+        raise AdminError(f"'{group}' is not a stat group ({', '.join(STAT_GROUPS)})")
+    groups = [g for g in hidden_stats(db) if g != group] + ([group] if hidden else [])
+    db.merge(AppSetting(key=HIDDEN_STATS_KEY, value=",".join(sorted(groups)) or None, updated_at=utcnow()))
+    db.commit()
+    return sorted(groups)

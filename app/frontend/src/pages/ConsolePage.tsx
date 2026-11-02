@@ -168,6 +168,32 @@ const GROUPS: { title: string; commands: Command[] }[] = [
     ],
   },
   {
+    title: "Website",
+    commands: [
+      {
+        name: "hide-stats",
+        label: "Hide stats from players",
+        help:
+          "Against pub stomping: hidden stats are left out of the website for everyone except logged-in admins. Win-loss covers wins, " +
+          "losses and win rates on profiles, trends, compare, teammates / opponents, the leaderboard and the home page (including the " +
+          "payload attack and capture point team win rates), and the W / L " +
+          "of each match on a profile. Leave both boxes empty to see what is hidden now.",
+        fields: [
+          { key: "hide_win_loss", label: "Hide win-loss stats", kind: "check" },
+          { key: "show_win_loss", label: "Show win-loss stats again", kind: "check" },
+        ],
+        confirm: (v) =>
+          v.hide_win_loss && v.show_win_loss
+            ? "Both boxes are ticked: win-loss stats end up shown. Continue?"
+            : v.hide_win_loss
+              ? "Hide win-loss stats from everyone except logged-in admins?"
+              : v.show_win_loss
+                ? "Show win-loss stats to everyone again?"
+                : null,
+      },
+    ],
+  },
+  {
     title: "Discord access",
     commands: [
       {

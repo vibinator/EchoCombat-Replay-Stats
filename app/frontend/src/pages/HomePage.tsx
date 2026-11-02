@@ -309,10 +309,12 @@ export function HomePage() {
                             <strong>{p.games.toLocaleString()}</strong>
                             <span className="muted">matches</span>
                           </div>
-                          <div className="active-stat">
-                            <strong>{pct(p.wins / p.games)}</strong>
-                            <span className="muted">{p.wins.toLocaleString()} won</span>
-                          </div>
+                          {p.wins != null && (
+                            <div className="active-stat">
+                              <strong>{pct(p.wins / p.games)}</strong>
+                              <span className="muted">{p.wins.toLocaleString()} won</span>
+                            </div>
+                          )}
                         </li>
                       ))}
                     </ol>
@@ -376,18 +378,22 @@ export function HomePage() {
                   <strong>{g.busiest_day?.day ?? "–"}</strong>
                   {g.busiest_day && <span className="muted">{int(g.busiest_day.matches)} matches</span>}
                 </div>
-                <div className="card" title="Payload matches with a known result">
-                  <span className="label">Payload attack wins</span>
-                  <strong>{pct(g.payload_attack_win_rate)}</strong>
-                  <span className="muted">of {g.payload_decided.toLocaleString()} decided</span>
-                </div>
-                <div className="card">
-                  <span className="label">Capture point wins</span>
-                  <strong>
-                    <span className="team-text blue">{int(g.capture_wins.blue)}</span> – <span className="team-text orange">{int(g.capture_wins.orange)}</span>
-                  </strong>
-                  <span className="muted">blue – orange</span>
-                </div>
+                {g.payload_decided != null && (
+                  <div className="card" title="Payload matches with a known result">
+                    <span className="label">Payload attack wins</span>
+                    <strong>{pct(g.payload_attack_win_rate ?? null)}</strong>
+                    <span className="muted">of {g.payload_decided.toLocaleString()} decided</span>
+                  </div>
+                )}
+                {g.capture_wins && (
+                  <div className="card">
+                    <span className="label">Capture point wins</span>
+                    <strong>
+                      <span className="team-text blue">{int(g.capture_wins.blue)}</span> – <span className="team-text orange">{int(g.capture_wins.orange)}</span>
+                    </strong>
+                    <span className="muted">blue – orange</span>
+                  </div>
+                )}
               </div>
 
               <ActivityChart />

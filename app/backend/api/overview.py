@@ -5,7 +5,7 @@ from datetime import date, datetime, timedelta
 from fastapi import APIRouter, Query, Request, Response
 from sqlalchemy import case, func, select
 
-from .. import twitch
+from .. import twitch, visibility
 from ..cache import cached_response
 from ..duplicates import counted
 from ..gear import ORDNANCES, TACMODS, WEAPONS
@@ -19,10 +19,11 @@ router = APIRouter(tags=["overview"])
 @router.get("/api/overview")
 def overview(request: Request):
     """Archive totals, today / this week, most-played map, top players this week, latest matches."""
-    return cached_response(request, "overview", (), lambda: _overview(request))
+    wl = visibility.win_loss(request)
+    return cached_response(request, "overview", (wl,), lambda: _overview(request, wl))
 
 
-def _overview(request: Request) -> dict:
+def _overview(request: Request, wl: bool = True) -> dict:
     today, week = period_start("day"), period_start("week")
     m, mp = counted(Match.id), counted(MatchPlayer.match_id)  # duplicate recordings left out (D13)
     with request.app.state.sessionmaker() as db:
@@ -39,10 +40,12 @@ def _overview(request: Request) -> dict:
             select(Player.user_id, Player.name, func.count().label("games"), func.sum(won).label("wins"))
             .select_from(MatchPlayer).join(Match, Match.id == MatchPlayer.match_id).join(Player)
             .where(Match.started_at >= week, m).group_by(Player.id)
-            .order_by(func.count().desc(), func.sum(won).desc()).limit(5)
+            .order_by(func.count().desc(), *([func.sum(won).desc()] if wl else []), Player.id).limit(5)
         ).all()
         latest = db.scalars(select(Match).where(m).order_by(Match.started_at.desc()).limit(8)).all()
         globals_ = _global_stats(db)
+        if not wl:  # team win rates too (user, 2026-11-02)
+            globals_ = visibility.without(globals_, TEAM_WIN_KEYS)
     return {
         "global": globals_,
         "matches": matches or 0,
@@ -55,7 +58,8 @@ def _overview(request: Request) -> dict:
         "most_played_map": max(by_map, key=by_map.get) if by_map else None,
         "first_match_at": first,
         "last_match_at": last,
-        "top_this_week": [{"user_id": u, "name": n, "games": g, "wins": w or 0} for u, n, g, w in top_week],
+        "top_this_week": [{"user_id": u, "name": n, "games": g} | ({"wins": w or 0} if wl else {})
+                          for u, n, g, w in top_week],
         "latest": [match_summary(m) for m in latest],
     }
 
@@ -180,6 +184,9 @@ def _top_gear(db, limit: int = 3) -> dict[str, list[dict]]:
         ranked = sorted(seconds.items(), key=lambda kv: -kv[1])[:limit]
         out[key] = [gear(code, table) | {"hours": round(s / 3600, 1), "share": ratio(s, total)} for code, s in ranked]
     return out
+
+
+TEAM_WIN_KEYS = ("payload_attack_win_rate", "payload_decided", "capture_wins")
 
 
 def _global_stats(db) -> dict:

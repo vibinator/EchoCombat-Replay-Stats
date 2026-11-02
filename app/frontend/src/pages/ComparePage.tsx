@@ -7,10 +7,16 @@ import { EmptyState, Skeleton, WhenVisible } from "../components/ui";
 import { MAPS, duration, int, num, pct, playerPath, title } from "../format";
 import { useApi } from "../useApi";
 
-const ROWS: [string, (s: PlayerStats) => string, (s: PlayerStats) => number | null, boolean][] = [
+const ROWS: [string, (s: PlayerStats) => string, (s: PlayerStats) => number | null, boolean, ((s: PlayerStats) => boolean)?][] = [
   // label, display, comparable value, higher is better
   ["Games", (s) => String(s.games), (s) => s.games, true],
-  ["Wins – losses", (s) => `${s.wins} – ${s.losses}`, (s) => (s.wins + s.losses ? s.wins / (s.wins + s.losses) : null), true],
+  [
+    "Wins – losses",
+    (s) => `${s.wins} – ${s.losses}`,
+    (s) => (s.wins != null && s.losses != null && s.wins + s.losses ? s.wins / (s.wins + s.losses) : null),
+    true,
+    (s) => s.wins != null, // hidden from players: left out of the answer
+  ],
   ["Hours played", (s) => num(s.hours_played), (s) => s.hours_played, true],
   ["Deaths / game*", (s) => num(s.deaths_per_game_est, 2), (s) => s.deaths_per_game_est, false],
   ["Average speed", (s) => `${num(s.avg_speed, 2)} m/s`, (s) => s.avg_speed, true],
@@ -105,7 +111,7 @@ export function ComparePage() {
                 </tr>
               </thead>
               <tbody>
-                {ROWS.map(([label, show, value, higher]) => {
+                {ROWS.filter(([, , , , shown]) => !shown || c.players.every((p) => shown(p.stats))).map(([label, show, value, higher]) => {
                   const values = c.players.map((p) => value(p.stats));
                   const known = values.filter((v): v is number => v != null);
                   const best = known.length > 1 ? (higher ? Math.max(...known) : Math.min(...known)) : null;
@@ -128,14 +134,18 @@ export function ComparePage() {
             <div className="card">
               <span className="label">Same team</span>
               <strong>{int(c.head_to_head.together.games)} games</strong>
-              <span className="muted">record {c.head_to_head.together.wins} – {c.head_to_head.together.losses}</span>
+              {c.head_to_head.together.wins != null && (
+                <span className="muted">record {c.head_to_head.together.wins} – {c.head_to_head.together.losses}</span>
+              )}
             </div>
             <div className="card">
               <span className="label">Opposite teams</span>
               <strong>{int(c.head_to_head.against.games)} games</strong>
-              <span className="muted">
-                {c.players[0].name} won {c.head_to_head.against.wins}, lost {c.head_to_head.against.losses}
-              </span>
+              {c.head_to_head.against.wins != null && (
+                <span className="muted">
+                  {c.players[0].name} won {c.head_to_head.against.wins}, lost {c.head_to_head.against.losses}
+                </span>
+              )}
             </div>
           </div>
 

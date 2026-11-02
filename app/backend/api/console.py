@@ -38,6 +38,8 @@ class Args(BaseModel):
     unhide_all: bool = False
     replay: str = ""
     user_id: str = ""
+    hide_win_loss: bool = False
+    show_win_loss: bool = False
 
 
 def _required(value: str, what: str) -> str:
@@ -61,6 +63,8 @@ COMMANDS = {  # name as in admin.bat -> (sessions, settings, args) -> None
     "repair": lambda s, st, a: console.cmd_repair(s, _required(a.replay, "a replay id or path")),
     "scan": lambda s, st, a: console.cmd_scan(s, st),
     "reprocess-all": lambda s, st, a: console.cmd_reprocess_all(s, st, yes=True),
+    "hide-stats": lambda s, st, a: console.cmd_hide_stats(s, "win_loss" if a.hide_win_loss else None,
+                                                          "win_loss" if a.show_win_loss else None),
     "discord-check": lambda s, st, a: console.cmd_discord_check(s, st, _required(a.user_id, "a Discord user id")),
 }
 

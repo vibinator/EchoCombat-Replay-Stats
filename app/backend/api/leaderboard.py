@@ -5,6 +5,7 @@ from datetime import date, datetime, timedelta
 from fastapi import APIRouter, Query, Request
 from sqlalchemy import and_, case, func, select
 
+from .. import visibility
 from ..cache import cached, cached_response
 from ..duplicates import counted
 from ..errors import ApiError
@@ -15,6 +16,7 @@ from .derived import MAP_PATTERN, PERIODS, gear, period_start, ratio
 
 router = APIRouter(prefix="/api/leaderboard", tags=["leaderboard"])
 
+WIN_LOSS_STATS = ("wins", "win_rate")  # left out while win-loss stats are hidden (visibility.py)
 # stat -> (label, higher_is_better, value from the aggregate row)
 STATS = {
     "games": ("Games", True, lambda r: r.games),
@@ -87,8 +89,10 @@ def _aggregate_rows(db, request, period, map, private, shift_days: int = 0):
                   lambda: db.execute(_aggregate(_where(period, map, private, shift_days))).all())
 
 
-def _summary(r) -> dict:
+def _summary(r, wl: bool = True) -> dict:
     """Context columns shown beside every leaderboard row, whatever the ranked stat."""
+    if not wl:
+        return {"hours_played": STATS["hours_played"][2](r)}
     return {"wins": r.wins or 0, "losses": r.losses or 0,
             "win_rate": STATS["win_rate"][2](r), "hours_played": STATS["hours_played"][2](r)}
 
@@ -126,7 +130,9 @@ def _rank(values, higher: bool, min_games: int) -> list[tuple[int, int, float]]:
 @router.get("/stats")
 def list_stats(request: Request):
     launched = visible(request)
-    return [{"key": k, "label": label, "higher_is_better": hib} for k, (label, hib, _) in STATS.items()] + [
+    wl = visibility.win_loss(request)
+    return [{"key": k, "label": label, "higher_is_better": hib} for k, (label, hib, _) in STATS.items()
+            if wl or k not in WIN_LOSS_STATS] + [
         {"key": "loadout", "label": "Loadout time (hours)", "higher_is_better": True},
     ] + ([{"key": "achievements", "label": "Achievements (overall %)", "higher_is_better": True}] if launched else [])
 
@@ -148,17 +154,21 @@ def leaderboard(
 ):
     if stat not in STATS and stat not in ("loadout", "achievements"):
         raise ApiError(400, "unknown_stat", f"Unknown stat '{stat}'")
+    wl = visibility.win_loss(request)
+    if stat in WIN_LOSS_STATS and not wl:
+        raise ApiError(404, "stat_hidden", "This stat is hidden")
     for value, table, what in ((weapon, WEAPONS, "weapon"), (tacmod, TACMODS, "tac mod"), (ordnance, ORDNANCES, "ordnance")):
         if value is not None and value not in table:
             raise ApiError(400, "unknown_gear", f"Unknown {what} '{value[:32]}'")
-    params =(stat, period, map, private, min_games, weapon, tacmod, ordnance, compare, limit, offset)
+    params = (stat, period, map, private, min_games, weapon, tacmod, ordnance, compare, limit, offset, wl)
     if stat == "achievements":  # has its own background-refreshed cache
         require_launched(request)
         return _leaderboard(request, *params)
     return cached_response(request, "leaderboard", params, lambda: _leaderboard(request, *params))
 
 
-def _leaderboard(request, stat, period, map, private, min_games, weapon, tacmod, ordnance, compare, limit, offset):
+def _leaderboard(request, stat, period, map, private, min_games, weapon, tacmod, ordnance, compare, limit, offset,
+                 wl: bool = True):
     with request.app.state.sessionmaker() as db:
         label, higher, values = _values(db, request, stat, period, map, private, weapon, tacmod, ordnance)
         previous = {}
@@ -170,9 +180,9 @@ def _leaderboard(request, stat, period, map, private, min_games, weapon, tacmod,
         people = {pid: (name, user_id) for pid, name, user_id in
                   db.execute(select(Player.id, Player.name, Player.user_id).where(Player.id.in_([pid for pid, _, _ in page])))}
         on_page = {pid for pid, _, _ in page}
-        summary = {r.player_id: _summary(r) for r in _aggregate_rows(db, request, period, map, private) if r.player_id in on_page}
+        summary = {r.player_id: _summary(r, wl) for r in _aggregate_rows(db, request, period, map, private) if r.player_id in on_page}
 
-    empty = {"wins": None, "losses": None, "win_rate": None, "hours_played": None}
+    empty = {"wins": None, "losses": None, "win_rate": None, "hours_played": None} if wl else {"hours_played": None}
     ranked = [
         {"rank": offset + i + 1, "user_id": people[pid][1], "name": people[pid][0], "games": games, "value": value,
          "previous_rank": previous.get(pid) if compare else None,

@@ -72,7 +72,8 @@ export function LeaderboardPage() {
   }
 
   const total = board.data?.total ?? 0;
-  const columns = SUMMARY.filter(([key]) => key !== stat);
+  // win-loss columns are left out of the answer while they are hidden from players
+  const columns = SUMMARY.filter(([key]) => key !== stat && (!board.data || board.data.items.some((r) => key in r)));
 
   return (
     <section>

@@ -2442,3 +2442,27 @@ svg .strip-label {
 .event-list tbody tr:hover {
   background: var(--line);
 }
+
+/* player profile: parts of one whole as one bar (arm, modes, payload push / block, maps) */
+.split-bar {
+  display: flex;
+  height: 8px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--line);
+}
+.split-bar > div { height: 100%; }
+.split-bar > div + div { box-shadow: inset 1px 0 0 var(--panel); } /* a hairline between neighbouring parts */
+.split-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+}
+.split-legend > span { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.split-key {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+.card.wide { grid-column: 1 / -1; }

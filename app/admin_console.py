@@ -16,6 +16,7 @@ rule and the affected replays are re-processed from the original files, so it ca
     admin.bat admin-roles [--server] [--add <role id>] [--remove <role id>]     Discord roles: admins (Status page)
     admin.bat admin-users [--add <user id>] [--remove <user id>]   Discord users that are admins (no role needed)
     admin.bat discord-check <discord user id>   what the bot sees for one person: in the server, roles, access
+    admin.bat hide-stats [--hide <group>] [--show <group>]   stats hidden from players (admins still see them)
     admin.bat status
     admin.bat repair-failed [--yes]
     admin.bat cannot-repair [--hide] [--yes]   failed replays repair cannot fix; --hide hides them on the website
@@ -353,6 +354,22 @@ def cmd_discord_check(sessions, settings: Settings, user_id: str) -> dict:
     return {"member": bool(member), "admin": is_admin, "preview": has_preview, "console": has_console}
 
 
+def cmd_hide_stats(sessions, hide: str | None = None, show: str | None = None) -> list[str]:
+    """Stat groups hidden on the website from everyone except logged-in admins (against pub stomping)."""
+    with sessions() as db:
+        if hide:
+            actions.set_stats_hidden(db, hide.strip(), True)
+            print(f"Hidden. Only logged-in admins see {hide.strip()} stats on the website now.")
+        if show:
+            actions.set_stats_hidden(db, show.strip(), False)
+            print(f"Shown. Everyone sees {show.strip()} stats on the website again.")
+        hidden = actions.hidden_stats(db)
+    print("Stats on the website (hidden = only logged-in admins see them):")
+    for group, what in actions.STAT_GROUPS.items():
+        print(f"  {group:<10} {'HIDDEN' if group in hidden else 'shown ':<6}  {what}")
+    return hidden
+
+
 RATE_WINDOW_MIN = 10
 
 
@@ -546,6 +563,7 @@ EchoVR Replay Stats - admin console ({APP_VERSION})
   15 Discord admin roles (Status page)
   16 Check a Discord member's access (Admin, Preview, Console)
   17 Discord admin users (admins by user id)
+  18 Hide stats from players (win-loss)
   q  Quit"""
 
 
@@ -642,8 +660,20 @@ def interactive(sessions, settings: Settings) -> None:
                     cmd_admin_users(sessions, settings, remove=pick[1:])
                 elif pick:
                     cmd_admin_users(sessions, settings, add=pick)
+            elif choice == "18":
+                hidden = cmd_hide_stats(sessions)
+                groups = list(actions.STAT_GROUPS)
+                pick = ask("Number or group to switch between hidden / shown "
+                           f"({', '.join(f'{i} {g}' for i, g in enumerate(groups, 1))}), Enter to go back: ")
+                if pick.isdigit() and 1 <= int(pick) <= len(groups):
+                    pick = groups[int(pick) - 1]
+                if pick:
+                    if pick in hidden:
+                        cmd_hide_stats(sessions, show=pick)
+                    else:
+                        cmd_hide_stats(sessions, hide=pick)
             else:
-                print("Choose 1-17 or q.")
+                print("Choose 1-18 or q.")
         except ConsoleError as e:
             print(f"! {e}")
 
@@ -676,6 +706,9 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("admin-users", help="Discord users that are admins (no role needed)")
     p.add_argument("--add", metavar="USER_ID", help="make this person an admin")
     p.add_argument("--remove", metavar="USER_ID", help="remove this person")
+    p = sub.add_parser("hide-stats", help="stats hidden from players (logged-in admins still see them)")
+    p.add_argument("--hide", metavar="GROUP", help="hide this group: " + ", ".join(actions.STAT_GROUPS))
+    p.add_argument("--show", metavar="GROUP", help="show this group again")
     sub.add_parser("status", help="import progress, replay and player counts")
     p = sub.add_parser("repair-failed", help="re-process damaged / incomplete replays in repair mode")
     p.add_argument("--yes", action="store_true")
@@ -715,6 +748,8 @@ def main(argv: list[str] | None = None) -> int:
                 cmd_admin_users(sessions, settings, args.add, args.remove)
             case "discord-check":
                 cmd_discord_check(sessions, settings, args.user_id)
+            case "hide-stats":
+                cmd_hide_stats(sessions, args.hide, args.show)
             case "status":
                 cmd_status(sessions)
             case "repair-failed":

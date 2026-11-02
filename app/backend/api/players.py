@@ -5,7 +5,7 @@ from collections import Counter
 from fastapi import APIRouter, Query, Request
 from sqlalchemy import and_, case, func, select
 
-from .. import gear_use, heatmaps, tracks
+from .. import gear_use, heatmaps, tracks, visibility
 from ..aliases import ids_of
 from ..cache import cached_response
 from ..duplicates import counted
@@ -119,10 +119,11 @@ def _profile(db, where) -> dict:
 @router.get("/compare/{user_ids}")
 def compare_players(request: Request, user_ids: str, period: str = Query("all", pattern="^(" + "|".join(PERIODS) + ")$")):
     """Profiles of 2-4 players side by side + head-to-head record of the first two."""
-    return cached_response(request, "compare", (user_ids, period), lambda: _compare_players(request, user_ids, period))
+    wl = visibility.win_loss(request)
+    return cached_response(request, "compare", (user_ids, period, wl), lambda: _compare_players(request, user_ids, period, wl))
 
 
-def _compare_players(request: Request, user_ids: str, period: str) -> dict:
+def _compare_players(request: Request, user_ids: str, period: str, wl: bool = True) -> dict:
     ids = [u for u in user_ids.split(",") if u][:4]
     if len(ids) < 2:
         raise ApiError(400, "need_two", "Give at least two user ids, comma-separated")
@@ -133,6 +134,8 @@ def _compare_players(request: Request, user_ids: str, period: str) -> dict:
             raise ApiError(404, "not_found", f"Player(s) not found: {', '.join(missing)}")
         profiles = [{"user_id": u, "name": players[u].name, "stats": _profile(db, _filters(players[u].id, period, None))}
                     for u in ids]
+        if not wl:
+            profiles = [p | {"stats": visibility.without(p["stats"])} for p in profiles]
         a, b = players[ids[0]].id, players[ids[1]].id
         h2h = {"together": [0, 0, 0], "against": [0, 0, 0]}  # games, wins, losses for the first player
         for _, same, won, decided in _together(db, a, other=b):
@@ -141,7 +144,7 @@ def _compare_players(request: Request, user_ids: str, period: str) -> dict:
             if decided:
                 entry[1 if won else 2] += 1
     return {"period": period, "players": profiles, "head_to_head": {
-        k: {"games": g, "wins": w, "losses": l} for k, (g, w, l) in h2h.items()}}
+        k: {"games": g, "wins": w, "losses": l} if wl else {"games": g} for k, (g, w, l) in h2h.items()}}
 
 
 @router.get("/{user_id}")
@@ -151,10 +154,12 @@ def get_player(
     period: str = Query("all", pattern="^(" + "|".join(PERIODS) + ")$"),
     map: str | None = Query(None, pattern=MAP_PATTERN),
 ):
-    return cached_response(request, "player", (user_id, period, map), lambda: _get_player(request, user_id, period, map))
+    wl = visibility.win_loss(request)
+    return cached_response(request, "player", (user_id, period, map, wl),
+                           lambda: _get_player(request, user_id, period, map, wl))
 
 
-def _get_player(request: Request, user_id: str, period: str, map: str | None) -> dict:
+def _get_player(request: Request, user_id: str, period: str, map: str | None, wl: bool = True) -> dict:
     with request.app.state.sessionmaker() as db:
         # a merged id (D34) answers with its main player; the page then moves to the main player's address
         if (alias := db.get(PlayerAlias, user_id)) is not None:
@@ -164,6 +169,8 @@ def _get_player(request: Request, user_id: str, period: str, map: str | None) ->
             raise ApiError(404, "not_found", f"Player {user_id} not found")
         where = _filters(player.id, period, map)
         stats = _profile(db, where)
+        if not wl:
+            stats = visibility.without(stats)
         ids = ids_of(db, player.user_id)
 
         level = db.scalar(
@@ -204,10 +211,9 @@ def _get_player(request: Request, user_id: str, period: str, map: str | None) ->
         "recent_matches": [
             match_summary(m) | {
                 "team": mp.team,
-                "result": None if m.winner is None else ("win" if m.winner == mp.team else "loss"),
                 "deaths_est": mp.deaths_est,
                 "play_time_s": mp.play_time_s,
-            }
+            } | ({"result": None if m.winner is None else ("win" if m.winner == mp.team else "loss")} if wl else {})
             for m, mp in recent
         ],
     }
@@ -266,10 +272,11 @@ def get_player_heatmap(
 
 @router.get("/{user_id}/trends")
 def get_trends(request: Request, user_id: str, bucket: str = Query("month", pattern="^(week|month|year)$")):
-    return cached_response(request, "trends", (user_id, bucket), lambda: _get_trends(request, user_id, bucket))
+    wl = visibility.win_loss(request)
+    return cached_response(request, "trends", (user_id, bucket, wl), lambda: _get_trends(request, user_id, bucket, wl))
 
 
-def _get_trends(request: Request, user_id: str, bucket: str) -> dict:
+def _get_trends(request: Request, user_id: str, bucket: str, wl: bool = True) -> dict:
     """Per-period aggregates for trend charts."""
     expr = {"week": func.strftime("%Y-%W", Match.started_at), "month": func.substr(Match.started_at, 1, 7),
             "year": func.substr(Match.started_at, 1, 4)}[bucket]
@@ -290,7 +297,7 @@ def _get_trends(request: Request, user_id: str, bucket: str) -> dict:
         ).all()
     return {"bucket": bucket, "items": [{
         "period": r.period, "games": r.games,
-        "win_rate": ratio(r.wins, (r.wins or 0) + (r.losses or 0)),
+        **({"win_rate": ratio(r.wins, (r.wins or 0) + (r.losses or 0))} if wl else {}),
         "deaths_per_game_est": ratio(r.deaths, r.games, 2),
         "avg_speed": ratio(r.speed, r.in_bounds, 2),
         "top_speed": round(r.top or 0, 2),
@@ -327,11 +334,12 @@ def _together(db, player_id: int, window: str = "all", other: int | None = None)
 def get_companions(request: Request, user_id: str, limit: int = Query(10, ge=1, le=50),
                    window: str = Query("all", pattern="^(24h|7d|1m|3m|6m|12m|all)$")):
     """Most frequent teammates and opponents, with the record together / against, over a rolling time window."""
-    return cached_response(request, "companions", (user_id, limit, window),
-                           lambda: _get_companions(request, user_id, limit, window))
+    wl = visibility.win_loss(request)
+    return cached_response(request, "companions", (user_id, limit, window, wl),
+                           lambda: _get_companions(request, user_id, limit, window, wl))
 
 
-def _get_companions(request: Request, user_id: str, limit: int, window: str = "all") -> dict:
+def _get_companions(request: Request, user_id: str, limit: int, window: str = "all", wl: bool = True) -> dict:
     """Counted in the database (one row per companion and side) and only the names shown are looked up: the busiest
     players share ~60k match slots with others."""
     with request.app.state.sessionmaker() as db:
@@ -348,15 +356,15 @@ def _get_companions(request: Request, user_id: str, limit: int, window: str = "a
             .join(me, me.c.match_id == MatchPlayer.match_id).join(Match, Match.id == MatchPlayer.match_id)
             .where(MatchPlayer.player_id != player.id).group_by(MatchPlayer.player_id, same)
         ).all()
-        # most games first; ties: most wins, then the player first seen
-        ranked = sorted(rows, key=lambda r: (-r.games, -r.wins, r.player_id))
+        # most games first; ties: most wins (when shown: the order would give them away), then the player first seen
+        ranked = sorted(rows, key=lambda r: (-r.games, -r.wins if wl else 0, r.player_id))
         top = {side: [r for r in ranked if bool(r.same) == side][:limit] for side in (True, False)}
         shown = {r.player_id for side in top.values() for r in side}
         people = {pid: (uid, name) for pid, uid, name in
                   db.execute(select(Player.id, Player.user_id, Player.name).where(Player.id.in_(shown)))}
 
     def side(rows):
-        return [{"user_id": people[r.player_id][0], "name": people[r.player_id][1], "games": r.games, "wins": r.wins,
-                 "losses": r.losses} for r in rows]
+        return [{"user_id": people[r.player_id][0], "name": people[r.player_id][1], "games": r.games}
+                | ({"wins": r.wins, "losses": r.losses} if wl else {}) for r in rows]
 
     return {"teammates": side(top[True]), "opponents": side(top[False])}
