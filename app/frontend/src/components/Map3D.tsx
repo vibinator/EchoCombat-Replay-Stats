@@ -20,7 +20,8 @@ const JUMP_M = 3; // positions further apart than this between two samples are a
 const SKULL_S = 5;
 const DEATH_FLASH_S = 3;
 const HAND_STEP_M = 0.02; // hands are sent relative to the head in 2 cm steps
-const SHOULDER_DROP_M = 0.3; // arms are drawn from just below the head
+const SHOULDER_DROP_M = 0.3; // arms start just below the head
+const SHOULDER_HALF_M = 0.24; // and half a shoulder width to each side of it
 const FOLLOW_BACK_M = 7; // chase camera: behind and above the picked player, looking down at them
 const FOLLOW_UP_M = 4;
 const OVERLAY_LAYER = 8; // the capture point ring and arc on the floor
@@ -154,7 +155,7 @@ function handsAt(p: Track, s: number, out: number[]): boolean {
 interface PlayerObj {
   track: Track;
   hands: THREE.Mesh[];
-  arms: THREE.LineSegments;
+  arms: THREE.Mesh[]; // upper arm to hand, one solid tube each
   group: THREE.Group;
   head: THREE.Group;
   ring: THREE.Mesh;
@@ -302,7 +303,22 @@ function Stage(props: Map3DProps & { data: Playback3D }) {
     const noseMat = new THREE.MeshStandardMaterial({ color: "#ffffff", roughness: 0.5 });
     const ringMat = new THREE.MeshBasicMaterial({ color: "#ffffff" });
     const headGeo = new THREE.SphereGeometry(0.28, 20, 14);
-    const noseGeo = new THREE.ConeGeometry(0.11, 0.42, 12).rotateX(Math.PI / 2).translate(0, 0, 0.42);
+    const noseGeo = new THREE.ConeGeometry(0.13, 0.6, 12).rotateX(Math.PI / 2).translate(0, 0, 0.55);
+    // facing arrow on the floor under the player: points where they face, so it reads from above and from far away
+    const arrowShape = new THREE.Shape();
+    arrowShape.moveTo(0, 1.5);
+    arrowShape.lineTo(0.42, 0.7);
+    arrowShape.lineTo(0.16, 0.7);
+    arrowShape.lineTo(0.16, 0.35);
+    arrowShape.lineTo(-0.16, 0.35);
+    arrowShape.lineTo(-0.16, 0.7);
+    arrowShape.lineTo(-0.42, 0.7);
+    arrowShape.closePath();
+    // shape x/y -> world x/-z... rotated flat: shape y becomes +z (forward)
+    const arrowGeo = new THREE.ShapeGeometry(arrowShape).rotateX(-Math.PI / 2);
+    const armGeo = new THREE.CylinderGeometry(0.04, 0.035, 1, 8).translate(0, 0.5, 0); // base at the shoulder, 1 m long along +y: scaled and turned per frame
+    const UP = new THREE.Vector3(0, 1, 0);
+    const armDir = new THREE.Vector3();
     const bodyGeo = new THREE.CapsuleGeometry(0.26, 0.75, 4, 12).translate(0, -0.85, 0);
     const ringGeo = new THREE.TorusGeometry(0.5, 0.04, 8, 32).rotateX(Math.PI / 2);
     const handGeo = new THREE.SphereGeometry(0.09, 12, 8);
@@ -318,7 +334,10 @@ function Stage(props: Map3DProps & { data: Playback3D }) {
       const body = new THREE.Mesh(bodyGeo, teamMats[firstTeam - 1]);
       const ring = new THREE.Mesh(ringGeo, ringMat);
       ring.position.y = -0.2;
-      group.add(head, body, ring);
+      const arrow = new THREE.Mesh(arrowGeo, new THREE.MeshBasicMaterial({ color: TEAM_COLORS[firstTeam], transparent: true, opacity: 0.9, side: THREE.DoubleSide }));
+      arrow.position.y = -1.45;
+      arrow.raycast = () => {};
+      group.add(head, body, ring, arrow);
       headMesh.userData.uid = body.userData.uid = track.user_id;
       pickable.push(headMesh, body);
       const labelEl = document.createElement("div");
@@ -345,13 +364,14 @@ function Stage(props: Map3DProps & { data: Playback3D }) {
         scene.add(m);
         return m;
       });
-      const armGeo = new THREE.BufferGeometry();
-      armGeo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(12), 3).setUsage(THREE.DynamicDrawUsage));
-      const arms = new THREE.LineSegments(armGeo, new THREE.LineBasicMaterial({ color: TEAM_COLORS[firstTeam], transparent: true, opacity: 0.8 }));
-      arms.frustumCulled = false;
-      arms.visible = false;
-      arms.raycast = () => {};
-      scene.add(arms);
+      const arms = [0, 1].map(() => {
+        const m = new THREE.Mesh(armGeo, teamMats[firstTeam - 1]);
+        m.frustumCulled = false;
+        m.visible = false;
+        m.raycast = () => {};
+        scene.add(m);
+        return m;
+      });
       return { track, hands, arms, group, head, ring, label, labelEl, labelText: "", trail, trailPos, trailCol };
     });
     const byId = new Map(players.map((p) => [p.track.user_id, p]));
@@ -707,17 +727,26 @@ function Stage(props: Map3DProps & { data: Playback3D }) {
           o.labelEl.className = `pb3d-label ${team === 1 ? "blue" : "orange"}${picked ? " picked" : ""}${died.has(o.track.user_id) ? " died" : ""}`;
         }
         // hands and arms
-        const showHands = !!pose && p.hands && o.group.visible && handsAt(o.track, s, offs);
-        o.hands[0].visible = o.hands[1].visible = o.arms.visible = !!showHands;
+        // (recorded hand positions where the match has them; otherwise arms hang relaxed at the sides)
+        const showHands = !!pose && p.hands && o.group.visible;
+        const recorded = !!showHands && handsAt(o.track, s, offs);
+        for (let k = 0; k < 2; k++) o.hands[k].visible = o.arms[k].visible = !!showHands;
         if (showHands && pose) {
-          const arm = o.arms.geometry.attributes.position as THREE.BufferAttribute;
+          const sy = Math.sin(pose.yaw), cy = Math.cos(pose.yaw);
           for (let k = 0; k < 2; k++) {
-            const hx = pose.x + offs[k * 3], hy = pose.y + offs[k * 3 + 1], hz = pose.z + offs[k * 3 + 2];
+            const side = k === 0 ? 1 : -1; // left shoulder is at +(cos, -sin) of the facing, right the opposite
+            const sx = pose.x + side * cy * SHOULDER_HALF_M, sz = pose.z - side * sy * SHOULDER_HALF_M, sh = pose.y - SHOULDER_DROP_M;
+            const hx = recorded ? pose.x + offs[k * 3] : sx + side * cy * 0.06 + sy * 0.12;
+            const hy = recorded ? pose.y + offs[k * 3 + 1] : sh - 0.5;
+            const hz = recorded ? pose.z + offs[k * 3 + 2] : sz - side * sy * 0.06 + cy * 0.12;
             o.hands[k].position.set(hx, hy, hz);
-            arm.setXYZ(k * 2, pose.x, pose.y - SHOULDER_DROP_M, pose.z);
-            arm.setXYZ(k * 2 + 1, hx, hy, hz);
+            armDir.set(hx - sx, hy - sh, hz - sz);
+            const len = armDir.length();
+            const arm = o.arms[k];
+            arm.position.set(sx, sh, sz);
+            if (len > 1e-4) arm.quaternion.setFromUnitVectors(UP, armDir.divideScalar(len));
+            arm.scale.set(1, Math.max(len, 0.01), 1);
           }
-          arm.needsUpdate = true;
         }
         // trail: segments between recent samples (gaps and respawn jumps left out)
         let n = 0;
