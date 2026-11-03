@@ -18,6 +18,12 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.03.28 — 17:36
+### Layout
+- **Full-width pages that adjust to the window**: the 1600 px limit is gone. The content fills the window, with side space
+  that grows with the screen (16 px on a phone, up to 72 px on a very wide one) and the top bar lines up with it. Card grids
+  and the sideways rows simply show more on a wider window; long paragraphs stay at a readable line length.
+
 ## 2026.11.03.27 — 17:29
 ### Fix: "Server busy · showing saved data" while replays are read
 - `docker-compose.yml` now sets `ECHOVR_WORKERS: "2"` (was 4): the re-read of all replays (stats version 9) used every NAS core, and
