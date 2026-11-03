@@ -37,8 +37,8 @@ def test_tiers():
 def test_daily_only_weapon_takes_best_day():
     games = [game("2026-10-27")] * 6 + [game("2026-10-28")] * 15 + [game("2026-10-28", loadout=("assault", "heal", "det"))]
     r = by_id(evaluate(games))
-    # One with the Comet: ladder 3 / 6 / 10 / 20 / 26 games in one day (diamond and platinum are 30 % harder than 15 / 20); the best day (15 Comet-only games) counts
-    assert (r[7]["tier"], r[7]["count"], r[7]["progress"]) == ("gold", 15, pytest.approx(0.7))
+    # One with the Comet: ladder 3 / 5 / 8 / 16 / 20 games in one day (diamond and platinum are 30 % harder than 12 / 15); the best day (15 Comet-only games) counts
+    assert (r[7]["tier"], r[7]["count"], r[7]["progress"]) == ("gold", 15, pytest.approx(0.775))
     assert (r[5]["tier"], r[5]["count"], r[5]["progress"]) == (None, 1, pytest.approx(1 / 15, abs=1e-4))  # Pulsar only once
 
 
@@ -311,7 +311,7 @@ def test_one_game_challenges_need_a_4v4():
 def test_all_gear_shares_one_ladder_per_kind():
     veteran = {r.levels for r in RULES if r.name.endswith(" Veteran")}
     assert veteran == {_harder((5, 15, 50, 150, 350), "")}
-    assert {r.levels for r in RULES if "using only" in r.description and r.period == "day"} == {_harder((3, 6, 10, 15, 20), "")}
+    assert {r.levels for r in RULES if "using only" in r.description and r.period == "day"} == {_harder((3, 5, 8, 12, 15), "")}
     assert {r.levels for r in RULES if "using only" in r.description and r.period == "week" and r.id != 42}  # 42: Gearhead is about loadouts, not one gear == {_harder((5, 10, 15, 30, 50), "")}
     assert next(r for r in RULES if r.id == 112).levels == _harder((5, 15, 50, 150, 350), "")  # Overclocked is a veteran ladder too
 
