@@ -46,6 +46,7 @@ class Args(BaseModel):
     hide_win_loss: bool = False
     show_win_loss: bool = False
     player: str = ""
+    visible: str = ""  # challenge: "everyone", "preview" or "hidden"; empty = keep
     mode: str = ""  # remote: "server", "remote" or "both"; empty = only show the setting
 
 
@@ -61,7 +62,7 @@ COMMANDS = {  # name as in admin.bat -> (sessions, settings, args) -> None
                                                 [o.strip() for o in a.others if o.strip()], yes=True, interactive=False),
     "merges": lambda s, st, a: console.cmd_merges(s),
     "unmerge": lambda s, st, a: console.cmd_unmerge(s, _required(a.alias, "the merged id"), yes=True),
-    "challenge": lambda s, st, a: console.cmd_challenge(s, a.start, a.end, a.clear),
+    "challenge": lambda s, st, a: console.cmd_challenge(s, a.start, a.end, a.clear, a.visible or None),
     "status": lambda s, st, a: console.cmd_status(s),
     "repair-failed": lambda s, st, a: console.cmd_repair_failed(s, yes=True),
     "cannot-repair": lambda s, st, a: console.cmd_cannot_repair(s, a.hide, yes=True),
@@ -157,7 +158,8 @@ def overview(request: Request):
             "repairable": len(actions.repairable_failures(db)),
             "aggressive_repairable": len(actions.aggressive_failures(db)),
             "hidden_replays": db.scalar(select(func.count()).select_from(Replay).where(hidden_failure())),
-            "challenge": {"start": start, "end": end, "launched": actions.achievements_launched(db)},
+            "challenge": {"start": start, "end": end, "launched": actions.achievements_launched(db),
+                          "visibility": actions.achievements_visibility(db)},
             "stat_groups": [{"key": g, "label": label, "hidden": g in hidden, "players": hidden_players[g]}
                             for g, label in actions.STAT_GROUPS.items()],
             "recent": [_log_row(r) for r in actions.command_log(db, 8)],

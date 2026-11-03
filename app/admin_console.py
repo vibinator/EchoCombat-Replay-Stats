@@ -218,18 +218,28 @@ def cmd_unmerge(sessions, alias_term: str, yes: bool) -> None:
     print(f"Undone. {len(replay_ids)} replays queued for re-processing. {when_applied()}")
 
 
-def cmd_challenge(sessions, start: str | None, end: str | None, clear: bool) -> None:
-    """start / end: None = keep, "" = no limit."""
+def cmd_challenge(sessions, start: str | None, end: str | None, clear: bool, visible: str | None = None) -> None:
+    """start / end: None = keep, "" = no limit. visible: None = keep, "everyone" / "preview" / "hidden"."""
     with sessions() as db:
         current = actions.challenge_window(db)
         if clear or start is not None or end is not None:
             new = (None, None) if clear else (current[0] if start is None else start, current[1] if end is None else end)
             current = actions.set_challenge_window(db, *new)
             print("Saved. The website uses the new period straight away.")
+        if visible:
+            actions.set_achievements_visibility(db, visible)
+            print(f"Saved. Achievements and challenges are visible to {actions.VISIBILITY[visible]}.")
+        mode = actions.achievements_visibility(db)
     print(f"Flamingo Challenge period: {current[0] or 'no start date'} -> {current[1] or 'open-ended'}")
+    print(f"Visible to: {actions.VISIBILITY[mode]}")
     with sessions() as db:
         launched = actions.achievements_launched(db)
-    if launched:
+    if mode == "hidden":
+        print("Website: \"Coming soon\" for everyone, people with the Preview role included.")
+    elif mode == "preview":
+        print("Website: \"Coming soon\" for the public; people with the Preview role see everything "
+              + (f"(counting matches from {current[0]})." if actions.achievements_started_for(current) else "(every match in the archive)."))
+    elif launched:
         print(f"Website: achievements and challenges are live, counting matches from {current[0]}.")
     elif current[0]:
         print(f"Website: \"Coming soon\" until {current[0]}; from that day they go live and count matches from it.")
@@ -833,7 +843,7 @@ def main_command(sessions, settings: Settings, args) -> None:
         case "unmerge":
             cmd_unmerge(sessions, args.alias, args.yes)
         case "challenge":
-            cmd_challenge(sessions, args.start, args.end, args.clear)
+            cmd_challenge(sessions, args.start, args.end, args.clear, args.visible)
         case "preview-roles" | "admin-roles":
             cmd_discord_roles(sessions, settings, args.command.removesuffix("-roles"), args.add, args.remove, args.server)
         case "admin-users":
@@ -876,7 +886,8 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("unmerge", help="undo a merge")
     p.add_argument("alias", help="the merged id (see 'merges')")
     p.add_argument("--yes", action="store_true")
-    p = sub.add_parser("challenge", help="show or set the Flamingo Challenge period")
+    p = sub.add_parser("challenge", help="show or set the Flamingo Challenge period and who can see achievements")
+    p.add_argument("--visible", choices=("everyone", "preview", "hidden"), help="who sees achievements: everyone (from the start date), only people with the Preview role, or nobody")
     p.add_argument("--start", help="YYYY-MM-DD, or '' for no limit")
     p.add_argument("--end", help="YYYY-MM-DD, or '' for no limit")
     p.add_argument("--clear", action="store_true", help="remove both dates")

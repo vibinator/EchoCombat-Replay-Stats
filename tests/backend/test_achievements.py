@@ -341,3 +341,34 @@ def test_achiever_facts_and_endpoint(tmp_path):
         top = client.get("/api/leaderboard/achievers", params={"min_games": 1}).json()
         assert {r["name"] for r in top} == {"Player", "Other"}
         assert all(r["total"] == len(RULES) and 0 <= r["completed"] <= len(RULES) and "medals" in r for r in top)
+
+
+def test_visibility_everyone_preview_only_or_hidden(tmp_path, monkeypatch):
+    from backend import auth
+
+    with app_client(make_settings(tmp_path)) as client:
+        add(client, {"dyson/0.echoreplay": rf.plain(rf.lines(20))})
+        act(client, actions.set_challenge_window, "2026-01-01", None)
+        monkeypatch.setattr(auth, "has_preview", lambda request: False)
+        assert client.get("/api/achievements").status_code == 200  # default: public from the start date
+        assert client.get("/api/challenges").json()["visibility"] == "everyone"
+
+        act(client, actions.set_achievements_visibility, "preview")  # Preview role only: the date is set, the public waits
+        assert client.get("/api/achievements").status_code == 403
+        info = client.get("/api/challenges").json()
+        assert (info["launched"], info["preview"], info["visibility"]) == (False, False, "preview")
+        monkeypatch.setattr(auth, "has_preview", lambda request: True)
+        assert client.get("/api/achievements").status_code == 200  # a person with the Preview role sees it
+        assert client.get("/api/challenges").json()["preview"] is True
+        a = client.get(f"/api/players/{BLUE}/achievements").json()
+        assert a["window"]["start"] == "2026-01-01"  # and it counts from the start date
+
+        act(client, actions.set_achievements_visibility, "hidden")  # nobody, Preview included
+        assert client.get("/api/achievements").status_code == 403
+        assert client.get("/api/challenges").json()["preview"] is False
+
+        act(client, actions.set_achievements_visibility, "everyone")
+        monkeypatch.setattr(auth, "has_preview", lambda request: False)
+        assert client.get("/api/achievements").status_code == 200
+        with pytest.raises(actions.AdminError):
+            act(client, actions.set_achievements_visibility, "nonsense")

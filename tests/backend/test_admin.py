@@ -217,7 +217,7 @@ def test_challenge_period(client):
     info = client.get("/api/challenges").json()
     peek = info.pop("peek")
     assert info == {"start": None, "end": None, "updated_at": None, "launched": False, "active": False, "preview": False,
-                    "total": len(RULES)}
+                    "visibility": "everyone", "total": len(RULES)}
     # the sneak peek gives counts and pictures; only the revealed few have names and descriptions
     assert sum(peek["periods"].values()) + sum(peek["new"].values()) == len(RULES) and peek["icons"]
     assert [a["id"] for a in peek["revealed"]] == list(REVEALED_IDS)

@@ -284,11 +284,53 @@ def _save_discord_roles(db: Session, kind: str, roles: list[str]) -> list[str]:
     return roles
 
 
-def achievements_launched(db: Session) -> bool:
-    """Achievements and challenges are public from the challenge start date on (user, 2026-10-30). No start date,
-    or one still to come: the website shows "Coming soon" and the API returns none of their data."""
+VISIBILITY_KEY = "achievements_visibility"
+VISIBILITY = {  # who can see achievements and challenges (Console: "Launch date and challenge period", user, 2026-11-03)
+    "everyone": "everyone, from the start date on",
+    "preview": "people with the Preview role only",
+    "hidden": "nobody (Preview included)",
+}
+
+
+def achievements_visibility(db: Session) -> str:
+    value = db.scalar(select(AppSetting.value).where(AppSetting.key == VISIBILITY_KEY))
+    return value if value in VISIBILITY else "everyone"
+
+
+def set_achievements_visibility(db: Session, mode: str) -> str:
+    if mode not in VISIBILITY:
+        raise AdminError(f"Choose one of: {', '.join(VISIBILITY)}")
+    db.merge(AppSetting(key=VISIBILITY_KEY, value=None if mode == "everyone" else mode, updated_at=utcnow()))
+    db.commit()
+    return mode
+
+
+def achievements_started(db: Session) -> bool:
+    """The start date is set and has come."""
     start = challenge_window(db)[0]
     return bool(start) and start <= date.today().isoformat()
+
+
+def achievements_started_for(window: tuple[str | None, str | None]) -> bool:
+    """A window (start, end) whose start date has come."""
+    return bool(window[0]) and window[0] <= date.today().isoformat()
+
+
+def achievements_launched(db: Session) -> bool:
+    """Achievements and challenges are public from the challenge start date on (user, 2026-10-30), unless they are set to
+    "Preview role only" or "hidden" (user, 2026-11-03). No start date, or one still to come: the website shows "Coming
+    soon" and the API returns none of their data."""
+    return achievements_visibility(db) == "everyone" and achievements_started(db)
+
+
+def previews_can_see(db: Session) -> bool:
+    """People with the Preview role see achievements (before the launch, or while they are Preview-only)."""
+    return achievements_visibility(db) != "hidden"
+
+
+def achievements_counting(db: Session) -> bool:
+    """The challenge period applies to what is shown: public, or Preview-only with a start date that has come."""
+    return previews_can_see(db) and achievements_started(db)
 
 
 def set_challenge_window(db: Session, start: str | None, end: str | None) -> tuple[str | None, str | None]:

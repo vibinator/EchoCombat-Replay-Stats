@@ -18,6 +18,18 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.03.30 — 17:48
+### Console: who sees achievements
+- **Launch date and challenge period** has a **Visible to** choice: *Everyone* (public from the start date, as before), *Only
+  people with the Preview role* (the start date is set and counts, but only Preview sees it; the public sees "Coming soon"),
+  or *Nobody* (hidden from everyone, Preview included). It is saved at once; `admin.bat challenge --visible everyone|preview|hidden`
+  does the same. Together with "Start today / End today" you can launch, hold back or hide again without touching the dates.
+
+### Achievements page
+- **Not yet started** replaces "Closest to your next medal": one scrolling row of 12 challenges the player has not touched,
+  the ones most players unlock first (by the share of players with a medal) at the front, a bronze edge on each card.
+- A start date that has already passed is no longer shown as "they start on …" on the Coming soon page.
+
 ## 2026.11.03.29 — 17:40
 ### Name
 - The site is now called **Echo Combat Stats** (was EchoVR Replay Stats): browser tab title, top-bar name, the admin console

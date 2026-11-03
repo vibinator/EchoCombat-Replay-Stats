@@ -200,17 +200,35 @@ const GROUPS: { title: string; commands: Command[] }[] = [
         label: "Launch date and challenge period",
         help:
           "The start date is the launch: until then achievements and challenges show “Coming soon”, and only matches from that day count. " +
-          "Leave both dates empty to see the current period; an empty date is kept as it is.",
+          "“Visible to” decides who sees them: everyone once the start date has come, only people with the Preview role (the date still counts), or nobody. " +
+          "Leave everything empty to see the current setting; an empty date is kept as it is.",
         fields: [
           { key: "start", label: "Start", kind: "date" },
           { key: "start_today", label: "Start today (launches now)", kind: "check" },
           { key: "end", label: "End (optional)", kind: "date" },
           { key: "end_today", label: "End today", kind: "check" },
           { key: "clear", label: "Remove both dates", kind: "check" },
+          {
+            key: "visible",
+            label: "Visible to",
+            kind: "select",
+            options: [
+              ["", "Keep as it is"],
+              ["everyone", "Everyone, from the start date on"],
+              ["preview", "Only people with the Preview role"],
+              ["hidden", "Nobody (hide it, Preview included)"],
+            ],
+          },
         ],
         confirm: (v) =>
-          v.clear
-            ? "Remove both dates? Achievements go back to “Coming soon”."
+          v.visible === "hidden"
+            ? "Hide achievements and challenges from everyone, people with the Preview role included?"
+            : v.visible === "everyone" && !v.start && !v.start_today
+              ? "Make achievements visible to everyone from the start date that is already set?"
+              : v.visible === "preview"
+                ? "Show achievements only to people with the Preview role?"
+                : v.clear
+                  ? "Remove both dates? Achievements go back to “Coming soon”."
             : v.start_today
               ? `Launch now: set the start date to today (${todayIso()})? Achievements become public.`
               : v.start

@@ -781,6 +781,8 @@ export interface ChallengeWindow {
   launched: boolean;
   /** before the launch: this visitor has the Discord preview role and sees everything */
   preview: boolean;
+  /** who may see achievements: everyone (from the start date), only the Preview role, or nobody */
+  visibility: "everyone" | "preview" | "hidden";
   active: boolean;
   /** number of achievements and challenges available (public before the launch too) */
   total: number;

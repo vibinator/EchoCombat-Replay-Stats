@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router";
-import { LEVELS, getAchievements, getChallenges, getMe, loginUrl, type Achievement, type AchievementPeek, type AchievementRarity, type AchievementRule } from "../api";
+import { LEVELS, getAchievements, getChallenges, getMe, getRarity, loginUrl, type Achievement, type AchievementPeek, type AchievementRarity, type AchievementRule } from "../api";
 import { achievementsPath, pct, ruleText } from "../format";
 import { useApi } from "../useApi";
 import { Status } from "./common";
@@ -233,23 +233,25 @@ function sectionMedal(progress: number): string | null {
   return progress >= 1 ? "platinum" : progress >= 0.8 ? "diamond" : progress >= 0.6 ? "gold" : progress >= 0.4 ? "silver" : progress >= 0.2 ? "bronze" : null;
 }
 
-const CLOSEST_SHOWN = 12;
+const EASY_SHOWN = 12;
 
-/** First thing a player sees: the challenges closest to their next medal, closest first, in a row that scrolls sideways
- *  (user, 2026-11-03). */
-function ClosestToUnlocking({ items }: { items: Achievement[] }) {
-  const closest = items
-    .map((a) => ({ a, n: nextMedal(a) }))
-    .filter((x): x is { a: Achievement; n: { fraction: number; medal: string } } => x.n !== null)
-    .sort((x, y) => y.n.fraction - x.n.fraction)
-    .slice(0, CLOSEST_SHOWN);
-  if (closest.length === 0) return null;
+/** First thing a player sees: challenges they have not started yet that most players unlock first (the highest share of
+ *  players with a medal), in a row that scrolls sideways (user, 2026-11-03; it replaced "Closest to your next medal").
+ *  Without that share yet (it is built in the background) the lowest first targets come first. */
+function NotYetStarted({ items }: { items: Achievement[] }) {
+  const rarity = useApi(getRarity, "rarity").data;
+  const share = new Map((rarity ?? []).map((r) => [r.id, r.unlocked_share]));
+  const easy = items
+    .filter((a) => a.progress === 0)
+    .sort((x, y) => (share.get(y.id) ?? -1) - (share.get(x.id) ?? -1) || (x.levels?.[0] ?? 1) - (y.levels?.[0] ?? 1))
+    .slice(0, EASY_SHOWN);
+  if (easy.length === 0) return null;
   return (
     <section className="closest">
-      <h3>Closest to your next medal</h3>
-      <div className="badges scroll-row" tabIndex={0} aria-label="Closest to your next medal, scroll sideways">
-        {closest.map(({ a, n }) => (
-          <div key={a.id} className="next-card" style={{ "--next": `var(--tier-${n.medal})` } as React.CSSProperties} title={`Next medal: ${n.medal}`}>
+      <h3>Not yet started <span className="muted hint">· the easiest ones to begin with</span></h3>
+      <div className="badges scroll-row" tabIndex={0} aria-label="Not yet started, scroll sideways">
+        {easy.map((a) => (
+          <div key={a.id} className="next-card" style={{ "--next": "var(--tier-bronze)" } as React.CSSProperties} title="First medal: bronze">
             <Badge a={a} />
           </div>
         ))}
@@ -433,7 +435,7 @@ export function ComingSoon({ start, total, peek }: { start: string | null; total
     <>
       <EmptyState title="Coming soon">
         {total ? <><strong>{total}</strong> achievements</> : "Achievements"} and Flamingo Challenges are on their way
-        {start ? (
+        {start && start > new Date().toISOString().slice(0, 10) ? (
           <>
             {" "}
             — they start on <strong>{start}</strong>. Only matches from that day on count.
@@ -527,14 +529,16 @@ export function ChallengeBanner() {
   if (d.preview)
     return (
       <p className="note">
-        <strong>Preview</strong> — only people with the Discord preview role see this. It counts every match in the archive;
-        {d.start ? (
+        <strong>Preview</strong> — only people with the Discord preview role see this.
+        {d.visibility === "preview" && d.start && d.start <= new Date().toISOString().slice(0, 10) ? (
+          <> It counts matches from <strong>{d.start}</strong>; it is not public yet.</>
+        ) : d.start ? (
           <>
             {" "}
-            from the launch on <strong>{d.start}</strong> only matches from that day count.
+            It counts every match in the archive; from the launch on <strong>{d.start}</strong> only matches from that day count.
           </>
         ) : (
-          " after the launch only matches from its start date count."
+          " It counts every match in the archive; after the launch only matches from its start date count."
         )}
       </p>
     );
@@ -569,7 +573,7 @@ export function AchievementsView({ userId }: { userId: string }) {
               </strong>
             </div>
           </div>
-          {sort === "group" && <ClosestToUnlocking items={data.items} />}
+          {sort === "group" && <NotYetStarted items={data.items} />}
           {sort === "group" && <JumpToNew ready />}
           <label className="inline-check">
             <input type="checkbox" checked={sort === "closest"} onChange={(e) => setSort(e.target.checked ? "closest" : "group")} /> Sort by closest

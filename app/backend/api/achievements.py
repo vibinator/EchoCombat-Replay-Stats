@@ -17,7 +17,8 @@ from sqlalchemy import func, select
 
 from .. import auth, icons
 from ..achievements import RULES, Game, evaluate, icon_file, in_window, overall, unlock_dates, unlock_threshold
-from ..admin_actions import WINDOW_KEYS, achievements_launched, challenge_window
+from ..admin_actions import (WINDOW_KEYS, achievements_counting, achievements_launched, achievements_visibility,
+                             challenge_window, previews_can_see)
 from ..cache import cached, current_stamp
 from ..duplicates import counted
 from ..errors import ApiError
@@ -38,14 +39,14 @@ def _window_info(db) -> dict:
     today = date.today().isoformat()
     launched = achievements_launched(db)
     return {"start": start, "end": end, "updated_at": updated, "launched": launched,
-            "active": launched and (not end or today <= end)}
+            "visibility": achievements_visibility(db), "active": launched and (not end or today <= end)}
 
 
 def visible(request: Request) -> bool:
     """Public from the start date on; before it only to Discord members with a preview role (D41)."""
     with request.app.state.sessionmaker() as db:
-        launched = achievements_launched(db)
-    return launched or auth.has_preview(request)
+        launched, previews = achievements_launched(db), previews_can_see(db)
+    return launched or (previews and auth.has_preview(request))
 
 
 def require_launched(request: Request) -> None:
@@ -56,8 +57,9 @@ def require_launched(request: Request) -> None:
 
 def counted_window(db) -> tuple[str | None, str | None]:
     """Matches that count. Before the launch only previewers see anything, and they get every match in the
-    archive (user, 2026-10-30): a start date still to come would show everyone at 0 %."""
-    return challenge_window(db) if achievements_launched(db) else (None, None)
+    archive (user, 2026-10-30): a start date still to come would show everyone at 0 %. Preview-only with a start date
+    that has come counts from it, like the public launch will."""
+    return challenge_window(db) if achievements_counting(db) else (None, None)
 
 
 @router.get("/api/challenges")
@@ -67,7 +69,9 @@ def get_challenges(request: Request):
         info = _window_info(db)
         # total and the sneak peek are public before the launch too: the menu and "Coming soon" page tease them
         peek = PEEK | {"revealed": icons.apply(db, PEEK["revealed"])}  # icons chosen on the Console page (D43)
-    return info | {"preview": not info["launched"] and auth.has_preview(request), "total": len(RULES), "peek": peek}
+    with request.app.state.sessionmaker() as db:
+        previews = previews_can_see(db)
+    return info | {"preview": not info["launched"] and previews and auth.has_preview(request), "total": len(RULES), "peek": peek}
 
 
 # Shown in full on the "Coming soon" page (user, 2026-10-31): one per original section, one new challenge.
