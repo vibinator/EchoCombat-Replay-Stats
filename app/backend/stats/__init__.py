@@ -1,15 +1,18 @@
 """Frames -> MatchStats in a single pass. No database imports."""
 
+from collections import Counter
 from collections.abc import Iterable
 
 from parser import Frame, ReplayMeta
 
 from .maps import BOUNDS, LOAD_IN_SPOTS, MAP_MODES, map_name
-from .payload import PayloadAccumulator
+from .payload import FINAL_CHECKPOINT, PayloadAccumulator
 from .player import PlayerAccumulator
 from .results import EventRecord, MatchStats, PlayerStats
 
-STATS_VERSION = "8"  # 8: the map's load-in spot (maps.LOAD_IN_SPOTS) is no longer a death, in-bounds time or track sample
+STATS_VERSION = "9"  # 9: no deaths / respawns after the capture match is decided or the payload run is over. 8: the map's load-in spot (maps.LOAD_IN_SPOTS) is no longer a death, in-bounds time or track sample
+
+CAPTURE_ROUNDS_TO_WIN = 2  # best of three: the round that makes it 2 decides the match
 
 MAX_FRAME_GAP_S = 1.0  # cap per-frame time credit so a recording gap does not count as play time
 
@@ -62,6 +65,7 @@ def compute(meta: ReplayMeta, frames: Iterable[Frame], recorder=None) -> MatchSt
     contested_s = 0.0
     capture_s = {"blue": 0.0, "orange": 0.0}  # time each team's capture progress was rising
     has_payload = False
+    capture_end = payload_end = None  # first frame after which nothing counts as play: players are moved out (fake deaths)
 
     for frame in frames:
         dt = 0.0 if prev is None else min(max((frame.timestamp - prev.timestamp).total_seconds(), 0.0), MAX_FRAME_GAP_S)
@@ -75,6 +79,12 @@ def compute(meta: ReplayMeta, frames: Iterable[Frame], recorder=None) -> MatchSt
         if recorder is not None:
             recorder.add(frame)
         has_payload = has_payload or frame.payload is not None
+        if capture_end is None and max(frame.blue_round_score, frame.orange_round_score) >= CAPTURE_ROUNDS_TO_WIN:
+            capture_end = frame.index
+        if payload_end is None and frame.payload is not None and (
+                frame.payload.checkpoint >= FINAL_CHECKPOINT
+                or (prev is not None and prev.game_timer and frame.game_timer is not None and frame.game_timer <= 0)):
+            payload_end = frame.index
         match_events.add(frame)
         payload.add(frame, dt)
         for team, own, other in (("blue", frame.blue, frame.orange), ("orange", frame.orange, frame.blue)):
@@ -95,6 +105,12 @@ def compute(meta: ReplayMeta, frames: Iterable[Frame], recorder=None) -> MatchSt
             t_s = round((acc.last_seen - meta.started_at).total_seconds(), 3)
             events.append(EventRecord(acc.last_frame, t_s, "player_leave", acc.user_id, acc.team))
     events.sort(key=lambda e: e.frame)
+    end_frame = payload_end if has_payload else capture_end
+    if end_frame is not None:  # deaths after the match is over are the players being moved on, not real deaths
+        late = Counter(e.user_id for e in events if e.frame > end_frame and e.type == "death_est")
+        for user_id, n in late.items():
+            players[user_id].deaths -= n
+        events[:] = [e for e in events if not (e.frame > end_frame and e.type in ("death_est", "respawn"))]
 
     duration_s = (last.timestamp - meta.started_at).total_seconds()
     mode = MAP_MODES.get(name) or ("payload" if has_payload else "capture_point")

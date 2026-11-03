@@ -23,8 +23,8 @@ def by_id(results):
 
 def test_catalogue():
     ids = [r.id for r in RULES]
-    assert ids == list(range(5, 139)) and len(set(ids)) == 134  # 75 original + 59 new (80-138)
-    assert [r.id for r in RULES if r.new] == list(range(80, 139))
+    assert ids == list(range(5, 151)) and len(set(ids)) == 146  # 75 original + 71 new (80-150)
+    assert [r.id for r in RULES if r.new] == list(range(80, 151))
     assert icon_file(next(r for r in RULES if r.id == 7)) == "comet_daily.png"
     assert icon_file(next(r for r in RULES if r.id == 32)) == "comet_weekly.png"
     assert icon_file(next(r for r in RULES if r.id == 57)) == "comet.png"
@@ -248,7 +248,7 @@ def test_versatile_bot_counts_days():
 
 def test_grand_tour_and_medal_collector():
     def won(map_, day="2026-10-01"):
-        return Game(**{**game(day, map_=map_).__dict__, "team": "blue", "winner": "blue"})
+        return Game(**{**game(day, map_=map_).__dict__, "team": "blue", "winner": "blue", "near_mate": 200})
 
     r = by_id(evaluate([won(m) for m in ("dyson", "combustion", "fission", "surge")]))
     assert r[122]["count"] == 1 and r[122]["tier"] == "bronze"
@@ -296,3 +296,12 @@ def test_new_gear_matches_the_older_gear():
     week = [game(f"2026-10-{d:02d}", loadout=("smg", "buff", "loc")) for d in (26, 27, 28) for _ in range(5)]
     r = by_id(evaluate(week))
     assert (r[129]["tier"], r[129]["count"]) == ("gold", 15) and r[132]["count"] == 15  # 15 Quark-only games in a week
+
+
+def test_one_game_challenges_need_a_4v4():
+    base = game("2026-10-01")
+    long_game = {**base.__dict__, "play_time_s": 1200.0}
+    r = by_id(evaluate([Game(**{**long_game, "four_v_four": False})]))
+    assert r[140]["count"] == 0  # Marathon Bot: not a 4v4
+    r = by_id(evaluate([Game(**long_game)]))
+    assert r[140]["count"] == 20

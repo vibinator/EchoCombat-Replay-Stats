@@ -59,6 +59,12 @@ class Game:
     push_s: float = 0.0
     block_s: float = 0.0
     emotes: int = 0
+    stopped: int = 0  # in-bounds frames standing still
+    left_arm: int = 0
+    right_arm: int = 0
+    capture_s: float = 0.0  # capture point: time the player's team's progress was rising
+    contested_s: float = 0.0
+    four_v_four: bool = True  # both teams had 4 players for at least half of the match; the one-game challenges need it
 
     @property
     def won(self) -> bool:
@@ -101,6 +107,11 @@ class Game:
 
     def used(self, slot: str) -> frozenset[str]:
         return self._used[slot]
+
+    def loadouts_played(self) -> int:
+        """Different loadout combinations that were at least USED_SHARE of the game."""
+        total = sum(self.loadouts.values())
+        return sum(1 for n in self.loadouts.values() if total and n / total >= USED_SHARE)
 
     def main_loadout(self) -> tuple[str, str, str] | None:
         total = sum(self.loadouts.values())
@@ -315,6 +326,24 @@ def _least_used(slot: str, items):
 
 def _least_used_equipable(games):
     return min(_least_used(slot, items)(games) for slot, items in (("weapon", WEAPONS), ("ordnance", ORDNANCES), ("tacmod", TACMODS)))
+
+
+def _v4(count):
+    """One-game challenges (139+) only count 4v4 games (user, 2026-11-03)."""
+    def only_4v4(games):
+        games = [g for g in games if g.four_v_four]
+        return count(games) if games else 0.0
+    return only_4v4
+
+
+def _away_from_mates(games):
+    """% of the in-bounds time not near a teammate (3+ minute games only, see _full)."""
+    return 100.0 - _pct("near_mate")(games) if games[0].in_bounds else 0.0
+
+
+def _both_arms(games):
+    g = games[0]
+    return 1.0 if g.in_bounds and min(g.left_arm, g.right_arm) / g.in_bounds >= 0.4 else 0.0
 
 
 def _capture(g):
@@ -537,6 +566,40 @@ def _build_rules() -> list[Rule]:
                 _only_games("weapon", "chain"), (5, 10, 15, 30, 50), "week", new=True, group="Experimental gear"),
         _ladder(138, "Dot Matrix", "Play games using only Dot Field in any 7 days: the most in any 7 days counts", None,
                 _only_games("ordnance", "dot"), (5, 10, 15, 30, 50), "week", new=True, group="Experimental gear"),
+    ]
+
+    # In one game (user, 2026-11-03); 4v4 games only. Targets from the archive's per-game distributions (3+ minute games):
+    # standing still median 34 % / p99 70 %, average speed p50 2.8 / p99 4.6 m/s, length p50 8.5 / p99 17 min,
+    # own capture time p90 3.2 / p99 4.1 min, up to 8 loadouts. Left / right arm is a handedness flag (0 or 100 % in
+    # nearly every game), so there is no arm ladder, only "both arms". Glass Cannon (most deaths) was dropped by the user.
+    rules += [
+        _tiered(139, "Untouchable", "Win a 4v4 game of 3+ minutes without dying once. Counts every such win", "deaths",
+                lambda g: g.four_v_four and g.won and g.play_time_s >= FULL_GAME_S and g.deaths == 0, (1, 2, 4, 8, 15), estimated=True, new=True, group="Survival"),
+        _ladder(140, "Marathon Bot", "Play one long 4v4 game: the length of your longest game counts", None, _v4(lambda gs: gs[0].play_time_s / 60),
+                (12, 15, 18, 20, 30), "game", " min", new=True, group="Activity"),
+        _tiered(141, "Comeback Kid", "Win a 4v4 Capture Point game after losing the first round (a 2-1 win). Counts every such win", "capture_point",
+                lambda g: g.four_v_four and _capture(g) and g.won and g.rounds_lost == 1, (1, 5, 15, 50, 150), new=True, group="Capture Point"),
+        _ladder(142, "Statue", "Stand still (under 1 m/s) for a share of one 4v4 game of 3+ minutes: your best game counts", None,
+                _v4(_full(_pct("stopped"))), (40, 50, 60, 70, 80), "game", "%", new=True, group="Movement"),
+        _ladder(143, "Lone Wolf", "Stay away from your teammates (more than 2.6 m) for a share of one 4v4 game of 3+ minutes: your best game counts",
+                "team_proximity", _v4(_full(_away_from_mates)), (96, 98, 99, 99.5, 100), "game", "%", new=True, group="Movement"),
+        Rule(144, "Ambidextrous", "Play one 4v4 game of 3+ minutes holding the disc-arm on each side for at least 40 % of the time", "game", None,
+             _v4(_full(_both_arms)), new=True, group="Movement"),
+        _ladder(145, "Speed Demon", "Keep a high average speed through one whole 4v4 game of 3+ minutes: your best game counts", "speed",
+                _v4(_full(_AvgValue("speed_sum", 1.0))), (3.5, 4, 4.5, 5.5, 7), "game", " m/s", new=True, group="Movement"),
+        _ladder(146, "Point Guard", "Your team's capture progress is rising for part of one 4v4 Capture Point game: your best game counts",
+                "capture_point", _v4(lambda gs: gs[0].capture_s / 60 if _capture(gs[0]) else 0.0), (2, 3, 4, 5, 6), "game", " min",
+                new=True, group="Capture Point"),
+        _ladder(147, "Contested Ground", "The point is contested (both teams on it) for part of one 4v4 Capture Point game: your best game counts",
+                "capture_point", _v4(lambda gs: gs[0].contested_s / 60 if _capture(gs[0]) else 0.0), (2, 3.5, 5, 7, 10), "game", " min",
+                new=True, group="Capture Point"),
+        _tiered(148, "One-Trick Pony", "Win a 4v4 game while using one single loadout (weapon, tac mod and ordnance) for at least 95 % of it. Counts every such win",
+                "loadout", lambda g: g.four_v_four and g.won and g.main_loadout() is not None, (1, 10, 30, 100, 300), new=True, group="Gear mastery"),
+        _ladder(149, "Loadout Roulette", "Switch between loadouts in one 4v4 game: each loadout used for at least 5 % of the game counts, your best game wins",
+                "loadout", _v4(lambda gs: gs[0].loadouts_played()), (3, 4, 5, 6, 8), "game", new=True, group="Gear mastery"),
+        _ladder(150, "Mime Troupe", "Emote as much as you can in one 4v4 game of 3+ minutes without dying: your best game counts", None,
+                _v4(lambda gs: gs[0].emotes if gs[0].play_time_s >= FULL_GAME_S and gs[0].deaths == 0 else 0), (1, 2, 3, 5, 8), "game",
+                estimated=True, new=True, group="Emotes"),
     ]
     return rules
 

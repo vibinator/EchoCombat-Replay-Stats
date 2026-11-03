@@ -117,6 +117,8 @@ def _games(db, player_ids: list[int] | None = None, fingerprints: dict[int, int]
         MatchPlayer.frames_near_enemy, MatchPlayer.frames_upside_down, MatchPlayer.speed_sum, MatchPlayer.top_speed,
         Match.frame_rate_hz, MatchPlayer.team, Match.winner, Match.attacking_team, Match.blue_rounds, Match.orange_rounds,
         MatchPlayer.payload_push_s, MatchPlayer.payload_block_s, MatchPlayer.emote_count,
+        MatchPlayer.frames_stopped, MatchPlayer.frames_left_arm, MatchPlayer.frames_right_arm, Match.contested_s,
+        Match.blue_capture_s, Match.orange_capture_s,
     ).join(Match, Match.id == MatchPlayer.match_id).where(counted(MatchPlayer.match_id))  # duplicates left out (D13)
     lo_query = select(MatchPlayerLoadout.match_id, MatchPlayerLoadout.player_id, MatchPlayerLoadout.weapon,
                       MatchPlayerLoadout.tacmod, MatchPlayerLoadout.ordnance, MatchPlayerLoadout.frames
@@ -124,6 +126,15 @@ def _games(db, player_ids: list[int] | None = None, fingerprints: dict[int, int]
     if player_ids is not None:
         query = query.where(MatchPlayer.player_id.in_(player_ids))
         lo_query = lo_query.where(MatchPlayerLoadout.player_id.in_(player_ids))
+    # players per team who were there for at least half of the match: 4 and 4 = a 4v4 (one-game challenges)
+    size_query = (select(MatchPlayer.match_id, MatchPlayer.team, func.count())
+                  .join(Match, Match.id == MatchPlayer.match_id)
+                  .where(counted(MatchPlayer.match_id), MatchPlayer.play_time_s >= 0.5 * Match.duration_s)
+                  .group_by(MatchPlayer.match_id, MatchPlayer.team))
+    if player_ids is not None:
+        size_query = size_query.where(MatchPlayer.match_id.in_(
+            select(MatchPlayer.match_id).where(MatchPlayer.player_id.in_(player_ids))))
+    sizes = {(m, t): n for m, t, n in db.execute(size_query)}
     loadouts: dict[tuple[int, int], dict] = defaultdict(dict)
     for row in db.execute(lo_query):
         match_id, player_id, weapon, tacmod, ordnance, frames = row = tuple(row)
@@ -132,13 +143,17 @@ def _games(db, player_ids: list[int] | None = None, fingerprints: dict[int, int]
     games: dict[int, list[Game]] = defaultdict(list)
     for row in db.execute(query):
         (pid, mid, started, map_, mode, private, play, deaths, bounds, mate, enemy, upside, speed, top, hz,
-         team, winner, attacking, blue_rounds, orange_rounds, push, block, emotes) = row = tuple(row)
-        fp[pid] = (fp.get(pid, 0) + _stable_hash(row)) & FINGERPRINT_MASK
+         team, winner, attacking, blue_rounds, orange_rounds, push, block, emotes, stopped, left, right, contested,
+         blue_cap, orange_cap) = row = tuple(row)
+        four = sizes.get((mid, "blue")) == 4 and sizes.get((mid, "orange")) == 4
+        fp[pid] = (fp.get(pid, 0) + _stable_hash(row + (four,))) & FINGERPRINT_MASK
         games[pid].append(Game(
             started_at=started, map=map_, mode=mode, private=private, play_time_s=play, deaths=deaths,
             in_bounds=bounds, near_mate=mate, near_enemy=enemy, upside=upside, speed_sum=speed, top_speed=top,
             frame_rate=hz, loadouts=loadouts.get((mid, pid), {}), team=team, winner=winner, attacking_team=attacking,
             rounds_lost=orange_rounds if team == "blue" else blue_rounds, push_s=push, block_s=block, emotes=emotes,
+            stopped=stopped, left_arm=left, right_arm=right, contested_s=contested,
+            capture_s=blue_cap if team == "blue" else orange_cap, four_v_four=four,
         ))
     return games
 

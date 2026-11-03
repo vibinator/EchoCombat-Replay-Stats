@@ -25,6 +25,8 @@ export const NEW_GROUPS: [string, string][] = [
   ["Payload", "Winning, pushing and blocking the payload"],
   ["Capture Point", "Winning and sweeping Capture Point"],
   ["Activity", "How often and how long you play"],
+  ["Survival", "Deaths in one game and flawless wins"],
+  ["Movement", "How you move in a single game"],
   ["Emotes", ""],
 ];
 

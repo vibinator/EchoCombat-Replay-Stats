@@ -1768,6 +1768,8 @@ td.best {
   align-items: start;
 }
 .console-menu {
+  /* the global nav rule is a horizontal flex row (and hidden on phones); this menu is a vertical list */
+  display: block;
   position: sticky;
   top: 72px;
 }
