@@ -26,6 +26,7 @@ class PlayerFrame:
     ordnance: str
     arm: str
     emote: bool  # is_emote_playing
+    head_up: Vec3 = (0.0, 1.0, 0.0)  # unit vector out of the top of the head: with head_forward it gives the roll (3D playback)
 
 
 @dataclass(slots=True)

@@ -46,3 +46,47 @@ def test_version_1_files_read_without_hands():
     body = struct.pack("<hhhBbB", 10, 20, 30, 64, 5, 1)
     header_out, players = tracks3d.decode(zlib.compress(struct.pack("<I", len(header)) + header + body))
     assert players["1"]["x"][0] == 10 and players["1"]["team"][0] == 1 and players["1"]["rz"].tolist() == [0]
+
+
+def test_roll_codes():
+    f = (0.0, 0.0, 1.0)
+    assert tracks3d.roll_code(f, (0.0, 1.0, 0.0)) == 0  # upright
+    assert tracks3d.roll_code(f, (0.0, -1.0, 0.0)) == 128  # upside down
+    # a quarter turn about +z (right-handed): up swings from +y to -x (three.js rotation.z turns +x towards +y)
+    assert tracks3d.roll_code(f, (-1.0, 0.0, 0.0)) == 64
+    assert tracks3d.roll_code(f, (1.0, 0.0, 0.0)) == 192
+    # the same when looking up 30 degrees: tilted forward, upright stays 0, upside down stays 128
+    s, c = math.sin(math.radians(30)), math.cos(math.radians(30))
+    pitched = (0.0, s, c)
+    assert tracks3d.roll_code(pitched, (0.0, c, -s)) == 0
+    assert tracks3d.roll_code(pitched, (0.0, -c, s)) == 128
+    # straight up has no reference: reads 0; an up that is not square to the facing direction is squared first
+    assert tracks3d.roll_code((0.0, 1.0, 0.0), (0.0, 0.0, 1.0)) == 0
+    assert tracks3d.roll_code(f, (0.0, -1.0, 0.3)) == 128
+
+
+def test_roll_round_trip_and_version_3_header():
+    rec = tracks3d.Track3DRecorder(START)
+    p = _player("1", (0.0, 0.0, 0.0), (0.0, 0.0, 1.0))
+    p.head_up = (0.0, -1.0, 0.0)  # upside down
+    rec.add(_frame(0, 0.0, [p]))
+    data = rec.encode()
+    header, players = tracks3d.decode(data)
+    assert header["version"] == 3 and players["1"]["roll"][0] == 128
+
+
+def test_older_files_read_with_zero_roll():
+    import json, struct, zlib
+    header = json.dumps({"version": 2, "hz": 5, "samples": 1, "players": ["1"]}).encode()
+    body = struct.pack("<hhhBbB", 10, 20, 30, 64, 5, 1) + bytes(6)  # version 2: six hand bytes, no roll
+    _, players = tracks3d.decode(zlib.compress(struct.pack("<I", len(header)) + header + body))
+    assert list(players["1"]["roll"]) == [0]
+
+
+def test_file_version_reads_only_the_header(tmp_path):
+    rec = tracks3d.Track3DRecorder(START)
+    rec.add(_frame(0, 0.0, [_player("1", (0.0, 0.0, 0.0), (0.0, 0.0, 1.0))]))
+    path = tmp_path / "tracks3d.bin"
+    tracks3d.write(path, rec)
+    assert tracks3d.file_version(path) == tracks3d.FORMAT_VERSION
+    assert tracks3d.file_version(tmp_path / "missing.bin") is None

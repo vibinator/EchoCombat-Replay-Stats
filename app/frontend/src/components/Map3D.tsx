@@ -110,6 +110,7 @@ interface Pose {
   z: number;
   yaw: number; // radians, 0 = facing +z
   pitch: number; // radians, + = up
+  roll: number; // radians around the facing direction, 0 = upright, +-pi = upside down
 }
 
 type Track = Playback3D["players"][number];
@@ -122,7 +123,8 @@ function present(p: Track, k: number): boolean {
 function poseAt(p: Track, s: number): Pose | null {
   const i = Math.floor(s);
   if (!present(p, i)) return null;
-  const a: Pose = { x: p.x[i] / 10, y: p.y[i] / 10, z: p.z[i] / 10, yaw: (p.yaw[i] / 256) * Math.PI * 2, pitch: (p.pitch[i] * Math.PI) / 180 };
+  const rollAt = (k: number) => { const c = p.roll?.[k] ?? 0; return ((c > 127 ? c - 256 : c) / 256) * Math.PI * 2; };
+  const a: Pose = { x: p.x[i] / 10, y: p.y[i] / 10, z: p.z[i] / 10, yaw: (p.yaw[i] / 256) * Math.PI * 2, pitch: (p.pitch[i] * Math.PI) / 180, roll: rollAt(i) };
   const f = s - i;
   if (f <= 0 || !present(p, i + 1)) return a;
   const bx = p.x[i + 1] / 10, by = p.y[i + 1] / 10, bz = p.z[i + 1] / 10;
@@ -130,9 +132,13 @@ function poseAt(p: Track, s: number): Pose | null {
   let dyaw = (p.yaw[i + 1] - p.yaw[i]) % 256;
   if (dyaw > 128) dyaw -= 256;
   if (dyaw < -128) dyaw += 256;
+  let droll = (p.roll ? (p.roll[i + 1] - p.roll[i]) % 256 : 0); // the short way round, like the yaw
+  if (droll > 128) droll -= 256;
+  if (droll < -128) droll += 256;
   return {
     x: a.x + (bx - a.x) * f, y: a.y + (by - a.y) * f, z: a.z + (bz - a.z) * f,
     yaw: a.yaw + ((dyaw / 256) * Math.PI * 2) * f,
+    roll: a.roll + ((droll / 256) * Math.PI * 2) * f,
     pitch: a.pitch + (((p.pitch[i + 1] - p.pitch[i]) * Math.PI) / 180) * f,
   };
 }
@@ -158,6 +164,7 @@ interface PlayerObj {
   arms: THREE.Mesh[]; // upper arm to hand, one solid tube each
   group: THREE.Group;
   head: THREE.Group;
+  torso: THREE.Group; // the body: turned with the head's roll, so an upside-down player hangs the other way
   ring: THREE.Mesh;
   label: CSS2DObject;
   labelEl: HTMLDivElement;
@@ -322,6 +329,7 @@ function Stage(props: Map3DProps & { data: Playback3D }) {
     const bodyGeo = new THREE.CapsuleGeometry(0.26, 0.75, 4, 12).translate(0, -0.85, 0);
     const ringGeo = new THREE.TorusGeometry(0.5, 0.04, 8, 32).rotateX(Math.PI / 2);
     const handGeo = new THREE.SphereGeometry(0.09, 12, 8);
+    const crestGeo = new THREE.BoxGeometry(0.06, 0.16, 0.36);
     const trailMax = Math.ceil(120 * hz) + 2; // longest trail: 1 min (2D: 120 samples at 2 Hz)
     const pickable: THREE.Object3D[] = [];
     const players: PlayerObj[] = data.players.map((track) => {
@@ -330,14 +338,19 @@ function Stage(props: Map3DProps & { data: Playback3D }) {
       const head = new THREE.Group();
       const headMesh = new THREE.Mesh(headGeo, teamMats[firstTeam - 1]);
       const nose = new THREE.Mesh(noseGeo, noseMat);
-      head.add(headMesh, nose);
+      // a crest on top of the head: shows which way is up on the head, so a roll is easy to see
+      const crest = new THREE.Mesh(crestGeo, noseMat);
+      crest.position.set(0, 0.3, -0.02);
+      head.add(headMesh, nose, crest);
       const body = new THREE.Mesh(bodyGeo, teamMats[firstTeam - 1]);
       const ring = new THREE.Mesh(ringGeo, ringMat);
       ring.position.y = -0.2;
       const arrow = new THREE.Mesh(arrowGeo, new THREE.MeshBasicMaterial({ color: TEAM_COLORS[firstTeam], transparent: true, opacity: 0.9, side: THREE.DoubleSide }));
       arrow.position.y = -1.45;
       arrow.raycast = () => {};
-      group.add(head, body, ring, arrow);
+      const torso = new THREE.Group();
+      torso.add(body);
+      group.add(head, torso, ring, arrow);
       headMesh.userData.uid = body.userData.uid = track.user_id;
       pickable.push(headMesh, body);
       const labelEl = document.createElement("div");
@@ -372,7 +385,7 @@ function Stage(props: Map3DProps & { data: Playback3D }) {
         scene.add(m);
         return m;
       });
-      return { track, hands, arms, group, head, ring, label, labelEl, labelText: "", trail, trailPos, trailCol };
+      return { track, hands, arms, group, head, torso, ring, label, labelEl, labelText: "", trail, trailPos, trailCol };
     });
     const byId = new Map(players.map((p) => [p.track.user_id, p]));
 
@@ -697,6 +710,8 @@ function Stage(props: Map3DProps & { data: Playback3D }) {
           o.group.position.set(pose.x, pose.y, pose.z);
           o.group.rotation.y = pose.yaw;
           o.head.rotation.x = -pose.pitch;
+          o.head.rotation.z = pose.roll; // roll first, then the pitch: turned about the way the head faces
+          o.torso.rotation.z = pose.roll;
           const picked = p.follow === o.track.user_id;
           o.ring.visible = picked;
           const hideLabel = (mode === "first" || mode === "follow") && picked;
@@ -732,13 +747,17 @@ function Stage(props: Map3DProps & { data: Playback3D }) {
         const recorded = !!showHands && handsAt(o.track, s, offs);
         for (let k = 0; k < 2; k++) o.hands[k].visible = o.arms[k].visible = !!showHands;
         if (showHands && pose) {
-          const sy = Math.sin(pose.yaw), cy = Math.cos(pose.yaw);
+          const sy = Math.sin(pose.yaw), cy = Math.cos(pose.yaw), sr = Math.sin(pose.roll), cr = Math.cos(pose.roll);
           for (let k = 0; k < 2; k++) {
-            const side = k === 0 ? 1 : -1; // left shoulder is at +(cos, -sin) of the facing, right the opposite
-            const sx = pose.x + side * cy * SHOULDER_HALF_M, sz = pose.z - side * sy * SHOULDER_HALF_M, sh = pose.y - SHOULDER_DROP_M;
-            const hx = recorded ? pose.x + offs[k * 3] : sx + side * cy * 0.06 + sy * 0.12;
-            const hy = recorded ? pose.y + offs[k * 3 + 1] : sh - 0.5;
-            const hz = recorded ? pose.z + offs[k * 3 + 2] : sz - side * sy * 0.06 + cy * 0.12;
+            const side = k === 0 ? 1 : -1; // left shoulder is at +x of the player's own frame (turned by the yaw), right at -x
+            // the shoulder in the player's frame, turned by the roll (an upside-down player has them above the head), then by the yaw
+            const lx = side * SHOULDER_HALF_M * cr + SHOULDER_DROP_M * sr, ly = side * SHOULDER_HALF_M * sr - SHOULDER_DROP_M * cr;
+            const sx = pose.x + lx * cy, sz = pose.z - lx * sy, sh = pose.y + ly;
+            // relaxed: down along the body (rolled), a little forward and out
+            const dx = sr * 0.5 + side * 0.06 * cr, dy = -cr * 0.5 + side * 0.06 * sr;
+            const hx = recorded ? pose.x + offs[k * 3] : sx + dx * cy + sy * 0.12;
+            const hy = recorded ? pose.y + offs[k * 3 + 1] : sh + dy;
+            const hz = recorded ? pose.z + offs[k * 3 + 2] : sz - dx * sy + cy * 0.12;
             o.hands[k].position.set(hx, hy, hz);
             armDir.set(hx - sx, hy - sh, hz - sz);
             const len = armDir.length();
@@ -825,7 +844,7 @@ function Stage(props: Map3DProps & { data: Playback3D }) {
           if (mode === "first") {
             camera.position.set(pose.x + fx * 0.15, pose.y, pose.z + fz * 0.15);
             // a camera looks down -z; the drag turns the view away from where the player looks
-            camera.rotation.set(clamp(pose.pitch + drag.pitch, -1.5, 1.5), pose.yaw + Math.PI + drag.yaw, 0, "YXZ");
+            camera.rotation.set(clamp(pose.pitch + drag.pitch, -1.5, 1.5), pose.yaw + Math.PI + drag.yaw, -pose.roll, "YXZ"); // the camera looks down -z: a roll about the player's forward is -roll about its z
             settling = 0;
           } else {
             // swing round the player by the drag: the (back, up) offset is turned about the player, up / down in its own plane

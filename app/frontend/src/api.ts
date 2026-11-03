@@ -743,6 +743,7 @@ export interface Playback3D {
     z: number[];
     yaw: number[]; // 0-255 = one turn, 0 = facing +z, 64 = facing +x
     pitch: number[]; // degrees, + = up
+    roll?: number[]; // 0-255 = one turn of the head around where it faces: 0 upright, 128 upside down (older files: missing)
     team: number[]; // 0 absent, 1 blue, 2 orange
     hands?: number[][]; // [lx, ly, lz, rx, ry, rz] per sample: relative to the head, 2 cm steps (older servers: missing)
   }[];

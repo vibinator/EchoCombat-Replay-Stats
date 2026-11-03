@@ -186,7 +186,7 @@ No table: computed from `match_players` + loadouts + `matches` on request (`back
 ## 3D tracks file (3D playback, docs/WebReplayer-Review.MD Phase 2)
 `data/processed/<replay_id>/tracks3d.bin` = zlib( uint32 header length | header JSON | arrays ), little-endian (`app/backend/tracks3d.py`).
 - Header: `{version: 2, hz: 5, samples, players: [user_id…], payload?: [[x, y, z] metres | null per sample]}`.
-- Per player, in header order: `x`, `y`, `z` int16[samples] (head position, decimetres), `yaw` uint8 (256 steps, 0 = facing +z, 64 = +x), `pitch` int8 (degrees, + = up), `team` uint8 (0 absent, 1 blue, 2 orange); version 2 adds hands `lx, ly, lz, rx, ry, rz` int8[samples] (relative to the head, 2 cm steps, ±2.54 m clamped).
+- Per player, in header order: `x`, `y`, `z` int16[samples] (head position, decimetres), `yaw` uint8 (256 steps, 0 = facing +z, 64 = +x), `pitch` int8 (degrees, + = up), `team` uint8 (0 absent, 1 blue, 2 orange); version 2 adds hands `lx, ly, lz, rx, ry, rz` int8[samples] (relative to the head, 2 cm steps, ±2.54 m clamped); version 3 adds `roll` uint8[samples] (256 steps, the head's turn around its facing direction: 0 = upright, 128 = upside down; from `head.up`). Files of an older version are rebuilt on first view (`backfill_tracks3d.bat --upgrade` does the whole archive).
 - First frame of each 0.2 s slot; load-in spot samples absent. Written by the worker with `tracks.bin` for every replay it processes; for matches processed earlier (or in an older format) built on first view (`tracks3d.build`, ~1 s per 10-minute match). ≈ 140–210 KB per 10-minute match. Overwritten on reprocess; rebuildable.
 
 ## Heatmap cache (D18)

@@ -5,11 +5,13 @@ Sampled at 5 Hz (the 2 Hz tracks.bin is too coarse for 3D). Per player and sampl
 - yaw: uint8, 256 steps (1.4 degrees), 0 = facing +z, increasing towards +x (atan2(forward.x, forward.z));
 - pitch: int8 degrees, + = looking up;
 - team: uint8 (0 absent, 1 blue, 2 orange);
-- hands (version 2): left x, y, z, right x, y, z relative to the head, int8 in 2 cm steps (+-2.54 m, clamped).
+- hands (version 2): left x, y, z, right x, y, z relative to the head, int8 in 2 cm steps (+-2.54 m, clamped);
+- roll (version 3): uint8, 256 steps, the turn of the head around the way it faces: 0 = upright (the head's up is as
+  close to the world's up as it can be), 128 = upside down; increasing = right-handed about the facing direction.
 The header also holds the payload cart position per sample ([x, y, z] in metres, 1 decimal, or null), for payload maps.
 
 File = zlib( uint32 header length | header JSON | per player: x, y, z (int16) | yaw (uint8) | pitch (int8) | team (uint8)
-| lx, ly, lz, rx, ry, rz (int8) ), little-endian, players in header order. About 15 bytes per player per sample before zlib.
+| lx, ly, lz, rx, ry, rz (int8) | roll (uint8) ), little-endian, players in header order. About 16 bytes per player per sample before zlib.
 
 Written by the worker for every replay it processes, and built on first request (build(), in the worker's low-priority
 processes) for matches processed before 3D playback existed: no reprocess of the whole archive. Rebuildable from the replay.
@@ -20,6 +22,7 @@ import json
 import logging
 import math
 import os
+import re
 import struct
 import threading
 import zlib
@@ -32,10 +35,11 @@ from .tracks import ABSENT, TEAM_CODES, _dm
 
 log = logging.getLogger(__name__)
 
-FORMAT_VERSION = 2
+FORMAT_VERSION = 3
 HZ = 5
 HAND_KEYS = ("lx", "ly", "lz", "rx", "ry", "rz")
 HAND_STEP_M = 0.02
+TRACK_KEYS = ("x", "y", "z", "yaw", "pitch", *HAND_KEYS, "roll")
 
 
 def _hand(value: float) -> int:
@@ -45,6 +49,33 @@ def _hand(value: float) -> int:
 def yaw_code(forward) -> int:
     fx, _, fz = forward
     return round(math.atan2(fx, fz) / (2 * math.pi) * 256) % 256
+
+
+def roll_code(forward, up) -> int:
+    """The head's turn around its facing direction as a uint8 (256 steps): 0 = upright, 128 = upside down. Upright is
+    the up the head would have with no roll (the world's up, made square to the facing direction); looking straight up
+    or down has no such reference, so roll reads 0 there."""
+    fx, fy, fz = forward
+    n = math.sqrt(fx * fx + fy * fy + fz * fz)
+    if n < 1e-6:
+        return 0
+    fx, fy, fz = fx / n, fy / n, fz / n
+    rx, ry, rz = -fy * fx, 1.0 - fy * fy, -fy * fz  # world up minus its part along the facing direction
+    rn = math.sqrt(rx * rx + ry * ry + rz * rz)
+    if rn < 0.05:
+        return 0
+    rx, ry, rz = rx / rn, ry / rn, rz / rn
+    ux, uy, uz = up
+    d = ux * fx + uy * fy + uz * fz
+    ux, uy, uz = ux - d * fx, uy - d * fy, uz - d * fz  # the head's up, square to the facing direction
+    un = math.sqrt(ux * ux + uy * uy + uz * uz)
+    if un < 1e-6:
+        return 0
+    ux, uy, uz = ux / un, uy / un, uz / un
+    cx, cy, cz = ry * uz - rz * uy, rz * ux - rx * uz, rx * uy - ry * ux  # reference x head up
+    sin = cx * fx + cy * fy + cz * fz
+    cos = rx * ux + ry * uy + rz * uz
+    return round(math.atan2(sin, cos) / (2 * math.pi) * 256) % 256
 
 
 def pitch_code(forward) -> int:
@@ -69,7 +100,7 @@ class Track3DRecorder:
         while self.samples <= slot:  # gaps: pad as absent
             self.samples += 1
             for track in self.players.values():
-                for key in ("x", "y", "z", "yaw", "pitch", *HAND_KEYS):
+                for key in TRACK_KEYS:
                     track[key].append(0)
                 track["team"].append(ABSENT)
             self.payload.append(None)
@@ -82,13 +113,14 @@ class Track3DRecorder:
                     continue  # parked at the load-in spot: absent, as in tracks.bin
                 track = self.players.get(p.user_id)
                 if track is None:
-                    track = self.players[p.user_id] = {k: [0] * self.samples for k in ("x", "y", "z", "yaw", "pitch", *HAND_KEYS)}
+                    track = self.players[p.user_id] = {k: [0] * self.samples for k in TRACK_KEYS}
                     track["team"] = [ABSENT] * self.samples
                 x, y, z = p.head_position
                 for key, hand, head in zip(HAND_KEYS, (*p.lhand, *p.rhand), (x, y, z, x, y, z)):
                     track[key][index] = _hand(hand - head)
                 track["x"][index], track["y"][index], track["z"][index] = _dm(x), _dm(y), _dm(z)
                 track["yaw"][index], track["pitch"][index] = yaw_code(p.head_forward), pitch_code(p.head_forward)
+                track["roll"][index] = roll_code(p.head_forward, p.head_up)
                 track["team"][index] = TEAM_CODES[team]
 
     def encode(self) -> bytes:
@@ -104,6 +136,7 @@ class Track3DRecorder:
             body += bytes(t["team"])
             for key in HAND_KEYS:
                 body += array("b", t[key]).tobytes()
+            body += bytes(t["roll"])
         head = json.dumps(header, separators=(",", ":")).encode()
         return zlib.compress(struct.pack("<I", len(head)) + head + bytes(body), 6)
 
@@ -121,7 +154,8 @@ class Recorders:
 
 def decode(data: bytes) -> tuple[dict, dict[str, dict[str, array | bytes]]]:
     """Returns (header, {user_id: {"x", "y", "z": array('h'), "yaw": bytes, "pitch": array('b'), "team": bytes,
-    "lx" ... "rz": array('b') (hands relative to the head, 2 cm steps; zeros in version-1 files)}})."""
+    "lx" ... "rz": array('b') (hands relative to the head, 2 cm steps; zeros in version-1 files), "roll": bytes (zeros
+    before version 3)}})."""
     raw = zlib.decompress(data)
     (length,) = struct.unpack_from("<I", raw)
     header = json.loads(raw[4 : 4 + length])
@@ -141,8 +175,24 @@ def decode(data: bytes) -> tuple[dict, dict[str, dict[str, array | bytes]]]:
                 t[key].frombytes(raw[offset : offset + n]); offset += n
             else:
                 t[key].frombytes(bytes(n))
+        if header.get("version", 1) >= 3:
+            t["roll"] = raw[offset : offset + n]; offset += n
+        else:
+            t["roll"] = bytes(n)
         players[user_id] = t
     return header, players
+
+
+def file_version(path: Path) -> int | None:
+    """The format version of a tracks3d.bin without reading all of it (None = missing or unreadable; files from before
+    versions were written count as 1). The header starts with the version, so a few bytes of the stream are enough."""
+    try:
+        with open(path, "rb") as f:
+            head = zlib.decompressobj().decompress(f.read(512), 96)
+        match = re.search(rb'"version":(\d+)', head)
+        return int(match.group(1)) if match else 1
+    except (OSError, zlib.error):
+        return None
 
 
 def tracks3d_path(processed_dir: Path, replay_id: int) -> Path:

@@ -477,7 +477,7 @@ def _tracks3d(request: Request, replay_id: int):
     data = tracks3d.read(path)
     if data is not None and data[0].get("version") == tracks3d.FORMAT_VERSION:
         return data
-    older = data  # a readable file of an older format (no hands): built again, but used when that cannot be done
+    older = data  # a readable file of an older format (no hands / no roll): built again, but used when that cannot be done
 
     def unavailable(message: str):
         if older is not None:
@@ -551,7 +551,7 @@ def _playback3d(request: Request, match_id: int) -> dict:
     for uid, t in players.items():
         main = aliases.get(uid, uid)
         out.append({"user_id": main, "name": names.get(main, uid), "x": t["x"].tolist(), "y": t["y"].tolist(),
-                    "z": t["z"].tolist(), "yaw": list(t["yaw"]), "pitch": t["pitch"].tolist(), "team": list(t["team"]),
+                    "z": t["z"].tolist(), "yaw": list(t["yaw"]), "pitch": t["pitch"].tolist(), "roll": list(t["roll"]), "team": list(t["team"]),
                     "hands": [t[k].tolist() for k in tracks3d.HAND_KEYS]})
     objects: dict = {}
     if route := PAYLOAD_ROUTES.get(match.map):

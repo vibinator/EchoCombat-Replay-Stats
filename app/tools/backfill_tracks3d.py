@@ -2,7 +2,7 @@
 the whole archive. Reads each replay once (slow: ~3 h for 29k replays on a many-core PC), writes only tracks3d.bin next to
 the existing tracks.bin. Safe to stop (Ctrl+C) and run again: it skips what exists, newest matches first.
 
-    backfill_tracks3d.bat [--workers 4] [--limit N] [--dry-run]
+    backfill_tracks3d.bat [--workers 4] [--limit N] [--dry-run] [--upgrade]
 
 Run it where the data folder and the replay share are both reachable (the website's PC / NAS, or a copy of data/processed
 that you copy back). Never writes the replay share or the database."""
@@ -42,6 +42,7 @@ def main() -> int:
     ap.add_argument("--workers", type=int, default=max(1, (os.cpu_count() or 4) // 2))
     ap.add_argument("--limit", type=int, default=0, help="stop after this many replays (0 = all)")
     ap.add_argument("--dry-run", action="store_true", help="only count what is missing")
+    ap.add_argument("--upgrade", action="store_true", help="also rebuild files of an older format (before head roll: version 3)")
     args = ap.parse_args()
 
     settings = Settings.from_env()
@@ -51,11 +52,13 @@ def main() -> int:
     todo = []
     for rid, source in rows:
         out = tracks3d.tracks3d_path(settings.processed_dir, rid)
-        if not out.exists() and out.parent.exists():  # processed (a tracks.bin folder) but no 3D tracks yet
+        if not out.parent.exists():
+            continue  # not processed (no tracks.bin folder)
+        if not out.exists() or (args.upgrade and (tracks3d.file_version(out) or 0) < tracks3d.FORMAT_VERSION):
             todo.append((str(settings.source_dir / source), str(out)))
     if args.limit:
         todo = todo[: args.limit]
-    print(f"{len(rows):,} processed replays, {len(todo):,} without 3D tracks.")
+    print(f"{len(rows):,} processed replays, {len(todo):,} to build (missing{' or older format' if args.upgrade else ''}).")
     if args.dry_run or not todo:
         return 0
     done = failed = 0

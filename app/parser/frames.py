@@ -148,6 +148,7 @@ def _player(p: dict) -> PlayerFrame:
         gear_code(get("Ordnance", get("Grenade", ""))),  # ordnance
         get("Arm", ""),
         bool(get("is_emote_playing", False)),  # emote
+        _vec(p["head"].get("up") or (0.0, 1.0, 0.0)),  # head_up
     )
 
 

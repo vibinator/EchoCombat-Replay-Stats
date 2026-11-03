@@ -18,6 +18,17 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.03.12 — 02:51
+### 3D playback: upside down is visible (head roll)
+- The replay's head "up" direction is now kept (3D track file version 3: one more byte per player per sample). Players
+  who roll or flip are drawn that way: the head turns around where it faces, with a white crest on top so the up side
+  is clear, the body and the shoulders swing with it, and the First person camera rolls with the player.
+- **What you must do:** nothing is required. A match processed before this has no roll: its 3D track is rebuilt from the
+  replay the first time its 3D playback is opened (a few seconds), and every new import has it. To rebuild the whole
+  archive in one go, run `backfill_tracks3d.bat --upgrade` (`--dry-run` first counts what it would do); it is slow but
+  safe to stop and run again.
+- Players who are not rolled look as before. Looking straight up or down has no "upright" to measure from and reads 0.
+
 ## 2026.11.03.11 — 02:43
 ### 3D playback: facing direction and arms
 - Every player has an arrow on the floor under them in their team colour, pointing where they face (also readable from
