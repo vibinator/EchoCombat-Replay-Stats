@@ -11,6 +11,7 @@ import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 import { CSS2DObject, CSS2DRenderer } from "three/examples/jsm/renderers/CSS2DRenderer.js";
 import { getPlayback3d, type MatchEvent, type Playback, type Playback3D } from "../api";
 import { useApi } from "../useApi";
+import { useFullscreen } from "../useFullscreen";
 import { gearIconUrl, Status } from "./common";
 import { dressMapModel, type MapMaterial } from "./mapModel3d";
 import { CAMERAS, CONTROL_HELP, isFreeCamera, TEAM_COLORS, type Camera3D } from "./playback3d";
@@ -168,6 +169,7 @@ function Stage(props: Map3DProps & { data: Playback3D }) {
   const latest = useRef(props);
   latest.current = props;
   const dirty = useRef(true);
+  const screen = useFullscreen(mount);
   const engine = useRef<{ setCamera: (c: Camera3D) => void } | null>(null);
   const [mapState, setMapState] = useState<"loading" | "ok" | "none" | "failed">(props.data.model ? "loading" : "none");
   const [failed, setFailed] = useState<string | null>(null);
@@ -899,12 +901,14 @@ function Stage(props: Map3DProps & { data: Playback3D }) {
   }, [props.camera, props.follow, props.data, props.second, props.onPick]);
 
   return (
-    <div className="pb3d" ref={mount} onPointerDown={() => setHint(null)}>
+    <div className={`pb3d${screen.fakeClass}`} ref={mount} onPointerDown={() => setHint(null)}>
       <div className="pb3d-bar" role="toolbar" aria-label="Camera">
         {CAMERAS.filter((c) => c.value !== "objective" || hasObjective).map((c) => (
           <button key={c.value} type="button" className={c.value === props.camera ? "active" : ""} aria-pressed={c.value === props.camera}
             title={c.help} onClick={() => props.onCamera(c.value)}>{SHORT_LABEL[c.value]}</button>
         ))}
+        <button type="button" className="pb3d-full" aria-pressed={screen.full} aria-label={screen.full ? "Leave full screen" : "Full screen"}
+          title={screen.full ? "Leave full screen (Esc)" : "Full screen"} onClick={screen.toggle}>{screen.full ? "✕" : "⛶"}</button>
         <button type="button" className={`pb3d-help-btn${help ? " active" : ""}`} aria-expanded={help} aria-label="Show the controls" title="How to move around (?)"
           onClick={() => setHelp((h) => !h)}>?</button>
       </div>

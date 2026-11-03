@@ -7,6 +7,7 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { Heatmap3D, Heatmap3DLayer } from "../api";
 import { useApi } from "../useApi";
+import { useFullscreen } from "../useFullscreen";
 import { Status } from "./common";
 import { dressMapModel, type MapMaterial } from "./mapModel3d";
 
@@ -102,6 +103,7 @@ interface LayerObj {
 function Scene({ data, colors, hidden, opacity, onUse2D }: Props & { data: Heatmap3D }) {
   const mount = useRef<HTMLDivElement>(null);
   const dirty = useRef(true);
+  const screen = useFullscreen(mount);
   const latest = useRef({ colors, hidden, opacity });
   latest.current = { colors, hidden, opacity };
   const engine = useRef<{ apply: () => void; view: (v: "orbit" | "top") => void; mapOpacity: (o: number) => void } | null>(null);
@@ -306,7 +308,7 @@ function Scene({ data, colors, hidden, opacity, onUse2D }: Props & { data: Heatm
   useEffect(() => engine.current?.mapOpacity(mapOpacity), [mapOpacity]);
 
   return (
-    <div className="pb3d" ref={mount}>
+    <div className={`pb3d${screen.fakeClass}`} ref={mount}>
       <div className="pb3d-bar" role="toolbar" aria-label="Camera">
         {(["orbit", "top"] as const).map((v) => (
           <button key={v} type="button" className={v === view ? "active" : ""} aria-pressed={v === view}
@@ -317,6 +319,8 @@ function Scene({ data, colors, hidden, opacity, onUse2D }: Props & { data: Heatm
           Map
           <input type="range" min={0.05} max={1} step={0.05} value={mapOpacity} onChange={(e) => setMapOpacity(Number(e.target.value))} />
         </label>
+        <button type="button" className="pb3d-full" aria-pressed={screen.full} aria-label={screen.full ? "Leave full screen" : "Full screen"}
+          title={screen.full ? "Leave full screen (Esc)" : "Full screen"} onClick={screen.toggle}>{screen.full ? "✕" : "⛶"}</button>
         <button type="button" className="pb3d-help-btn" onClick={onUse2D} title="Back to the flat map" aria-label="Show the 2D map">2D</button>
       </div>
       {failed && <div className="pb3d-message overlay"><p>{failed}</p><button type="button" onClick={onUse2D}>Show the 2D map</button></div>}

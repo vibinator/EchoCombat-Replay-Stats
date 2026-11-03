@@ -2871,6 +2871,21 @@ button.small {
   }
 }
 
+/* full screen: the browser's own (:fullscreen) or, where an element cannot go full screen, the page filled (.pb3d-fake-full) */
+.pb3d:fullscreen,
+.pb3d.pb3d-fake-full {
+  width: 100vw;
+  height: 100vh;
+  max-height: none;
+  aspect-ratio: auto;
+  border-radius: 0;
+}
+.pb3d.pb3d-fake-full {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+}
+
 /* 3D camera bar, "?" controls list and first-use hint (components/Map3D.tsx) */
 .pb3d-bar {
   position: absolute;
@@ -2902,6 +2917,14 @@ button.small {
   background: #fff;
   color: #10131a;
   border-color: #fff;
+}
+.pb3d-bar .pb3d-full {
+  margin-left: auto;
+  min-width: 30px;
+  padding: 4px 0;
+}
+.pb3d-bar .pb3d-full + .pb3d-help-btn {
+  margin-left: 0;
 }
 .pb3d-bar .pb3d-help-btn {
   margin-left: auto;

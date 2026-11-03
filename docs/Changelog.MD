@@ -18,6 +18,11 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.03.4 — 01:46
+### Full screen for the 3D views
+- A full screen button (⛶) in the toolbar of the 3D playback and the 3D heatmap. Esc leaves. Where the browser cannot take
+  an element full screen (iPhone), the view fills the page instead.
+
 ## 2026.11.03.3 — 01:44
 ### Remote worker: more parallelism by default
 - Readers default to all cores but one, 12 uploads at a time, and up to 3 x readers replays are claimed ahead.
