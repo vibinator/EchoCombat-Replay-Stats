@@ -2762,6 +2762,12 @@ button.small {
 /* 3D playback (components/Map3D.tsx) */
 .pb3d {
   position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+  user-select: none; /* dragging with a button held must not select the text around the view */
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  background: radial-gradient(ellipse at 50% 30%, #1f2a3c 0%, #121823 55%, #0a0d13 100%);
   width: 100%;
   aspect-ratio: 16 / 10;
   max-height: 75vh;

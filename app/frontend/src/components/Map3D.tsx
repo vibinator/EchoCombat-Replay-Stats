@@ -21,6 +21,21 @@ const HAND_STEP_M = 0.02; // hands are sent relative to the head in 2 cm steps
 const SHOULDER_DROP_M = 0.3; // arms are drawn from just below the head
 const FOLLOW_BACK_M = 7; // chase camera: behind and above the picked player, looking down at them
 const FOLLOW_UP_M = 4;
+// The map files use the colours of the old hologram minimaps: their "Light Orange" is #ff3800, which reads as red next to the
+// site's orange, and the dark parts are near black. Recoloured when loaded (user, 2026-11-02): the teams in the site's own
+// colours, readable darks, a cleaner glow. Anything not listed keeps the colour it came with.
+const MAP_LOOK: Record<string, { color: string; emissive?: string; emissiveIntensity?: number }> = {
+  "Light Orange": { color: TEAM_COLORS[2] },
+  "Light Blue": { color: "#22b7ee" },
+  "Dark Gray": { color: "#1a202b" },
+  "Dark Blue": { color: "#122042" },
+  "Light Gray": { color: "#4b5465" },
+  "Light Light Gray": { color: "#a9b1bf" },
+  Map: { color: "#d4dae5" },
+  lambert1: { color: "#7b8393" },
+  Pink: { color: "#c93f72" },
+  "Glowing Blue": { color: "#1780d6", emissive: "#2fa4ff", emissiveIntensity: 0.85 },
+};
 const RIDE_MAP_OPACITY = 0.28; // follow / first person: the map is a coarse hologram (~1 m), so see through it
 
 export interface Map3DProps {
@@ -162,24 +177,28 @@ function Stage(props: Map3DProps & { data: Playback3D }) {
     const hz = data.hz;
     let renderer: THREE.WebGLRenderer;
     try {
-      renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
     } catch (e) {
       setFailed(`3D could not start: ${(e as Error).message}`);
       return;
     }
     const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setClearColor(0x000000, 0); // see-through: the gradient behind the canvas (styles.css .pb3d) is the sky
+    renderer.toneMapping = THREE.NeutralToneMapping; // bright surfaces keep their hue instead of clipping to flat colour
     el.appendChild(renderer.domElement);
     const labels = new CSS2DRenderer();
     labels.domElement.className = "pb3d-labels";
     el.appendChild(labels.domElement);
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color("#101216");
-    scene.add(new THREE.HemisphereLight(0xffffff, 0x2a3140, 2.2));
-    const sun = new THREE.DirectionalLight(0xffffff, 1.4);
-    sun.position.set(0.6, 1, 0.4);
+    scene.add(new THREE.HemisphereLight(0xdbe8ff, 0x2a3140, 1.5));
+    const sun = new THREE.DirectionalLight(0xfff1dc, 1.9); // warm key from above
+    sun.position.set(0.5, 1, 0.35);
     scene.add(sun);
+    const fill = new THREE.DirectionalLight(0x8fb4ff, 0.7); // cool fill from the other side: shaded faces keep some shape
+    fill.position.set(-0.7, 0.35, -0.6);
+    scene.add(fill);
 
     // --- where the action is (5th-95th percentiles, so the load-in rooms far around the arena do not count) ---
     const xs: number[] = [], zs: number[] = [], ys: number[] = [];
@@ -193,6 +212,7 @@ function Stage(props: Map3DProps & { data: Playback3D }) {
     const [x0, x1, z0, z1] = data.extent ?? [q(xs, 0.05), q(xs, 0.95), q(zs, 0.05), q(zs, 0.95)];
     const center = new THREE.Vector3((x0 + x1) / 2, ys[Math.floor(ys.length / 2)], (z0 + z1) / 2);
     const span = Math.max(40, x1 - x0, z1 - z0);
+    scene.fog = new THREE.Fog("#0d1118", span * 1.15, span * 3.6); // far parts fade into the sky
 
     const camera = new THREE.PerspectiveCamera(55, 1, 0.05, span * 12);
     const controls = new OrbitControls(camera, renderer.domElement);
@@ -208,7 +228,6 @@ function Stage(props: Map3DProps & { data: Playback3D }) {
     // left drag turns, right drag (or Shift + left drag) moves sideways, wheel zooms, middle drag zooms
     controls.mouseButtons = { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN };
     controls.addEventListener("change", () => { dirty.current = true; });
-    renderer.domElement.addEventListener("contextmenu", (e) => e.preventDefault()); // right drag moves: no menu
 
     // --- map model ---
     let disposed = false;
@@ -231,12 +250,26 @@ function Stage(props: Map3DProps & { data: Playback3D }) {
             if (!mesh.isMesh) return;
             for (const m of ([] as THREE.Material[]).concat(mesh.material)) {
               const std = m as THREE.MeshStandardMaterial;
+              const look = MAP_LOOK[std.name];
+              if (look) {
+                std.color.set(look.color);
+                if (look.emissive) { std.emissive.set(look.emissive); std.emissiveIntensity = look.emissiveIntensity ?? 1; }
+              }
               std.flatShading = true; // the files have no normals (app/tools/maps3d)
               mapMaterials.push({ m: std, opacity: std.opacity, transparent: std.transparent });
             }
             mesh.raycast = () => {}; // clicks pick players only
           });
           scene.add(gltf.scene);
+          // a faint grid under the arena, fading out with the fog: gives the floating map a place to sit
+          const floor = new THREE.Box3().setFromObject(gltf.scene).min.y - 0.6;
+          const size = Math.ceil((span * 1.7) / 10) * 10;
+          const grid = new THREE.GridHelper(size, size / 10, 0x34496a, 0x1d2940);
+          (grid.material as THREE.Material).transparent = true;
+          (grid.material as THREE.Material).opacity = 0.55;
+          grid.position.set(center.x, floor, center.z);
+          grid.raycast = () => {};
+          scene.add(grid);
           mapSeeThrough(mode === "follow" || mode === "first");
           setMapState("ok");
           dirty.current = true;
@@ -416,7 +449,7 @@ function Stage(props: Map3DProps & { data: Playback3D }) {
       controls.enableRotate = next === "orbit";
       if (next === "orbit") {
         controls.target.copy(center);
-        camera.position.set(center.x + span * 0.35, center.y + span * 0.5, center.z + span * 0.55);
+        camera.position.set(center.x + span * 0.27, center.y + span * 0.38, center.z + span * 0.43);
       } else if (next === "top") {
         controls.target.copy(center);
         camera.position.set(center.x, center.y + span * 0.95, center.z + 0.01);
@@ -471,10 +504,18 @@ function Stage(props: Map3DProps & { data: Playback3D }) {
       dirty.current = true;
     }
 
-    // --- picking: a click (not a drag) on a player picks them ---
+    // --- right and middle buttons move the view: no browser menu (in any camera, also over the name labels and on touch
+    // screens' long press), no middle-click autoscroll, no text selected by dragging ---
+    const noDefault = (e: Event) => e.preventDefault();
+    const noAutoscroll = (e: MouseEvent) => { if (e.button === 1 || e.button === 2) e.preventDefault(); };
+    el.addEventListener("contextmenu", noDefault);
+    el.addEventListener("auxclick", noDefault);
+    el.addEventListener("mousedown", noAutoscroll);
+
+    // --- picking: a click (not a drag) with the main button on a player picks them ---
     const ray = new THREE.Raycaster();
     let down: [number, number] | null = null;
-    const onDown = (e: PointerEvent) => { down = [e.clientX, e.clientY]; };
+    const onDown = (e: PointerEvent) => { down = e.button === 0 ? [e.clientX, e.clientY] : null; }; // right / middle never pick
     const onUp = (e: PointerEvent) => {
       if (!down || Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 5) return;
       const box = renderer.domElement.getBoundingClientRect();
@@ -670,6 +711,9 @@ function Stage(props: Map3DProps & { data: Playback3D }) {
     return () => {
       disposed = true;
       cancelAnimationFrame(raf);
+      el.removeEventListener("contextmenu", noDefault);
+      el.removeEventListener("auxclick", noDefault);
+      el.removeEventListener("mousedown", noAutoscroll);
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
       window.removeEventListener("blur", onBlur);
