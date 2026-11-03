@@ -18,6 +18,13 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.03.11 — 02:43
+### 3D playback: facing direction and arms
+- Every player has an arrow on the floor under them in their team colour, pointing where they face (also readable from
+  above), and a longer nose on the head.
+- Arms are solid tubes from the shoulders to the hands instead of thin lines. Matches without recorded hand positions
+  now show arms hanging relaxed at the sides. The "Hands" checkbox still turns hands and arms on and off.
+
 ## 2026.11.03.10 — 02:35
 ### Full screen for the 2D views, and more in the 3D full screens
 - The 2D heatmap and the 2D playback have a full screen button: the whole view (legend, sliders, selectors, controls,
