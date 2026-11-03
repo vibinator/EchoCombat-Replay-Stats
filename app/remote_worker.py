@@ -18,7 +18,7 @@ import tempfile
 import time
 import urllib.error
 import urllib.request
-from concurrent.futures import FIRST_COMPLETED, Future, ProcessPoolExecutor, wait
+from concurrent.futures import FIRST_COMPLETED, Future, ProcessPoolExecutor, ThreadPoolExecutor, wait
 from concurrent.futures.process import BrokenProcessPool
 from dataclasses import dataclass
 from pathlib import Path
@@ -132,13 +132,19 @@ def send(server: Server, job: Job, outcome: tuple) -> str:
     raise OSError("upload failed")
 
 
-def run(server: Server, source: Path, workers: int) -> None:
+def run(server: Server, source: Path, workers: int, uploaders: int) -> None:
+    """Parsing (process pool), claiming (main loop) and uploading (threads) overlap, so the cores never wait for the network.
+    Up to 2 x workers replays are claimed ahead, and claimed again as soon as the cores are about to run dry."""
     tmp = Path(tempfile.mkdtemp(prefix="echovr-remote-"))
     pool = ProcessPoolExecutor(workers, initializer=_pool_process_start)
-    jobs: dict[Future, Job] = {}
+    senders = ThreadPoolExecutor(uploaders, thread_name_prefix="upload")
+    jobs: dict[Future, Job] = {}  # being read in the pool
+    uploads: dict[Future, tuple[Job, tuple]] = {}  # read, being sent
     done_n = failed_n = 0
     started = time.monotonic()
     next_claim, last_note = 0.0, ""
+    spent = {"parse": 0.0, "send": 0.0, "claim": 0.0}
+    window = workers * 2
 
     def note(text: str) -> None:
         nonlocal last_note
@@ -152,15 +158,25 @@ def run(server: Server, source: Path, workers: int) -> None:
         except Exception as e:  # noqa: BLE001 - the server takes them back after 30 minutes anyway
             say(f"Could not give {len(ids)} replay(s) back ({e}); the server queues them again by itself.")
 
+    def upload(job: Job, outcome: tuple) -> str:
+        t = time.monotonic()
+        try:
+            return send(server, job, outcome)
+        finally:
+            spent["send"] += time.monotonic() - t
+            shutil.rmtree(job.folder, ignore_errors=True)
+
     try:
         while True:
-            if len(jobs) < workers + 1 and time.monotonic() >= next_claim:
+            if len(jobs) <= workers and time.monotonic() >= next_claim:
+                t = time.monotonic()
                 try:
-                    reply = server.claim(min(32, workers + 1 - len(jobs)))  # 32 = the server's MAX_CLAIM per request
+                    reply = server.claim(min(32, window - len(jobs)))  # 32 = the server's MAX_CLAIM per request
                 except (urllib.error.URLError, TimeoutError, ConnectionError, OSError, Rejected) as e:
                     note(f"The server did not answer ({e}); trying again in {ERROR_S} s")
                     next_claim = time.monotonic() + ERROR_S
                     reply = None
+                spent["claim"] += time.monotonic() - t
                 if reply is not None:
                     if not reply["enabled"]:
                         note("Remote processing is OFF on the server (Console: Process replays on another PC). Waiting...")
@@ -185,49 +201,55 @@ def run(server: Server, source: Path, workers: int) -> None:
                             say(f"{len(missing)} replay(s) are not at {source}: is the replay share connected on this PC? "
                                 f"(e.g. {reply['jobs'][0]['path']}). Given back; trying again in {MISSING_S} s.")
                             next_claim = time.monotonic() + MISSING_S
-            if not jobs:
+            if not jobs and not uploads:
                 time.sleep(1)
                 continue
-            finished, _ = wait(list(jobs), timeout=1, return_when=FIRST_COMPLETED)
+            finished, _ = wait(list(jobs) + list(uploads), timeout=1, return_when=FIRST_COMPLETED)
             for future in finished:
-                job = jobs.pop(future)
+                if future in jobs:
+                    job = jobs.pop(future)
+                    spent["parse"] += time.monotonic() - job.started
+                    try:
+                        outcome = future.result()
+                    except BrokenProcessPool:
+                        # a replay killed a process: start a new pool; everything being read goes back to the server
+                        give_back([job.id] + [j.id for j in jobs.values()])
+                        say("A reader process died (a damaged or huge replay?). Starting again with a new pool.")
+                        jobs.clear()
+                        pool.shutdown(wait=False, cancel_futures=True)
+                        pool = ProcessPoolExecutor(workers, initializer=_pool_process_start)
+                        break
+                    uploads[senders.submit(upload, job, outcome)] = (job, outcome)
+                    continue
+                job, outcome = uploads.pop(future)
                 try:
-                    outcome = future.result()
-                except BrokenProcessPool:
-                    # a replay killed a process: start a new pool; everything in flight goes back to the server
-                    give_back([job.id] + [j.id for j in jobs.values()])
-                    say("A reader process died (a damaged or huge replay?). Starting again with a new pool.")
-                    jobs.clear()
-                    pool.shutdown(wait=False, cancel_futures=True)
-                    pool = ProcessPoolExecutor(workers, initializer=_pool_process_start)
-                    break
-                try:
-                    what = send(server, job, outcome)
+                    what = future.result()
                 except Fatal:
                     raise
                 except Exception as e:  # noqa: BLE001
                     give_back([job.id])
                     say(f"Could not send replay {job.id} ({e}); given back.")
                     continue
-                finally:
-                    shutil.rmtree(job.folder, ignore_errors=True)
                 if outcome[0] == "ok":
                     done_n += 1
                 else:
                     failed_n += 1
                 total = done_n + failed_n
                 if what != "saved" or total % 10 == 0 or outcome[0] != "ok":
-                    rate = total / max((time.monotonic() - started) / 60, 1e-9)
+                    minutes = max((time.monotonic() - started) / 60, 1e-9)
                     say(f"Replay {job.id} {job.path.name}: {outcome[0] if outcome[0] != 'ok' else 'read'}, {what}"
                         + (f" ({outcome[1]})" if outcome[0] != "ok" else "")
-                        + f"  |  {done_n} read, {failed_n} failed, {rate:.1f}/min")
+                        + f"  |  {done_n} read, {failed_n} failed, {total / minutes:.1f}/min"
+                        + f"  |  avg s/replay: read {spent['parse'] / total:.1f}, send {spent['send'] / total:.1f}, "
+                          f"claim {spent['claim'] / total:.2f}  |  reading {len(jobs)}, sending {len(uploads)}")
     except (KeyboardInterrupt, Fatal):
         raise
     finally:
-        ids = [j.id for j in jobs.values()]
+        ids = [j.id for j in jobs.values()] + [j.id for j, _ in uploads.values()]
         for process in list(getattr(pool, "_processes", {}).values()):
             process.terminate()  # they were told to ignore Ctrl+C; whatever they were reading goes back to the queue
         pool.shutdown(wait=False, cancel_futures=True)
+        senders.shutdown(wait=False, cancel_futures=True)
         if ids:
             give_back(ids)
         shutil.rmtree(tmp, ignore_errors=True)
@@ -240,6 +262,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--secret", default=env("ECHOVR_REMOTE_WORKER_SECRET", ""), help="same as ECHOVR_REMOTE_WORKER_SECRET on the NAS")
     parser.add_argument("--source", default=env("ECHOVR_REPLAY_SOURCE", DEFAULT_SOURCE), help="the replay share as this PC sees it")
     parser.add_argument("--workers", type=int, default=max(1, (os.cpu_count() or 4) - 2), help="parallel readers (default: all cores but two)")
+    parser.add_argument("--uploads", type=int, default=6, help="results sent at the same time (default: 6)")
     args = parser.parse_args(argv)
     if not args.secret or args.secret.startswith("YOUR_"):
         print("No secret: set ECHOVR_REMOTE_WORKER_SECRET in settings.local.bat (the same value as on the NAS).", file=sys.stderr)
@@ -250,7 +273,7 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     say(f"Reading replays for {args.server} from {source} with {args.workers} process(es). Ctrl+C stops (unfinished replays go back).")
     try:
-        run(Server(args.server, args.secret), source, args.workers)
+        run(Server(args.server, args.secret), source, args.workers, max(1, args.uploads))
     except KeyboardInterrupt:
         say("Stopped.")
     except Fatal as e:

@@ -101,30 +101,33 @@ async def result(request: Request, replay_id: int):
     declared = request.headers.get("content-length")
     if declared and declared.isdigit() and int(declared) > remote.MAX_BODY_BYTES:
         raise ApiError(413, "too_big", "Result too big")
-    body = b""
+    chunks, size = [], 0
     async for chunk in request.stream():
-        body += chunk
-        if len(body) > remote.MAX_BODY_BYTES:
+        size += len(chunk)
+        if size > remote.MAX_BODY_BYTES:
             raise ApiError(413, "too_big", "Result too big")
+        chunks.append(chunk)
+    body = b"".join(chunks)
     if not remote.claimed(replay_id):
         # taken back already (no answer for too long, or remote processing was turned off): the NAS has it queued again
         raise ApiError(409, "not_claimed", "This replay is not claimed by the remote PC (any more); its result is dropped")
-    try:
-        outcome, tracks_bytes, tracks3d_bytes = remote.unpack(body)
-        if not (isinstance(outcome, tuple) and outcome and outcome[0] in ("ok", "failed")):
-            raise ValueError("not a result")
-    except Exception as e:  # noqa: BLE001 - cut off, wrong or not allowed content
-        raise ApiError(400, "bad_result", f"The result could not be read: {e}") from e
     settings = request.app.state.settings
     sessions = request.app.state.sessionmaker
 
     def save() -> None:
-        nonlocal outcome
+        # everything slow (unpickling, checking and writing the track files) runs in parallel with other results;
+        # only the database write is one at a time
+        try:
+            outcome, tracks_bytes, tracks3d_bytes = remote.unpack(body)
+            if not (isinstance(outcome, tuple) and outcome and outcome[0] in ("ok", "failed")):
+                raise ValueError("not a result")
+        except Exception as e:  # noqa: BLE001 - cut off, wrong or not allowed content
+            raise ApiError(400, "bad_result", f"The result could not be read: {e}") from e
+        if outcome[0] == "ok":
+            saved = _write_tracks(tracks.tracks_path(settings.processed_dir, replay_id), tracks_bytes, tracks.decode)
+            _write_tracks(tracks3d.tracks3d_path(settings.processed_dir, replay_id), tracks3d_bytes, tracks3d.decode)
+            outcome = (*outcome[:4], saved)  # has_tracks = the file really is here now
         with _write_lock:
-            if outcome[0] == "ok":
-                saved = _write_tracks(tracks.tracks_path(settings.processed_dir, replay_id), tracks_bytes, tracks.decode)
-                _write_tracks(tracks3d.tracks3d_path(settings.processed_dir, replay_id), tracks3d_bytes, tracks3d.decode)
-                outcome = (*outcome[:4], saved)  # has_tracks = the file really is here now
             save_result(sessions, replay_id, outcome)
 
     await run_in_threadpool(save)  # database and disk work: not on the event loop

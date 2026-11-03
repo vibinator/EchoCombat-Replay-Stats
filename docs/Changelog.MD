@@ -18,6 +18,14 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.03.2 — 01:39
+### Remote worker: much faster rebuilds
+- `remote_worker.bat` now reads, claims and uploads at the same time: results go out from 6 upload threads (`--uploads N`)
+  instead of one at a time, and up to 2 x workers replays are claimed ahead in batches, so the cores no longer wait.
+- The progress line shows average seconds per replay for reading, sending and claiming, and how many are being read / sent.
+- The website unpickles and checks the track files of a result in parallel; only the database write is one at a time.
+  Update the NAS as well as the PC.
+
 ## 2026.11.03.1 — 01:07
 ### Heatmaps in 3D (new: match page, player page, Compare)
 - **What:** next to the flat map there is now a **2D / 3D** switch. 3D shows the same layers (team, player, weapon, ordnance, tac mod, loadout, speed) as soft glows in 0.5 m cubes of space inside the see-through 3D map, so you can see *where above the floor* people spent their time. The legend, layer tick boxes and opacity slider work in both views. Orbit / Top / Reset buttons and a Map slider (how solid the map is drawn) sit on the view.
