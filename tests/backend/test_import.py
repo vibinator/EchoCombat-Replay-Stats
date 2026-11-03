@@ -324,3 +324,20 @@ def test_import_status_shows_redo_progress(client):
     for key in ("matches", "leaderboard", "achievements"):
         assert (stages[key]["done"], stages[key]["total"]) == (1, 2), key
     assert stages["tracks"]["done"] == 1 and stages["tracks"]["total"] == 2
+
+
+def test_scan_skips_a_folder_that_vanishes(tmp_path, monkeypatch):
+    """One unreadable / vanished folder must not stop the scan (no new replay would be found at all)."""
+    import os
+    from backend import scanner
+    (tmp_path / "ok").mkdir()
+    (tmp_path / "ok" / "a.echoreplay").write_bytes(b"x")
+    (tmp_path / "gone").mkdir()
+    real_stat = os.stat
+    def stat(path, *a, **k):
+        if str(path).endswith("gone"):
+            raise FileNotFoundError(2, "No such file or directory", str(path))
+        return real_stat(path, *a, **k)
+    monkeypatch.setattr(scanner.os, "stat", stat)
+    dirs = {}
+    assert [e.name for e in scanner._walk(tmp_path, dirs)] == ["a.echoreplay"]

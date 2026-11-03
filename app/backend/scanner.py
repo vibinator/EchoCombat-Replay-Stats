@@ -47,16 +47,23 @@ class Snapshot:
 
 def _walk(root: Path, dirs: dict[str, int]) -> Iterator[os.DirEntry]:
     # os.scandir: on Windows DirEntry.stat() comes from the directory listing (no extra network call).
+    # A folder that vanishes or cannot be read while walking (a temporary folder, a permission problem) is skipped:
+    # it must not stop the scan, or no new replay would be found at all. Only the root failing is an error.
     stack = [root]
     while stack:
         folder = stack.pop()
-        dirs[str(folder)] = os.stat(folder).st_mtime_ns  # before listing: a file added meanwhile still shows as a change
-        with os.scandir(folder) as entries:
-            for entry in entries:
-                if entry.is_dir(follow_symlinks=False):
-                    stack.append(Path(entry.path))
-                elif entry.name.lower().endswith(EXTENSION):
-                    yield entry
+        try:
+            dirs[str(folder)] = os.stat(folder).st_mtime_ns  # before listing: a file added meanwhile still shows as a change
+            with os.scandir(folder) as entries:
+                for entry in entries:
+                    if entry.is_dir(follow_symlinks=False):
+                        stack.append(Path(entry.path))
+                    elif entry.name.lower().endswith(EXTENSION):
+                        yield entry
+        except (FileNotFoundError, PermissionError, NotADirectoryError) as e:
+            if folder == root:
+                raise
+            log.warning("Skipped %s while scanning: %s", folder, e)
 
 
 def _written_at(st: os.stat_result) -> float:
@@ -91,7 +98,10 @@ def scan_once(sessions: sessionmaker, settings: Settings, state: ScanState, snap
         dirs: dict[str, int] = {}
         settle_due = None
         for entry in _walk(root, dirs):
-            st = entry.stat()
+            try:
+                st = entry.stat()
+            except FileNotFoundError:  # removed since it was listed
+                continue
             ready_at = _written_at(st) + settings.settle_s
             if settings.settle_s and now < ready_at:
                 settling += 1

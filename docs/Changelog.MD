@@ -18,6 +18,13 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.03.16 — 12:53
+### Fix: new replays not appearing
+- The replay-folder scan stopped with "No such file or directory" when a folder (for example `htdocs/public/<id>`) was
+  removed or unreadable while it was being listed, so no new replay was found until the next successful scan, which
+  failed the same way. Such folders and files are now skipped (and logged) and the scan carries on.
+
+
 ## 2026.11.03.15 — 12:13
 ### Console
 - New **Process missing replay files** (also `admin.bat process-missing`, menu 12): scans the replay folder, then queues
