@@ -1023,6 +1023,22 @@ export const getChallenges = () => request<ChallengeWindow>("/api/challenges");
 export const getRarity = () => request<AchievementRarity[]>("/api/achievements");
 export const getRecentUnlocks = () => request<RecentUnlock[]>("/api/achievements/recent");
 
+/** One row of the Achievements page "Top players": the ranking plus facts about the player. */
+export interface Achiever {
+  rank: number;
+  user_id: string;
+  name: string;
+  games: number;
+  overall: number;
+  completed: number; // challenges at 100 %
+  total: number;
+  medals: number; // ladder steps reached (a single-step challenge counts once)
+  gold_plus: number; // challenges at gold or better
+  best_section: string | null; // section with the highest average progress
+  best_section_share: number;
+}
+export const getAchievers = (limit = 10) => request<Achiever[]>(`/api/leaderboard/achievers?limit=${limit}`);
+
 export type HeatmapLayerMode = "team" | "weapons" | "ordnance" | "tacmod" | "loadout" | "speed";
 
 export const getMatchHeatmapBy = (id: number, mode: HeatmapLayerMode | "player", cell: number, player?: string) =>

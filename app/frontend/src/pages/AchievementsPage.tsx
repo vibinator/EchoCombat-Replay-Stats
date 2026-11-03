@@ -1,8 +1,8 @@
 import { useState, type FormEvent } from "react";
 import { Link, Navigate, useLocation, useParams, useSearchParams } from "react-router";
-import { getAchievements, getLeaderboard, getRarity, getRecentUnlocks, searchPlayers } from "../api";
+import { getAchievements, getAchievers, getRarity, getRecentUnlocks, searchPlayers } from "../api";
 import { AchievementsView, ChallengeBanner, ComingSoon, GroupedBadges, JumpToNew, useAchievementsAccess } from "../components/AchievementsView";
-import { Status, TableWrap } from "../components/common";
+import { Status } from "../components/common";
 import { achievementsPath, int, nameSlug, pct, playerPath } from "../format";
 import { useApi } from "../useApi";
 
@@ -41,38 +41,28 @@ function PlayerPicker() {
 }
 
 function TopPlayers() {
-  const board = useApi(() => getLeaderboard({ stat: "achievements", period: "all", min_games: 10, limit: 10 }), "top");
-  if (!board.data || board.data.items.length === 0) return null;
+  const top = useApi(() => getAchievers(10), "top");
+  if (!top.data || top.data.length === 0) return null;
   return (
     <>
       <div className="section-head">
         <h2>Top players</h2>
         <Link to="/leaderboard?stat=achievements">Full leaderboard</Link>
       </div>
-      <TableWrap>
-        <table>
-          <thead>
-            <tr>
-              <th className="num">#</th>
-              <th>Player</th>
-              <th className="num">Games</th>
-              <th className="num">Overall</th>
-            </tr>
-          </thead>
-          <tbody>
-            {board.data.items.map((r) => (
-              <tr key={r.user_id}>
-                <td className="num">{r.rank}</td>
-                <td>
-                  <Link to={achievementsPath(r.user_id, r.name)}>{r.name}</Link>
-                </td>
-                <td className="num">{int(r.games)}</td>
-                <td className="num">{pct(r.value)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </TableWrap>
+      <ol className="top-players" tabIndex={0} aria-label="Top players, scroll sideways">
+        {top.data.map((p) => (
+          <li key={p.user_id}>
+            <span className="rank">#{p.rank}</span>
+            <Link to={achievementsPath(p.user_id, p.name)} className="name">{p.name}</Link>
+            <strong className="big">
+              {int(p.completed)} <span className="muted">/ {int(p.total)} completed</span>
+            </strong>
+            <span className="muted">{int(p.medals)} medals · {int(p.gold_plus)} gold or better</span>
+            {p.best_section && <span className="muted">Strongest: {p.best_section} ({pct(p.best_section_share)})</span>}
+            <span className="muted">Overall {pct(p.overall)}</span>
+          </li>
+        ))}
+      </ol>
     </>
   );
 }

@@ -411,6 +411,11 @@ def achievement_ranking(request: Request) -> list[tuple[int, int, float]]:
     return _everyone(request)["rows"]
 
 
+def achievement_progress(request: Request) -> dict[int, list[float]]:
+    """player_id -> progress per rule (same order as RULES), from the same cached computation as the ranking."""
+    return _everyone(request)["progress"]
+
+
 @router.get("/api/achievements")
 def list_achievements(request: Request):
     """The rule catalogue with rarity: share of players (10+ games) who unlocked (25 %+, tiered: bronze) / completed each."""

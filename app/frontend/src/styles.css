@@ -1627,6 +1627,52 @@ td.best {
 .rank-same, .rank-new { color: var(--muted); font-size: 0.75rem; }
 
 /* achievements */
+/* Top players: one line of cards with the number of challenges completed and a few facts (user, 2026-11-03) */
+.top-players {
+  display: flex;
+  gap: 8px;
+  margin: 0;
+  padding: 0 0 8px;
+  list-style: none;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+}
+.top-players li {
+  flex: 0 0 min(250px, 80vw);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  scroll-snap-align: start;
+  font-size: 0.85rem;
+}
+.top-players .rank {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.top-players .name {
+  font-weight: 700;
+  font-size: 1rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.top-players .big {
+  font-size: 1.4rem;
+  line-height: 1.3;
+}
+.top-players .big .muted {
+  font-size: 0.8rem;
+  font-weight: 400;
+}
+.top-players li:nth-child(1) { border-color: var(--tier-gold); }
+.top-players li:nth-child(2) { border-color: var(--tier-silver); }
+.top-players li:nth-child(3) { border-color: var(--tier-bronze); }
+
 /* Recently completed: one line of small cards that scrolls sideways (user, 2026-11-03) */
 .recent-unlocks {
   display: flex;

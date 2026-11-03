@@ -729,6 +729,36 @@ def evaluate(games: list[Game]) -> list[dict]:
     return [entries[rule.id] for rule in RULES]
 
 
+PERIOD_SECTIONS = {"game": "In one game", "day": "In one day", "week": "In any 7 days", "all": "All time"}
+SECTION_MIN_RULES = 4  # a section needs this many challenges to be somebody's "strongest" (not a lone rule)
+
+
+def section_of(rule: Rule) -> str:
+    """The section of the website a rule is shown in: its period (original rules) or its theme (new ones)."""
+    return (rule.group or "More") if rule.new else PERIOD_SECTIONS[rule.period]
+
+
+def achiever_facts(progress: list[float]) -> dict:
+    """Fun facts about one player from the progress per rule (same order as RULES): challenges completed, medals earned
+    (one per ladder step reached, a single-step rule counts once), challenges at gold or better, and the section with
+    the highest average progress."""
+    completed = medals = gold_plus = 0
+    sections: dict[str, list[float]] = defaultdict(list)
+    for rule, p in zip(RULES, progress):
+        sections[section_of(rule)].append(p)
+        completed += p >= 1
+        if rule.levels:
+            reached = int(p * len(rule.levels) + 1e-6)
+            medals += reached
+            gold_plus += reached >= 3
+        elif p >= 1:
+            medals += 1
+            gold_plus += 1
+    best = max(((sum(v) / len(v), name) for name, v in sections.items() if len(v) >= SECTION_MIN_RULES), default=(0.0, None))
+    return {"completed": completed, "total": len(RULES), "medals": medals, "gold_plus": gold_plus,
+            "best_section": best[1] if best[0] > 0 else None, "best_section_share": round(best[0], 4)}
+
+
 def overall(results: list[dict]) -> float:
     return round(sum(r["progress"] for r in results) / len(results), 4) if results else 0.0
 

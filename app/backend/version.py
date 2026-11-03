@@ -3,8 +3,8 @@ release time. Never edit by hand: `python app/bump_version.py` sets both and add
 VERSION (full) tags the Docker image, GitHub commits and changelog entries; people see the short form (user,
 2026-11-01): "Beta v26.11.1-7" in the website footer, /api/health and the admin console."""
 
-VERSION = "2026.11.03.23"
-RELEASED = "2026-11-03T17:07"  # local time of the release
+VERSION = "2026.11.03.24"
+RELEASED = "2026-11-03T17:16"  # local time of the release
 
 
 def short(version: str) -> str:

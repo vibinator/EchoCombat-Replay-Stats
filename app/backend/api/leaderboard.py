@@ -11,7 +11,8 @@ from ..duplicates import counted
 from ..errors import ApiError
 from ..gear import ORDNANCES, TACMODS, WEAPONS
 from ..models import Match, MatchPlayer, MatchPlayerLoadout, Player
-from .achievements import achievement_ranking, require_launched, visible
+from ..achievements import achiever_facts
+from .achievements import achievement_progress, achievement_ranking, require_launched, visible
 from .derived import MAP_PATTERN, PERIODS, gear, period_start, ratio
 
 router = APIRouter(prefix="/api/leaderboard", tags=["leaderboard"])
@@ -240,6 +241,20 @@ def _leaderboard(request, stat, period, map, private, min_games, weapon, tacmod,
             "ordnance": ordnance and gear(ordnance, ORDNANCES),
         }
     return result
+
+
+@router.get("/achievers")
+def achievers(request: Request, limit: int = Query(10, ge=1, le=50), min_games: int = Query(10, ge=1, le=100_000)):
+    """The top of the achievements ranking with facts about each player: challenges completed, medals, gold or better,
+    strongest section (the Achievements page "Top players")."""
+    require_launched(request)
+    ranking = _rank(achievement_ranking(request), True, min_games)[:limit]
+    progress = achievement_progress(request)
+    with request.app.state.sessionmaker() as db:
+        people = {pid: (name, user_id) for pid, name, user_id in
+                  db.execute(select(Player.id, Player.name, Player.user_id).where(Player.id.in_([pid for pid, _, _ in ranking])))}
+    return [{"rank": i + 1, "user_id": people[pid][1], "name": people[pid][0], "games": games, "overall": overall,
+             **achiever_facts(progress[pid])} for i, (pid, games, overall) in enumerate(ranking)]
 
 
 @router.get("/gear")

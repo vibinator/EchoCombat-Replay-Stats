@@ -18,6 +18,12 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.03.24 — 17:16
+### Achievements page
+- **Top players** is one line of cards that scrolls sideways. Each card shows the number of challenges **completed** (of
+  147) instead of games, plus medals earned, how many are gold or better, the strongest section and the overall %. New
+  endpoint `/api/leaderboard/achievers`; the full leaderboard is unchanged.
+
 ## 2026.11.03.23 — 17:07
 ### Achievements page
 - **Recently completed** is one line of small cards that scrolls sideways (drag the scrollbar under it, Shift + wheel, or

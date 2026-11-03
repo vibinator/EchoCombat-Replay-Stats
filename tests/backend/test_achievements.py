@@ -320,3 +320,24 @@ def test_victory_lap_needs_a_win():
     won = Game(**{**game("2026-10-01").__dict__, "team": "blue", "winner": "blue", "emotes": 30})
     lost = Game(**{**won.__dict__, "winner": "orange"})
     assert by_id(evaluate([won]))[151]["count"] == 30 and by_id(evaluate([lost]))[151]["count"] == 0
+
+
+def test_achiever_facts_and_endpoint(tmp_path):
+    from backend.achievements import achiever_facts
+
+    none = achiever_facts([0.0] * len(RULES))
+    assert none["completed"] == 0 and none["medals"] == 0 and none["best_section"] is None
+    full = achiever_facts([1.0] * len(RULES))
+    assert full["completed"] == len(RULES) and full["gold_plus"] == len(RULES) and full["best_section_share"] == 1.0
+    # one ladder at 3 of 5 medals (progress 0.6): gold, 3 medals, nothing completed
+    one = [0.0] * len(RULES)
+    index = next(i for i, r in enumerate(RULES) if r.id == 7)
+    one[index] = 0.6
+    facts = achiever_facts(one)
+    assert (facts["completed"], facts["medals"], facts["gold_plus"]) == (0, 3, 1) and facts["best_section"] == "In one day"
+    with app_client(make_settings(tmp_path)) as client:
+        add(client, {f"dyson/{i}.echoreplay": rf.plain(rf.lines(20)) for i in range(2)})
+        act(client, actions.set_challenge_window, "2026-01-01", None)
+        top = client.get("/api/leaderboard/achievers", params={"min_games": 1}).json()
+        assert {r["name"] for r in top} == {"Player", "Other"}
+        assert all(r["total"] == len(RULES) and 0 <= r["completed"] <= len(RULES) and "medals" in r for r in top)
