@@ -2162,6 +2162,14 @@ td.best {
   margin: 0 0 6px;
 }
 
+.badge-text .rule-text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
 .medal-targets {
   font-size: 0.8rem;
 }

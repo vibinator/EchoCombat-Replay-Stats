@@ -159,7 +159,7 @@ export function JumpToNew({ ready }: { ready: boolean }) {
 /** Percentage-tiered rules: medals at 25 / 50 / 75 / 100 % of the way. */
 const PERCENT_STEPS = [{ medal: "white", at: 0.25 }, { medal: "bronze", at: 0.5 }, { medal: "silver", at: 0.75 }, { medal: "gold", at: 1 }];
 
-/** One segment per medal, each filled in its own colour with the target underneath, so the progress to every
+/** One segment per medal, each filled in its own colour (the targets are in the hover text and behind the Medal targets link), so the progress to every
  *  tier is visible (user, 2026-10-31). Tiered rules segment by count, the others by percentage. */
 function TierSteps({ a }: { a: Achievement & AchievementRule }) {
   const steps =
@@ -177,7 +177,6 @@ function TierSteps({ a }: { a: Achievement & AchievementRule }) {
       {steps.map((s) => (
         <div key={s.medal} className={`step t-${s.medal}${s.fill >= 1 ? " done" : ""}`} title={`${s.medal}: ${s.label}`}>
           <div className="seg"><div style={{ width: `${s.fill * 100}%` }} /></div>
-          <span>{s.label}</span>
         </div>
       ))}
     </div>
@@ -270,7 +269,7 @@ export function Badge({ a }: { a: AchievementRule & Partial<Pick<Achievement, "p
           {a.name}
           {a.new && <span className="tag" title="Not on the original ECRanked site: uses data it never read">new</span>}
         </strong>
-        <span className="muted">
+        <span className="muted rule-text">
           {ruleText(a.description)}
           {a.estimated && " *"}
         </span>
