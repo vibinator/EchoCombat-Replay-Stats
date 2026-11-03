@@ -18,6 +18,12 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.03.29 — 17:40
+### Name
+- The site is now called **Echo Combat Stats** (was EchoVR Replay Stats): browser tab title, top-bar name, the admin console
+  and `run.bat` text. Internal names stay as they are (the `ECHOVR_*` settings, the `X-EchoVR` header, the container and
+  database names), so nothing needs reconfiguring.
+
 ## 2026.11.03.28 — 17:36
 ### Layout
 - **Full-width pages that adjust to the window**: the 1600 px limit is gone. The content fills the window, with side space

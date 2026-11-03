@@ -634,7 +634,7 @@ def cmd_remote_processing(sessions, on: bool | None = None) -> bool:
 
 
 MENU = f"""
-EchoVR Replay Stats - admin console ({APP_VERSION})
+Echo Combat Stats - admin console ({APP_VERSION})
   1  Find a player
   2  Merge player records
   3  List merges
@@ -865,7 +865,7 @@ def main_command(sessions, settings: Settings, args) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="admin.bat", description=f"EchoVR Replay Stats admin console ({APP_VERSION})")
+    parser = argparse.ArgumentParser(prog="admin.bat", description=f"Echo Combat Stats admin console ({APP_VERSION})")
     sub = parser.add_subparsers(dest="command")
     sub.add_parser("find", help="find players by name or id").add_argument("term")
     p = sub.add_parser("merge", help="merge duplicate player records into one")

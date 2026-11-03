@@ -1,4 +1,4 @@
-# EchoVR Replay Stats as one container. Built by GitHub Actions (.github/workflows/docker-image.yml) and
+# Echo Combat Stats as one container. Built by GitHub Actions (.github/workflows/docker-image.yml) and
 # published to ghcr.io for the QNAP NAS; `docker build .` works locally too. See docs/Setup.MD (QNAP).
 
 # 1) Build the website (same files for every processor type, so it runs natively on the build machine)

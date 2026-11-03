@@ -121,7 +121,7 @@ function Layout() {
     <>
       <header className="topbar">
         <Link to="/" className="brand">
-          EchoVR Replay Stats
+          Echo Combat Stats
         </Link>
         <ProcessingIndicator pending={pending} />
         <ConnectionNote />

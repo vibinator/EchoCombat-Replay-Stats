@@ -1,4 +1,4 @@
-# EchoVR Replay Stats on a QNAP NAS: Container Station > Applications > Create, paste this file, Create.
+# Echo Combat Stats on a QNAP NAS: Container Station > Applications > Create, paste this file, Create.
 # The app image is built by GitHub on every upload (ghcr.io); the NAS only downloads it. Container Station needs a
 # login for ghcr.io first (Setup.MD, QNAP NAS). Public at https://echocombat.com through a Cloudflare Tunnel.
 # Before deploying replace YOUR_CLOUDFLARE_TUNNEL_TOKEN and check the NAS folders under "volumes".

@@ -1,5 +1,5 @@
 @echo off
-rem Start EchoVR Replay Stats locally: sets up on first run, builds the site, opens the browser.
+rem Start Echo Combat Stats locally: sets up on first run, builds the site, opens the browser.
 setlocal
 cd /d "%~dp0"
 
@@ -26,7 +26,7 @@ if errorlevel 1 goto :error
 cd /d "%~dp0"
 
 echo.
-echo  EchoVR Replay Stats is running at http://127.0.0.1:8000
+echo  Echo Combat Stats is running at http://127.0.0.1:8000
 echo  Close this window or press Ctrl+C to stop.
 echo.
 rem Private settings (Discord secret / bot token): settings.local.bat, never uploaded. See Setup.MD, Discord login.

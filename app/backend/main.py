@@ -67,7 +67,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         engine.dispose()
 
     # no /docs, /redoc or /openapi.json on the public site: they list every route, the admin ones included
-    app = FastAPI(title="EchoVR Replay Stats", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
+    app = FastAPI(title="Echo Combat Stats", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
     app.state.settings = settings
     app.add_exception_handler(ApiError, api_error_handler)
     # Large answers that are not cached (cached ones are gzipped once, cache.py). Level 4: 12x faster than the
