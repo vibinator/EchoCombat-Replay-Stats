@@ -116,7 +116,7 @@ def test_the_pc_reads_a_replay_and_the_server_saves_it(client):
     assert claim(client).json()["jobs"] == []  # claimed: not handed out twice
     for job in reply["jobs"]:
         saved = post(client, f"/api/worker/result/{job['id']}", content=read_here(client, job))
-        assert saved.status_code == 200 and saved.json() == {"saved": True}
+        assert saved.status_code == 200 and saved.json()["saved"] is True and "save_s" in saved.json()
     assert status_of(client, "dyson/a.echoreplay") == status_of(client, "dyson/b.echoreplay") == "done"
     with client.app.state.sessionmaker() as db:
         assert db.query(Match).count() == 2

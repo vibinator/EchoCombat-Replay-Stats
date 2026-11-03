@@ -28,7 +28,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from backend import remote  # noqa: E402
 from backend.config import DEFAULT_SOURCE  # noqa: E402
 from backend.stats import STATS_VERSION  # noqa: E402
-from backend.worker import _pool_process_start, analyse  # noqa: E402
+from backend.worker import _pool_process_start, timed_analyse  # noqa: E402
 from parser import PARSER_VERSION  # noqa: E402
 
 USER_AGENT = "EchoVR-RemoteWorker/1"
@@ -108,17 +108,16 @@ def read_files(job: Job) -> tuple[bytes, bytes]:
     return out[0], out[1]
 
 
-def send(server: Server, job: Job, outcome: tuple) -> str:
-    """Uploads one result (three tries); returns what to show."""
+def send(server: Server, job: Job, outcome: tuple) -> tuple[str, dict]:
+    """Uploads one result (three tries); returns what to show and the server's own timings (prepare_s, lock_wait_s, save_s)."""
     tracks, tracks3d = read_files(job) if outcome[0] == "ok" else (b"", b"")
     body = remote.pack(outcome, tracks, tracks3d)
     for attempt in range(3):
         try:
-            server.result(job.id, body)
-            return "saved"
+            return "saved", server.result(job.id, body)
         except Rejected as e:
             if e.code == "not_claimed":
-                return "dropped (the server has it queued again)"
+                return "dropped (the server has it queued again)", {}
             if e.code in ("bad_result", "too_big"):
                 # the server will not take this one: say so there, so it is marked failed instead of coming back forever
                 body = remote.pack(("failed", "internal", f"The remote PC's result was refused: {e}"), b"", b"")
@@ -143,7 +142,7 @@ def run(server: Server, source: Path, workers: int, uploaders: int) -> None:
     done_n = failed_n = 0
     started = time.monotonic()
     next_claim, last_note = 0.0, ""
-    spent = {"parse": 0.0, "send": 0.0, "claim": 0.0}
+    spent = {"parse": 0.0, "send": 0.0, "claim": 0.0, "prepare_s": 0.0, "lock_wait_s": 0.0, "save_s": 0.0}
     window = workers * 3
 
     def note(text: str) -> None:
@@ -161,14 +160,18 @@ def run(server: Server, source: Path, workers: int, uploaders: int) -> None:
     def upload(job: Job, outcome: tuple) -> str:
         t = time.monotonic()
         try:
-            return send(server, job, outcome)
+            what, info = send(server, job, outcome)
+            for key in ("prepare_s", "lock_wait_s", "save_s"):
+                spent[key] += float(info.get(key, 0))
+            return what
         finally:
             spent["send"] += time.monotonic() - t
             shutil.rmtree(job.folder, ignore_errors=True)
 
     try:
         while True:
-            if len(jobs) <= workers and time.monotonic() >= next_claim:
+            # not while results wait to be sent: the website saves them one at a time, more claims would only pile up
+            if len(jobs) <= workers and len(uploads) < uploaders * 2 and time.monotonic() >= next_claim:
                 t = time.monotonic()
                 try:
                     reply = server.claim(min(32, window - len(jobs)))  # 32 = the server's MAX_CLAIM per request
@@ -194,7 +197,7 @@ def run(server: Server, source: Path, workers: int, uploaders: int) -> None:
                                 continue
                             folder = tmp / str(item["id"])
                             folder.mkdir(parents=True, exist_ok=True)
-                            future = pool.submit(analyse, str(path), str(folder / "tracks.bin"), item["repair"])
+                            future = pool.submit(timed_analyse, str(path), str(folder / "tracks.bin"), item["repair"])
                             jobs[future] = Job(item["id"], path, folder, time.monotonic())
                         if missing:
                             give_back(missing)
@@ -208,9 +211,9 @@ def run(server: Server, source: Path, workers: int, uploaders: int) -> None:
             for future in finished:
                 if future in jobs:
                     job = jobs.pop(future)
-                    spent["parse"] += time.monotonic() - job.started
                     try:
-                        outcome = future.result()
+                        seconds, outcome = future.result()
+                        spent["parse"] += seconds
                     except BrokenProcessPool:
                         # a replay killed a process: start a new pool; everything being read goes back to the server
                         give_back([job.id] + [j.id for j in jobs.values()])
@@ -240,8 +243,10 @@ def run(server: Server, source: Path, workers: int, uploaders: int) -> None:
                     say(f"Replay {job.id} {job.path.name}: {outcome[0] if outcome[0] != 'ok' else 'read'}, {what}"
                         + (f" ({outcome[1]})" if outcome[0] != "ok" else "")
                         + f"  |  {done_n} read, {failed_n} failed, {total / minutes:.1f}/min"
-                        + f"  |  avg s/replay: read {spent['parse'] / total:.1f}, send {spent['send'] / total:.1f}, "
-                          f"claim {spent['claim'] / total:.2f}  |  reading {len(jobs)}, sending {len(uploads)}")
+                        + f"  |  avg s/replay: read {spent['parse'] / total:.1f}, send {spent['send'] / total:.1f} "
+                          f"(website: prepare {spent['prepare_s'] / total:.1f}, wait for lock {spent['lock_wait_s'] / total:.1f}, "
+                          f"save {spent['save_s'] / total:.1f}), claim {spent['claim'] / total:.2f}"
+                          f"  |  reading {len(jobs)}, sending {len(uploads)}")
     except (KeyboardInterrupt, Fatal):
         raise
     finally:
@@ -262,7 +267,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--secret", default=env("ECHOVR_REMOTE_WORKER_SECRET", ""), help="same as ECHOVR_REMOTE_WORKER_SECRET on the NAS")
     parser.add_argument("--source", default=env("ECHOVR_REPLAY_SOURCE", DEFAULT_SOURCE), help="the replay share as this PC sees it")
     parser.add_argument("--workers", type=int, default=max(1, (os.cpu_count() or 4) - 1), help="parallel readers (default: all cores but one)")
-    parser.add_argument("--uploads", type=int, default=12, help="results sent at the same time (default: 12)")
+    parser.add_argument("--uploads", type=int, default=6, help="results sent at the same time (default: 6)")
     args = parser.parse_args(argv)
     if not args.secret or args.secret.startswith("YOUR_"):
         print("No secret: set ECHOVR_REMOTE_WORKER_SECRET in settings.local.bat (the same value as on the NAS).", file=sys.stderr)

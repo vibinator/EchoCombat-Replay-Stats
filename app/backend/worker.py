@@ -90,6 +90,13 @@ def analyse(path: str, tracks_file: str | None = None, repair: bool | str = Fals
         return "failed", "internal", f"Internal error: {e}\n{traceback.format_exc(limit=5)}"
 
 
+def timed_analyse(path: str, tracks_file: str | None = None, repair: bool | str = False) -> tuple[float, tuple]:
+    """analyse() plus the seconds it really took in the pool process (the remote PC shows them)."""
+    t = time.perf_counter()
+    outcome = analyse(path, tracks_file, repair)
+    return time.perf_counter() - t, outcome
+
+
 def save_result(sessions: sessionmaker, replay_id: int, result: tuple) -> None:
     try:
         _save_result(sessions, replay_id, result)

@@ -18,6 +18,13 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.03.5 — 01:48
+### Remote worker: no pile-up, honest timings
+- The PC stops claiming while 2 x uploads results wait to be sent (before, they piled up: 300+ waiting while the website
+  saved ~30/min). Default uploads back to 6: the website saves one result at a time, more only adds waiting.
+- "read" is now the real parse time (it used to include the wait in the pool's queue).
+- The website reports, per result, how long it prepared, waited for the database lock and saved; the PC shows the averages.
+
 ## 2026.11.03.4 — 01:46
 ### Full screen for the 3D views
 - A full screen button (⛶) in the toolbar of the 3D playback and the 3D heatmap. Esc leaves. Where the browser cannot take

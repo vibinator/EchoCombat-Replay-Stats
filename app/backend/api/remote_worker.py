@@ -6,6 +6,7 @@ import hmac
 import logging
 import os
 import threading
+import time
 from pathlib import Path
 
 from fastapi import APIRouter, Request
@@ -114,7 +115,10 @@ async def result(request: Request, replay_id: int):
     settings = request.app.state.settings
     sessions = request.app.state.sessionmaker
 
+    timing: dict[str, float] = {}
+
     def save() -> None:
+        t0 = time.perf_counter()
         # everything slow (unpickling, checking and writing the track files) runs in parallel with other results;
         # only the database write is one at a time
         try:
@@ -127,12 +131,16 @@ async def result(request: Request, replay_id: int):
             saved = _write_tracks(tracks.tracks_path(settings.processed_dir, replay_id), tracks_bytes, tracks.decode)
             _write_tracks(tracks3d.tracks3d_path(settings.processed_dir, replay_id), tracks3d_bytes, tracks3d.decode)
             outcome = (*outcome[:4], saved)  # has_tracks = the file really is here now
+        t1 = time.perf_counter()
         with _write_lock:
+            t2 = time.perf_counter()
             save_result(sessions, replay_id, outcome)
+        t3 = time.perf_counter()
+        timing.update(prepare_s=round(t1 - t0, 3), lock_wait_s=round(t2 - t1, 3), save_s=round(t3 - t2, 3))
 
     await run_in_threadpool(save)  # database and disk work: not on the event loop
     remote.forget(replay_id)
     worker = getattr(request.app.state, "worker", None)
     if worker is not None:
         worker.notify()
-    return {"saved": True}
+    return {"saved": True, **timing}
