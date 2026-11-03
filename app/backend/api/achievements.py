@@ -74,8 +74,9 @@ def get_challenges(request: Request):
     return info | {"preview": not info["launched"] and previews and auth.has_preview(request), "total": len(RULES), "peek": peek}
 
 
-# Shown in full on the "Coming soon" page (user, 2026-10-31): one per original section, one new challenge.
-REVEALED_IDS = (9, 45, 18, 70, 93)
+# Shown in full on the "Coming soon" page (user, 2026-10-31; refreshed 2026-11-03): original day, week and all-time
+# challenges plus two of the new 4v4 "In one game" ones (Point Guard, Speed Demon).
+REVEALED_IDS = (9, 45, 70, 146, 145)
 
 
 def _peek() -> dict:
@@ -94,7 +95,8 @@ def _peek() -> dict:
     shown = {r["icon"] for r in revealed}
     art = [f for f in dict.fromkeys(icon_file(r) for r in RULES if r.icon) if f and f not in shown]
     step = max(1, len(art) // 6)
-    return {"periods": dict(periods), "new": dict(themes), "revealed": revealed, "icons": art[::step][:6]}
+    one_game = sum(1 for r in RULES if r.period == "game")  # original and new: every one is a 4v4 game
+    return {"periods": dict(periods), "new": dict(themes), "revealed": revealed, "icons": art[::step][:6], "one_game": one_game}
 
 
 PEEK = _peek()

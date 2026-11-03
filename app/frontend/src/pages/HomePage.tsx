@@ -8,6 +8,7 @@ import { EmptyState, FitText, Skeleton } from "../components/ui";
 import { GearLabel, Status } from "../components/common";
 import { MAPS, dateTime, duration, int, modeLabel, num, pct, periodLabel, playerPath, scoreText, title } from "../format";
 import { useApi, useWhileVisible } from "../useApi";
+import { usePageTitle } from "../usePageTitle";
 
 function GearTop({ label, items }: { label: string; items: GearShare[] }) {
   return (
@@ -229,6 +230,7 @@ function LastMatchCard({ fromOverview }: { fromOverview: string | null }) {
 /** Most useful first: what is happening now (recent matches, who is playing), then maps and gear, then the
  * all-time numbers and history. */
 export function HomePage() {
+  usePageTitle(null);
   const overview = useApi(getOverview, "overview");
   // the two charts are only drawn once the overview is there; ask for their data now instead of afterwards
   useEffect(() => {
@@ -241,7 +243,7 @@ export function HomePage() {
   return (
     <section>
       <div className="hero">
-        <h1>Echo Combat replay stats</h1>
+        <h1>Echo Combat Stats</h1>
         <p className="muted">Match and player statistics from the Echo Combat replay archive.</p>
         <p className="announcement">
           <strong>Echo Combat has been released to Quest Standalone</strong> as of Oct 30th 2026. Learn more on{" "}

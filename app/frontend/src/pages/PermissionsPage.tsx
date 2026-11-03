@@ -3,6 +3,7 @@ import { changePermission, getMe, getPermissions, loginUrl, type DiscordEntry, t
 import { Status } from "../components/common";
 import { EmptyState } from "../components/ui";
 import { useApi } from "../useApi";
+import { usePageTitle } from "../usePageTitle";
 
 const PERMISSIONS: { key: Permission; title: string; gives: string }[] = [
   {
@@ -21,6 +22,7 @@ const PERMISSIONS: { key: Permission; title: string; gives: string }[] = [
 /** Who gets Admin, the Console and the Preview, by Discord role or user id. Console users only; the server
  * checks every change. */
 export function PermissionsPage() {
+  usePageTitle("Permissions");
   const me = useApi(getMe, "me");
   if (!me.data) return <Status loading={me.loading} error={me.error} />;
   const user = me.data.user;

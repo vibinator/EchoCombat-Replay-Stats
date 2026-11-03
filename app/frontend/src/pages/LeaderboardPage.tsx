@@ -5,6 +5,7 @@ import { Status, TableWrap } from "../components/common";
 import { EmptyState, FitText, Skeleton } from "../components/ui";
 import { MAPS, duration, int, num, pct, playerPath, title } from "../format";
 import { useApi } from "../useApi";
+import { usePageTitle } from "../usePageTitle";
 
 const PAGE_SIZE = 50;
 const PERIODS: [Period, string][] = [
@@ -42,6 +43,7 @@ function podiumLine(stat: string, r: LeaderboardRow): string {
 }
 
 export function LeaderboardPage() {
+  usePageTitle("Leaderboard");
   const [params, setParams] = useSearchParams();
   const stat = params.get("stat") ?? "games";
   const period = (params.get("period") as Period) || "all";

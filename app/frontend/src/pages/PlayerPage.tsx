@@ -13,6 +13,7 @@ import { PlayerAvatar, PlayerBio, usePlayerBio } from "../components/PlayerBio";
 import { InfoTip, Skeleton, WhenVisible } from "../components/ui";
 import { MAPS, dateTime, hoursMinutes, int, nameSlug, num, pct, periodLabel, playerPath, title } from "../format";
 import { useApi } from "../useApi";
+import { usePageTitle } from "../usePageTitle";
 
 const PERIODS: [Period, string][] = [
   ["day", "Today"],
@@ -134,6 +135,7 @@ function ProfileHeader({ p }: { p: PlayerProfile }) {
   // no `result` while win-loss stats are hidden from players: no form strip then
   const form = p.recent_matches.slice(0, 10).filter((m) => m.result !== undefined);
   const bio = usePlayerBio(p.user_id);
+  usePageTitle(p.name);
   return (
     <div className="profile-header">
       <div className="profile-identity">

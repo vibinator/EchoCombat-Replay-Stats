@@ -4,8 +4,10 @@ import { Status, TableWrap } from "../components/common";
 import { PlayerSearch } from "../components/PlayerSearch";
 import { dateTime, int, playerPath } from "../format";
 import { useApi } from "../useApi";
+import { usePageTitle } from "../usePageTitle";
 
 export function PlayersPage() {
+  usePageTitle("Players");
   const [params] = useSearchParams();
   const q = params.get("q") ?? "";
   const result = useApi(() => searchPlayers(q), q);

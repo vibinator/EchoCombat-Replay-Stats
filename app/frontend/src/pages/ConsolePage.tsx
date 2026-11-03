@@ -11,6 +11,7 @@ import { Status, TableWrap } from "../components/common";
 import { EmptyState } from "../components/ui";
 import { GENERIC_ICON, IconEditor, IMG } from "../components/IconEditor";
 import { useApi, useWhileVisible } from "../useApi";
+import { usePageTitle } from "../usePageTitle";
 
 type Field = {
   key: string;
@@ -295,6 +296,7 @@ interface ConsoleApi {
 /** admin.bat on the website (D45). Only for people named in ECHOVR_DISCORD_PREVIEW_ROLES; the server checks every
  * command, this page only decides what to show. */
 export function ConsolePage() {
+  usePageTitle("Console");
   const me = useApi(getMe, "me");
   if (!me.data) return <Status loading={me.loading} error={me.error} />;
   const user = me.data.user;

@@ -271,6 +271,7 @@ textarea {
 /* every table sits in its own panel, so side-by-side tables never run into each other */
 .table-wrap {
   width: 100%;
+  max-width: 1500px; /* on a very wide window names and numbers stay close together */
   overflow-x: auto;
   padding: 6px 14px 4px;
   border: 1px solid var(--surface-2);
@@ -937,12 +938,12 @@ nav {
 
 /* ---- light theme (chart colours validated on #ffffff with the dataviz validator) ---- */
 :root[data-theme="light"] {
-  --tier-white: #7d8594;
-  --tier-bronze: #a9611f;
-  --tier-silver: #6b7586;
-  --tier-gold: #b58500;
-  --tier-platinum: #0e8f82;
-  --tier-diamond: #1769c4;
+  --tier-white: #626b7a; /* darker shades: medal-coloured names stay readable on white (4.5:1 or better) */
+  --tier-bronze: #8f500f;
+  --tier-silver: #576173;
+  --tier-gold: #8a6500;
+  --tier-platinum: #0a766b;
+  --tier-diamond: #1560b5;
   --bg: #f4f5f7;
   --panel: #ffffff;
   --line: #d9dce1;
@@ -1160,6 +1161,7 @@ kbd {
 /* home page: live stream left, latest matches right. The video sets the row's height; the match list is taken out
    of the flow (absolute) so it is exactly that tall, and scrolls. Stacked on narrow screens, with a capped height. */
 .live-latest {
+  max-width: 1500px; /* on a very wide window the video stays about 900 px wide instead of filling half the screen */
   display: grid;
   grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
   gap: 12px;
@@ -3413,3 +3415,30 @@ button.small {
 .map-chip.head { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; }
 .map-chip:hover { background: var(--line); color: var(--text); }
 .map-chip.active { background: var(--line); color: var(--text); box-shadow: inset 0 0 0 1px var(--muted); }
+
+/* phones: bigger touch targets and no text under 12 px (GUI test 2026-11-03) */
+@media (max-width: 640px) {
+  .table-wrap td a {
+    display: inline-block;
+    padding: 10px 0;
+  }
+  .medal-targets summary {
+    display: flex;
+    align-items: center;
+    min-height: 40px;
+  }
+  .tier-steps .step,
+  .match-cards.compact .match-card-body > .muted {
+    font-size: 0.75rem;
+  }
+}
+
+/* match not found / page not found */
+.not-found {
+  max-width: 60ch;
+}
+.not-found .links {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}

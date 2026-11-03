@@ -5,6 +5,7 @@ import { AchievementsView, ChallengeBanner, ComingSoon, GroupedBadges, JumpToNew
 import { Status } from "../components/common";
 import { achievementsPath, int, nameSlug, pct, playerPath } from "../format";
 import { useApi } from "../useApi";
+import { usePageTitle } from "../usePageTitle";
 
 function PlayerPicker() {
   const [q, setQ] = useState("");
@@ -103,6 +104,7 @@ function Catalogue() {
 }
 
 export function AchievementsPage() {
+  usePageTitle("Achievements");
   const { visible, start, total, peek } = useAchievementsAccess();
   if (visible === null) return null;
   if (!visible)
@@ -122,6 +124,7 @@ function LaunchedAchievementsPage() {
   const player = userId ?? params.get("player");
   const name = useApi(() => (player ? getAchievements(player) : Promise.resolve(null)), player ?? "");
   const d = name.data;
+  usePageTitle(d ? `Achievements · ${d.name}` : "Achievements");
 
   // show the player's own address, /achievements/<name>/<id>: old ?player= links, an outdated name and a merged ID all
   // move to it (as profiles do)

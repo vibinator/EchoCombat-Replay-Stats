@@ -6,6 +6,7 @@ import { HomePage } from "./pages/HomePage";
 import { useAchievementsAccess } from "./components/AchievementsView";
 import { ErrorBoundary, Skeleton } from "./components/ui";
 import { useApi, useWhileVisible } from "./useApi";
+import { usePageTitle } from "./usePageTitle";
 
 // Pages other than home load on first visit: the first page view downloads less.
 const AchievementsPage = lazy(() => import("./pages/AchievementsPage").then((m) => ({ default: m.AchievementsPage })));
@@ -46,10 +47,11 @@ function useTheme(): [Theme, () => void] {
 }
 
 function NotFound() {
+  usePageTitle("Page not found");
   return (
-    <section>
+    <section className="not-found">
       <h1>Page not found</h1>
-      <Link to="/">Go to the home page</Link>
+      <p className="links"><Link to="/">Go to the home page</Link><Link to="/matches">All matches</Link></p>
     </section>
   );
 }

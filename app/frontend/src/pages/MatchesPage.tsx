@@ -6,11 +6,13 @@ import { MatchCards } from "../components/MatchCards";
 import { Skeleton } from "../components/ui";
 import { MAPS, MAP_MODE, modeLabel, title } from "../format";
 import { useApi } from "../useApi";
+import { usePageTitle } from "../usePageTitle";
 
 const PAGE_SIZE = 24;
 const FILTERS = ["map", "mode", "from", "to", "player", "private", "min_players", "result", "player_name"] as const;
 
 export function MatchesPage() {
+  usePageTitle("Matches");
   const [params, setParams] = useSearchParams();
   const offset = Number(params.get("offset") ?? 0);
   const view = params.get("view") === "list" ? "list" : "cards";

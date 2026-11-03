@@ -234,16 +234,19 @@ function sectionMedal(progress: number): string | null {
 }
 
 const EASY_SHOWN = 12;
+const MIN_SHARE = 0.05; // at least 5% of players
 
 /** First thing a player sees: challenges they have not started yet that most players unlock first (the highest share of
  *  players with a medal), in a row that scrolls sideways (user, 2026-11-03; it replaced "Closest to your next medal").
- *  Without that share yet (it is built in the background) the lowest first targets come first. */
+ *  Hidden until that share is loaded; only challenges with a medal for at least 5% of players are offered. */
 function NotYetStarted({ items }: { items: Achievement[] }) {
   const rarity = useApi(getRarity, "rarity").data;
-  const share = new Map((rarity ?? []).map((r) => [r.id, r.unlocked_share]));
+  if (!rarity) return null; // without the share of players per challenge, near-impossible ones could be offered
+  const share = new Map(rarity.map((r) => [r.id, r.unlocked_share]));
+  // only challenges a real share of players has a medal for (GUI test 2026-11-03: Overcharge, Dot Field... were offered)
   const easy = items
-    .filter((a) => a.progress === 0)
-    .sort((x, y) => (share.get(y.id) ?? -1) - (share.get(x.id) ?? -1) || (x.levels?.[0] ?? 1) - (y.levels?.[0] ?? 1))
+    .filter((a) => a.progress === 0 && (share.get(a.id) ?? 0) >= MIN_SHARE)
+    .sort((x, y) => (share.get(y.id) ?? 0) - (share.get(x.id) ?? 0) || (x.levels?.[0] ?? 1) - (y.levels?.[0] ?? 1))
     .slice(0, EASY_SHOWN);
   if (easy.length === 0) return null;
   return (
@@ -379,6 +382,11 @@ function SneakPeek({ peek }: { peek: AchievementPeek }) {
           </div>
         ))}
       </div>
+      {peek.one_game > 0 && (
+        <p className="muted">
+          <strong>{peek.one_game}</strong> “In one game” challenges — every one is played in a 4v4 match.
+        </p>
+      )}
       <h3>From the original ECRanked site</h3>
       <div className="cards">
         {GROUPS.filter(([period]) => peek.periods[period]).map(([period, label]) => (

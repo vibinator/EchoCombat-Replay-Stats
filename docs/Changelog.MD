@@ -18,6 +18,17 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.03.31 — 19:08
+### GUI test fixes
+- **Tab titles:** every page has its own browser-tab title ("davidyarker · Echo Combat Stats", "Surge #32779 · …").
+- **Wide screens:** the home video is capped at about 900 px wide and tables at 1500 px, so names and numbers stay close.
+- **Light theme:** darker medal shades so gold, silver and white names are readable on white.
+- **Achievements, "Not yet started":** only challenges at least 5% of players have a medal for, shown once that share is loaded.
+- **Phones:** taller tap targets for names and "Medal targets", and no text under 12 px in the medal bars and match rows.
+- **Not found:** a missing match or page shows a message with links to Matches and Home.
+- **Home heading:** "Echo Combat Stats".
+- **Sneak peek:** the revealed examples now include two new 4v4 "In one game" challenges (Point Guard, Speed Demon), and a line shows how many "In one game" challenges there are.
+
 ## 2026.11.03.30 — 17:48
 ### Console: who sees achievements
 - **Launch date and challenge period** has a **Visible to** choice: *Everyone* (public from the start date, as before), *Only

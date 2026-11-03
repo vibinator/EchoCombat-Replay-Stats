@@ -6,6 +6,7 @@ import { HEATMAP_CELL_M, HeatmapView } from "../components/HeatmapView";
 import { EmptyState, Skeleton, WhenVisible } from "../components/ui";
 import { MAPS, duration, int, num, pct, playerPath, title } from "../format";
 import { useApi } from "../useApi";
+import { usePageTitle } from "../usePageTitle";
 
 const ROWS: [string, (s: PlayerStats) => string, (s: PlayerStats) => number | null, boolean, ((s: PlayerStats) => boolean)?][] = [
   // label, display, comparable value, higher is better
@@ -56,6 +57,7 @@ function AddPlayer({ onAdd }: { onAdd: (id: string) => void }) {
 }
 
 export function ComparePage() {
+  usePageTitle("Compare players");
   const [params, setParams] = useSearchParams();
   const ids = (params.get("players") ?? "").split(",").filter(Boolean).slice(0, 4);
   const period = (params.get("period") as Period) || "all";

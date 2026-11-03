@@ -12,6 +12,7 @@ import { TimelineView } from "../components/TimelineView";
 import { FitText, InfoTip, STAT_HELP, Skeleton } from "../components/ui";
 import { dateTime, duration, int, modeLabel, num, pct, playerPath, teamLabel, title } from "../format";
 import { useApi } from "../useApi";
+import { usePageTitle } from "../usePageTitle";
 
 function resultText(m: MatchDetail): string {
   if (m.mode === "payload") {
@@ -341,6 +342,7 @@ export function MatchPage() {
   const id = Number(useParams().id);
   const match = useApi(() => getMatch(id), String(id));
   const m = match.data;
+  usePageTitle(m ? `${title(m.map)} #${m.id}` : `Match #${id}`);
   const [params, setParams] = useSearchParams();
   const tab = (params.get("tab") as Tab) || "players";
   const setTab = (t: Tab) => setParams(t === "players" ? {} : { tab: t }, { replace: true });
@@ -348,7 +350,13 @@ export function MatchPage() {
   return (
     <section>
       {match.loading && <Skeleton cards={3} lines={4} />}
-      <Status loading={false} error={match.error} />
+      {match.error && !m && (
+        <div className="not-found">
+          <h1>Match #{id} not found</h1>
+          <p className="muted">{/not found|404/i.test(match.error) ? "This match is not in the archive (yet). It may still be waiting to be read, or the number is wrong." : match.error}</p>
+          <p className="links"><Link to="/matches">All matches</Link><Link to="/">Home</Link></p>
+        </div>
+      )}
       {m && (
         <>
           <div className="section-head">

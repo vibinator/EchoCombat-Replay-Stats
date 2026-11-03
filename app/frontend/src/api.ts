@@ -795,6 +795,7 @@ export interface AchievementPeek {
   new: Record<string, number>; // theme -> count
   revealed: AchievementRule[]; // shown in full before the launch
   icons: string[]; // more badge pictures, shown blurred
+  one_game: number; // "In one game" challenges (all 4v4), original and new
 }
 
 export interface Me {
