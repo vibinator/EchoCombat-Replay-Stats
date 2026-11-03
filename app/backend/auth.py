@@ -36,7 +36,7 @@ log = logging.getLogger("uvicorn.error")
 
 def http_client() -> httpx.Client:
     """Replaced in tests."""
-    return httpx.Client(timeout=10)
+    return httpx.Client(timeout=httpx.Timeout(5, connect=3))  # the limit applies to each of connect / write / read: 10 s meant up to 30 s
 
 
 def enabled(settings: Settings) -> bool:
@@ -198,13 +198,9 @@ def forget_roles(user_id: str) -> None:
         _roles.pop(user_id, None)
 
 
-def member_roles(settings: Settings, user_id: str) -> frozenset[str]:
-    """The user's role ids in the server, asked with the bot token; remembered for ROLE_CHECK_S."""
+def _ask_roles(settings: Settings, user_id: str, hit) -> frozenset[str]:
+    """Ask Discord and remember the answer. If it cannot be asked, keep the last answer (none = no roles) and retry soon."""
     now = time.monotonic()
-    with _roles_lock:
-        hit = _roles.get(user_id)
-    if hit and hit[0] > now:
-        return hit[1]
     try:
         r = _bot_get(settings, f"/guilds/{settings.discord_guild_id}/members/{user_id}")
         if r.status_code == 404:  # not in the server (any more)
@@ -218,6 +214,36 @@ def member_roles(settings: Settings, user_id: str) -> frozenset[str]:
     with _roles_lock:
         _roles[user_id] = (until, roles)
     return roles
+
+
+_asking: dict[str, threading.Lock] = {}  # one Discord question per user at a time
+
+
+def member_roles(settings: Settings, user_id: str) -> frozenset[str]:
+    """The user's role ids in the server, asked with the bot token; remembered for ROLE_CHECK_S. After that the last
+    answer is still used while a background question refreshes it, so a slow Discord never holds a page up. Only the
+    very first question (or one after forget_roles) waits for Discord; parallel requests share that one question."""
+    now = time.monotonic()
+    with _roles_lock:
+        hit = _roles.get(user_id)
+        lock = _asking.setdefault(user_id, threading.Lock())
+    if hit and hit[0] > now:
+        return hit[1]
+    if hit:  # expired: answer from the last known roles, refresh in the background
+        if lock.acquire(blocking=False):
+            def refresh():
+                try:
+                    _ask_roles(settings, user_id, hit)
+                finally:
+                    lock.release()
+            threading.Thread(target=refresh, name="discord-roles", daemon=True).start()
+        return hit[1]
+    with lock:  # nothing known yet: wait, but only one request asks
+        with _roles_lock:
+            again = _roles.get(user_id)
+        if again and again[0] > time.monotonic():
+            return again[1]
+        return _ask_roles(settings, user_id, None)
 
 
 # --- the current visitor --------------------------------------------------------------------

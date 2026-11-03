@@ -11,8 +11,10 @@ const REFRESH_MS = 10_000;
 /** Live progress of replay processing and everything built from it. Admins and console users. */
 export function StatusPage() {
   const me = useApi(getMe, "me");
+  const user = me.data?.user;
+  // Asked while /api/me is still loading, so the two answers arrive together; the server refuses non-staff anyway.
+  const live = useLiveStatus(!me.data || !!user?.admin || !!user?.console);
   if (!me.data) return <Status loading={me.loading} error={me.error} />;
-  const user = me.data.user;
   if (!user?.admin && !user?.console)
     return (
       <section>
@@ -30,10 +32,10 @@ export function StatusPage() {
         </EmptyState>
       </section>
     );
-  return <ProcessingView />;
+  return <ProcessingView live={live} />;
 }
 
-function useLiveStatus(): { data: ProcessingStatus | null; error: string | null; at: Date | null } {
+function useLiveStatus(active: boolean): { data: ProcessingStatus | null; error: string | null; at: Date | null } {
   const [state, setState] = useState<{ data: ProcessingStatus | null; error: string | null; at: Date | null }>({
     data: null,
     error: null,
@@ -45,6 +47,7 @@ function useLiveStatus(): { data: ProcessingStatus | null; error: string | null;
     return () => void (mounted.current = false);
   }, []);
   useWhileVisible(() => {
+    if (!active) return;
     getProcessingStatus().then(
       (data) => mounted.current && setState({ data, error: null, at: new Date() }),
       (e: Error) => mounted.current && setState((s) => ({ ...s, error: e.message })),
@@ -78,8 +81,7 @@ function Meter({ done, total, label }: { done: number; total: number; label: str
   );
 }
 
-function ProcessingView() {
-  const { data: d, error, at } = useLiveStatus();
+function ProcessingView({ live: { data: d, error, at } }: { live: ReturnType<typeof useLiveStatus> }) {
   if (!d) return <Status loading={!error} error={error} />;
 
   const total = d.counts.queued + d.counts.processing + d.counts.done + d.counts.failed;

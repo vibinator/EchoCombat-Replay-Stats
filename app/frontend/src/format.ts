@@ -2,6 +2,9 @@ import type { MatchSummary, Team } from "./api";
 
 export const MAPS = ["combustion", "dyson", "fission", "surge"];
 
+/** Which game mode each map is played in: Combustion and Dyson are Capture point, Fission and Surge are Payload. */
+export const MAP_MODE: Record<string, string> = { combustion: "capture_point", dyson: "capture_point", fission: "payload", surge: "payload" };
+
 /** Display name as it appears in a profile address: spaces and slashes become "-" so it stays one path segment. */
 export function nameSlug(name: string | null | undefined): string {
   return (name ?? "").trim().replace(/[\s/\\]+/g, "-");

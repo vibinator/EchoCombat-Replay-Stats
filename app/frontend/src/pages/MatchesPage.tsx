@@ -4,7 +4,7 @@ import { listMatches } from "../api";
 import { MatchTable, Status } from "../components/common";
 import { MatchCards } from "../components/MatchCards";
 import { Skeleton } from "../components/ui";
-import { MAPS, title } from "../format";
+import { MAPS, MAP_MODE, modeLabel, title } from "../format";
 import { useApi } from "../useApi";
 
 const PAGE_SIZE = 24;
@@ -30,6 +30,17 @@ export function MatchesPage() {
     setParams(next);
   }
 
+  /** Map and mode are one choice: a mode means both of its maps, a map already implies its mode. */
+  function pick(mode: string, map: string) {
+    const next = new URLSearchParams(params);
+    for (const [k, v] of [["mode", mode], ["map", map]]) {
+      if (v) next.set(k, v);
+      else next.delete(k);
+    }
+    next.delete("offset");
+    setParams(next);
+  }
+
   const total = result.data?.total ?? 0;
   const active = FILTERS.filter((k) => filters[k]).length;
 
@@ -46,23 +57,30 @@ export function MatchesPage() {
         </div>
       </div>
       <div className="filters">
-        <label>
-          Map
-          <select value={filters.map} onChange={(e) => set("map", e.target.value)}>
-            <option value="">All</option>
-            {MAPS.map((m) => (
-              <option key={m} value={m}>{title(m)}</option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Mode
-          <select value={filters.mode} onChange={(e) => set("mode", e.target.value)}>
-            <option value="">All</option>
-            <option value="capture_point">Capture point</option>
-            <option value="payload">Payload</option>
-          </select>
-        </label>
+        <div className="map-picker" role="group" aria-label="Map and mode">
+          {(["payload", "capture_point"] as const).map((md) => (
+            <div key={md} className="map-group">
+              <button
+                className={filters.mode === md && !filters.map ? "map-chip head active" : "map-chip head"}
+                aria-pressed={filters.mode === md && !filters.map}
+                title={`Every ${modeLabel(md).toLowerCase()} map`}
+                onClick={() => pick(filters.mode === md && !filters.map ? "" : md, "")}
+              >
+                {modeLabel(md)}
+              </button>
+              {MAPS.filter((m) => MAP_MODE[m] === md).map((m) => (
+                <button
+                  key={m}
+                  className={filters.map === m ? "map-chip active" : "map-chip"}
+                  aria-pressed={filters.map === m}
+                  onClick={() => pick("", filters.map === m ? "" : m)}
+                >
+                  {title(m)}
+                </button>
+              ))}
+            </div>
+          ))}
+        </div>
         <label>
           Result
           <select value={filters.result} onChange={(e) => set("result", e.target.value)}>
