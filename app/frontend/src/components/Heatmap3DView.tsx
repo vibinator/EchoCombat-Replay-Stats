@@ -12,8 +12,8 @@ import { Status } from "./common";
 import { dressMapModel, type MapMaterial } from "./mapModel3d";
 
 const BASE_FOV = 50;
-const GLOW_SIZE = 1.15; // a voxel's dot is this many voxels wide: just overlapping neighbours, so a path reads as a thin line
-const GAIN = 0.8; // brightness at slider 1 (crisp dots need more than soft glows to stay bright)
+const GLOW_SIZE = 1.7; // a voxel's dot is this many voxels wide: neighbours overlap, so a path is one continuous line, not beads
+const GAIN = 0.5; // brightness at slider 1 (overlapping dots add up, so each one is dimmer; busy places must not clip to white)
 const DEFAULT_MAP_OPACITY = 0.2; // see-through: the heat sits inside the arena
 const FALLBACK = ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#008300", "#9085e9", "#e66767"];
 
@@ -77,11 +77,14 @@ export default function Heatmap3DView(props: Props) {
 const VERTEX = `
 uniform float uSize;
 uniform float uScale;
+uniform float uFocus; // distance to the point the camera looks at
+uniform float uReach; // how far behind it the dimming goes on
 attribute vec3 heat;
 varying vec3 vHeat;
 void main() {
-  vHeat = heat;
   vec4 mv = modelViewMatrix * vec4(position, 1.0);
+  // depth cue: what is behind the point looked at fades to ~40%, so near and far paths can be told apart
+  vHeat = heat * mix(1.0, 0.4, smoothstep(uFocus, uFocus + uReach, -mv.z));
   gl_PointSize = max(3.0, uSize * uScale / -mv.z);
   gl_Position = projectionMatrix * mv;
 }`;
@@ -90,7 +93,7 @@ uniform float uGain;
 varying vec3 vHeat;
 void main() {
   float r = length(gl_PointCoord - 0.5) * 2.0;
-  float f = 1.0 - smoothstep(0.7, 1.0, r); // a solid dot with a short soft edge (not a glow)
+  float f = 1.0 - smoothstep(0.3, 1.0, r); // flat middle, soft edge: neighbouring dots blend into a smooth line
   if (f <= 0.0) discard;
   gl_FragColor = vec4(vHeat * f * uGain, 1.0);
 }`;
@@ -210,7 +213,7 @@ function Scene({ data, colors, hidden, opacity, onUse2D }: Props & { data: Heatm
     const material = new THREE.ShaderMaterial({
       vertexShader: VERTEX,
       fragmentShader: FRAGMENT,
-      uniforms: { uSize: { value: vox * GLOW_SIZE }, uScale: { value: 1 }, uGain: { value: GAIN } },
+      uniforms: { uSize: { value: vox * GLOW_SIZE }, uScale: { value: 1 }, uGain: { value: GAIN }, uFocus: { value: span }, uReach: { value: span * 0.8 } },
       transparent: true,
       depthWrite: false,
       blending: THREE.AdditiveBlending,
@@ -277,6 +280,7 @@ function Scene({ data, colors, hidden, opacity, onUse2D }: Props & { data: Heatm
       if (controls.update()) dirty.current = true; // damping keeps gliding after the pointer is released
       if (!dirty.current) return;
       dirty.current = false;
+      material.uniforms.uFocus.value = camera.position.distanceTo(controls.target);
       renderer.render(scene, camera);
     };
     raf = requestAnimationFrame(loop);

@@ -18,6 +18,12 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.03.7 — 01:58
+### 3D heatmap: continuous lines and depth
+- Dots overlap (1.7 voxels wide, flat middle, soft edge) so paths are continuous lines instead of beads, with lower
+  per-dot brightness so busy places do not clip to white.
+- Depth cue: heat behind the point the camera looks at fades to 40%, so near and far paths can be told apart.
+
 ## 2026.11.03.6 — 01:51
 ### 3D heatmap: sharper lines
 - Heat is drawn as thin solid dots instead of wide soft glows, brighter, with a higher floor so rarely used paths stay
