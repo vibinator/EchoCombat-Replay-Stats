@@ -18,6 +18,10 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.03.20 — 16:06
+### Challenges
+- **Combat on Quest When?** (Combat pubs in one day) is 20 % lower: 8 / 12 / 16 / 31 / 42 (was 10 / 15 / 20 / 39 / 52).
+
 ## 2026.11.03.19 — 16:03
 ### Achievements page
 - Medal colours on the progress: each card in **Closest to your next medal** has a bottom edge in the colour of the medal

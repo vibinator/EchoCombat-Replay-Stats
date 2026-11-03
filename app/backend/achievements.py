@@ -418,7 +418,7 @@ def _build_rules() -> list[Rule]:
                          (27, "Techneium-99", "fission"), (28, "Bird of Prey", "surge")):
         rules.append(_tiered(rid, name, f"Play games of {m.title()} in one day: the most in a single day counts", m,
                              lambda g, m=m: g.map == m, (3, 5, 7, 10, 14), "day"))
-    rules.append(_tiered(29, "Combat on Quest When?", "Play Combat pubs in one day: the most in a single day counts", "pubs", _pub, (10, 15, 20, 30, 40), "day"))
+    rules.append(_tiered(29, "Combat on Quest When?", "Play Combat pubs in one day: the most in a single day counts", "pubs", _pub, (8, 12, 16, 24, 32), "day"))  # 20 % lower (user, 2026-11-03)
 
     # Weekly (30-54): the most in one calendar week (Monday start)
     names = {
