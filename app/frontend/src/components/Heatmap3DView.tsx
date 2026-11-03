@@ -155,6 +155,20 @@ function Scene({ data, colors, hidden, opacity, onUse2D, onHidden, onOpacity, co
     const center = new THREE.Vector3((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2);
     const span = Math.max(30, x1 - x0, z1 - z0, y1 - y0);
 
+    // where the heat actually is (the arena box is much larger than the paths): the camera starts framing that
+    let hx0 = Infinity, hx1 = -Infinity, hy0 = Infinity, hy1 = -Infinity, hz0 = Infinity, hz1 = -Infinity;
+    for (const l of data.layers)
+      for (let i = 0; i < l.count; i++) {
+        if (l.ix[i] < hx0) hx0 = l.ix[i]; if (l.ix[i] > hx1) hx1 = l.ix[i];
+        if (l.iy[i] < hy0) hy0 = l.iy[i]; if (l.iy[i] > hy1) hy1 = l.iy[i];
+        if (l.iz[i] < hz0) hz0 = l.iz[i]; if (l.iz[i] > hz1) hz1 = l.iz[i];
+      }
+    const hasHeat = hx1 >= hx0;
+    const look = hasHeat
+      ? new THREE.Vector3(ox + ((hx0 + hx1 + 1) / 2) * vox, oy + ((hy0 + hy1 + 1) / 2) * vox, oz + ((hz0 + hz1 + 1) / 2) * vox)
+      : center;
+    const frame = hasHeat ? Math.max(12, (hx1 - hx0 + 1) * vox, (hz1 - hz0 + 1) * vox, (hy1 - hy0 + 1) * vox) : span;
+
     const camera = new THREE.PerspectiveCamera(BASE_FOV, 1, 0.1, span * 12);
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
@@ -165,9 +179,9 @@ function Scene({ data, colors, hidden, opacity, onUse2D, onHidden, onOpacity, co
     controls.minDistance = 1;
     controls.addEventListener("change", () => { dirty.current = true; });
     const place = (v: "orbit" | "top") => {
-      controls.target.copy(center);
-      if (v === "top") camera.position.set(center.x, center.y + span * 1.05, center.z + 0.01);
-      else camera.position.set(center.x + span * 0.55, center.y + span * 0.55, center.z + span * 0.8);
+      controls.target.copy(look);
+      if (v === "top") camera.position.set(look.x, look.y + frame * 1.05, look.z + 0.01);
+      else camera.position.set(look.x + frame * 0.45, look.y + frame * 0.46, look.z + frame * 0.68);
       controls.enableRotate = v !== "top";
       controls.update();
       dirty.current = true;

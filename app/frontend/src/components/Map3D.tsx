@@ -184,6 +184,7 @@ function Stage(props: Map3DProps & { data: Playback3D }) {
   const [mapState, setMapState] = useState<"loading" | "ok" | "none" | "failed">(props.data.model ? "loading" : "none");
   const [failed, setFailed] = useState<string | null>(null);
   const [help, setHelp] = useState(false); // the "?" list of controls
+  const [playOpen, setPlayOpen] = useState(true); // the play controls over the view in full screen
   const [legend, setLegend] = useState(() => { try { return localStorage.getItem(LEGEND_KEY) !== "0"; } catch { return true; } }); // PC controls card, always on view
   const toggleLegend = () => setLegend((v) => { try { localStorage.setItem(LEGEND_KEY, v ? "0" : "1"); } catch { /* ignore */ } return !v; });
   const legendKind = isFreeCamera(props.camera) ? "free" : props.camera === "follow" ? "follow" : "first";
@@ -973,7 +974,15 @@ function Stage(props: Map3DProps & { data: Playback3D }) {
         )}
       </div>
       {screen.full && props.banner}
-      {screen.full && props.overlay && <div className="pb3d-play">{props.overlay}</div>}
+      {screen.full && props.overlay && (
+        <div className={`pb3d-play${playOpen ? "" : " folded"}`}>
+          <button type="button" className="pb3d-play-fold" aria-expanded={playOpen} onClick={() => setPlayOpen(!playOpen)}
+            title={playOpen ? "Fold the play controls away to see more of the map" : "Show the play controls"}>
+            {playOpen ? "▾ Hide controls" : "▴ Play controls"}
+          </button>
+          {playOpen && props.overlay}
+        </div>
+      )}
       {help && (
         <div className="pb3d-help" role="dialog" aria-label="3D controls">
           <div className="pb3d-help-head"><strong>Moving around</strong><button type="button" aria-label="Close" onClick={() => setHelp(false)}>×</button></div>

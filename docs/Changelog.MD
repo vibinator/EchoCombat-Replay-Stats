@@ -18,6 +18,13 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.03.14 — 03:42
+### 3D views
+- The 3D heatmap starts with the camera framing where the heat actually is (it used to frame the whole arena, leaving
+  the paths small in the middle of an empty view).
+- 3D playback in full screen: the play controls fold away ("Hide controls" / "Play controls") to give the whole view
+  to the map.
+
 ## 2026.11.03.13 — 03:11
 ### Fixes from a full browser test
 - 3D playback full screen: the latest-events list under the controls showed as one huge empty box (the skull and gear
