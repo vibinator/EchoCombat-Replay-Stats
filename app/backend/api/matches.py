@@ -13,7 +13,7 @@ from pathlib import Path
 from fastapi import APIRouter, Query, Request
 from sqlalchemy import func, select
 
-from .. import gear_use, heatmaps, tracks, tracks3d
+from .. import gear_use, heatmaps, heatmaps3d, tracks, tracks3d
 from ..aliases import alias_map, ids_of
 from ..cache import cached_response
 from ..duplicates import counted
@@ -332,6 +332,43 @@ def _match_heatmap(request: Request, match_id: int, player: str | None, mode: st
         return heatmaps.response(match.map, layers, labels, matches=1, cell_m=cell, mode=mode, teams=teams)
     layers, labels = heatmaps.build_layers(layout, [data], wanted, mode, cell)
     return heatmaps.response(match.map, layers, labels, matches=1, cell_m=cell, mode=mode)
+
+
+@router.get("/{match_id}/heatmap3d")
+def get_match_heatmap3d(
+    request: Request,
+    match_id: int,
+    player: str | None = Query(None, max_length=ID_MAX, description="user_id"),
+    mode: str = Query("team", pattern="^(" + "|".join(MATCH_HEATMAP_MODES) + ")$"),
+):
+    """The 3D version of /heatmap: the same layers as voxels in world space (heatmaps3d). The match's 3D tracks are
+    built on first view when missing, as for 3D playback."""
+    return cached_response(request, "match-heatmap3d", (match_id, player, mode),
+                           lambda: _match_heatmap3d(request, match_id, player, mode))
+
+
+def _match_heatmap3d(request: Request, match_id: int, player: str | None, mode: str) -> dict:
+    with request.app.state.sessionmaker() as db:
+        match = _match_or_404(db, match_id)
+        wanted = ids_of(db, player) if player else None
+        roster = db.execute(
+            select(Player.user_id, MatchPlayer.name, MatchPlayer.team).join(Player)
+            .where(MatchPlayer.match_id == match_id).order_by(MatchPlayer.team, MatchPlayer.play_time_s.desc())
+        ).all() if mode == "player" else []
+    if match.map not in HEATMAP_LAYOUTS:
+        raise ApiError(404, "no_heatmap", f"No minimap for map '{match.map}'")
+    header, players = _tracks(request, match)
+    three = _tracks3d(request, match.replay_id)
+    layout = HEATMAP_LAYOUTS[match.map]
+    model = f"/maps3d/{match.map}.glb?v={VERSION}" if match.map in MAPS_3D else None
+    if mode == "player":
+        found = heatmaps3d.player_layers3d(layout, players, three[1], wanted, header.get("hz", 2), three[0].get("hz", 5))
+        layers = {uid: found.pop(uid) for uid, _, _ in roster if uid in found} | found  # roster order first
+        labels = {uid: name for uid, name, _ in roster}
+        teams = {uid: team for uid, _, team in roster}
+        return heatmaps3d.response(match.map, layers, labels, matches=1, matches_3d=1, mode=mode, teams=teams, model=model)
+    layers, labels, used = heatmaps3d.build_layers3d(layout, [((header, players), three)], wanted, mode)
+    return heatmaps3d.response(match.map, layers, labels, matches=1, matches_3d=used, mode=mode, model=model)
 
 
 EXPORT_COLUMNS = [

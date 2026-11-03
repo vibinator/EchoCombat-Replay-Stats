@@ -4,7 +4,7 @@ rem Turn it on first: Console > "Process replays on another PC" (or: admin.bat r
 rem Needs settings.local.bat (never uploaded) with:
 rem   set ECHOVR_REMOTE_WORKER_SECRET=the same value as on the NAS
 rem   set ECHOVR_REMOTE_SERVER=https://echocombat.com        (or http://<nas address>:8000 on the home network)
-rem   set ECHOVR_REPLAY_SOURCE=Z:\ECRanked\Replays           (the replay share as this PC sees it)
+rem   set ECHOVR_REPLAY_SOURCE=e:\ECRanked\Replays           (the replay share as this PC sees it)
 setlocal
 cd /d "%~dp0"
 if not exist ".venv\Scripts\python.exe" (

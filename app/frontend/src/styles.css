@@ -3025,3 +3025,22 @@ button.small {
     display: none; /* the card says it already */
   }
 }
+
+/* 3D heatmap (components/Heatmap3DView.tsx): the map-opacity slider sits in the camera bar */
+.pb3d-slider {
+  pointer-events: auto;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 6px;
+  background: rgba(10, 12, 16, 0.72);
+  color: var(--text);
+  font: 600 12px/1.2 system-ui, sans-serif;
+}
+.pb3d-slider input {
+  width: 90px;
+}

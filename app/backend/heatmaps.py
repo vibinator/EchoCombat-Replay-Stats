@@ -77,38 +77,55 @@ def rasterise_many(layout: HeatmapLayout, paths: list[list[tuple[float, float]]]
     return _rasterise_arrays(layout, xz[:, 0], xz[:, 1], lengths, cell_m)
 
 
-def _rasterise_arrays(layout: HeatmapLayout, x: np.ndarray, z: np.ndarray, lengths: np.ndarray,
-                      cell_m: float = CELL_M) -> Counter:
-    """Cell counts for paths given as flat x / z arrays (metres) cut into `lengths` (numpy: the 1000-match player
-    heatmap maps ~7 million points). Consecutive points are joined with a point every half cell unless the step is a
-    jump (> MAX_STEP_M); same arithmetic as to_cell, so both give the same cells."""
+def _densify(x: np.ndarray, z: np.ndarray, lengths: np.ndarray, cell_m: float,
+             y: np.ndarray | None = None) -> tuple[np.ndarray, np.ndarray, np.ndarray | None]:
+    """Paths (flat arrays cut into `lengths`) with a point every half cell between consecutive samples of a path,
+    unless the step is a jump (> MAX_STEP_M). With `y` (3D heatmaps) the step is the distance in space and y is
+    carried along; without it the horizontal distance, exactly as the 2D heatmaps have always done."""
     total = len(x)
-    if total == 0:
-        return Counter()
     first = np.zeros(total, dtype=bool)
     first[np.cumsum(lengths[lengths > 0])[:-1]] = True
     first[0] = True
     # points per sample: the sample itself, plus the in-between points from the previous sample (same path)
     dx, dz = np.zeros(total), np.zeros(total)
     dx[1:], dz[1:] = x[1:] - x[:-1], z[1:] - z[:-1]
-    dist = np.hypot(dx, dz)
-    # np.hypot can differ from math.hypot in the last bit: where that could change a step count (positions are
-    # whole decimetres, so exact multiples of half a cell are common), use math.hypot as before
-    ratio = dist / (cell_m / 2)
-    edge = np.flatnonzero((dist > 0) & ((np.abs(ratio - np.rint(ratio)) < 1e-6) | (np.abs(dist - MAX_STEP_M) < 1e-6)))
-    for i in edge.tolist():
-        dist[i] = math.hypot(dx[i], dz[i])
+    dy = None
+    if y is None:
+        dist = np.hypot(dx, dz)
+        # np.hypot can differ from math.hypot in the last bit: where that could change a step count (positions are
+        # whole decimetres, so exact multiples of half a cell are common), use math.hypot as before
+        ratio = dist / (cell_m / 2)
+        edge = np.flatnonzero((dist > 0) & ((np.abs(ratio - np.rint(ratio)) < 1e-6) | (np.abs(dist - MAX_STEP_M) < 1e-6)))
+        for i in edge.tolist():
+            dist[i] = math.hypot(dx[i], dz[i])
+    else:
+        dy = np.zeros(total)
+        dy[1:] = y[1:] - y[:-1]
+        dist = np.sqrt(dx * dx + dy * dy + dz * dz)
     joined = ~first & (dist <= MAX_STEP_M)
     steps = np.where(joined, np.maximum(1, (dist / (cell_m / 2)).astype(np.int64)), 1)
     owner = np.repeat(np.arange(total), steps)
     j = np.arange(len(owner)) - np.repeat(np.cumsum(steps) - steps, steps) + 1  # 1..steps
     k = steps[owner]
     inner = j < k
-    px, pz = np.zeros(total), np.zeros(total)
-    px[1:], pz[1:] = x[:-1], z[:-1]
     t = j / k
-    xs = np.where(inner, px[owner] + dx[owner] * t, x[owner])
-    zs = np.where(inner, pz[owner] + dz[owner] * t, z[owner])
+
+    def along(v: np.ndarray, dv: np.ndarray) -> np.ndarray:
+        prev = np.zeros(total)
+        prev[1:] = v[:-1]
+        return np.where(inner, prev[owner] + dv[owner] * t, v[owner])
+
+    return along(x, dx), along(z, dz), None if y is None else along(y, dy)
+
+
+def _rasterise_arrays(layout: HeatmapLayout, x: np.ndarray, z: np.ndarray, lengths: np.ndarray,
+                      cell_m: float = CELL_M) -> Counter:
+    """Cell counts for paths given as flat x / z arrays (metres) cut into `lengths` (numpy: the 1000-match player
+    heatmap maps ~7 million points). Consecutive points are joined with a point every half cell unless the step is a
+    jump (> MAX_STEP_M); same arithmetic as to_cell, so both give the same cells."""
+    if len(x) == 0:
+        return Counter()
+    xs, zs, _ = _densify(x, z, lengths, cell_m)
 
     x_min, x_max, z_min, z_max, swap, u_min, u_max, v_min, v_max, u_flip, v_flip, last_col, last_row =         _geometry(layout, cell_m)
     keep = (x_min <= xs) & (xs <= x_max) & (z_min <= zs) & (zs <= z_max)
@@ -167,6 +184,13 @@ def layer_paths(players: dict, user_ids: set[str] | None = None, mode: str = "te
     """Yield (user_id, key, x, z, lengths): one player's paths in one layer, flat x / z (metres) cut into lengths.
     A path is a run of samples in the same layer, plus the next sample while the player is still present
     (joins it up to the next layer's path); absent samples end it."""
+    for uid, key, idx, lengths in layer_runs(players, user_ids, mode, hz):
+        t = players[uid]
+        yield uid, key, np.frombuffer(t["x"], dtype=np.int16)[idx] / 10, np.frombuffer(t["z"], dtype=np.int16)[idx] / 10, lengths
+
+
+def layer_runs(players: dict, user_ids: set[str] | None = None, mode: str = "team", hz: int = 2):
+    """Yield (user_id, key, idx, lengths): the paths of layer_paths as sample indexes into the player's track."""
     for uid, t in players.items():
         if user_ids is not None and uid not in user_ids:
             continue
@@ -185,14 +209,12 @@ def layer_paths(players: dict, user_ids: set[str] | None = None, mode: str = "te
         joins = ends < n
         joins[joins] = keys[ends[joins]] >= 0
         lengths = ends - starts + joins
-        x = np.frombuffer(t["x"], dtype=np.int16) / 10
-        z = np.frombuffer(t["z"], dtype=np.int16) / 10
         for key in np.unique(run_keys).tolist():
             sel = run_keys == key
             run_starts, run_lengths = starts[sel], lengths[sel]
             idx = np.repeat(run_starts, run_lengths) + (
                 np.arange(int(run_lengths.sum())) - np.repeat(np.cumsum(run_lengths) - run_lengths, run_lengths))
-            yield uid, key, x[idx], z[idx], run_lengths
+            yield uid, key, idx, run_lengths
 
 
 def _merge(parts: list) -> tuple[np.ndarray, np.ndarray, np.ndarray]:

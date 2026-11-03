@@ -1029,6 +1029,76 @@ export const getMatchHeatmapBy = (id: number, mode: HeatmapLayerMode | "player",
 export const getPlayerHeatmapBy = (userId: string, map: string, mode: HeatmapLayerMode | "deaths", period: Period, last: number, cell: number) =>
   heatmapRequest(`/api/players/${encodeURIComponent(userId)}/heatmap${query({ map, mode, period, last, cell })}`);
 
+/** 3D heatmap (heatmaps3d.py): the layers of a heatmap as voxels in world space. Voxel (ix, iy, iz) covers the cube of
+ * `vox_m` metres whose lowest corner is origin + (ix, iy, iz) * vox_m. */
+export interface Heatmap3DLayer {
+  key: string;
+  label: string;
+  count: number;
+  ix: Uint16Array;
+  iy: Uint16Array;
+  iz: Uint16Array;
+  n: Uint32Array;
+  max: number;
+  team?: string;
+}
+
+export interface Heatmap3D {
+  map: string;
+  model: string | null;
+  mode: string;
+  vox_m: number;
+  nx: number;
+  ny: number;
+  nz: number;
+  origin: [number, number, number];
+  matches: number;
+  matches_3d: number;
+  layers: Heatmap3DLayer[];
+}
+
+type PackedLayer3D = Omit<Heatmap3DLayer, "count" | "ix" | "iy" | "iz" | "n"> & { packed: PackedLayer["packed"] };
+type PackedHeatmap3D = Omit<Heatmap3D, "layers"> & { layers: PackedLayer3D[] };
+
+function unpackVoxels(packed: PackedLayer3D["packed"], nx: number, nz: number): Pick<Heatmap3DLayer, "count" | "ix" | "iy" | "iz" | "n"> {
+  const count = packed.d ? bytes(packed.d).byteLength / 4 : 0;
+  const out = { count, ix: new Uint16Array(count), iy: new Uint16Array(count), iz: new Uint16Array(count), n: new Uint32Array(count) };
+  if (!count) return out;
+  const gaps = new DataView(bytes(packed.d));
+  const counts = new DataView(bytes(packed.n));
+  const plane = nx * nz;
+  let index = 0;
+  for (let i = 0; i < count; i++) {
+    index += gaps.getUint32(i * 4, true);
+    const iy = Math.floor(index / plane);
+    const rest = index - iy * plane;
+    const iz = Math.floor(rest / nx);
+    out.ix[i] = rest - iz * nx;
+    out.iy[i] = iy;
+    out.iz[i] = iz;
+    out.n[i] = packed.w === 2 ? counts.getUint16(i * 2, true) : counts.getUint32(i * 4, true);
+  }
+  return out;
+}
+
+const unpacked3d = new WeakMap<PackedHeatmap3D, Heatmap3D>();
+
+function heatmap3dRequest(path: string): Promise<Heatmap3D> {
+  return request<PackedHeatmap3D>(path).then((raw) => {
+    let h = unpacked3d.get(raw);
+    if (!h) {
+      h = { ...raw, layers: raw.layers.map(({ packed, ...layer }) => ({ ...layer, ...unpackVoxels(packed, raw.nx, raw.nz) })) };
+      unpacked3d.set(raw, h);
+    }
+    return h;
+  });
+}
+
+export const getMatchHeatmap3d = (id: number, mode: HeatmapLayerMode | "player", player?: string) =>
+  heatmap3dRequest(`/api/matches/${id}/heatmap3d${query({ mode, player })}`);
+export const getPlayerHeatmap3d = (userId: string, map: string, mode: HeatmapLayerMode, period: Period, last: number) =>
+  heatmap3dRequest(`/api/players/${encodeURIComponent(userId)}/heatmap3d${query({ map, mode, period, last })}`);
+
 /** Discord-linked player profile (user, 2026-11-02): linked by the Discord bot; the linked person may change only the
  * bio and whether their Discord avatar is shown. Per visitor (`editable`), never cached. */
 export interface PlayerBioProfile {

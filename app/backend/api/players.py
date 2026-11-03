@@ -5,7 +5,9 @@ from collections import Counter
 from fastapi import APIRouter, Query, Request
 from sqlalchemy import and_, case, func, select
 
-from .. import gear_use, heatmaps, tracks, visibility
+from .. import gear_use, heatmaps, heatmaps3d, tracks, tracks3d, visibility
+from ..heatmaps3d import build_layers3d, read_pairs
+from ..version import VERSION
 from ..aliases import ids_of
 from ..cache import cached, cached_response
 from ..duplicates import counted
@@ -14,6 +16,7 @@ from ..gear import WEAPONS
 from ..gear import lookup as gear_lookup
 from ..models import Event, Match, MatchPlayer, MatchPlayerLoadout, Player, PlayerAlias
 from ..stats.maps import HEATMAP_LAYOUTS
+from .matches import MAPS_3D
 from .derived import MAP_PATTERN, PERIODS, TEXT_MAX, dominant_arm, loadout, match_summary, period_start, ratio
 
 router = APIRouter(prefix="/api/players", tags=["players"])
@@ -295,6 +298,42 @@ def get_player_heatmap(
         raise ApiError(400, "bad_cell", f"cell must be one of {heatmaps.CELL_SIZES}")
     return cached_response(request, "player-heatmap", (user_id, map, mode, period, last, cell),
                            lambda: _player_heatmap(request, user_id, map, mode, period, last, cell))
+
+
+HEATMAP3D_MODES = heatmaps.TRACK_MODES  # deaths are stored without a height
+
+
+def _player_heatmap3d(request: Request, user_id: str, map_: str, mode: str, period: str, last: int) -> dict:
+    layout = HEATMAP_LAYOUTS[map_]
+    with request.app.state.sessionmaker() as db:
+        player = db.scalar(select(Player).where(Player.user_id == user_id))
+        if player is None:
+            raise ApiError(404, "not_found", f"Player {user_id} not found")
+        player_id, user_ids = player.id, ids_of(db, user_id)
+        rows = db.execute(
+            select(Match.id, Match.replay_id).join(MatchPlayer, MatchPlayer.match_id == Match.id)
+            .where(_filters(player_id, period, map_)).order_by(Match.started_at.desc()).limit(last)
+        ).all()
+    processed = request.app.state.settings.processed_dir
+    pairs = read_pairs((tracks.tracks_path(processed, r.replay_id), tracks3d.tracks3d_path(processed, r.replay_id))
+                       for r in rows)
+    layers, labels, used = build_layers3d(layout, pairs, user_ids, mode)
+    model = f"/maps3d/{map_}.glb?v={VERSION}" if map_ in MAPS_3D else None
+    return heatmaps3d.response(map_, layers, labels, matches=len(rows), matches_3d=used, mode=mode, model=model)
+
+
+@router.get("/{user_id}/heatmap3d")
+def get_player_heatmap3d(
+    request: Request,
+    user_id: str,
+    map: str = Query(..., pattern="^(" + "|".join(HEATMAP_LAYOUTS) + ")$"),
+    mode: str = Query("team", pattern="^(" + "|".join(HEATMAP3D_MODES) + ")$"),
+    period: str = Query("all", pattern="^(" + "|".join(PERIODS) + ")$"),
+    last: int = Query(200, ge=1, le=5000, description="most recent N matches"),
+):
+    """The 3D version of /heatmap, from the matches whose 3D tracks exist (`matches_3d` of `matches`): none is built here."""
+    return cached_response(request, "player-heatmap3d", (user_id, map, mode, period, last),
+                           lambda: _player_heatmap3d(request, user_id, map, mode, period, last))
 
 
 @router.get("/{user_id}/trends")

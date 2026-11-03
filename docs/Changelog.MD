@@ -18,6 +18,14 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.03.1 — 01:07
+### Heatmaps in 3D (new: match page, player page, Compare)
+- **What:** next to the flat map there is now a **2D / 3D** switch. 3D shows the same layers (team, player, weapon, ordnance, tac mod, loadout, speed) as soft glows in 0.5 m cubes of space inside the see-through 3D map, so you can see *where above the floor* people spent their time. The legend, layer tick boxes and opacity slider work in both views. Orbit / Top / Reset buttons and a Map slider (how solid the map is drawn) sit on the view.
+- **Not in 3D:** the deaths layer (death positions are stored without a height), and hover counts.
+- **Coverage:** height comes from the 5 Hz 3D tracks. A match page builds them when missing (as 3D playback does). Player and Compare heatmaps use only matches that already have them and say "3D heat from X of Y matches"; matches fill in as they are imported or opened in 3D playback.
+- **Fixed:** the Compare page's heatmaps asked for a cell size the server refuses, so they never showed (and said nothing). They now load at 0.1 m like the other pages.
+- Internal: new `heatmaps3d.py` and `/heatmap3d` endpoints; the 2D rasteriser's path joining is now a shared helper (2D output unchanged).
+
 ## 2026.11.02.6 — 23:45
 ### Replays can be read on another PC (new, toggle in the Console)
 - **Why:** reading replays is slow on the NAS (5-12x slower than on the PC) and takes CPU away from visitors.

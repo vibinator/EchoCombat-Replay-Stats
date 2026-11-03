@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router";
 import {
-  getMatch, getMatchHeatmapBy, getPlayback, getTimeline,
+  getMatch, getMatchHeatmap3d, getMatchHeatmapBy, getPlayback, getTimeline,
   type GearUse, type HeatmapLayerMode, type MatchDetail, type MatchPlayer, type Team,
 } from "../api";
 import { SplitBar } from "../components/bars";
@@ -299,7 +299,7 @@ function HeatmapTab({ m }: { m: MatchDetail }) {
         </label>      </div>
       {h.loading && <Skeleton lines={5} />}
       <Status loading={false} error={h.error} />
-      {h.data && <HeatmapView heatmap={h.data} />}
+      {h.data && <HeatmapView heatmap={h.data} view3d={{ key: `h3|${m.id}|${mode}|${player}`, load: () => getMatchHeatmap3d(m.id, mode, player || undefined) }} />}
     </>
   );
 }

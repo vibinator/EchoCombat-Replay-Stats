@@ -1,5 +1,8 @@
-import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent } from "react";
 import type { Heatmap, HeatmapLayer, HeatmapLayerMode } from "../api";
+import type { Heat3DSource } from "./Heatmap3DView";
+
+const Heatmap3DView = lazy(() => import("./Heatmap3DView")); // three.js loads when 3D is first asked for
 
 // Layer colours. Teams use the game's colours (drawn over the minimap, not a chart surface). Gear uses the
 // validated dark categorical order (dataviz), fixed per code so a colour never moves between views.
@@ -138,7 +141,10 @@ function Stage({ heatmap, layers, colors, opacity, lookup, zoom, pan, onPan, lab
   );
 }
 
-export function HeatmapView({ heatmap, caption }: { heatmap: Heatmap; caption?: string }) {
+/** `view3d` = where the same heatmap can be had in 3D (absent: 2D only, e.g. the deaths layer has no height). */
+export function HeatmapView({ heatmap, caption, view3d }: { heatmap: Heatmap; caption?: string; view3d?: Heat3DSource }) {
+  const [wants3d, setWants3d] = useState(false);
+  const is3d = wants3d && !!view3d;
   const [hidden, setHidden] = useState<Set<string>>(new Set());
   const [showTable, setShowTable] = useState(false);
   const [opacity, setOpacity] = useState(1);
@@ -198,12 +204,20 @@ export function HeatmapView({ heatmap, caption }: { heatmap: Heatmap; caption?: 
           Opacity
           <input type="range" min={0.2} max={1} step={0.05} value={opacity} onChange={(e) => setOpacity(Number(e.target.value))} />
         </label>
-        <span className="zoom-buttons">
-          <button className="secondary" onClick={() => setZoom(zoom * 1.5)} aria-label="Zoom in">+</button>
-          <button className="secondary" onClick={() => setZoom(zoom / 1.5)} aria-label="Zoom out">−</button>
-          <button className="secondary" onClick={() => setZoom(1)} disabled={zoom === 1}>Reset</button>
-        </span>
-        {heatmap.layers.length > 1 && (
+        {view3d && (
+          <span className="zoom-buttons" role="group" aria-label="Flat or 3D">
+            <button className={is3d ? "secondary" : ""} aria-pressed={!is3d} onClick={() => setWants3d(false)}>2D</button>
+            <button className={is3d ? "" : "secondary"} aria-pressed={is3d} onClick={() => setWants3d(true)}>3D</button>
+          </span>
+        )}
+        {!is3d && (
+          <span className="zoom-buttons">
+            <button className="secondary" onClick={() => setZoom(zoom * 1.5)} aria-label="Zoom in">+</button>
+            <button className="secondary" onClick={() => setZoom(zoom / 1.5)} aria-label="Zoom out">−</button>
+            <button className="secondary" onClick={() => setZoom(1)} disabled={zoom === 1}>Reset</button>
+          </span>
+        )}
+        {!is3d && heatmap.layers.length > 1 && (
           <label className="inline-check">
             <input type="checkbox" checked={split} onChange={(e) => setSplit(e.target.checked)} /> Side by side
           </label>
@@ -213,7 +227,11 @@ export function HeatmapView({ heatmap, caption }: { heatmap: Heatmap; caption?: 
         </button>
       </div>
 
-      {split ? (
+      {is3d && view3d ? (
+        <Suspense fallback={<div className="pb3d-message"><p className="muted">Loading 3D…</p></div>}>
+          <Heatmap3DView source={view3d} colors={colors} hidden={hidden} opacity={opacity} onUse2D={() => setWants3d(false)} />
+        </Suspense>
+      ) : split ? (
         <div className="heatmap-grid">
           {visible.map((l) => (
             <Stage key={l.key} {...stageProps} layers={[l]} label={l.label} />
@@ -223,8 +241,10 @@ export function HeatmapView({ heatmap, caption }: { heatmap: Heatmap; caption?: 
         <Stage {...stageProps} layers={visible} />
       )}
       <p className="muted footnote">
-        {caption ?? ""} Brighter = more time spent there (log scale, {heatmap.cell_m} m cells). Scroll with Ctrl/Alt or use +/− to zoom, drag to
-        pan. Hover for sample counts (2 per second).
+        {caption ?? ""} Brighter = more time spent there (log scale).{" "}
+        {is3d
+          ? "In 3D each glow is a 0.5 m cube of space; the map is drawn see-through so the heat shows inside it. Drag to turn, right-drag to move, wheel to zoom."
+          : `${heatmap.cell_m} m cells. Scroll with Ctrl/Alt or use +/− to zoom, drag to pan. Hover for sample counts (2 per second).`}
       </p>
 
       {showTable && (

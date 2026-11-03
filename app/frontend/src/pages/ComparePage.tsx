@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router";
-import { comparePlayers, getPlayerHeatmapBy, searchPlayers, type Period, type PlayerStats } from "../api";
+import { comparePlayers, getPlayerHeatmap3d, getPlayerHeatmapBy, searchPlayers, type Period, type PlayerStats } from "../api";
 import { Status, TableWrap } from "../components/common";
-import { HeatmapView } from "../components/HeatmapView";
+import { HEATMAP_CELL_M, HeatmapView } from "../components/HeatmapView";
 import { EmptyState, Skeleton, WhenVisible } from "../components/ui";
 import { MAPS, duration, int, num, pct, playerPath, title } from "../format";
 import { useApi } from "../useApi";
@@ -180,12 +180,19 @@ export function ComparePage() {
 }
 
 function CompareHeatmap({ userId, name, map, period }: { userId: string; name: string; map: string; period: Period }) {
-  const h = useApi(() => getPlayerHeatmapBy(userId, map, "team", period, 200, 0.5), `${userId}|${map}|${period}`);
+  const h = useApi(() => getPlayerHeatmapBy(userId, map, "team", period, 200, HEATMAP_CELL_M), `${userId}|${map}|${period}`);
   return (
     <div>
       <h3>{name}</h3>
       {h.loading && <Skeleton lines={3} />}
-      {h.data && <HeatmapView heatmap={h.data} caption={`${int(h.data.matches)} matches.`} />}
+      {h.data && (
+        <HeatmapView
+          heatmap={h.data}
+          caption={`${int(h.data.matches)} matches.`}
+          view3d={{ key: `h3|${userId}|${map}|${period}`, load: () => getPlayerHeatmap3d(userId, map, "team", period, 200) }}
+        />
+      )}
+      <Status loading={false} error={h.error} />
     </div>
   );
 }

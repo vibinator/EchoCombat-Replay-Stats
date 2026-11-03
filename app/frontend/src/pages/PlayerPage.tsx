@@ -1,7 +1,7 @@
 import { type ReactNode, useState } from "react";
 import { Link, Navigate, useParams, useSearchParams } from "react-router";
 import {
-  getCompanions, getPlayer, getPlayerHeatmapBy, getTrends,
+  getCompanions, getPlayer, getPlayerHeatmap3d, getPlayerHeatmapBy, getTrends,
   type Companion, type CompanionWindow, type GearUse, type GearUseSet, type HeatmapLayerMode, type Period, type PlayerProfile, type PlayerStats, type TrendPoint,
 } from "../api";
 import { AchievementsSummary } from "../components/AchievementsView";
@@ -377,7 +377,13 @@ function PlayerHeatmap({ userId, period, maps }: { userId: string; period: Perio
         </label>      </div>
       {h.loading && <Skeleton lines={5} />}
       <Status loading={false} error={h.error} />
-      {h.data && <HeatmapView heatmap={h.data} caption={`${int(h.data.matches)} match${h.data.matches === 1 ? "" : "es"}.`} />}
+      {h.data && (
+        <HeatmapView
+          heatmap={h.data}
+          caption={`${int(h.data.matches)} match${h.data.matches === 1 ? "" : "es"}.`}
+          view3d={mode === "deaths" ? undefined : { key: `h3|${userId}|${map}|${mode}|${period}|${last}`, load: () => getPlayerHeatmap3d(userId, map, mode, period, last) }}
+        />
+      )}
     </>
   );
 }

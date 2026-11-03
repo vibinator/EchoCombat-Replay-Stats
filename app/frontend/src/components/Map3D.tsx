@@ -12,6 +12,7 @@ import { CSS2DObject, CSS2DRenderer } from "three/examples/jsm/renderers/CSS2DRe
 import { getPlayback3d, type MatchEvent, type Playback, type Playback3D } from "../api";
 import { useApi } from "../useApi";
 import { gearIconUrl, Status } from "./common";
+import { dressMapModel, type MapMaterial } from "./mapModel3d";
 import { CAMERAS, CONTROL_HELP, isFreeCamera, TEAM_COLORS, type Camera3D } from "./playback3d";
 
 const JUMP_M = 3; // positions further apart than this between two samples are a respawn / teleport: no gliding
@@ -21,27 +22,6 @@ const HAND_STEP_M = 0.02; // hands are sent relative to the head in 2 cm steps
 const SHOULDER_DROP_M = 0.3; // arms are drawn from just below the head
 const FOLLOW_BACK_M = 7; // chase camera: behind and above the picked player, looking down at them
 const FOLLOW_UP_M = 4;
-// The map files use the colours of the old hologram minimaps: their "Light Orange" is #ff3800, which reads as red next to the
-// site's orange, and the dark parts are near black. Recoloured when loaded (user, 2026-11-02): the teams in the site's own
-// colours, readable darks, a cleaner glow. Anything not listed keeps the colour it came with.
-const MAP_LOOK: Record<string, { color: string; emissive?: string; emissiveIntensity?: number }> = {
-  "Light Orange": { color: TEAM_COLORS[2] },
-  "Light Blue": { color: "#22b7ee" },
-  "Dark Gray": { color: "#1a202b" },
-  "Dark Blue": { color: "#122042" },
-  "Light Gray": { color: "#4b5465" },
-  "Light Light Gray": { color: "#a9b1bf" },
-  Map: { color: "#d4dae5" },
-  lambert1: { color: "#7b8393" },
-  Pink: { color: "#c93f72" },
-  "Glowing Blue": { color: "#1780d6", emissive: "#2fa4ff", emissiveIntensity: 0.85 },
-};
-// Layers of the map file that lie exactly on top of each other (a team zone on the floor it colours, trim on a wall): the
-// depth buffer cannot tell them apart, so they flicker. The higher the layer, the nearer it is drawn (polygon offset).
-const MAP_LAYER: Record<string, number> = {
-  "Dark Gray": 0, "Map": 1, lambert1: 1, Watery: 1, "Dark Blue": 2, "Light Gray": 2, "Light Light Gray": 3,
-  "Light Blue": 4, "Light Orange": 4, Pink: 5, "Glowing Blue": 5, "Capture Point Transparent": 6,
-};
 const OVERLAY_LAYER = 8; // the capture point ring and arc on the floor
 const RIDE_MAP_OPACITY = 0.28; // follow / first person: the map is a coarse hologram (~1 m), so see through it
 const BASE_FOV = 55;
@@ -275,7 +255,7 @@ function Stage(props: Map3DProps & { data: Playback3D }) {
 
     // --- map model ---
     let disposed = false;
-    const mapMaterials: { m: THREE.MeshStandardMaterial; opacity: number; transparent: boolean }[] = [];
+    const mapMaterials: MapMaterial[] = [];
     const mapSeeThrough = (on: boolean) => {
       for (const x of mapMaterials) {
         x.m.transparent = on || x.transparent;
@@ -289,25 +269,7 @@ function Stage(props: Map3DProps & { data: Playback3D }) {
         data.model,
         (gltf) => {
           if (disposed) return;
-          gltf.scene.traverse((o) => {
-            const mesh = o as THREE.Mesh;
-            if (!mesh.isMesh) return;
-            for (const m of ([] as THREE.Material[]).concat(mesh.material)) {
-              const std = m as THREE.MeshStandardMaterial;
-              const look = MAP_LOOK[std.name];
-              if (look) {
-                std.color.set(look.color);
-                if (look.emissive) { std.emissive.set(look.emissive); std.emissiveIntensity = look.emissiveIntensity ?? 1; }
-              }
-              std.flatShading = true; // the files have no normals (app/tools/maps3d)
-              const layer = MAP_LAYER[std.name] ?? 1;
-              std.polygonOffset = true;
-              std.polygonOffsetFactor = -layer;
-              std.polygonOffsetUnits = -layer;
-              mapMaterials.push({ m: std, opacity: std.opacity, transparent: std.transparent });
-            }
-            mesh.raycast = () => {}; // clicks pick players only
-          });
+          mapMaterials.push(...dressMapModel(gltf.scene));
           scene.add(gltf.scene);
           // a faint grid under the arena, fading out with the fog: gives the floating map a place to sit
           const floor = new THREE.Box3().setFromObject(gltf.scene).min.y - 0.6;
