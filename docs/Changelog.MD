@@ -18,6 +18,11 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.03.23 — 17:07
+### Achievements page
+- **Recently completed** is one line of small cards that scrolls sideways (drag the scrollbar under it, Shift + wheel, or
+  swipe) instead of a long list, so it no longer pushes the rest of the page down.
+
 ## 2026.11.03.22 — 16:39
 ### Fix: Discord login that fails without saying why
 - When the Discord login fails, the address now ends `?login=failed&why=<reason>` (for example `state-mismatch`,

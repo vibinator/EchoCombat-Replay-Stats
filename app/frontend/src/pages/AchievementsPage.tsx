@@ -83,7 +83,7 @@ function RecentUnlocks() {
   return (
     <>
       <h2>Recently completed</h2>
-      <ul className="recent-unlocks">
+      <ul className="recent-unlocks" tabIndex={0} aria-label="Recently completed, scroll sideways">
         {recent.data.map((e, i) => (
           <li key={`${e.user_id}-${e.id}-${i}`}>
             <img src={`/achievements/${e.icon ?? "happy_cubesat.png"}`} alt="" />

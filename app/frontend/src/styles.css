@@ -1627,24 +1627,42 @@ td.best {
 .rank-same, .rank-new { color: var(--muted); font-size: 0.75rem; }
 
 /* achievements */
+/* Recently completed: one line of small cards that scrolls sideways (user, 2026-11-03) */
 .recent-unlocks {
+  display: flex;
+  gap: 8px;
   margin: 0;
-  padding: 0;
+  padding: 0 0 8px;
   list-style: none;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
 }
 .recent-unlocks li {
-  display: flex;
+  flex: 0 0 min(230px, 75vw);
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  grid-template-areas: "icon text" "icon date";
+  column-gap: 8px;
   align-items: center;
-  gap: 8px;
-  padding: 6px 0;
-  border-bottom: 1px solid var(--line);
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  scroll-snap-align: start;
+  font-size: 0.85rem;
 }
 .recent-unlocks img {
+  grid-area: icon;
   width: 28px;
   height: 28px;
 }
+.recent-unlocks li > span:first-of-type {
+  grid-area: text;
+  min-width: 0;
+}
 .recent-unlocks .muted {
-  margin-left: auto;
+  grid-area: date;
+  font-size: 0.75rem;
 }
 .note.ended {
   border-left-color: var(--muted);
