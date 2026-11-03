@@ -35,12 +35,13 @@ type AnyBadge = Parameters<typeof Badge>[0]["a"];
 const COLLAPSED_KEY = "achievements-collapsed";
 
 /** Which sections are folded away; remembered in this browser (localStorage may be unavailable: then it just is not kept). */
-function useCollapsed() {
+function useCollapsed(foldByDefault: string[] = []) {
   const [folded, setFolded] = useState<Set<string>>(() => {
     try {
-      return new Set<string>(JSON.parse(localStorage.getItem(COLLAPSED_KEY) ?? "[]"));
+      const saved = localStorage.getItem(COLLAPSED_KEY);
+      return new Set<string>(saved === null ? foldByDefault : JSON.parse(saved));
     } catch {
-      return new Set<string>();
+      return new Set<string>(foldByDefault);
     }
   });
   const save = (next: Set<string>) => {
@@ -115,7 +116,10 @@ function Section<T extends AnyBadge>({ id, c, level = 3, title, items, anchor }:
 
 /** Original achievements by period, then the new ones by theme, in one flat list of sections. */
 export function GroupedBadges<T extends AnyBadge>({ items }: { items: T[] }) {
-  const c = useCollapsed();
+  // A player's page opens with every section folded (the row at the top already lifts the best ones); a choice made with
+  // Expand all / Collapse all or a heading is remembered in this browser (user, 2026-11-03).
+  const tracked = items.length > 0 && items.every((a) => status(a) !== null);
+  const c = useCollapsed(tracked ? ["p-game", "p-day", "p-week", "p-all", ...[...NEW_GROUPS.map(([n]) => n), "More"].map((n) => `n-${n}`)] : []);
   const sections: { id: string; title: React.ReactNode; items: T[] }[] = [
     ...GROUPS.map(([period, label]) => ({ id: `p-${period}`, title: label, items: items.filter((a) => !a.new && a.period === period) })),
     ...[...NEW_GROUPS, ["More", ""] as [string, string]].map(([name, hint]) => ({
