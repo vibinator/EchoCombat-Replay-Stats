@@ -18,6 +18,10 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.03.3 — 01:44
+### Remote worker: more parallelism by default
+- Readers default to all cores but one, 12 uploads at a time, and up to 3 x readers replays are claimed ahead.
+
 ## 2026.11.03.2 — 01:39
 ### Remote worker: much faster rebuilds
 - `remote_worker.bat` now reads, claims and uploads at the same time: results go out from 6 upload threads (`--uploads N`)

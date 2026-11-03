@@ -134,7 +134,7 @@ def send(server: Server, job: Job, outcome: tuple) -> str:
 
 def run(server: Server, source: Path, workers: int, uploaders: int) -> None:
     """Parsing (process pool), claiming (main loop) and uploading (threads) overlap, so the cores never wait for the network.
-    Up to 2 x workers replays are claimed ahead, and claimed again as soon as the cores are about to run dry."""
+    Up to 3 x workers replays are claimed ahead, and claimed again as soon as the cores are about to run dry."""
     tmp = Path(tempfile.mkdtemp(prefix="echovr-remote-"))
     pool = ProcessPoolExecutor(workers, initializer=_pool_process_start)
     senders = ThreadPoolExecutor(uploaders, thread_name_prefix="upload")
@@ -144,7 +144,7 @@ def run(server: Server, source: Path, workers: int, uploaders: int) -> None:
     started = time.monotonic()
     next_claim, last_note = 0.0, ""
     spent = {"parse": 0.0, "send": 0.0, "claim": 0.0}
-    window = workers * 2
+    window = workers * 3
 
     def note(text: str) -> None:
         nonlocal last_note
@@ -261,8 +261,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--server", default=env("ECHOVR_REMOTE_SERVER", "https://echocombat.com"), help="the website's address")
     parser.add_argument("--secret", default=env("ECHOVR_REMOTE_WORKER_SECRET", ""), help="same as ECHOVR_REMOTE_WORKER_SECRET on the NAS")
     parser.add_argument("--source", default=env("ECHOVR_REPLAY_SOURCE", DEFAULT_SOURCE), help="the replay share as this PC sees it")
-    parser.add_argument("--workers", type=int, default=max(1, (os.cpu_count() or 4) - 2), help="parallel readers (default: all cores but two)")
-    parser.add_argument("--uploads", type=int, default=6, help="results sent at the same time (default: 6)")
+    parser.add_argument("--workers", type=int, default=max(1, (os.cpu_count() or 4) - 1), help="parallel readers (default: all cores but one)")
+    parser.add_argument("--uploads", type=int, default=12, help="results sent at the same time (default: 12)")
     args = parser.parse_args(argv)
     if not args.secret or args.secret.startswith("YOUR_"):
         print("No secret: set ECHOVR_REMOTE_WORKER_SECRET in settings.local.bat (the same value as on the NAS).", file=sys.stderr)
