@@ -18,6 +18,14 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.03.8 — 02:11
+### 3D heatmap: ribbons
+- Heat is drawn as continuous ribbons (neighbouring voxels joined by solid lines, 3.5 px wide) instead of dots, so
+  paths are unbroken strokes and colours stay saturated over the map. In busy places only axis links are drawn, so they
+  read as a lattice, not a scribble; very large heatmaps (over 120k voxels) use axis links everywhere.
+- The brightness slider now sets how solid the ribbons are, over its whole range. The far-side dimming is gone.
+- The browser console logs `heatmap3d: N voxels -> M ribbon segments, built in X ms` when a 3D heatmap opens.
+
 ## 2026.11.03.7 — 01:58
 ### 3D heatmap: continuous lines and depth
 - Dots overlap (1.7 voxels wide, flat middle, soft edge) so paths are continuous lines instead of beads, with lower
