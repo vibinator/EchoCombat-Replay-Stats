@@ -18,6 +18,16 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.03.13 — 03:11
+### Fixes from a full browser test
+- 3D playback full screen: the latest-events list under the controls showed as one huge empty box (the skull and gear
+  icons in it were stretched to the width of the screen); fixed at the cause, an old 2D-map style that reached every
+  icon inside the 3D view.
+- 2D playback: after switching from 3D to 2D the players, trails and names were not drawn until time moved (the map
+  was sized before its picture had loaded); it now redraws when its size changes, also in full screen.
+- Player page: the "Payload push / block" card's text no longer runs out of the card; the full screen button is the
+  same size as the buttons next to it.
+
 ## 2026.11.03.12 — 02:51
 ### 3D playback: upside down is visible (head roll)
 - The replay's head "up" direction is now kept (3D track file version 3: one more byte per player per sample). Players

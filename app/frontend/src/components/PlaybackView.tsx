@@ -337,6 +337,17 @@ export function PlaybackView({ playback, clock, compact = false, label, matchId,
   const bluePts = seriesAt(playback.series.blue_points, i);
   const orangePts = seriesAt(playback.series.orange_points, i);
 
+  // the 2D map's canvas takes its size from the map image: it is drawn again when that size changes (the image loads after
+  // the first draw when the view was just switched from 3D, and full screen resizes it), not only when time moves
+  const [canvasSize, setCanvasSize] = useState(0);
+  useEffect(() => {
+    const el = canvas.current;
+    if (!el) return;
+    const watcher = new ResizeObserver(() => setCanvasSize((n) => n + 1));
+    watcher.observe(el);
+    return () => watcher.disconnect();
+  }, [view]);
+
   useEffect(() => {
     const el = canvas.current;
     if (!el) return;
@@ -550,7 +561,7 @@ export function PlaybackView({ playback, clock, compact = false, label, matchId,
       }
       ctx.globalAlpha = 1;
     }
-  }, [t, i, second, playback, names, trail, trailColor, follow, deaths, changes, swaps, payload, bluePts, orangePts, checkpoints, checkpointDistances, attackerColor, view]);
+  }, [t, i, second, playback, names, trail, trailColor, follow, deaths, changes, swaps, payload, bluePts, orangePts, checkpoints, checkpointDistances, attackerColor, view, canvasSize]);
 
   // loadout swap labels shown now (3D labels; the 2D canvas works them out itself)
   const swapLabels = useMemo(

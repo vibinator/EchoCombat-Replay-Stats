@@ -571,14 +571,16 @@ code {
   width: 100%;
 }
 
-.heatmap-stage img {
+/* (the 2D map image and canvas are sized by the .heatmap-inner rules below; these only reach direct children, so the
+   3D view and its icons inside the same stage are not stretched) */
+.heatmap-stage > img {
   display: block;
   width: 100%;
   height: auto;
   filter: saturate(0.4) brightness(0.7);
 }
 
-.heatmap-stage canvas {
+.heatmap-stage > canvas {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -2476,7 +2478,7 @@ svg .strip-label {
   flex-wrap: wrap;
   gap: 2px 12px;
 }
-.split-legend > span { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.split-legend > span { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; overflow-wrap: anywhere; } /* wraps inside a narrow card instead of poking out of it */
 .split-key {
   display: inline-block;
   width: 8px;
@@ -3218,4 +3220,9 @@ button.small {
   margin: 0;
   max-height: 7.5em;
   overflow-y: auto;
+}
+
+/* the full screen button sits in the same row as the .zoom-buttons: same size */
+.pb-fs-btn {
+  padding: 4px 10px;
 }
