@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent, type ReactNode } from "react";
 import type { Heatmap, HeatmapLayer, HeatmapLayerMode } from "../api";
 import type { Heat3DSource } from "./Heatmap3DView";
 
@@ -141,8 +141,9 @@ function Stage({ heatmap, layers, colors, opacity, lookup, zoom, pan, onPan, lab
   );
 }
 
-/** `view3d` = where the same heatmap can be had in 3D (absent: 2D only, e.g. the deaths layer has no height). */
-export function HeatmapView({ heatmap, caption, view3d }: { heatmap: Heatmap; caption?: string; view3d?: Heat3DSource }) {
+/** `view3d` = where the same heatmap can be had in 3D (absent: 2D only, e.g. the deaths layer has no height).
+ *  `controls` = the page's own selectors, shown again in the 3D view's full screen (where the page is hidden). */
+export function HeatmapView({ heatmap, caption, view3d, controls }: { heatmap: Heatmap; caption?: string; view3d?: Heat3DSource; controls?: ReactNode }) {
   const [wants3d, setWants3d] = useState(false);
   const is3d = wants3d && !!view3d;
   const [hidden, setHidden] = useState<Set<string>>(new Set());
@@ -229,7 +230,7 @@ export function HeatmapView({ heatmap, caption, view3d }: { heatmap: Heatmap; ca
 
       {is3d && view3d ? (
         <Suspense fallback={<div className="pb3d-message"><p className="muted">Loading 3D…</p></div>}>
-          <Heatmap3DView source={view3d} colors={colors} hidden={hidden} opacity={opacity} onUse2D={() => setWants3d(false)} />
+          <Heatmap3DView source={view3d} colors={colors} hidden={hidden} opacity={opacity} onUse2D={() => setWants3d(false)} onHidden={setHidden} onOpacity={setOpacity} controls={controls} />
         </Suspense>
       ) : split ? (
         <div className="heatmap-grid">

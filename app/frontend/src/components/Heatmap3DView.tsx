@@ -1,13 +1,10 @@
-// 3D view of a heatmap (heatmaps3d.py): every layer's voxels as continuous ribbons inside the map model. Loaded on demand
+// 3D view of a heatmap (heatmaps3d.py): every layer's voxels as soft dots (normal alpha blending) inside the map model. Loaded on demand
 // (React.lazy in HeatmapView): three.js stays out of the main bundle. Colours, layer visibility and brightness come from the
 // 2D view's legend and sliders, so both views read the same way.
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
-import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
-import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 import type { Heatmap3D, Heatmap3DLayer } from "../api";
 import { useApi } from "../useApi";
 import { useFullscreen } from "../useFullscreen";
@@ -15,15 +12,8 @@ import { Status } from "./common";
 import { dressMapModel, type MapMaterial } from "./mapModel3d";
 
 const BASE_FOV = 50;
-const RIBBON_PX = 3.5; // ribbon thickness on screen, so far paths stay visible
-const MANY_VOXELS = 120_000; // above this only the three axis neighbours are joined (fewer segments)
-// neighbour offsets joined into ribbons: half of the 26 neighbours, so each pair is joined once
-const LINKS: [number, number, number][] = [
-  [1, 0, 0], [0, 1, 0], [0, 0, 1],
-  [1, 1, 0], [1, -1, 0], [1, 0, 1], [1, 0, -1], [0, 1, 1], [0, 1, -1],
-  [1, 1, 1], [1, 1, -1], [1, -1, 1], [1, -1, -1],
-];
-const DENSE_FACES = 4; // a voxel with this many of its 6 face neighbours is in a busy spot: only axis links there, so no scribble
+const GLOW_SIZE = 1.7; // a voxel's dot is this many voxels wide: neighbours overlap, so a path is one continuous line, not beads
+const GAIN = 1; // opacity at slider 1: normal alpha blending (not additive), so the colours stay saturated and never wash out to white
 const DEFAULT_MAP_OPACITY = 0.2; // see-through: the heat sits inside the arena
 const FALLBACK = ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#008300", "#9085e9", "#e66767"];
 
@@ -38,6 +28,9 @@ interface Props {
   hidden: Set<string>;
   opacity: number;
   onUse2D: () => void;
+  onHidden: (hidden: Set<string>) => void; // the full screen panel edits the same layer switches as the legend
+  onOpacity: (opacity: number) => void;
+  controls?: ReactNode; // the page's own selectors (colour by, player, map ...): not on screen in full screen
 }
 
 function webglAvailable(): boolean {
@@ -84,16 +77,37 @@ export default function Heatmap3DView(props: Props) {
   return <Scene {...props} data={data.data} />;
 }
 
+const VERTEX = `
+uniform float uSize;
+uniform float uScale;
+uniform float uFocus; // distance to the point the camera looks at
+uniform float uReach; // how far behind it the dimming goes on
+attribute vec4 heat; // rgb = the layer colour, a = how busy the voxel is
+varying vec4 vHeat;
+void main() {
+  vec4 mv = modelViewMatrix * vec4(position, 1.0);
+  // depth cue: what is behind the point looked at fades to ~40%, so near and far paths can be told apart
+  vHeat = vec4(heat.rgb, heat.a * mix(1.0, 0.4, smoothstep(uFocus, uFocus + uReach, -mv.z)));
+  gl_PointSize = max(3.0, uSize * uScale / -mv.z);
+  gl_Position = projectionMatrix * mv;
+}`;
+const FRAGMENT = `
+uniform float uGain;
+varying vec4 vHeat;
+void main() {
+  float r = length(gl_PointCoord - 0.5) * 2.0;
+  float f = 1.0 - smoothstep(0.7, 1.0, r); // solid middle out to 70% of the radius, thin soft rim: neighbouring dots still blend into a line
+  if (f <= 0.0) discard;
+  gl_FragColor = vec4(vHeat.rgb, vHeat.a * f * uGain);
+}`;
+
 interface LayerObj {
   layer: Heatmap3DLayer;
-  line: LineSegments2;
-  color: Float32Array; // the line geometry's colour buffer: 3 floats per end, 2 ends per segment
-  segA: Uint32Array; // voxel index at each segment's start / end
-  segB: Uint32Array;
-  alpha: Float32Array; // per voxel
+  points: THREE.Points;
+  heat: Float32Array;
 }
 
-function Scene({ data, colors, hidden, opacity, onUse2D }: Props & { data: Heatmap3D }) {
+function Scene({ data, colors, hidden, opacity, onUse2D, onHidden, onOpacity, controls }: Props & { data: Heatmap3D }) {
   const mount = useRef<HTMLDivElement>(null);
   const dirty = useRef(true);
   const screen = useFullscreen(mount);
@@ -104,6 +118,7 @@ function Scene({ data, colors, hidden, opacity, onUse2D }: Props & { data: Heatm
   const [failed, setFailed] = useState<string | null>(null);
   const [mapOpacity, setMapOpacity] = useState(DEFAULT_MAP_OPACITY);
   const [view, setView] = useState<"orbit" | "top">("orbit");
+  const [panel, setPanel] = useState(true);
   const latestMapOpacity = useRef(mapOpacity); // read when the map model arrives
   latestMapOpacity.current = mapOpacity;
   const voxels = useMemo(() => data.layers.reduce((s, l) => s + l.count, 0), [data]);
@@ -198,86 +213,51 @@ function Scene({ data, colors, hidden, opacity, onUse2D }: Props & { data: Heatm
       scene.add(grid);
     }
 
-    // --- the heat: one ribbon object per layer; neighbouring voxels are joined by line segments ---
-    const rgb = new THREE.Color();
-    const t0 = performance.now();
-    const lineMats: LineMaterial[] = [];
-    const nbMax = data.layers.reduce((m, l) => Math.max(m, l.count), 0) > MANY_VOXELS ? 3 : LINKS.length;
-    const objs: LayerObj[] = data.layers.map((layer) => {
-      const at = new Map<number, number>();
-      for (let i = 0; i < layer.count; i++) at.set((layer.iy[i] * data.nz + layer.iz[i]) * data.nx + layer.ix[i], i);
-      const pos: number[] = [];
-      const a: number[] = [];
-      const b: number[] = [];
-      const linked = new Uint8Array(layer.count);
-      const dense = new Uint8Array(layer.count);
-      for (let i = 0; i < layer.count; i++) {
-        let faces = 0;
-        for (let k = 0; k < 3; k++) {
-          const [dx, dy, dz] = LINKS[k];
-          for (const sg of [1, -1]) {
-            const nx = layer.ix[i] + sg * dx, ny = layer.iy[i] + sg * dy, nz = layer.iz[i] + sg * dz;
-            if (nx < 0 || nx >= data.nx || ny < 0 || ny >= data.ny || nz < 0 || nz >= data.nz) continue;
-            if (at.has((ny * data.nz + nz) * data.nx + nx)) faces++;
-          }
-        }
-        if (faces >= DENSE_FACES) dense[i] = 1;
-      }
-      const cx = (i: number) => ox + (layer.ix[i] + 0.5) * vox;
-      const cy = (i: number) => oy + (layer.iy[i] + 0.5) * vox;
-      const cz = (i: number) => oz + (layer.iz[i] + 0.5) * vox;
-      for (let i = 0; i < layer.count; i++) {
-        const x = layer.ix[i], y = layer.iy[i], z = layer.iz[i];
-        for (let k = 0; k < nbMax; k++) {
-          const [dx, dy, dz] = LINKS[k];
-          const nx = x + dx, ny = y + dy, nz = z + dz;
-          if (nx < 0 || nx >= data.nx || ny < 0 || ny >= data.ny || nz < 0 || nz >= data.nz) continue;
-          const j = at.get((ny * data.nz + nz) * data.nx + nx);
-          if (j === undefined) continue;
-          if (k >= 3 && (dense[i] || dense[j])) continue; // diagonals only along sparse paths
-          linked[i] = linked[j] = 1;
-          pos.push(cx(i), cy(i), cz(i), cx(j), cy(j), cz(j));
-          a.push(i);
-          b.push(j);
-        }
-      }
-      for (let i = 0; i < layer.count; i++) {
-        if (linked[i]) continue; // a lone voxel: a short stub, so it still shows
-        pos.push(cx(i) - vox * 0.3, cy(i), cz(i), cx(i) + vox * 0.3, cy(i), cz(i));
-        a.push(i);
-        b.push(i);
-      }
-      const geo = new LineSegmentsGeometry();
-      geo.setPositions(new Float32Array(pos));
-      geo.setColors(new Float32Array(a.length * 6));
-      const color = (geo.attributes.instanceColorStart as THREE.InterleavedBufferAttribute).data.array as Float32Array;
-      const mat = new LineMaterial({ vertexColors: true, linewidth: RIBBON_PX, transparent: true, depthWrite: false });
-      lineMats.push(mat);
-      const line = new LineSegments2(geo, mat);
-      line.frustumCulled = false;
-      line.renderOrder = 5; // after the (see-through) map
-      line.raycast = () => {};
-      scene.add(line);
-      return { layer, line, color, segA: Uint32Array.from(a), segB: Uint32Array.from(b), alpha: new Float32Array(layer.count) };
+    // --- the heat: one Points object per layer ---
+    const material = new THREE.ShaderMaterial({
+      vertexShader: VERTEX,
+      fragmentShader: FRAGMENT,
+      uniforms: { uSize: { value: vox * GLOW_SIZE }, uScale: { value: 1 }, uGain: { value: GAIN }, uFocus: { value: span }, uReach: { value: span * 0.8 } },
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.NormalBlending,
     });
-    console.info(`heatmap3d: ${data.layers.reduce((n, l) => n + l.count, 0)} voxels -> ${objs.reduce((n, o) => n + o.segA.length, 0)} ribbon segments, built in ${Math.round(performance.now() - t0)} ms`);
+    const rgb = new THREE.Color();
+    const objs: LayerObj[] = data.layers.map((layer) => {
+      const position = new Float32Array(layer.count * 3);
+      for (let i = 0; i < layer.count; i++) {
+        position[i * 3] = ox + (layer.ix[i] + 0.5) * vox;
+        position[i * 3 + 1] = oy + (layer.iy[i] + 0.5) * vox;
+        position[i * 3 + 2] = oz + (layer.iz[i] + 0.5) * vox;
+      }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute("position", new THREE.BufferAttribute(position, 3));
+      const heat = new Float32Array(layer.count * 4);
+      geo.setAttribute("heat", new THREE.BufferAttribute(heat, 4));
+      geo.boundingSphere = new THREE.Sphere(center, span * 2); // never culled: the layers span the whole arena
+      const points = new THREE.Points(geo, material);
+      points.frustumCulled = false;
+      points.renderOrder = 5; // after the (see-through) map
+      scene.add(points);
+      return { layer, points, heat };
+    });
     // like the 2D heatmap's alpha curve, with a higher floor so rarely used paths stay visible: 0.4 .. 1 with log(count)
     function apply() {
       const { colors: palette, hidden: off, opacity: gain } = latest.current;
-      const solid = Math.min(1, Math.max(0.2, gain)); // the brightness slider (0.2 .. 1, default 1): how solid the ribbons are
-      objs.forEach(({ layer, line, color, segA, segB, alpha }, k) => {
+      objs.forEach(({ layer, points, heat }, k) => {
         rgb.set(palette.get(layer.key) ?? FALLBACK[k % FALLBACK.length]);
         const scale = Math.log1p(layer.max) || 1;
-        for (let i = 0; i < layer.count; i++) alpha[i] = 0.55 + 0.45 * (Math.log1p(layer.n[i]) / scale);
-        for (let s = 0; s < segA.length; s++) {
-          const p = alpha[segA[s]], q = alpha[segB[s]];
-          color[s * 6] = rgb.r * p; color[s * 6 + 1] = rgb.g * p; color[s * 6 + 2] = rgb.b * p;
-          color[s * 6 + 3] = rgb.r * q; color[s * 6 + 4] = rgb.g * q; color[s * 6 + 5] = rgb.b * q;
+        for (let i = 0; i < layer.count; i++) {
+          const a = 0.4 + 0.6 * (Math.log1p(layer.n[i]) / scale);
+          heat[i * 4] = rgb.r;
+          heat[i * 4 + 1] = rgb.g;
+          heat[i * 4 + 2] = rgb.b;
+          heat[i * 4 + 3] = a;
         }
-        (line.geometry.attributes.instanceColorStart as THREE.InterleavedBufferAttribute).data.needsUpdate = true;
-        (line.material as LineMaterial).opacity = solid;
-        line.visible = !off.has(layer.key);
+        points.geometry.attributes.heat.needsUpdate = true;
+        points.visible = !off.has(layer.key);
       });
+      material.uniforms.uGain.value = GAIN * gain;
       dirty.current = true;
     }
     apply();
@@ -290,7 +270,7 @@ function Scene({ data, colors, hidden, opacity, onUse2D }: Props & { data: Heatm
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
       const buffer = renderer.getDrawingBufferSize(new THREE.Vector2());
-      for (const m of lineMats) m.resolution.set(buffer.x, buffer.y);
+      material.uniforms.uScale.value = buffer.y / (2 * Math.tan((camera.fov * Math.PI) / 360));
       dirty.current = true;
     };
     const observer = new ResizeObserver(resize);
@@ -305,6 +285,7 @@ function Scene({ data, colors, hidden, opacity, onUse2D }: Props & { data: Heatm
       if (controls.update()) dirty.current = true; // damping keeps gliding after the pointer is released
       if (!dirty.current) return;
       dirty.current = false;
+      material.uniforms.uFocus.value = camera.position.distanceTo(controls.target);
       renderer.render(scene, camera);
     };
     raf = requestAnimationFrame(loop);
@@ -316,9 +297,11 @@ function Scene({ data, colors, hidden, opacity, onUse2D }: Props & { data: Heatm
       el.removeEventListener("contextmenu", noMenu);
       controls.dispose();
       engine.current = null;
+      material.dispose();
       scene.traverse((o) => {
         const m = o as THREE.Mesh;
         m.geometry?.dispose();
+        if ((o as THREE.Points).isPoints) return; // the heat's one shared material is disposed above
         for (const mat of ([] as (THREE.Material | undefined)[]).concat(m.material)) {
           if (!mat) continue;
           for (const v of Object.values(mat)) if (v instanceof THREE.Texture) v.dispose();
@@ -350,6 +333,57 @@ function Scene({ data, colors, hidden, opacity, onUse2D }: Props & { data: Heatm
           title={screen.full ? "Leave full screen (Esc)" : "Full screen"} onClick={screen.toggle}>{screen.full ? "✕" : "⛶"}</button>
         <button type="button" className="pb3d-help-btn" onClick={onUse2D} title="Back to the flat map" aria-label="Show the 2D map">2D</button>
       </div>
+      {screen.full && (
+        <div className={`pb3d-panel${panel ? "" : " folded"}`}>
+          <button type="button" className="pb3d-panel-head" aria-expanded={panel} onClick={() => setPanel(!panel)}>
+            Options <span aria-hidden>{panel ? "▾" : "▸"}</span>
+          </button>
+          {panel && (
+            <>
+              {controls && <div className="pb3d-filters">{controls}</div>}
+              <div className="pb3d-section">
+                <div className="pb3d-section-head">
+                  <strong>Show</strong>
+                  <span>
+                    <button type="button" onClick={() => onHidden(new Set())}>All</button>
+                    <button type="button" onClick={() => onHidden(new Set(data.layers.map((l) => l.key)))}>None</button>
+                  </span>
+                </div>
+                {data.layers.map((l, k) => (
+                  <label key={l.key} className="pb3d-layer">
+                    <input type="checkbox" checked={!hidden.has(l.key)} onChange={() => {
+                      const next = new Set(hidden);
+                      if (next.has(l.key)) next.delete(l.key);
+                      else next.add(l.key);
+                      onHidden(next);
+                    }} />
+                    <span className="swatch" style={{ background: colors.get(l.key) ?? FALLBACK[k % FALLBACK.length] }} />
+                    {l.label}
+                  </label>
+                ))}
+              </div>
+              <div className="pb3d-section">
+                <label className="pb3d-range">Heat opacity
+                  <input type="range" min={0.2} max={1} step={0.05} value={opacity} onChange={(e) => onOpacity(Number(e.target.value))} />
+                </label>
+                <label className="pb3d-range">Map opacity
+                  <input type="range" min={0.05} max={1} step={0.05} value={mapOpacity} onChange={(e) => setMapOpacity(Number(e.target.value))} />
+                </label>
+              </div>
+              <dl className="pb3d-section pb3d-moves">
+                <dt>Moving around</dt>
+                <div><dd>Left-drag</dd><dd>Turn (Orbit view)</dd></div>
+                <div><dd>Right-drag</dd><dd>Move the view sideways</dd></div>
+                <div><dd>Wheel</dd><dd>Zoom to the pointer</dd></div>
+                <div><dd>Touch</dd><dd>1 finger turn, 2 fingers move and zoom</dd></div>
+                <div><dd>Top / Orbit</dd><dd>Switch the camera in the bar below</dd></div>
+                <div><dd>Reset</dd><dd>Put the camera back</dd></div>
+                <div><dd>Esc</dd><dd>Leave full screen</dd></div>
+              </dl>
+            </>
+          )}
+        </div>
+      )}
       {failed && <div className="pb3d-message overlay"><p>{failed}</p><button type="button" onClick={onUse2D}>Show the 2D map</button></div>}
       {mapState === "loading" && <div className="pb3d-note">Loading the map…</div>}
       {mapState === "failed" && <div className="pb3d-note">The map model could not be loaded: heat only.</div>}

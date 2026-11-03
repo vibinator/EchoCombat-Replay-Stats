@@ -280,9 +280,8 @@ function HeatmapTab({ m }: { m: MatchDetail }) {
     else next.delete(key);
     setParams(next, { replace: true });
   }
-  return (
+  const filters = (
     <>
-      <div className="filters">
         <label>
           Colour by
           <select value={mode} onChange={(e) => set("hm_mode", e.target.value, "team")}>
@@ -296,10 +295,15 @@ function HeatmapTab({ m }: { m: MatchDetail }) {
             <option value="">All players</option>
             {everyone.map((p) => <option key={p.user_id} value={p.user_id}>{p.name} ({p.team})</option>)}
           </select>
-        </label>      </div>
+        </label>
+    </>
+  );
+  return (
+    <>
+      <div className="filters">{filters}</div>
       {h.loading && <Skeleton lines={5} />}
       <Status loading={false} error={h.error} />
-      {h.data && <HeatmapView heatmap={h.data} view3d={{ key: `h3|${m.id}|${mode}|${player}`, load: () => getMatchHeatmap3d(m.id, mode, player || undefined) }} />}
+      {h.data && <HeatmapView heatmap={h.data} controls={filters} view3d={{ key: `h3|${m.id}|${mode}|${player}`, load: () => getMatchHeatmap3d(m.id, mode, player || undefined) }} />}
     </>
   );
 }

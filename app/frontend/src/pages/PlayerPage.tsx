@@ -352,10 +352,8 @@ function PlayerHeatmap({ userId, period, maps }: { userId: string; period: Perio
     setParams(next, { replace: true });
   }
   if (played.length === 0) return null;
-  return (
+  const filters = (
     <>
-      <h2>Heatmap</h2>
-      <div className="filters">
         <label>
           Map
           <select value={map} onChange={(e) => set("hm_map", e.target.value, played[0])}>
@@ -374,12 +372,19 @@ function PlayerHeatmap({ userId, period, maps }: { userId: string; period: Perio
           <select value={last} onChange={(e) => set("hm_last", e.target.value, "200")}>
             {[20, 50, 200, 1000, 5000].map((n) => <option key={n} value={n}>{n === 5000 ? "All" : `Last ${n}`}</option>)}
           </select>
-        </label>      </div>
+        </label>
+    </>
+  );
+  return (
+    <>
+      <h2>Heatmap</h2>
+      <div className="filters">{filters}</div>
       {h.loading && <Skeleton lines={5} />}
       <Status loading={false} error={h.error} />
       {h.data && (
         <HeatmapView
           heatmap={h.data}
+          controls={filters}
           caption={`${int(h.data.matches)} match${h.data.matches === 1 ? "" : "es"}.`}
           view3d={mode === "deaths" ? undefined : { key: `h3|${userId}|${map}|${mode}|${period}|${last}`, load: () => getPlayerHeatmap3d(userId, map, mode, period, last) }}
         />

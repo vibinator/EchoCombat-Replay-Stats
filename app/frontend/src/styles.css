@@ -2776,8 +2776,12 @@ button.small {
 }
 .pb3d canvas {
   display: block;
+  /* the 2D stage rule (.heatmap-stage canvas) makes canvases absolute, which put this one over the buttons and cards */
+  position: static;
+  image-rendering: auto;
 }
 .pb3d-labels {
+  z-index: 1;
   position: absolute;
   inset: 0;
   pointer-events: none;
@@ -2888,6 +2892,7 @@ button.small {
 
 /* 3D camera bar, "?" controls list and first-use hint (components/Map3D.tsx) */
 .pb3d-bar {
+  z-index: 3; /* above the canvas and the name labels */
   position: absolute;
   left: 8px;
   right: 8px;
@@ -2933,6 +2938,7 @@ button.small {
   border-radius: 50%;
 }
 .pb3d-help {
+  z-index: 3; /* above the canvas and the name labels */
   position: absolute;
   top: 8px;
   right: 8px;
@@ -2979,6 +2985,7 @@ button.small {
   color: var(--muted);
 }
 .pb3d-hint {
+  z-index: 3;
   position: absolute;
   left: 50%;
   bottom: 48px;
@@ -2996,6 +3003,7 @@ button.small {
 
 /* always-visible controls card for mouse and keyboard users (components/Map3D.tsx) */
 .pb3d-keys {
+  z-index: 3; /* above the canvas and the name labels */
   position: absolute;
   top: 8px;
   left: 8px;
@@ -3066,4 +3074,87 @@ button.small {
 }
 .pb3d-slider input {
   width: 90px;
+}
+
+/* 3D heatmap full screen options panel (components/Heatmap3DView.tsx): layers, opacity, the page's selectors, how to move */
+.pb3d-panel {
+  z-index: 3; /* above the canvas and the name labels */
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: min(280px, calc(100% - 16px));
+  max-height: calc(100% - 56px);
+  overflow-y: auto;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(10, 12, 16, 0.88);
+  color: var(--text);
+  font-size: 0.8rem;
+}
+.pb3d-panel-head {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: 700 0.85rem/1.3 system-ui, sans-serif;
+  cursor: pointer;
+}
+.pb3d-section,
+.pb3d-filters {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  display: grid;
+  gap: 6px;
+}
+.pb3d-filters label,
+.pb3d-range {
+  display: grid;
+  gap: 2px;
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+.pb3d-filters select {
+  width: 100%;
+  min-height: 30px;
+}
+.pb3d-section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.pb3d-section-head button {
+  margin-left: 4px;
+  padding: 2px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 4px;
+  background: none;
+  color: var(--text);
+  font: 600 0.72rem/1.2 system-ui, sans-serif;
+  cursor: pointer;
+}
+.pb3d-layer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.pb3d-moves dt {
+  font-weight: 700;
+}
+.pb3d-moves > div {
+  display: grid;
+  grid-template-columns: 6.5em 1fr;
+  gap: 8px;
+}
+.pb3d-moves dd {
+  margin: 0;
+  color: var(--muted);
+}
+.pb3d-moves dd:first-child {
+  color: var(--text);
+  font-weight: 700;
 }
