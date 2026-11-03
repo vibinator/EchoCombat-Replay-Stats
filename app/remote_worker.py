@@ -156,7 +156,7 @@ def run(server: Server, source: Path, workers: int) -> None:
         while True:
             if len(jobs) < workers + 1 and time.monotonic() >= next_claim:
                 try:
-                    reply = server.claim(workers + 1 - len(jobs))
+                    reply = server.claim(min(32, workers + 1 - len(jobs)))  # 32 = the server's MAX_CLAIM per request
                 except (urllib.error.URLError, TimeoutError, ConnectionError, OSError, Rejected) as e:
                     note(f"The server did not answer ({e}); trying again in {ERROR_S} s")
                     next_claim = time.monotonic() + ERROR_S
