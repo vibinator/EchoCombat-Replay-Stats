@@ -193,11 +193,21 @@ const GROUPS: { title: string; commands: Command[] }[] = [
           "Leave both dates empty to see the current period; an empty date is kept as it is.",
         fields: [
           { key: "start", label: "Start", kind: "date" },
+          { key: "start_today", label: "Start today (launches now)", kind: "check" },
           { key: "end", label: "End (optional)", kind: "date" },
+          { key: "end_today", label: "End today", kind: "check" },
           { key: "clear", label: "Remove both dates", kind: "check" },
         ],
         confirm: (v) =>
-          v.clear ? "Remove both dates? Achievements go back to “Coming soon”." : v.start ? `Set the launch date to ${v.start}?` : null,
+          v.clear
+            ? "Remove both dates? Achievements go back to “Coming soon”."
+            : v.start_today
+              ? `Launch now: set the start date to today (${todayIso()})? Achievements become public.`
+              : v.start
+                ? `Set the launch date to ${v.start}?`
+                : v.end_today
+                  ? `End the challenge period today (${todayIso()})?`
+                  : null,
       },
     ],
   },
@@ -225,15 +235,25 @@ const COMMAND_LABELS: Record<string, string> = {
   "admin-users": "Discord admin users",
 };
 
-/** What the server expects: text, true / false, and `others` as a list. An empty date is left out (= keep). */
+/** Today as YYYY-MM-DD in this browser's calendar (the Start today / End today options). */
+function todayIso(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/** What the server expects: text, true / false, and `others` as a list. An empty date is left out (= keep). The
+ *  "… today" checks fill the start / end date; the server still checks the person's permission for the command. */
 function toArgs(fields: Field[], values: Record<string, string>): Record<string, unknown> {
   const args: Record<string, unknown> = {};
   for (const f of fields) {
+    if (f.key === "start_today" || f.key === "end_today") continue;
     const v = values[f.key] ?? "";
     if (f.kind === "check") args[f.key] = v === "1";
     else if (f.kind === "list") args[f.key] = lines(v);
     else if (f.kind !== "date" || v) args[f.key] = v.trim();
   }
+  if (values.start_today === "1") args.start = todayIso();
+  if (values.end_today === "1") args.end = todayIso();
   return args;
 }
 

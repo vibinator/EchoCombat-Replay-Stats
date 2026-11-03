@@ -33,7 +33,7 @@ SPEED_MIN_GAMES = 25  # Cyberkinetic Enhancements: 50 left 76 % of the active pl
 # One ladder per kind of gear challenge, the same for every weapon, ordnance and tac mod, new gear included (user,
 # 2026-11-03). Set from the most-used gear (Pulsar, ~110k games in the archive): 500 games was out of reach in the last 500.
 GEAR_VETERAN = (5, 15, 50, 150, 350)  # games using it
-GEAR_DAY = (3, 6, 10, 15, 20)  # "only X" games in one day
+GEAR_DAY = (3, 5, 8, 12, 15)  # "only X" games in one day (finals 3 / 5 / 8 / 16 / 20; eased 2026-11-03 from the 1-3 Nov games)
 GEAR_WEEK = (5, 10, 15, 30, 50)  # "only X" games in any 7 days
 TIERS = [(1.0, "gold"), (0.75, "silver"), (0.5, "bronze"), (0.25, "white")]
 
@@ -403,8 +403,8 @@ def _build_rules() -> list[Rule]:
         _ladder(17, "Versatile Bot", "Days on which you used all 12 equipables", None, _days_all_equipables, (1, 2, 4, 8, 15)),
         _tiered(18, "My Other Chassis Is a Toaster", "Games with 3 or fewer deaths (3+ minutes)", "deaths",
                 lambda g: g.play_time_s >= FULL_GAME_S and g.deaths <= 3, (1, 5, 15, 50, 150), estimated=True),
-        _tiered(19, "Point Captured", "Play Capture Point games in one day: the most in a single day counts", "capture_point", _capture, (4, 6, 8, 12, 20), "day"),
-        _tiered(20, "Checkpoint Reached", "Play Payload games in one day: the most in a single day counts", "payload", _payload, (4, 6, 8, 12, 20), "day"),
+        _tiered(19, "Point Captured", "Play Capture Point games in one day: the most in a single day counts", "capture_point", _capture, (4, 6, 8, 10, 15), "day"),
+        _tiered(20, "Checkpoint Reached", "Play Payload games in one day: the most in a single day counts", "payload", _payload, (4, 6, 8, 10, 15), "day"),
         _ladder(21, "Full Team Salvo", "Time near a teammate in one game of 3+ minutes: your best game counts", "team_proximity",
                 _full(_pct("near_mate")), (45, 55, 65, 80, 92), "game", "%"),
         _ladder(22, "Can We Talk About This?", "Time near an enemy in one game of 3+ minutes: your best game counts", "enemy_proximity",
@@ -417,8 +417,8 @@ def _build_rules() -> list[Rule]:
     for rid, name, m in ((25, "Constant Contesting", "dyson"), (26, "Blast Furnace", "combustion"),
                          (27, "Techneium-99", "fission"), (28, "Bird of Prey", "surge")):
         rules.append(_tiered(rid, name, f"Play games of {m.title()} in one day: the most in a single day counts", m,
-                             lambda g, m=m: g.map == m, (3, 5, 7, 10, 14), "day"))
-    rules.append(_tiered(29, "Combat on Quest When?", "Play Combat pubs in one day: the most in a single day counts", "pubs", _pub, (8, 12, 16, 24, 32), "day"))  # 20 % lower (user, 2026-11-03)
+                             lambda g, m=m: g.map == m, (3, 4, 6, 8, 10), "day"))
+    rules.append(_tiered(29, "Combat on Quest When?", "Play Combat pubs in one day: the most in a single day counts", "pubs", _pub, (8, 12, 16, 22, 29), "day"))  # 20 % lower (user, 2026-11-03)
 
     # Weekly (30-54): the most in one calendar week (Monday start)
     names = {

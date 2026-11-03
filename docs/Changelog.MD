@@ -18,6 +18,20 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.03.21 — 16:24
+### Console
+- **Launch date and challenge period** has two new checks: **Start today (launches now)** and **End today**, so the dates
+  can be set without typing them. Same permission as before (Console); nothing changes for other visitors.
+
+### Challenges
+- **In one day** is a little easier, from the replays of 28 Oct - 3 Nov (499 files; the play of 234 players with 3+ games).
+  Gear "only X in a day" (all 12, plus the new gear, which shares the ladder): 3 / 5 / 8 / 16 / 20 (was 3 / 6 / 10 / 20 /
+  26). Capture Point and Payload games: 4 / 6 / 8 / 13 / 20 (was 4 / 6 / 8 / 16 / 26). Games on one map: 3 / 4 / 6 / 10 / 13
+  (was 3 / 5 / 7 / 13 / 18). Combat pubs: 8 / 12 / 16 / 29 / 38 (was 8 / 12 / 16 / 31 / 42). About 1 in 8 active players now
+  reaches gold on the most-used gear in a day, 1 in 30 diamond, 1 in 80 platinum.
+- **In any 7 days** was reviewed against the same games and left as it is: the week ladders already sit in the same range
+  (diamond 1-2 %, platinum below 1 %) while the data covers only 4 busy days, so a full week will reach further.
+
 ## 2026.11.03.20 — 16:06
 ### Challenges
 - **Combat on Quest When?** (Combat pubs in one day) is 20 % lower: 8 / 12 / 16 / 31 / 42 (was 10 / 15 / 20 / 39 / 52).
