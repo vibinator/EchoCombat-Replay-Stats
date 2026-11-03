@@ -308,3 +308,19 @@ def test_replays_with_hex_gear_codes_are_reread_once(client):
     assert requeue_unfinished_and_outdated(sessions) == 1
     client.app.state.worker.wait_idle()
     assert requeue_unfinished_and_outdated(sessions) == 0  # re-read: codes are plain now
+
+
+def test_import_status_shows_redo_progress(client):
+    """A queued redo keeps the old match on the website, but the stages that depend on it must not read as complete."""
+    from sqlalchemy import update
+
+    from backend.models import Replay
+
+    add(client, {"dyson/a.echoreplay": rf.plain(rf.lines(10)), "surge/b.echoreplay": rf.plain(rf.lines(10, payload=True))})
+    with client.app.state.sessionmaker() as db:
+        db.execute(update(Replay).where(Replay.source_path.like("surge/%")).values(status="queued"))
+        db.commit()
+    stages = {s["key"]: s for s in client.get("/api/import").json()["stages"]}
+    for key in ("matches", "leaderboard", "achievements"):
+        assert (stages[key]["done"], stages[key]["total"]) == (1, 2), key
+    assert stages["tracks"]["done"] == 1 and stages["tracks"]["total"] == 2

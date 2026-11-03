@@ -2,7 +2,7 @@ from dataclasses import asdict
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Request
-from sqlalchemy import func, not_, select
+from sqlalchemy import and_, func, not_, select
 
 from parser import PARSER_VERSION
 
@@ -37,7 +37,14 @@ def import_status(request: Request):
         recent, earliest = db.execute(
             select(func.count(), func.min(Replay.processed_at)).where(Replay.processed_at >= since)).one()
         matches = db.scalar(select(func.count()).select_from(Match))
-        with_tracks = db.scalar(select(func.count()).select_from(Match).where(Match.has_tracks))
+        # Matches built by the current parser and stats version. While a reprocess runs the old match stays until its
+        # replay is replaced, so "matches" alone looks complete; this is the real progress of the recalculation.
+        current = and_(Replay.status == "done", Replay.parser_version == PARSER_VERSION,
+                       Replay.stats_version == STATS_VERSION)
+        current_matches = db.scalar(select(func.count()).select_from(Match).join(Replay, Replay.id == Match.replay_id)
+                                    .where(current))
+        with_tracks = db.scalar(select(func.count()).select_from(Match).join(Replay, Replay.id == Match.replay_id)
+                                .where(current, Match.has_tracks))
         players = db.scalar(select(func.count()).select_from(Player))
         events = db.scalar(select(func.count()).select_from(Event))
         by_map = dict(db.execute(select(Match.map, func.count()).group_by(Match.map)).all())
@@ -66,8 +73,9 @@ def import_status(request: Request):
                "Listed from the replay folder (read-only). Recordings still being written are picked up by a later scan."),
         _stage("replays", "Replays read and checked", finished, total,
                f"Each file is unzipped, read frame by frame and checked (Echo Combat, not damaged). {counts['failed']:,} failed."),
-        _stage("matches", "Match results and player stats", matches, readable,
-               "Score, winner, teams, play time, ping, speed, deaths (est.), loadouts, payload push / block."),
+        _stage("matches", "Match results and player stats", current_matches, readable,
+               "Score, winner, teams, play time, ping, speed, deaths (est.), loadouts, payload push / block. "
+               "Counts matches built with the current version; older ones stay on the website until redone."),
         _stage("players", "Players", players, None, "One profile per player ID, combining all of their matches."),
         _stage("events", "Timeline events", events, None,
                "Joins, deaths (est.), respawns, loadout changes, rounds won, checkpoints, contests."),
@@ -75,10 +83,11 @@ def import_status(request: Request):
                "2 positions per second per player, saved per match; used by heatmaps and the timeline chart."),
         _stage("heatmaps", "Heatmaps", with_tracks, matches,
                "Drawn from the position tracks when a match or player page is opened."),
-        _stage("leaderboard", "Leaderboard", matches, readable,
-               f"Ranked live from the saved match stats ({players:,} players)."),
-        _stage("achievements", "Achievements", matches, readable,
-               f"{len(RULES)} achievements per player, calculated from the saved match stats when viewed."),
+        _stage("leaderboard", "Leaderboard", current_matches, readable,
+               f"Ranked live from the saved match stats ({players:,} players); counts matches with up to date stats."),
+        _stage("achievements", "Achievements", current_matches, readable,
+               f"{len(RULES)} achievements per player, calculated from the saved match stats when viewed; counts "
+               "matches with up to date stats. The everyone-ranking below catches up within 10 minutes."),
     ]
     return {
         "source_dir": str(request.app.state.settings.source_dir),
