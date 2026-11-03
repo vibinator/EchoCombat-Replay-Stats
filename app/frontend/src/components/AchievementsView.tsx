@@ -109,7 +109,11 @@ function Section<T extends AnyBadge>({ id, c, level = 3, title, items, anchor }:
           ))}
         </div>
       )}
-      {open && <div className="badges">{shown.map((a) => <Badge key={a.id} a={a} />)}</div>}
+      {open && (
+        <div className={tracked ? "badges scroll-row" : "badges"} tabIndex={tracked ? 0 : undefined}>
+          {shown.map((a) => <Badge key={a.id} a={a} />)}
+        </div>
+      )}
     </div>
   );
 }

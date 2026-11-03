@@ -121,7 +121,7 @@ def test_coming_soon_until_the_start_date(tmp_path):
 def test_logic_follows_the_text():
     """Every condition is in the description (user, 2026-10-30)."""
     text = {r.id: r.description for r in RULES}
-    assert "(3+ minutes)" in text[18] and "3+ minutes" in text[21] and "25+ games" in text[73]
+    assert "(3+ minutes)" in text[18] and "3+ min" in text[21] and "25+ games" in text[73]
     # 3+ minutes: a short game does not count, even with 0 deaths
     assert by_id(evaluate([game(deaths=0, play=60.0)]))[18]["progress"] == 0
     assert by_id(evaluate([game(deaths=3)]))[18]["tier"] == "bronze"
@@ -217,7 +217,7 @@ def test_tiered_achievements():
     assert "1 bronze, 5 silver, 10 gold, 33 diamond, 130 platinum" in rule.description
     assert unlock_threshold(rule) == 0.2 and unlock_threshold(next(r for r in RULES if r.id == 43)) == 0.25
     delivery = next(r for r in RULES if r.id == 94)
-    assert "Deliver the payload to the end" in delivery.description and delivery.levels == (1, 5, 10, 33, 78)
+    assert "attackers" in delivery.description and delivery.levels == (1, 5, 10, 33, 78)
     assert "count" not in by_id(evaluate(sweeps(1)))[43]  # single-step rules unchanged
 
 
