@@ -410,7 +410,9 @@ function SneakPeek({ peek }: { peek: AchievementPeek }) {
 function PreviewLogin() {
   const me = useApi(getMe, "me").data;
   const location = useLocation();
-  const failed = new URLSearchParams(location.search).get("login") === "failed";
+  const params = new URLSearchParams(location.search);
+  const failed = params.get("login") === "failed";
+  const why = params.get("why");
   if (!me?.enabled) return null;
   if (me.user)
     return (
@@ -420,7 +422,7 @@ function PreviewLogin() {
     );
   return (
     <p className="muted">
-      {failed && <>The Discord login did not work, please try again. </>}
+      {failed && <>The Discord login did not work{why ? ` (${why})` : ""}, please try again. </>}
       Have preview access? <a href={loginUrl("/achievements")}>Log in with Discord</a>
     </p>
   );

@@ -113,8 +113,8 @@ def test_bad_state_code_or_cookie_is_refused(tmp_path, discord):
     with app_client(settings(tmp_path)) as client:
         client.get("/api/auth/login", follow_redirects=False)
         r = client.get("/api/auth/callback", params={"code": MEMBER, "state": "forged"}, follow_redirects=False)
-        assert r.headers["location"] == "/achievements?login=failed"
-        assert login(client, "bad").headers["location"] == "/achievements?login=failed"
+        assert r.headers["location"] == "/achievements?login=failed&why=state-mismatch"
+        assert login(client, "bad").headers["location"].startswith("/achievements?login=failed&why=")
         assert client.get("/api/auth/me").json()["user"] is None
         client.cookies.set(auth.SESSION_COOKIE, "eyJpZCI6IjQyIn0.forged")
         assert client.get("/api/auth/me").json()["user"] is None

@@ -1,6 +1,8 @@
 """Discord login for achievement previews (D41). Only GET requests: the website stays read-only (D38)."""
 
 import hmac
+import logging
+import re
 import secrets
 from urllib.parse import urlencode, urlparse
 
@@ -12,6 +14,7 @@ from .. import auth
 from ..errors import ApiError
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
+log = logging.getLogger("uvicorn.error")
 
 
 def _safe_next(next_: str | None) -> str:
@@ -52,19 +55,41 @@ def login(request: Request, next: str | None = None):
     return response
 
 
+def _why(text: object) -> str:
+    """A short, harmless reason for the failure page and the log: letters, digits, - and _ only."""
+    return re.sub(r"[^a-z0-9_-]", "", str(text).lower())[:40] or "unknown"
+
+
+def _exchange_failure(e: Exception) -> str:
+    if isinstance(e, httpx.HTTPStatusError):  # Discord answered: its own error name (invalid_client, invalid_grant ...)
+        try:
+            name = e.response.json().get("error", "")
+        except ValueError:
+            name = ""
+        return _why(f"discord-{e.response.status_code}-{name}")
+    if isinstance(e, httpx.TimeoutException):
+        return "timeout"
+    return "network" if isinstance(e, httpx.HTTPError) else "bad-reply"
+
+
 @router.get("/callback")
 def callback(request: Request, code: str | None = None, state: str | None = None, error: str | None = None):
     settings = _settings(request)
     pending = auth.unsign(settings, request.cookies.get(auth.STATE_COOKIE)) or {}
     target = _safe_next(pending.get("next"))
     sep = "&" if "?" in target else "?"
+
+    def failed(why: str):
+        log.warning("Discord login failed: %s", why)  # nothing secret: a reason word only
+        return RedirectResponse(f"{target}{sep}login=failed&why={why}", status_code=303)
+
     if error or not code or not state or not hmac.compare_digest(str(pending.get("state", "")), state):
-        response = RedirectResponse(f"{target}{sep}login=failed", status_code=303)
+        response = failed(f"discord-{_why(error)}" if error else "no-state-cookie" if not pending else "state-mismatch")
     else:
         try:
             user = auth.user_from_code(settings, code)
-        except (httpx.HTTPError, KeyError, ValueError):
-            response = RedirectResponse(f"{target}{sep}login=failed", status_code=303)
+        except (httpx.HTTPError, KeyError, ValueError) as e:
+            response = failed(_exchange_failure(e))
         else:
             auth.forget_roles(user["id"])
             response = RedirectResponse(target, status_code=303)

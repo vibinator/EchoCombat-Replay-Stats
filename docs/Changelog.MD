@@ -18,6 +18,13 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.03.22 — 16:39
+### Fix: Discord login that fails without saying why
+- When the Discord login fails, the address now ends `?login=failed&why=<reason>` (for example `state-mismatch`,
+  `no-state-cookie`, `discord-400-invalid_client`, `discord-400-invalid_grant`, `timeout`) and the same reason is written
+  to the server log ("Discord login failed: …"). The Achievements "Coming soon" page shows it too. Only a reason word;
+  nothing secret. Nothing else about the login changed.
+
 ## 2026.11.03.21 — 16:24
 ### Console
 - **Launch date and challenge period** has two new checks: **Start today (launches now)** and **End today**, so the dates
