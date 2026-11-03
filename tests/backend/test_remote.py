@@ -246,3 +246,20 @@ def analyse_for_pack(tmp_dir=None):
         path = Path(d) / "a.echoreplay"
         path.write_bytes(a_match())
         return analyse(str(path))
+
+
+def test_queue_missing_is_idempotent(client):
+    from backend import admin_actions as actions
+    sessions = client.app.state.sessionmaker
+    with sessions() as db:
+        def add(path, status, code=None):
+            db.add(Replay(source_path=path, size_bytes=1, source_mtime=1.0, discovered_at="x", status=status, error_code=code))
+        add("a.echoreplay", "done")              # finished, no match: missing
+        add("b.echoreplay", "failed", "unreadable")  # network error: retry
+        add("c.echoreplay", "failed", "corrupt")     # broken file: not touched
+        add("d.echoreplay", "queued")            # already waiting: not touched
+        db.commit()
+        assert actions.queue_missing(db) == {"no_match": 1, "unreadable": 1}
+        assert actions.queue_missing(db) == {"no_match": 0, "unreadable": 0}  # second run queues nothing
+        status = dict(db.execute(select(Replay.source_path, Replay.status)).all())
+    assert status == {"a.echoreplay": "queued", "b.echoreplay": "queued", "c.echoreplay": "failed", "d.echoreplay": "queued"}

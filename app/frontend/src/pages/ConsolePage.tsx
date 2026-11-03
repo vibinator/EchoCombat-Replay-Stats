@@ -82,7 +82,7 @@ const GROUPS: { title: string; commands: Command[] }[] = [
     commands: [{ name: "hidden-stats", label: "Hide stats from players", help: "", view: "hidden-stats" }],
   },
   {
-    title: "Replays",
+    title: "Processing",
     commands: [
       {
         name: "status",
@@ -107,10 +107,21 @@ const GROUPS: { title: string; commands: Command[] }[] = [
         confirm: () => "Let this server read replays itself again?",
       },
       {
-        name: "scan",
-        label: "Scan the replay folder",
-        help: "Look for new and changed replay files now. The server also does this every few minutes.",
+        name: "process-missing",
+        label: "Process missing replay files",
+        help: "Scan the replay folder, then queue every file that has no match yet: new files, replays that finished without a match and ones that could not be read earlier. Nothing is queued twice, so it is safe to run again.",
       },
+      {
+        name: "reprocess-all",
+        label: "Re-process every replay",
+        help: "Scan the folder, then read the whole archive again. This takes hours; current results stay on the website until each replay is replaced.",
+        confirm: () => "Re-process EVERY replay? This takes several hours.",
+      },
+    ],
+  },
+  {
+    title: "Repair",
+    commands: [
       {
         name: "reprocess",
         label: "Re-process a replay",
@@ -141,6 +152,11 @@ const GROUPS: { title: string; commands: Command[] }[] = [
         help: "Try aggressive repair once on every broken replay that repair mode could not fix.",
         confirm: () => "Aggressively repair every broken replay that repair mode could not fix?",
       },
+    ],
+  },
+  {
+    title: "Failed replays",
+    commands: [
       {
         name: "cannot-repair",
         label: "Replays that cannot be repaired",
@@ -157,12 +173,6 @@ const GROUPS: { title: string; commands: Command[] }[] = [
           { key: "unhide_all", label: "Show all of them again", kind: "check" },
         ],
         confirm: (v) => (v.unhide_all ? "Show every hidden replay again?" : v.unhide ? `Show ${v.unhide} again?` : null),
-      },
-      {
-        name: "reprocess-all",
-        label: "Re-process every replay",
-        help: "Scan the folder, then read the whole archive again. This takes hours; current results stay on the website until each replay is replaced.",
-        confirm: () => "Re-process EVERY replay? This takes several hours.",
       },
     ],
   },

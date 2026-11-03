@@ -70,6 +70,7 @@ COMMANDS = {  # name as in admin.bat -> (sessions, settings, args) -> None
     "repair-aggressive": lambda s, st, a: console.cmd_repair_aggressive(s, _required(a.replay, "a replay id or path")),
     "repair-aggressive-failed": lambda s, st, a: console.cmd_repair_aggressive_failed(s, yes=True),
     "scan": lambda s, st, a: console.cmd_scan(s, st),
+    "process-missing": lambda s, st, a: console.cmd_process_missing(s, st),
     "reprocess-all": lambda s, st, a: console.cmd_reprocess_all(s, st, yes=True),
     "hide-stats": lambda s, st, a: console.cmd_hide_stats(s, "win_loss" if a.hide_win_loss else None,
                                                           "win_loss" if a.show_win_loss else None, a.player),

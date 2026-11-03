@@ -573,6 +573,16 @@ def cmd_scan(sessions, settings: Settings) -> None:
           + (when_applied() if state.added or state.changed else ""))
 
 
+def cmd_process_missing(sessions, settings: Settings) -> None:
+    """Scan the folder (new and changed files), then queue every replay that never produced a match."""
+    cmd_scan(sessions, settings)
+    with sessions() as db:
+        n = actions.queue_missing(db)
+        waiting = db.scalar(select(func.count()).select_from(Replay).where(Replay.status.in_(("queued", "processing"))))
+    print(f"Also queued: {n['no_match']} finished without a match, {n['unreadable']} that could not be read earlier. "
+          f"{waiting:,} replays are now waiting. Nothing is queued twice. {when_applied()}")
+
+
 REPLAYS_PER_MIN = 160  # full archive (~29k) in about 3 hours with 8 workers (docs/Setup.MD)
 
 
@@ -623,7 +633,7 @@ EchoVR Replay Stats - admin console ({APP_VERSION})
   9  Hidden replays (show again)
   10 Re-process a replay
   11 Repair a replay
-  12 Scan the replay folder now
+  12 Process missing replay files (scans the folder first)
   13 Rescan and re-process every replay
   14 Discord preview roles (see achievements before the launch)
   15 Discord admin roles (Status page)
@@ -702,7 +712,7 @@ def interactive(sessions, settings: Settings) -> None:
                 if term:
                     (cmd_reprocess if choice == "10" else cmd_repair)(sessions, term)
             elif choice == "12":
-                cmd_scan(sessions, settings)
+                cmd_process_missing(sessions, settings)
             elif choice == "13":
                 cmd_reprocess_all(sessions, settings, yes=False)
             elif choice in ("14", "15"):
@@ -769,7 +779,7 @@ def interactive(sessions, settings: Settings) -> None:
 # subcommands that change something: written to the audit log (Console page) with the Windows / container user
 LOGGED = {"merge", "unmerge", "challenge", "preview-roles", "admin-roles", "admin-users", "hide-stats", "repair-failed",
           "cannot-repair", "hidden", "reprocess", "repair", "scan", "reprocess-all", "repair-aggressive",
-          "repair-aggressive-failed", "remote"}
+          "repair-aggressive-failed", "remote", "process-missing"}
 
 
 def _run_logged(sessions, settings: Settings, args) -> int:
@@ -835,6 +845,8 @@ def main_command(sessions, settings: Settings, args) -> None:
             cmd_remote_processing(sessions, True if args.on else False if args.off else None)
         case "scan":
             cmd_scan(sessions, settings)
+        case "process-missing":
+            cmd_process_missing(sessions, settings)
         case "reprocess-all":
             cmd_reprocess_all(sessions, settings, args.yes)
 
@@ -888,6 +900,7 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("remote", help="process replays on another PC (remote_worker.bat) instead of this server")
     p.add_argument("--on", action="store_true", help="the PC reads replays; this server stops reading them")
     p.add_argument("--off", action="store_true", help="this server reads replays itself again")
+    sub.add_parser("process-missing", help="scan the folder, then queue replays that never produced a match")
     sub.add_parser("scan", help="look for new / changed files in the replay folder now")
     p = sub.add_parser("reprocess-all", help="rescan the folder, then read every replay again (hours)")
     p.add_argument("--yes", action="store_true")

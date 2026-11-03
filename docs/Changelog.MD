@@ -18,6 +18,14 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.03.15 — 12:13
+### Console
+- New **Process missing replay files** (also `admin.bat process-missing`, menu 12): scans the replay folder, then queues
+  every replay that has no match yet: new files, replays that finished without a match and ones that failed only
+  because the file could not be read. Already queued, broken and hidden replays are left alone, and nothing is queued
+  twice, so it is safe to run again. It replaces "Scan the replay folder" in the menu.
+- Menu cleanup: the long Replays group is now Processing, Repair and Failed replays.
+
 ## 2026.11.03.14 — 03:42
 ### 3D views
 - The 3D heatmap starts with the camera framing where the heat actually is (it used to frame the whole arena, leaving

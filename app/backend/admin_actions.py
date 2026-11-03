@@ -12,7 +12,7 @@ from . import aliases
 from .cache import bump_generation
 from .config import Settings
 from .db import utcnow
-from .models import AggressiveRepair, AppSetting, ConsoleLog, HiddenReplay, Player, PlayerAlias, PriorityReplay, RepairRequest, Replay
+from .models import AggressiveRepair, AppSetting, ConsoleLog, HiddenReplay, Match, Player, PlayerAlias, PriorityReplay, RepairRequest, Replay
 
 REPAIRABLE = ("corrupt", "incomplete", "internal", "crashed")  # not: unsupported (not Combat), unreadable (I/O)
 # Aggressive repair (D36b) only for broken replay data, after repair mode failed: not "internal" (a bug in the app)
@@ -157,6 +157,24 @@ def reprocess_all(db: Session) -> int:
     n = db.execute(update(Replay).where(Replay.status.in_(("done", "failed"))).values(status="queued")).rowcount
     db.commit()
     return n
+
+
+def queue_missing(db: Session) -> dict[str, int]:
+    """Queue replays that never produced a match: finished without one, or failed only because the file could not be
+    read (network / locked). Already queued or processing replays are left alone and every replay is queued once
+    (source_path is unique), so running this twice never doubles the work. Prioritised: it is only the gap."""
+    no_match = Replay.id.not_in(select(Match.replay_id))
+    rows = db.scalars(select(Replay).where(or_(
+        and_(Replay.status == "done", no_match),
+        and_(Replay.status == "failed", Replay.error_code == "unreadable", ~hidden_failure()),
+    ))).all()
+    counts = {"done": 0, "failed": 0}
+    for r in rows:
+        counts[r.status] += 1
+        r.status = "queued"
+    prioritise(db, [r.id for r in rows])
+    db.commit()
+    return {"no_match": counts["done"], "unreadable": counts["failed"]}
 
 
 def scan(sessions: sessionmaker, settings: Settings):
