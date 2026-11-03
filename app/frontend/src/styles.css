@@ -2141,6 +2141,28 @@ td.best {
   color: var(--muted);
 }
 
+.section-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 2px 0 8px;
+  font-size: 0.8rem;
+}
+
+.section-progress .bar {
+  flex: 1;
+  max-width: 320px;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.section-progress .bar div {
+  height: 100%;
+  background: var(--blue);
+}
+
 .fold-all {
   display: flex;
   gap: 6px;

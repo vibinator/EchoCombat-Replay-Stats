@@ -80,6 +80,7 @@ function Section<T extends AnyBadge>({ id, c, level = 3, title, items, anchor }:
   if (tracked) for (const a of items) counts[status(a)!]++;
   const filter = picked ?? FILTERS.find(([f]) => counts[f] > 0)?.[0] ?? "open";
   const shown = tracked ? items.filter((a) => status(a) === filter) : items;
+  const overall = tracked ? items.reduce((sum, a) => sum + (a.progress ?? 0), 0) / items.length : 0;
   return (
     <div className="fold" id={anchor}>
       <Heading className="fold-head">
@@ -87,6 +88,14 @@ function Section<T extends AnyBadge>({ id, c, level = 3, title, items, anchor }:
           <span className="chevron" aria-hidden="true">{open ? "▾" : "▸"}</span> {title} <span className="muted hint">({items.length})</span>
         </button>
       </Heading>
+      {tracked && (
+        <div className="section-progress" title={`${counts.done} of ${items.length} completed, ${pct(overall)} overall`}>
+          <div className="bar" role="progressbar" aria-label={`${typeof title === "string" ? title : "Section"} progress`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(overall * 100)}>
+            <div style={{ width: `${overall * 100}%` }} />
+          </div>
+          <span className="muted">{counts.done}/{items.length} completed · {pct(overall)}</span>
+        </div>
+      )}
       {open && tracked && (
         <div className="tabs" role="tablist">
           {FILTERS.map(([f, label]) => (
