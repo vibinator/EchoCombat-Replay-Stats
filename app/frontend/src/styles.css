@@ -82,7 +82,7 @@ nav a:hover {
 main {
   flex: 1;
   width: 100%;
-  max-width: 1320px; /* room for the match page's wide per-player tables */
+  max-width: 1600px; /* room for the match page's wide per-player tables and more cards in the sideways rows (user, 2026-11-03: was 1320) */
   margin: 0 auto;
   padding: 16px;
 }

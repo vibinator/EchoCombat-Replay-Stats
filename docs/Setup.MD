@@ -85,7 +85,7 @@ has no `git`, so it cannot build from the repository itself.
    password = the token.
 4. Put the Cloudflare tunnel token in `docker-compose.yml` (`YOUR_CLOUDFLARE_TUNNEL_TOKEN`) and check the two NAS
    folders under `volumes`: the replay folder (File Station `ECRanked > ECRanked` = `/share/ECRanked/ECRanked`,
-   read-only, subfolders included) and `data`. Set `ECHOVR_WORKERS` to about the NAS's core count.
+   read-only, subfolders included) and `data`. Set `ECHOVR_WORKERS` to about half the NAS's core count (2 on a 4-core NAS keeps the pages quick while replays are read; all cores read faster but the site shows "Server busy").
 5. Container Station > Applications > Create, name it `echovr-replay-stats`, paste the edited YAML, Create.
 6. Open `http://<nas address>:8000`. The first import of all replays takes longer than on the PC.
 

@@ -18,6 +18,17 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.03.27 — 17:29
+### Fix: "Server busy · showing saved data" while replays are read
+- `docker-compose.yml` now sets `ECHOVR_WORKERS: "2"` (was 4): the re-read of all replays (stats version 9) used every NAS core, and
+  pages took 20-35 s, so the site showed "Server busy". Two workers read slower but leave the NAS to the visitors. **Needs the
+  container recreated** with this compose file (or `ECHOVR_WORKERS=2` in the one the NAS uses); after the re-read is done it can go
+  back to 4. Reading on the PC (Console > Where replays are processed) takes the load off the NAS altogether.
+
+### Layout
+- The page content can be up to **1600 px** wide (was 1320), so wide screens use more of the window and the sideways rows
+  show more cards.
+
 ## 2026.11.03.26 — 17:22
 ### Console
 - **The Status page is gone**: its live progress (replays read, how many are left, what is built from them, estimated time)

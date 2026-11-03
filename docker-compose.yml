@@ -14,7 +14,7 @@ services:
     environment:
       ECHOVR_DATA_DIR: /data
       ECHOVR_REPLAY_SOURCE: /replays
-      ECHOVR_WORKERS: "4"            # parallel import processes: about the NAS's CPU core count
+      ECHOVR_WORKERS: "2"            # parallel import processes: 2 keeps pages quick while a big re-read runs (about half the NAS's cores); 4 = all of them, faster but "Server busy"
       ECHOVR_SCAN_INTERVAL_S: "300"  # seconds between full scans of the replay folder
       ECHOVR_QUICK_CHECK_S: "15"     # seconds between checks of the folders for new files (full scan when changed)
       ECHOVR_RATE_LIMIT_PER_MIN: "60"  # scraper protection: data requests per visitor per minute (0 = no limit)
