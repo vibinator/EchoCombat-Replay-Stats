@@ -12,7 +12,7 @@ import { CSS2DObject, CSS2DRenderer } from "three/examples/jsm/renderers/CSS2DRe
 import { getPlayback3d, type MatchEvent, type Playback, type Playback3D } from "../api";
 import { useApi } from "../useApi";
 import { gearIconUrl, Status } from "./common";
-import { TEAM_COLORS, type Camera3D } from "./playback3d";
+import { CAMERAS, CONTROL_HELP, isFreeCamera, TEAM_COLORS, type Camera3D } from "./playback3d";
 
 const JUMP_M = 3; // positions further apart than this between two samples are a respawn / teleport: no gliding
 const SKULL_S = 5;
@@ -36,7 +36,32 @@ const MAP_LOOK: Record<string, { color: string; emissive?: string; emissiveInten
   Pink: { color: "#c93f72" },
   "Glowing Blue": { color: "#1780d6", emissive: "#2fa4ff", emissiveIntensity: 0.85 },
 };
+// Layers of the map file that lie exactly on top of each other (a team zone on the floor it colours, trim on a wall): the
+// depth buffer cannot tell them apart, so they flicker. The higher the layer, the nearer it is drawn (polygon offset).
+const MAP_LAYER: Record<string, number> = {
+  "Dark Gray": 0, "Map": 1, lambert1: 1, Watery: 1, "Dark Blue": 2, "Light Gray": 2, "Light Light Gray": 3,
+  "Light Blue": 4, "Light Orange": 4, Pink: 5, "Glowing Blue": 5, "Capture Point Transparent": 6,
+};
+const OVERLAY_LAYER = 8; // the capture point ring and arc on the floor
 const RIDE_MAP_OPACITY = 0.28; // follow / first person: the map is a coarse hologram (~1 m), so see through it
+const BASE_FOV = 55;
+const MOVE_MS = 450; // eased camera moves (picking a camera, R)
+const DRAG_RAD_PER_PX = 0.006; // follow / first person: dragging turns the view this much per pixel
+const HINT_MS = 8000;
+const HINTS_KEY = "pb3d.hints"; // which cameras already showed their one-line "how to"
+const SHORT_LABEL: Record<Camera3D, string> = { orbit: "Orbit", top: "Top", blue: "Blue end", orange: "Orange end", objective: "Objective", follow: "Follow", first: "First person" };
+const HINT: Record<"free" | "follow" | "first", string> = {
+  free: "Drag to slide · right-drag to turn · wheel to zoom · W A S D to fly · ? for all controls",
+  follow: "Drag to swing round the player · wheel for distance · double-click to reset",
+  first: "Drag to look around · wheel to zoom · double-click to look where they look",
+};
+const LEGEND_KEY = "pb3d.legend"; // "0" = the PC controls card was folded away
+const LEGEND: Record<"free" | "follow" | "first", [string, string][]> = {
+  free: [["Left-drag", "Slide"], ["Right-drag", "Turn"], ["Wheel", "Zoom"], ["W A S D", "Fly"], ["Q / E", "Down / up"], ["Shift", "Faster"], ["R", "Reset view"], ["?", "All controls"]],
+  follow: [["Drag", "Swing round"], ["Wheel", "Distance"], ["Double-click / R", "Reset"], ["1 – 9", "Pick player"], ["?", "All controls"]],
+  first: [["Drag", "Look around"], ["Wheel", "Zoom"], ["Double-click / R", "Reset"], ["1 – 9", "Pick player"], ["?", "All controls"]],
+};
+const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
 export interface Map3DProps {
   id: number;
@@ -45,6 +70,7 @@ export interface Map3DProps {
   follow: string | null;
   onPick: (userId: string | null) => void;
   camera: Camera3D;
+  onCamera: (c: Camera3D) => void;
   names: boolean;
   trailSeconds: number;
   trailColor: "team" | "speed";
@@ -165,10 +191,28 @@ function Stage(props: Map3DProps & { data: Playback3D }) {
   const engine = useRef<{ setCamera: (c: Camera3D) => void } | null>(null);
   const [mapState, setMapState] = useState<"loading" | "ok" | "none" | "failed">(props.data.model ? "loading" : "none");
   const [failed, setFailed] = useState<string | null>(null);
+  const [help, setHelp] = useState(false); // the "?" list of controls
+  const [legend, setLegend] = useState(() => { try { return localStorage.getItem(LEGEND_KEY) !== "0"; } catch { return true; } }); // PC controls card, always on view
+  const toggleLegend = () => setLegend((v) => { try { localStorage.setItem(LEGEND_KEY, v ? "0" : "1"); } catch { /* ignore */ } return !v; });
+  const legendKind = isFreeCamera(props.camera) ? "free" : props.camera === "follow" ? "follow" : "first";
+  const [hint, setHint] = useState<string | null>(null); // one line of "how to" the first time a camera is used
+  const hasObjective = !!(props.data.objects.route?.length || props.data.objects.point);
 
   useEffect(() => {
     dirty.current = true; // any new props (time, toggles, picked player): draw again
   });
+
+  // the first time a camera is used (per browser), say in one line how to move it; goes away by itself or at the first touch
+  useEffect(() => {
+    const kind = isFreeCamera(props.camera) ? "free" : props.camera === "follow" ? "follow" : "first";
+    let seen: string[] = [];
+    try { seen = JSON.parse(localStorage.getItem(HINTS_KEY) || "[]"); } catch { /* private window: shown every time */ }
+    if (seen.includes(kind)) { setHint(null); return; }
+    try { localStorage.setItem(HINTS_KEY, JSON.stringify([...seen, kind])); } catch { /* ignore */ }
+    setHint(HINT[kind]);
+    const t = window.setTimeout(() => setHint(null), HINT_MS);
+    return () => window.clearTimeout(t);
+  }, [props.camera]);
 
   useEffect(() => {
     const el = mount.current;
@@ -214,19 +258,19 @@ function Stage(props: Map3DProps & { data: Playback3D }) {
     const span = Math.max(40, x1 - x0, z1 - z0);
     scene.fog = new THREE.Fog("#0d1118", span * 1.15, span * 3.6); // far parts fade into the sky
 
-    const camera = new THREE.PerspectiveCamera(55, 1, 0.05, span * 12);
+    const camera = new THREE.PerspectiveCamera(BASE_FOV, 1, 0.05, span * 12);
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.screenSpacePanning = true;
     controls.maxDistance = span * 3;
-    controls.minDistance = 1;
+    controls.minDistance = 0.1; // close enough to read a player's hands
     controls.enableDamping = true; // glides to a stop instead of halting dead
     controls.dampingFactor = 0.12;
     controls.zoomToCursor = true; // the wheel zooms towards what the pointer is over, not the middle of the map
     controls.zoomSpeed = 1.4;
     controls.rotateSpeed = 0.8;
     controls.panSpeed = 1.2;
-    // left drag turns, right drag (or Shift + left drag) moves sideways, wheel zooms, middle drag zooms
-    controls.mouseButtons = { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN };
+    // left drag moves sideways, right drag (or Shift + left drag) turns, wheel zooms, middle drag zooms
+    controls.mouseButtons = { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE };
     controls.addEventListener("change", () => { dirty.current = true; });
 
     // --- map model ---
@@ -256,6 +300,10 @@ function Stage(props: Map3DProps & { data: Playback3D }) {
                 if (look.emissive) { std.emissive.set(look.emissive); std.emissiveIntensity = look.emissiveIntensity ?? 1; }
               }
               std.flatShading = true; // the files have no normals (app/tools/maps3d)
+              const layer = MAP_LAYER[std.name] ?? 1;
+              std.polygonOffset = true;
+              std.polygonOffsetFactor = -layer;
+              std.polygonOffsetUnits = -layer;
               mapMaterials.push({ m: std, opacity: std.opacity, transparent: std.transparent });
             }
             mesh.raycast = () => {}; // clicks pick players only
@@ -270,7 +318,7 @@ function Stage(props: Map3DProps & { data: Playback3D }) {
           grid.position.set(center.x, floor, center.z);
           grid.raycast = () => {};
           scene.add(grid);
-          mapSeeThrough(mode === "follow" || mode === "first");
+          mapSeeThrough(!isFreeCamera(mode));
           setMapState("ok");
           dirty.current = true;
         },
@@ -434,7 +482,7 @@ function Stage(props: Map3DProps & { data: Playback3D }) {
       near.sort((a, b) => a - b);
       if (near.length) pointY = near[Math.floor(near.length * 0.25)] - 1.1; // heads stand ~1.1 m above the floor
       pointRing = new THREE.Mesh(new THREE.RingGeometry(point[2] - 0.2, point[2], 64).rotateX(-Math.PI / 2),
-        new THREE.MeshBasicMaterial({ color: "#ffffff", transparent: true, opacity: 0.45, side: THREE.DoubleSide }));
+        new THREE.MeshBasicMaterial({ color: "#ffffff", transparent: true, opacity: 0.45, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -OVERLAY_LAYER, polygonOffsetUnits: -OVERLAY_LAYER }));
       pointRing.position.set(point[0], pointY + 0.05, point[1]);
       pointRing.raycast = () => {};
       scene.add(pointRing);
@@ -443,20 +491,92 @@ function Stage(props: Map3DProps & { data: Playback3D }) {
     // --- cameras ---
     let mode: Camera3D = latest.current.camera;
     const look = new THREE.Vector3();
-    function setCamera(next: Camera3D) {
-      mode = next;
-      controls.enabled = next === "orbit" || next === "top";
-      controls.enableRotate = next === "orbit";
-      if (next === "orbit") {
-        controls.target.copy(center);
-        camera.position.set(center.x + span * 0.27, center.y + span * 0.38, center.z + span * 0.43);
-      } else if (next === "top") {
-        controls.target.copy(center);
-        camera.position.set(center.x, center.y + span * 0.95, center.z + 0.01);
+
+    // where each team starts: the first moment a team has two players out of the load-in room (players load in at the origin)
+    const anchor: (THREE.Vector3 | null)[] = [null, null, null];
+    for (let k = 0; k < data.samples && !(anchor[1] && anchor[2]); k++) {
+      for (const t of [1, 2]) {
+        if (anchor[t]) continue;
+        const here = data.players.filter((pl) => pl.team[k] === t && Math.hypot(pl.x[k], pl.z[k]) > 100);
+        if (here.length < 2) continue;
+        const mean = (f: (pl: (typeof here)[number]) => number) => here.reduce((a, pl) => a + f(pl), 0) / here.length / 10;
+        anchor[t] = new THREE.Vector3(mean((pl) => pl.x[k]), mean((pl) => pl.y[k]), mean((pl) => pl.z[k]));
       }
+    }
+    // the ready-made viewpoints of the camera list: where the camera stands and what it looks at
+    function presetPose(m: Camera3D, pos: THREE.Vector3, target: THREE.Vector3) {
+      target.copy(center);
+      if (m === "top") {
+        pos.set(center.x, center.y + span * 0.95, center.z + 0.01);
+        return;
+      }
+      if (m === "blue" || m === "orange") {
+        const a = anchor[m === "blue" ? 1 : 2];
+        if (a) { // behind the team's start, looking across the arena
+          const dx = center.x - a.x, dz = center.z - a.z, len = Math.hypot(dx, dz) || 1;
+          pos.set(a.x - (dx / len) * span * 0.12, a.y + span * 0.14, a.z - (dz / len) * span * 0.12);
+          return;
+        }
+      } else if (m === "objective") {
+        if (routePts.length) target.copy(routePts[Math.floor(routePts.length / 2)]);
+        else if (point) target.set(point[0], pointY, point[1]);
+        pos.set(target.x + span * 0.12, target.y + span * 0.16, target.z + span * 0.2);
+        return;
+      }
+      pos.set(center.x + span * 0.27, center.y + span * 0.38, center.z + span * 0.43);
+    }
+
+    // eased moves: between the steerable cameras (position + the point looked at), and into a ride (blend from where the camera was)
+    const tw = { on: false, t0: 0, fromP: new THREE.Vector3(), fromT: new THREE.Vector3(), toP: new THREE.Vector3(), toT: new THREE.Vector3() };
+    const blend = { on: false, t0: 0, fromP: new THREE.Vector3(), fromQ: new THREE.Quaternion() };
+    const tmpP = new THREE.Vector3(), tmpQ = new THREE.Quaternion();
+    const ease = (now: number, t0: number) => { const k = clamp((now - t0) / MOVE_MS, 0, 1); return [k, k * k * (3 - 2 * k)] as const; };
+    controls.addEventListener("start", () => { tw.on = false; }); // grabbing the view ends the glide
+    // dragging / wheel offsets while riding a player (follow: swing round and distance; first person: look around and zoom)
+    const drag = { yaw: 0, pitch: 0, dist: 1 };
+    const resetRide = () => {
+      drag.yaw = drag.pitch = 0;
+      drag.dist = 1;
+      camera.fov = BASE_FOV;
+      camera.updateProjectionMatrix();
+      dirty.current = true;
+    };
+
+    let started = false;
+    function setCamera(next: Camera3D) {
+      const wasFree = isFreeCamera(mode);
+      mode = next;
+      resetRide();
+      controls.enabled = isFreeCamera(next);
+      controls.enableRotate = next !== "top";
       camera.up.set(0, 1, 0);
-      mapSeeThrough(next === "follow" || next === "first");
-      if (controls.enabled) controls.update();
+      if (!isFreeCamera(next)) { camera.near = 0.05; camera.updateProjectionMatrix(); } // riding: close to the player's head
+      mapSeeThrough(!isFreeCamera(next));
+      const glide = started && !reducedMotion;
+      started = true;
+      tw.on = blend.on = false;
+      if (controls.enabled) {
+        presetPose(next, tw.toP, tw.toT);
+        if (glide) {
+          if (!wasFree) { // leaving a ride: start from the camera's own view, looking ahead
+            camera.getWorldDirection(look);
+            controls.target.copy(camera.position).addScaledVector(look, 10);
+          }
+          tw.fromP.copy(camera.position);
+          tw.fromT.copy(controls.target);
+          tw.t0 = performance.now();
+          tw.on = true;
+        } else {
+          camera.position.copy(tw.toP);
+          controls.target.copy(tw.toT);
+        }
+        controls.update();
+      } else if (glide) {
+        blend.fromP.copy(camera.position);
+        blend.fromQ.copy(camera.quaternion);
+        blend.t0 = performance.now();
+        blend.on = true;
+      }
       dirty.current = true;
     }
     engine.current = { setCamera };
@@ -468,10 +588,12 @@ function Stage(props: Map3DProps & { data: Playback3D }) {
     const typing = (t: EventTarget | null) => t instanceof HTMLElement && /^(input|textarea|select)$/i.test(t.tagName);
     const onKeyDown = (e: KeyboardEvent) => {
       fast = e.shiftKey;
-      if (e.ctrlKey || e.metaKey || e.altKey || typing(e.target) || !controls.enabled) return;
+      if (e.ctrlKey || e.metaKey || e.altKey || typing(e.target)) return;
+      if (e.key === "?") { setHelp((h) => !h); return; }
       const k = e.key.toLowerCase();
-      if (k === "r") { setCamera(mode); return; }
-      if (k.length === 1 && "wasdqe".includes(k)) { held.add(k); e.preventDefault(); dirty.current = true; }
+      if (k === "r") { if (controls.enabled) setCamera(mode); else resetRide(); return; } // free: back to the camera's own spot; riding: look where the player looks
+      if (!controls.enabled) return;
+      if (k.length === 1 && "wasdqe".includes(k)) { held.add(k); tw.on = false; e.preventDefault(); dirty.current = true; }
     };
     const onKeyUp = (e: KeyboardEvent) => { fast = e.shiftKey; held.delete(e.key.toLowerCase()); };
     const onBlur = () => { held.clear(); fast = false; };
@@ -515,8 +637,33 @@ function Stage(props: Map3DProps & { data: Playback3D }) {
     // --- picking: a click (not a drag) with the main button on a player picks them ---
     const ray = new THREE.Raycaster();
     let down: [number, number] | null = null;
-    const onDown = (e: PointerEvent) => { down = e.button === 0 ? [e.clientX, e.clientY] : null; }; // right / middle never pick
+    // riding a player: a drag (any button) turns the view round / around, a wheel changes distance / zoom, a double click resets
+    let ride: [number, number] | null = null;
+    const onDown = (e: PointerEvent) => {
+      down = e.button === 0 ? [e.clientX, e.clientY] : null; // right / middle never pick
+      if (!isFreeCamera(mode)) {
+        ride = [e.clientX, e.clientY];
+        try { renderer.domElement.setPointerCapture(e.pointerId); } catch { /* a drag that leaves the canvas just stops */ }
+      }
+    };
+    const onMove = (e: PointerEvent) => {
+      if (!ride || isFreeCamera(mode)) return;
+      drag.yaw += (e.clientX - ride[0]) * DRAG_RAD_PER_PX;
+      drag.pitch = clamp(drag.pitch + (e.clientY - ride[1]) * DRAG_RAD_PER_PX, -1.4, 1.4);
+      ride = [e.clientX, e.clientY];
+      dirty.current = true;
+    };
+    const onWheel = (e: WheelEvent) => {
+      if (isFreeCamera(mode)) return; // OrbitControls zooms
+      e.preventDefault();
+      const f = Math.exp(clamp(e.deltaY, -200, 200) * 0.0012);
+      if (mode === "follow") drag.dist = clamp(drag.dist * f, 0.1, 5);
+      else { camera.fov = clamp(camera.fov * f, 8, 100); camera.updateProjectionMatrix(); }
+      dirty.current = true;
+    };
+    const onDouble = () => { if (!isFreeCamera(mode)) resetRide(); };
     const onUp = (e: PointerEvent) => {
+      ride = null;
       if (!down || Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 5) return;
       const box = renderer.domElement.getBoundingClientRect();
       ray.setFromCamera(new THREE.Vector2(((e.clientX - box.left) / box.width) * 2 - 1, -((e.clientY - box.top) / box.height) * 2 + 1), camera);
@@ -525,6 +672,10 @@ function Stage(props: Map3DProps & { data: Playback3D }) {
     };
     renderer.domElement.addEventListener("pointerdown", onDown);
     renderer.domElement.addEventListener("pointerup", onUp);
+    renderer.domElement.addEventListener("pointercancel", onUp);
+    renderer.domElement.addEventListener("pointermove", onMove);
+    renderer.domElement.addEventListener("wheel", onWheel, { passive: false });
+    renderer.domElement.addEventListener("dblclick", onDouble);
 
     const resize = () => {
       const w = el.clientWidth, h = el.clientHeight;
@@ -662,7 +813,7 @@ function Stage(props: Map3DProps & { data: Playback3D }) {
           if (lead && share > 0) {
             // starts at "north" (-z) and runs clockwise seen from above, like the 2D ring
             const geo = new THREE.RingGeometry(point[2] - 0.7, point[2] - 0.2, 64, 1, Math.PI / 2 - share * Math.PI * 2, share * Math.PI * 2).rotateX(-Math.PI / 2);
-            pointArc = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: TEAM_COLORS[lead], transparent: true, opacity: 0.85, side: THREE.DoubleSide }));
+            pointArc = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: TEAM_COLORS[lead], transparent: true, opacity: 0.85, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -OVERLAY_LAYER - 1, polygonOffsetUnits: -OVERLAY_LAYER - 1 }));
             pointArc.position.set(point[0], pointY + 0.08, point[1]);
             pointArc.raycast = () => {};
             scene.add(pointArc);
@@ -678,16 +829,33 @@ function Stage(props: Map3DProps & { data: Playback3D }) {
           const fx = Math.sin(pose.yaw), fz = Math.cos(pose.yaw);
           if (mode === "first") {
             camera.position.set(pose.x + fx * 0.15, pose.y, pose.z + fz * 0.15);
-            camera.rotation.set(pose.pitch, pose.yaw + Math.PI, 0, "YXZ"); // a camera looks down -z
+            // a camera looks down -z; the drag turns the view away from where the player looks
+            camera.rotation.set(clamp(pose.pitch + drag.pitch, -1.5, 1.5), pose.yaw + Math.PI + drag.yaw, 0, "YXZ");
             settling = 0;
           } else {
-            desired.set(pose.x - fx * FOLLOW_BACK_M, pose.y + FOLLOW_UP_M, pose.z - fz * FOLLOW_BACK_M);
+            // swing round the player by the drag: the (back, up) offset is turned about the player, up / down in its own plane
+            const a = pose.yaw - drag.yaw, sa = Math.sin(a), ca = Math.cos(a);
+            const back = FOLLOW_BACK_M * drag.dist, up = FOLLOW_UP_M * drag.dist;
+            const r = Math.hypot(back, up), lift = clamp(Math.atan2(up, back) + drag.pitch, -0.2, 1.45);
+            desired.set(pose.x - sa * Math.cos(lift) * r, pose.y + Math.sin(lift) * r, pose.z - ca * Math.cos(lift) * r);
             const gap = camera.position.distanceTo(desired);
             if (reducedMotion || gap > 25) camera.position.copy(desired);
             else camera.position.lerp(desired, 0.18);
             settling = camera.position.distanceTo(desired) > 0.02 ? 1 : 0;
-            look.set(pose.x + fx * 2, pose.y, pose.z + fz * 2);
+            const ahead = 2 * Math.max(0, Math.cos(drag.yaw)); // looking ahead of the player only while behind them
+            look.set(pose.x + fx * ahead, pose.y, pose.z + fz * ahead);
             camera.lookAt(look);
+          }
+          if (blend.on) { // eased in from wherever the camera was (the chase camera already glides to its spot)
+            const [k, e] = ease(performance.now(), blend.t0);
+            tmpQ.copy(camera.quaternion);
+            camera.quaternion.copy(blend.fromQ).slerp(tmpQ, e);
+            if (mode === "first") {
+              tmpP.copy(camera.position);
+              camera.position.lerpVectors(blend.fromP, tmpP, e);
+            }
+            if (k >= 1) blend.on = false;
+            settling = 1;
           }
         }
       }
@@ -697,8 +865,19 @@ function Stage(props: Map3DProps & { data: Playback3D }) {
     const loop = (now: number) => {
       raf = requestAnimationFrame(loop);
       if (controls.enabled) {
+        if (tw.on) {
+          const [k, e] = ease(now, tw.t0);
+          camera.position.lerpVectors(tw.fromP, tw.toP, e);
+          controls.target.lerpVectors(tw.fromT, tw.toT, e);
+          if (k >= 1) tw.on = false;
+          dirty.current = true;
+        }
         fly(now);
         controls.update(); // damping: carries on gliding after the mouse is released (marks the frame dirty while it moves)
+        // depth precision: a near plane that grows with the distance keeps surfaces centimetres apart (floor / ring / route)
+        // from flickering when the camera is far away, and still lets you get close
+        const near = clamp(camera.position.distanceTo(controls.target) * 0.01, 0.05, 2);
+        if (Math.abs(near - camera.near) > camera.near * 0.1) { camera.near = near; camera.updateProjectionMatrix(); dirty.current = true; }
       }
       if (!dirty.current && !settling) return; // paused and nothing moved: no work (render on demand)
       dirty.current = false;
@@ -720,6 +899,10 @@ function Stage(props: Map3DProps & { data: Playback3D }) {
       observer.disconnect();
       renderer.domElement.removeEventListener("pointerdown", onDown);
       renderer.domElement.removeEventListener("pointerup", onUp);
+      renderer.domElement.removeEventListener("pointercancel", onUp);
+      renderer.domElement.removeEventListener("pointermove", onMove);
+      renderer.domElement.removeEventListener("wheel", onWheel);
+      renderer.domElement.removeEventListener("dblclick", onDouble);
       controls.dispose();
       engine.current = null;
       scene.traverse((o) => {
@@ -754,7 +937,36 @@ function Stage(props: Map3DProps & { data: Playback3D }) {
   }, [props.camera, props.follow, props.data, props.second, props.onPick]);
 
   return (
-    <div className="pb3d" ref={mount}>
+    <div className="pb3d" ref={mount} onPointerDown={() => setHint(null)}>
+      <div className="pb3d-bar" role="toolbar" aria-label="Camera">
+        {CAMERAS.filter((c) => c.value !== "objective" || hasObjective).map((c) => (
+          <button key={c.value} type="button" className={c.value === props.camera ? "active" : ""} aria-pressed={c.value === props.camera}
+            title={c.help} onClick={() => props.onCamera(c.value)}>{SHORT_LABEL[c.value]}</button>
+        ))}
+        <button type="button" className={`pb3d-help-btn${help ? " active" : ""}`} aria-expanded={help} aria-label="Show the controls" title="How to move around (?)"
+          onClick={() => setHelp((h) => !h)}>?</button>
+      </div>
+      <div className={`pb3d-keys${legend ? "" : " folded"}`}>
+        <button type="button" aria-expanded={legend} onClick={toggleLegend} title={legend ? "Fold the controls away" : "Show the controls"}>Controls {legend ? "▾" : "▸"}</button>
+        {legend && (
+          <dl>
+            {LEGEND[legendKind].map(([k, v]) => (
+              <div key={k}><dt>{k}</dt><dd>{v}</dd></div>
+            ))}
+          </dl>
+        )}
+      </div>
+      {help && (
+        <div className="pb3d-help" role="dialog" aria-label="3D controls">
+          <div className="pb3d-help-head"><strong>Moving around</strong><button type="button" aria-label="Close" onClick={() => setHelp(false)}>×</button></div>
+          <dl>
+            {CONTROL_HELP.filter((r) => !r.only || r.only === (isFreeCamera(props.camera) ? "free" : props.camera) || (r.only === "ride" && !isFreeCamera(props.camera))).map((r) => (
+              <div key={`${r.only}${r.keys}`}><dt>{r.keys}</dt><dd>{r.does}</dd></div>
+            ))}
+          </dl>
+        </div>
+      )}
+      {hint && !help && <div className="pb3d-hint" role="status">{hint}</div>}
       {failed && <div className="pb3d-message overlay"><p>{failed}</p><button type="button" onClick={props.onUse2D}>Show the 2D map</button></div>}
       {mapState === "loading" && <div className="pb3d-note">Loading the map…</div>}
       {mapState === "failed" && <div className="pb3d-note">The map model could not be loaded: players only.</div>}

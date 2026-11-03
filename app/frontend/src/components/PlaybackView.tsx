@@ -176,6 +176,26 @@ class Stage3DBoundary extends Component<{ onUse2D: () => void; children: ReactNo
   }
 }
 
+/** A payload route or capture point to look at (the "Objective" camera needs one). */
+function hasObjective(p: Playback): boolean {
+  return !!(p.objects.route?.length || p.objects.point);
+}
+
+/** The camera list: ready-made viewpoints, then the cameras that ride along with the picked player. */
+function CameraOptions({ hasObjective: objective }: { hasObjective: boolean }) {
+  return (
+    <>
+      {(["View", "Ride a player"] as const).map((g) => (
+        <optgroup key={g} label={g}>
+          {CAMERAS.filter((x) => x.group === g && (x.value !== "objective" || objective)).map((x) => (
+            <option key={x.value} value={x.value}>{x.label}</option>
+          ))}
+        </optgroup>
+      ))}
+    </>
+  );
+}
+
 /**
  * Animated player dots over the minimap, driven by the 2 Hz position tracks, with scoreboard, objective (payload route /
  * capture point), roster, fights, death summary, loadout changes and event markers.
@@ -294,8 +314,9 @@ export function PlaybackView({ playback, clock, compact = false, label, matchId,
       if (view === "3d" && (camera === "follow" || camera === "first")) setParam({ cam: null });
     } else if ((e.key === "c" || e.key === "C") && view === "3d") {
       // from a ref, not the render's value: quick presses (before the address updates) each move one camera on
-      const k = CAMERAS.findIndex((x) => x.value === cameraNow.current);
-      const next = CAMERAS[(k + 1) % CAMERAS.length].value;
+      const list = CAMERAS.filter((x) => x.value !== "objective" || hasObjective(playback));
+      const k = list.findIndex((x) => x.value === cameraNow.current);
+      const next = list[(k + 1) % list.length].value;
       cameraNow.current = next;
       setParam({ cam: next === "orbit" ? null : next });
     } else if (e.key === " ") {
@@ -679,9 +700,7 @@ export function PlaybackView({ playback, clock, compact = false, label, matchId,
           <label title={CAMERAS.find((x) => x.value === camera)?.help}>
             Camera
             <select value={camera} onChange={(e) => setParam({ cam: e.target.value === "orbit" ? null : e.target.value })}>
-              {CAMERAS.map((x) => (
-                <option key={x.value} value={x.value}>{x.label}</option>
-              ))}
+              <CameraOptions hasObjective={hasObjective(playback)} />
             </select>
           </label>
         )}
@@ -750,6 +769,7 @@ export function PlaybackView({ playback, clock, compact = false, label, matchId,
             <Stage3DBoundary onUse2D={() => setParam({ view: null })}>
               <Suspense fallback={<div className="pb3d-message"><p className="muted">Loading 3D…</p></div>}>
                 <Map3D id={matchId} playback={playback} second={second} follow={follow} onPick={pick} camera={camera} names={names}
+                  onCamera={(c) => { cameraNow.current = c; setParam({ cam: c === "orbit" ? null : c }); }}
                   trailSeconds={trail / hz} trailColor={trailColor} deaths={deaths} swaps={swapLabels} weapons={weapons} hands={hands}
                   onUse2D={() => setParam({ view: null })} />
               </Suspense>
@@ -915,9 +935,7 @@ export function PlaybackCompare({ a, b, aId, bId }: { a: Playback; b: Playback; 
           <label title={CAMERAS.find((x) => x.value === camera)?.help}>
             Camera
             <select value={camera} onChange={(e) => set("cam", e.target.value === "orbit" ? null : e.target.value)}>
-              {CAMERAS.map((x) => (
-                <option key={x.value} value={x.value}>{x.label}</option>
-              ))}
+              <CameraOptions hasObjective={hasObjective(a) || hasObjective(b)} />
             </select>
           </label>
         )}

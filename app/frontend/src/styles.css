@@ -2870,3 +2870,158 @@ button.small {
     aspect-ratio: 4 / 5;
   }
 }
+
+/* 3D camera bar, "?" controls list and first-use hint (components/Map3D.tsx) */
+.pb3d-bar {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  pointer-events: none; /* only the buttons take the pointer: dragging the view works between them */
+}
+.pb3d-bar button {
+  pointer-events: auto;
+  flex: 0 0 auto;
+  min-height: 30px;
+  padding: 4px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 6px;
+  background: rgba(10, 12, 16, 0.72);
+  color: var(--text);
+  font: 600 12px/1.2 system-ui, sans-serif;
+  cursor: pointer;
+}
+.pb3d-bar button:hover {
+  background: rgba(30, 36, 48, 0.9);
+}
+.pb3d-bar button.active {
+  background: #fff;
+  color: #10131a;
+  border-color: #fff;
+}
+.pb3d-bar .pb3d-help-btn {
+  margin-left: auto;
+  min-width: 30px;
+  padding: 4px 0;
+  border-radius: 50%;
+}
+.pb3d-help {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  max-width: min(340px, calc(100% - 16px));
+  max-height: calc(100% - 56px);
+  overflow-y: auto;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(10, 12, 16, 0.92);
+  color: var(--text);
+  font-size: 0.8rem;
+  user-select: text;
+}
+.pb3d-help-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.pb3d-help-head button {
+  background: none;
+  border: 0;
+  color: var(--muted);
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.pb3d-help dl {
+  margin: 0;
+  display: grid;
+  gap: 4px;
+}
+.pb3d-help dl > div {
+  display: grid;
+  grid-template-columns: 8.5em 1fr;
+  gap: 8px;
+}
+.pb3d-help dt {
+  font-weight: 700;
+  white-space: nowrap;
+}
+.pb3d-help dd {
+  margin: 0;
+  color: var(--muted);
+}
+.pb3d-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 48px;
+  transform: translateX(-50%);
+  max-width: calc(100% - 24px);
+  padding: 6px 12px;
+  border-radius: 6px;
+  background: rgba(10, 12, 16, 0.85);
+  color: #fff;
+  font-size: 0.8rem;
+  text-align: center;
+  pointer-events: none;
+  animation: pb-banner-in 0.25s ease-out;
+}
+
+/* always-visible controls card for mouse and keyboard users (components/Map3D.tsx) */
+.pb3d-keys {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: rgba(10, 12, 16, 0.6);
+  color: var(--text);
+  font-size: 0.72rem;
+  line-height: 1.35;
+  pointer-events: none; /* the view underneath keeps working; only the fold button takes the pointer */
+}
+.pb3d-keys button {
+  pointer-events: auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: 700 0.72rem/1.3 system-ui, sans-serif;
+  cursor: pointer;
+}
+.pb3d-keys dl {
+  margin: 4px 0 0;
+  display: grid;
+  gap: 1px;
+}
+.pb3d-keys dl > div {
+  display: grid;
+  grid-template-columns: 8.2em 1fr;
+  gap: 8px;
+}
+.pb3d-keys dt {
+  font-weight: 700;
+  white-space: nowrap;
+}
+.pb3d-keys dd {
+  margin: 0;
+  color: var(--muted);
+}
+.pb3d-note {
+  top: auto;
+  bottom: 48px;
+}
+@media (hover: none), (pointer: coarse) {
+  .pb3d-keys {
+    display: none; /* touch screens have no right button, wheel or keys: the "?" list and the hint cover them */
+  }
+}
+@media (hover: hover) and (pointer: fine) {
+  .pb3d-hint {
+    display: none; /* the card says it already */
+  }
+}
