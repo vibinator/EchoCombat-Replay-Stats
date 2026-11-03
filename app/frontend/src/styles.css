@@ -3158,3 +3158,64 @@ button.small {
   color: var(--text);
   font-weight: 700;
 }
+
+/* play controls over the 3D playback in full screen (components/Map3D.tsx, built in PlaybackView.tsx) */
+.pb3d-play {
+  position: absolute;
+  z-index: 3;
+  left: 8px;
+  right: 8px;
+  bottom: 46px;
+  display: grid;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(10, 12, 16, 0.82);
+  color: var(--text);
+  font-size: 0.8rem;
+}
+.pb3d-play-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+}
+.pb3d-play .pb-track {
+  margin: 0;
+}
+
+/* full screen for the 2D heatmap and 2D playback: the whole component (controls included) fills the screen and the map
+   is sized to the height left over (hooks/useFullscreen.ts; the browser's :fullscreen, or .pb3d-fake-full where an element cannot) */
+.pb-fs:fullscreen,
+.pb-fs.pb3d-fake-full {
+  width: 100vw;
+  height: 100vh;
+  overflow: auto;
+  padding: 12px 16px;
+  box-sizing: border-box;
+  background: var(--bg, #0e1117);
+}
+.pb-fs.pb3d-fake-full {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+}
+.pb-fs.is-full .heatmap-inner {
+  width: fit-content;
+  margin: 0 auto;
+}
+.pb-fs.is-full .heatmap-inner img {
+  width: auto;
+  max-width: 100%;
+  max-height: calc(100vh - 300px);
+  min-height: 240px;
+}
+.pb-fs.is-full .heatmap-grid .heatmap-inner img {
+  max-height: calc(100vh - 340px);
+}
+
+.pb3d-feed {
+  margin: 0;
+  max-height: 7.5em;
+  overflow-y: auto;
+}

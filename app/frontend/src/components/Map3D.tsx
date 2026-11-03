@@ -1,7 +1,7 @@
 // 3D playback stage (docs/WebReplayer-Review.MD, Phases 4-9). Loaded on demand (React.lazy): three.js stays out of the
 // main bundle. PlaybackView keeps the clock, controls, roster and feed; this only draws the map, players and objectives
 // at the clock's time, from GET /api/matches/{id}/playback3d (5 Hz, world space) and the 2D playback's events / series.
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
@@ -60,6 +60,8 @@ export interface Map3DProps {
   weapons: Map<string, string>; // user id -> weapon held now (icon in the label)
   hands: boolean; // draw hands and arms
   onUse2D: () => void;
+  banner?: ReactNode; // the "Round won" / "Checkpoint" banner, over the view in full screen
+  overlay?: ReactNode; // play controls and view options: shown over the view in full screen, where the page is hidden
 }
 
 /** Latest value of a 2 Hz objective series at a sample. */
@@ -922,6 +924,8 @@ function Stage(props: Map3DProps & { data: Playback3D }) {
           </dl>
         )}
       </div>
+      {screen.full && props.banner}
+      {screen.full && props.overlay && <div className="pb3d-play">{props.overlay}</div>}
       {help && (
         <div className="pb3d-help" role="dialog" aria-label="3D controls">
           <div className="pb3d-help-head"><strong>Moving around</strong><button type="button" aria-label="Close" onClick={() => setHelp(false)}>×</button></div>

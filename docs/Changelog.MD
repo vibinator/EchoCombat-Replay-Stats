@@ -18,6 +18,15 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.03.10 — 02:35
+### Full screen for the 2D views, and more in the 3D full screens
+- The 2D heatmap and the 2D playback have a full screen button: the whole view (legend, sliders, selectors, controls,
+  scrubber, rosters) fills the screen and the map is sized to what is left.
+- 3D playback in full screen: play, pause, skip, fight and speed controls, the scrubber, trail and name options, a player
+  picker, copy link / clip, a way back to 2D, the latest events and the round banner.
+### Heatmap colours
+- Orange is more orange (team and per-player shades); the red and pink shades are gone.
+
 ## 2026.11.03.9 — 02:26
 ### 3D playback: buttons work again
 - The camera buttons (Orbit, Top, Blue end ...), full screen, "?" and the Controls card did nothing: the 3D view sat on

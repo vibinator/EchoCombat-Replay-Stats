@@ -2,6 +2,7 @@ import { Component, lazy, Suspense, useCallback, useEffect, useMemo, useRef, use
 import { useSearchParams } from "react-router";
 import type { MatchEvent, Playback } from "../api";
 import { duration, num } from "../format";
+import { useFullscreen } from "../useFullscreen";
 import { GearLabel } from "./common";
 import { CAMERAS, isCamera, TEAM_COLORS, type Camera3D } from "./playback3d";
 
@@ -208,6 +209,7 @@ export function PlaybackView({ playback, clock, compact = false, label, matchId,
 }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const root = useRef<HTMLDivElement>(null);
+  const screen = useFullscreen(root); // the 2D view's full screen: the whole player (controls, scrubber, rosters) fills the screen
   const hz = playback.hz;
   const end = Math.max(0, playback.samples - 1);
   const own = useClock(end / hz);
@@ -631,7 +633,7 @@ export function PlaybackView({ playback, clock, compact = false, label, matchId,
   const pos = (s: number) => `${(s / total) * 100}%`;
 
   return (
-    <div className="playback" ref={root} tabIndex={0} onKeyDown={onKey} aria-label="Match playback (space: play / pause, arrow keys: skip, [ ]: speed, N / P: next / previous fight)">
+    <div className={`playback pb-fs${screen.fakeClass}${screen.full ? " is-full" : ""}`} ref={root} tabIndex={0} onKeyDown={onKey} aria-label="Match playback (space: play / pause, arrow keys: skip, [ ]: speed, N / P: next / previous fight)">
       {label && <h3 className="pb-label">{label}</h3>}
       <div className="pb-score">
         <div className="pb-team blue">
@@ -690,6 +692,9 @@ export function PlaybackView({ playback, clock, compact = false, label, matchId,
       )}
 
       <div className="heatmap-tools">
+        {view === "2d" && !compact && !clock && (
+          <button type="button" className="secondary pb-fs-btn" aria-pressed={screen.full} title={screen.full ? "Leave full screen (Esc)" : "Full screen: the map as big as the screen, with all the controls"} onClick={screen.toggle}>{screen.full ? "✕ Exit full screen" : "⛶ Full screen"}</button>
+        )}
         {linked && (
           <span className="zoom-buttons" role="group" aria-label="Map view">
             <button className={view === "2d" ? "" : "secondary"} aria-pressed={view === "2d"} onClick={() => setParam({ view: null })}>2D map</button>
@@ -771,6 +776,80 @@ export function PlaybackView({ playback, clock, compact = false, label, matchId,
                 <Map3D id={matchId} playback={playback} second={second} follow={follow} onPick={pick} camera={camera} names={names}
                   onCamera={(c) => { cameraNow.current = c; setParam({ cam: c === "orbit" ? null : c }); }}
                   trailSeconds={trail / hz} trailColor={trailColor} deaths={deaths} swaps={swapLabels} weapons={weapons} hands={hands}
+                  banner={banner ? <div className="pb-banner" aria-live="polite">{eventLabel(banner)}</div> : null}
+                  overlay={!clock && (
+                    <>
+                      <div className="pb3d-play-row">
+                        <button onClick={toggle}>{c.playing ? "Pause" : second >= end / hz ? "Replay" : "Play"}</button>
+                        <button className="secondary" onClick={() => seek(-10)} title="Back 10 s">−10 s</button>
+                        <button className="secondary" onClick={() => seek(10)} title="Forward 10 s">+10 s</button>
+                        <button className="secondary" onClick={prevFight} disabled={fights.length === 0} title="Previous fight (P)">⏮ Fight</button>
+                        <button className="secondary" onClick={nextFight} disabled={fights.length === 0} title="Next fight (N)">Fight ⏭</button>
+                        <label>
+                          Speed
+                          <select value={c.speed} onChange={(e) => c.setSpeed(Number(e.target.value))}>
+                            {SPEEDS.map((s) => <option key={s} value={s}>{s}×</option>)}
+                          </select>
+                        </label>
+                        <span className="muted">{duration(second)} / {duration(end / hz)}</span>
+                      </div>
+                      <ul className="pb-feed pb3d-feed" aria-label="Activity">
+                        {recent.length === 0 && <li className="muted">Nothing yet.</li>}
+                        {recent.slice(0, 4).map((e, k) => (
+                          <li key={`${e.frame}-${e.type}-${k}`} className={e.type === "death_est" ? "death" : e.type === "loadout_change" ? "swap" : ""}>
+                            <span className="muted">{duration(e.t_s)}</span>{" "}
+                            {e.type === "death_est" ? <img className="pb-skull" src="/icons/death.png" alt="" /> : e.type === "loadout_change" ? <span>⇄</span> : e.team && <span className={`dot ${e.team}`} />}{" "}
+                            {e.type === "loadout_change" ? <SwapLabel e={e} /> : eventLabel(e)}
+                          </li>
+                        ))}
+                      </ul>
+                      <div className="pb-track">
+                        <input className="scrubber" type="range" min={0} max={end} step={0.5} value={t} aria-label="Match time"
+                          onChange={(e) => jump(Number(e.target.value) / hz)} />
+                        <div className="pb-markers" aria-hidden="true">
+                          {fights.map((f, k) => (
+                            <span key={`f${k}`} className="pb-fightband" style={{ left: pos(f.start), width: `max(6px, ${((f.end - f.start) / total) * 100}%)` }} />
+                          ))}
+                          {deaths.map((e, k) => (
+                            <span key={`d${k}`} className={`pb-tick death ${e.team ?? ""}`} style={{ left: pos(e.t_s) }} />
+                          ))}
+                        </div>
+                      </div>
+                      <div className="pb3d-play-row">
+                        <label>
+                          Trails
+                          <select value={trail} onChange={(e) => setTrail(Number(e.target.value))}>
+                            {TRAILS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                          </select>
+                        </label>
+                        <label>
+                          Colour
+                          <select value={trailColor} onChange={(e) => setTrailColor(e.target.value as "team" | "speed")}>
+                            <option value="team">Team</option>
+                            <option value="speed">Speed</option>
+                          </select>
+                        </label>
+                        <label className="inline-check"><input type="checkbox" checked={names} onChange={(e) => setNames(e.target.checked)} /> Names</label>
+                        <label className="inline-check"><input type="checkbox" checked={swaps} onChange={(e) => setSwaps(e.target.checked)} /> Loadout changes</label>
+                        <label className="inline-check"><input type="checkbox" checked={hands} onChange={(e) => setHands(e.target.checked)} /> Hands</label>
+                        <label>
+                          Player
+                          <select value={follow ?? ""} onChange={(e) => setFollow(e.target.value || null)} title="Highlight a player; Follow and First person ride with them">
+                            <option value="">None</option>
+                            {playback.players.map((p) => <option key={p.user_id} value={p.user_id}>{p.name}</option>)}
+                          </select>
+                        </label>
+                        {linked && (
+                          <span className="zoom-buttons">
+                            <button className="secondary" onClick={() => copyLink(false)} title="Copy a link that opens this match here, at this moment">Copy link</button>
+                            <button className="secondary" onClick={() => copyLink(true)} title={`Copy a link that plays the last ${CLIP_S} seconds`}>Copy clip</button>
+                          </span>
+                        )}
+                        {copied && <span className="muted" role="status">{copied}</span>}
+                        <button className="secondary" onClick={() => setParam({ view: null })} title="Back to the flat map">2D map</button>
+                      </div>
+                    </>
+                  )}
                   onUse2D={() => setParam({ view: null })} />
               </Suspense>
             </Stage3DBoundary>

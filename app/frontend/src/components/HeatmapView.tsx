@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent, type ReactNode } from "react";
 import type { Heatmap, HeatmapLayer, HeatmapLayerMode } from "../api";
+import { useFullscreen } from "../useFullscreen";
 import type { Heat3DSource } from "./Heatmap3DView";
 
 const Heatmap3DView = lazy(() => import("./Heatmap3DView")); // three.js loads when 3D is first asked for
@@ -8,7 +9,7 @@ const Heatmap3DView = lazy(() => import("./Heatmap3DView")); // three.js loads w
 // validated dark categorical order (dataviz), fixed per code so a colour never moves between views.
 const CATEGORICAL = ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#008300", "#9085e9", "#e66767"];
 const FIXED: Record<string, string> = {
-  blue: "#19d9fc", orange: "#ea7924", deaths: "#e66767", other: "#8b919c",
+  blue: "#19d9fc", orange: "#ff9d2e", deaths: "#e66767", other: "#8b919c",
   // weapons
   assault: CATEGORICAL[0], blaster: CATEGORICAL[1], scout: CATEGORICAL[2], rocket: CATEGORICAL[3],
   magnum: CATEGORICAL[4], smg: CATEGORICAL[5], chain: CATEGORICAL[6], rifle: CATEGORICAL[7],
@@ -35,7 +36,7 @@ export const HEATMAP_CELL_M = 0.1; // super fine; the only heatmap resolution of
 // Per-player layers: shades around the team colour, so the team still reads at a glance.
 const TEAM_SHADES: Record<string, string[]> = {
   blue: ["#19d9fc", "#3b6fe0", "#8ff0ff", "#0f9a9a", "#a69cff"],
-  orange: ["#ea7924", "#d1342a", "#ffc46b", "#b0611a", "#ff8fa0"],
+  orange: ["#ff9d2e", "#ffbf5e", "#ffd99a", "#e27d12", "#ffae6b"],
 };
 
 function layerColors(layers: HeatmapLayer[]): Map<string, string> {
@@ -145,6 +146,8 @@ function Stage({ heatmap, layers, colors, opacity, lookup, zoom, pan, onPan, lab
  *  `controls` = the page's own selectors, shown again in the 3D view's full screen (where the page is hidden). */
 export function HeatmapView({ heatmap, caption, view3d, controls }: { heatmap: Heatmap; caption?: string; view3d?: Heat3DSource; controls?: ReactNode }) {
   const [wants3d, setWants3d] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
+  const screen = useFullscreen(root); // the 2D view's full screen: legend, sliders and the page's selectors come along
   const is3d = wants3d && !!view3d;
   const [hidden, setHidden] = useState<Set<string>>(new Set());
   const [showTable, setShowTable] = useState(false);
@@ -181,7 +184,8 @@ export function HeatmapView({ heatmap, caption, view3d, controls }: { heatmap: H
   const stageProps = { heatmap, colors, opacity, lookup, zoom, pan, onPan: setPan };
 
   return (
-    <div className="heatmap">
+    <div className={`heatmap pb-fs${screen.fakeClass}${screen.full ? " is-full" : ""}`} ref={root}>
+      {screen.full && controls && <div className="filters">{controls}</div>}
       <div className="legend" role="group" aria-label="Layers (key)">
         {totals.map((l) => (
           <label key={l.key} className="legend-item">
@@ -210,6 +214,9 @@ export function HeatmapView({ heatmap, caption, view3d, controls }: { heatmap: H
             <button className={is3d ? "secondary" : ""} aria-pressed={!is3d} onClick={() => setWants3d(false)}>2D</button>
             <button className={is3d ? "" : "secondary"} aria-pressed={is3d} onClick={() => setWants3d(true)}>3D</button>
           </span>
+        )}
+        {!is3d && (
+          <button type="button" className="secondary pb-fs-btn" aria-pressed={screen.full} title={screen.full ? "Leave full screen (Esc)" : "Full screen: the map as big as the screen, with all the controls"} onClick={screen.toggle}>{screen.full ? "✕ Exit full screen" : "⛶ Full screen"}</button>
         )}
         {!is3d && (
           <span className="zoom-buttons">
