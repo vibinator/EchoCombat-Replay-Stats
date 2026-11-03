@@ -18,6 +18,11 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.03.6 — 01:51
+### 3D heatmap: sharper lines
+- Heat is drawn as thin solid dots instead of wide soft glows, brighter, with a higher floor so rarely used paths stay
+  visible; the map starts more see-through (20%).
+
 ## 2026.11.03.5 — 01:48
 ### Remote worker: no pile-up, honest timings
 - The PC stops claiming while 2 x uploads results wait to be sent (before, they piled up: 300+ waiting while the website

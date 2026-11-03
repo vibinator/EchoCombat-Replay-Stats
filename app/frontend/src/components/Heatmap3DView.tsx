@@ -12,9 +12,9 @@ import { Status } from "./common";
 import { dressMapModel, type MapMaterial } from "./mapModel3d";
 
 const BASE_FOV = 50;
-const GLOW_SIZE = 1.6; // a voxel's glow is this many voxels wide: neighbours blend into a surface instead of dots
-const GAIN = 0.55; // brightness at slider 1
-const DEFAULT_MAP_OPACITY = 0.3; // see-through: the heat sits inside the arena
+const GLOW_SIZE = 1.15; // a voxel's dot is this many voxels wide: just overlapping neighbours, so a path reads as a thin line
+const GAIN = 0.8; // brightness at slider 1 (crisp dots need more than soft glows to stay bright)
+const DEFAULT_MAP_OPACITY = 0.2; // see-through: the heat sits inside the arena
 const FALLBACK = ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#008300", "#9085e9", "#e66767"];
 
 export interface Heat3DSource {
@@ -82,7 +82,7 @@ varying vec3 vHeat;
 void main() {
   vHeat = heat;
   vec4 mv = modelViewMatrix * vec4(position, 1.0);
-  gl_PointSize = max(2.0, uSize * uScale / -mv.z);
+  gl_PointSize = max(3.0, uSize * uScale / -mv.z);
   gl_Position = projectionMatrix * mv;
 }`;
 const FRAGMENT = `
@@ -90,7 +90,8 @@ uniform float uGain;
 varying vec3 vHeat;
 void main() {
   float r = length(gl_PointCoord - 0.5) * 2.0;
-  float f = smoothstep(1.0, 0.0, r);
+  float f = 1.0 - smoothstep(0.7, 1.0, r); // a solid dot with a short soft edge (not a glow)
+  if (f <= 0.0) discard;
   gl_FragColor = vec4(vHeat * f * uGain, 1.0);
 }`;
 
@@ -233,14 +234,14 @@ function Scene({ data, colors, hidden, opacity, onUse2D }: Props & { data: Heatm
       scene.add(points);
       return { layer, points, heat };
     });
-    // same alpha curve as the 2D heatmap: 0.25 .. 1 with log(count)
+    // like the 2D heatmap's alpha curve, with a higher floor so rarely used paths stay visible: 0.4 .. 1 with log(count)
     function apply() {
       const { colors: palette, hidden: off, opacity: gain } = latest.current;
       objs.forEach(({ layer, points, heat }, k) => {
         rgb.set(palette.get(layer.key) ?? FALLBACK[k % FALLBACK.length]);
         const scale = Math.log1p(layer.max) || 1;
         for (let i = 0; i < layer.count; i++) {
-          const a = 0.25 + 0.75 * (Math.log1p(layer.n[i]) / scale);
+          const a = 0.4 + 0.6 * (Math.log1p(layer.n[i]) / scale);
           heat[i * 3] = rgb.r * a;
           heat[i * 3 + 1] = rgb.g * a;
           heat[i * 3 + 2] = rgb.b * a;
