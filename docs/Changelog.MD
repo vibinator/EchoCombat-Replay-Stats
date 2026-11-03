@@ -18,6 +18,27 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.03.17 — 15:48
+### Re-read: deaths after the match is over (wait for it to finish)
+- Deaths and respawns after a Capture Point match is decided (a team has 2 rounds) or the payload run is over (checkpoint 3
+  or the timer at 0) no longer count: players are moved out of the arena then, which looked like deaths (about 8.6 % of
+  all Capture Point deaths). `STATS_VERSION` 9: every replay (~29.5k) is read again after the restart; the "Processing N
+  replays" counter in the top bar counts down. Death-based challenges settle when it reaches 0.
+
+### Challenges
+- **13 new "in one game" and related challenges** (ids 139-151, all counted in 4v4 games only): Untouchable, Marathon Bot,
+  Comeback Kid, Statue, Lone Wolf, Ambidextrous, Speed Demon, Point Guard, Contested Ground, One-Trick Pony, Loadout
+  Roulette, Mime Troupe, Victory Lap (emotes in a won game). Glass Cannon was left out.
+- **Targets reviewed against the last 500 games of each player:** diamond and platinum are 30 % harder everywhere, and
+  platinum targets that no one could reach in 500 games came down (totals, wins, pubs, hours, games). All gear (weapons,
+  ordnances, tac mods, new gear included) shares one ladder per kind: use 5 / 15 / 50 / 150 / 350, "only X" in a day 3 / 6
+  / 10 / 15 / 20 and in 7 days 5 / 10 / 15 / 30 / 50. Emote challenges are 4x harder. Arsenal Overload needs 5 weapons.
+
+### Achievements page
+- Opens with **Closest to your next medal**: one scrollable line, closest first. Every section is one scrollable line too,
+  ordered the same way, with its own progress bar (`N/M completed · X %`); a player's page starts with the sections folded.
+- The medal targets of a ladder are behind a **Medal targets** link (also written under each medal bar).
+
 ## 2026.11.03.16 — 12:53
 ### Fix: new replays not appearing
 - The replay-folder scan stopped with "No such file or directory" when a folder (for example `htdocs/public/<id>`) was
