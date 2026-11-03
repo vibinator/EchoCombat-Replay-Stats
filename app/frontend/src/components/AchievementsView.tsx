@@ -110,7 +110,7 @@ function Section<T extends AnyBadge>({ id, c, level = 3, title, items, anchor }:
         </div>
       )}
       {open && (
-        <div className={tracked ? "badges scroll-row" : "badges"} tabIndex={tracked ? 0 : undefined}>
+        <div className="badges scroll-row" tabIndex={0} aria-label={`${typeof title === "string" ? title : "Section"}, scroll sideways`}>
           {shown.map((a) => <Badge key={a.id} a={a} />)}
         </div>
       )}

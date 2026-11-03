@@ -18,6 +18,11 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.03.18 — 16:00
+### Achievements page
+- The public **All achievements** list scrolls sideways like a player's page: each section is one line of cards (drag the
+  scrollbar under it, Shift + wheel, or swipe) instead of a wrapping grid.
+
 ## 2026.11.03.17 — 15:48
 ### Re-read: deaths after the match is over (wait for it to finish)
 - Deaths and respawns after a Capture Point match is decided (a team has 2 rounds) or the payload run is over (checkpoint 3
