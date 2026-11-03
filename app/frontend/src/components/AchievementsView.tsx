@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router";
 import { LEVELS, getAchievements, getChallenges, getMe, loginUrl, type Achievement, type AchievementPeek, type AchievementRarity, type AchievementRule } from "../api";
-import { achievementsPath, pct } from "../format";
+import { achievementsPath, pct, ruleText } from "../format";
 import { useApi } from "../useApi";
 import { Status } from "./common";
 import { EmptyState } from "./ui";
@@ -79,7 +79,10 @@ function Section<T extends AnyBadge>({ id, c, level = 3, title, items, anchor }:
   const counts = { done: 0, open: 0, new: 0 };
   if (tracked) for (const a of items) counts[status(a)!]++;
   const filter = picked ?? FILTERS.find(([f]) => counts[f] > 0)?.[0] ?? "open";
-  const shown = tracked ? items.filter((a) => status(a) === filter) : items;
+  // closest to the next medal first, like the row at the top; not started / completed ones keep the rule order (stable sort)
+  const shown = tracked
+    ? items.filter((a) => status(a) === filter).sort((a, b) => (nextMedalFraction(b as Achievement) ?? 0) - (nextMedalFraction(a as Achievement) ?? 0))
+    : items;
   const overall = tracked ? items.reduce((sum, a) => sum + (a.progress ?? 0), 0) / items.length : 0;
   return (
     <div className="fold" id={anchor}>
@@ -177,6 +180,60 @@ function TierSteps({ a }: { a: Achievement & AchievementRule }) {
   );
 }
 
+function MedalTargets({ levels, unit = "" }: { levels: number[]; unit?: string }) {
+  return (
+    <details className="medal-targets">
+      <summary>Medal targets</summary>
+      <ul>
+        {levels.map((need, i) => (
+          <li key={LEVELS[i]} className={`t-${LEVELS[i]}`}>
+            <span className="medal-name">{LEVELS[i]}</span> {need.toLocaleString()}{unit}
+          </li>
+        ))}
+      </ul>
+    </details>
+  );
+}
+
+/** How far a player is from the next medal, 0..1 (null = every medal reached, or not started). Ladders: between the
+ *  previous target and the next one; single-step rules: between the percentage steps. */
+function nextMedalFraction(a: Achievement): number | null {
+  let f: number;
+  if (a.levels && a.count != null) {
+    const next = a.levels.findIndex((need) => a.count! < need);
+    if (next < 0) return null;
+    const prev = next ? a.levels[next - 1] : 0;
+    f = (a.count - prev) / (a.levels[next] - prev);
+  } else {
+    const next = PERCENT_STEPS.findIndex((s) => a.progress < s.at);
+    if (next < 0) return null;
+    const prev = next ? PERCENT_STEPS[next - 1].at : 0;
+    f = (a.progress - prev) / (PERCENT_STEPS[next].at - prev);
+  }
+  return f > 0 ? f : null;
+}
+
+const CLOSEST_SHOWN = 12;
+
+/** First thing a player sees: the challenges closest to their next medal, closest first, in a row that scrolls sideways
+ *  (user, 2026-11-03). */
+function ClosestToUnlocking({ items }: { items: Achievement[] }) {
+  const closest = items
+    .map((a) => ({ a, f: nextMedalFraction(a) }))
+    .filter((x): x is { a: Achievement; f: number } => x.f !== null)
+    .sort((x, y) => y.f - x.f)
+    .slice(0, CLOSEST_SHOWN);
+  if (closest.length === 0) return null;
+  return (
+    <section className="closest">
+      <h3>Closest to your next medal</h3>
+      <div className="badges scroll-row" tabIndex={0} aria-label="Closest to your next medal, scroll sideways">
+        {closest.map(({ a }) => <Badge key={a.id} a={a} />)}
+      </div>
+    </section>
+  );
+}
+
 /** A rule with a player's progress, or just the catalogue entry when `progress` is absent. */
 /** Tiered achievements: "12 / 25 for diamond", or the top medal once every target is reached. */
 function levelText(count: number, levels: number[], unit = ""): string {
@@ -195,7 +252,7 @@ export function Badge({ a }: { a: AchievementRule & Partial<Pick<Achievement, "p
   const state = catalogue ? "" : tier ? " tinted" : a.progress! > 0 ? " tinted started" : " not-started";
   const tinted = state.includes("tinted") && a.icon != null && !a.icon.startsWith("custom/");
   return (
-    <div className={`badge-card${tier || catalogue ? "" : " locked"}${tier ? ` t-${tier}` : ""}${tinted ? state : state.replace(" tinted", "")}`} title={`${a.description}${a.estimated ? " (estimated)" : ""}`}>
+    <div className={`badge-card${tier || catalogue ? "" : " locked"}${tier ? ` t-${tier}` : ""}${tinted ? state : state.replace(" tinted", "")}`} title={`${ruleText(a.description)}${a.estimated ? " (estimated)" : ""}`}>
       <div className="badge-art">
         {tinted ? (
           <span className="icon glyph" style={{ WebkitMaskImage: `url(${src})`, maskImage: `url(${src})` }} aria-hidden="true" />
@@ -210,9 +267,10 @@ export function Badge({ a }: { a: AchievementRule & Partial<Pick<Achievement, "p
           {a.new && <span className="tag" title="Not on the original ECRanked site: uses data it never read">new</span>}
         </strong>
         <span className="muted">
-          {a.description}
+          {ruleText(a.description)}
           {a.estimated && " *"}
         </span>
+        {a.levels && a.levels.length > 0 && <MedalTargets levels={a.levels} unit={a.unit} />}
         {!catalogue && (
           <>
             <TierSteps a={a as Achievement & AchievementRule} />
@@ -485,16 +543,17 @@ export function AchievementsView({ userId }: { userId: string }) {
               </strong>
             </div>
           </div>
+          {sort === "group" && <ClosestToUnlocking items={data.items} />}
           {sort === "group" && <JumpToNew ready />}
           <label className="inline-check">
             <input type="checkbox" checked={sort === "closest"} onChange={(e) => setSort(e.target.checked ? "closest" : "group")} /> Sort by closest
-            to completing
+            to the next medal
           </label>
           {sort === "closest" && (
             <div className="badges">
               {data.items
                 .filter((a) => a.progress < 1)
-                .sort((a, b) => b.progress - a.progress)
+                .sort((a, b) => (nextMedalFraction(b) ?? 0) - (nextMedalFraction(a) ?? 0))
                 .map((a) => <Badge key={a.id} a={a} />)}
             </div>
           )}

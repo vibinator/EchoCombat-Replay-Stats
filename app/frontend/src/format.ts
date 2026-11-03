@@ -93,3 +93,9 @@ export function scoreText(m: MatchSummary): string {
   }
   return `${m.blue_rounds} – ${m.orange_rounds}`;
 }
+
+/** The backend appends every medal target to a ladder's text ("... (1 bronze, 5 silver, ... platinum)"): a card shows the
+ *  rule itself and keeps the targets behind a "Medal targets" link (user, 2026-11-03). */
+export function ruleText(description: string): string {
+  return description.replace(/\s*\([^()]*bronze[^()]*platinum[^()]*\)\s*$/, "");
+}

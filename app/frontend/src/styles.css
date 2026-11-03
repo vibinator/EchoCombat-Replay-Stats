@@ -2141,6 +2141,53 @@ td.best {
   color: var(--muted);
 }
 
+.closest {
+  margin: 8px 0 12px;
+}
+
+.badges.scroll-row {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  scroll-snap-type: x proximity;
+}
+
+.badges.scroll-row .badge-card {
+  flex: 0 0 min(300px, 85vw);
+  scroll-snap-align: start;
+}
+
+.closest h3 {
+  margin: 0 0 6px;
+}
+
+.medal-targets {
+  font-size: 0.8rem;
+}
+
+.medal-targets summary {
+  display: inline-block;
+  cursor: pointer;
+  color: var(--blue);
+  text-decoration: underline dotted;
+}
+
+.medal-targets ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.medal-targets .medal-name {
+  text-transform: capitalize;
+  font-weight: 700;
+  color: var(--tier, var(--muted));
+}
+
 .section-progress {
   display: flex;
   align-items: center;

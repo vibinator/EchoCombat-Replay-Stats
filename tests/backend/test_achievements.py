@@ -5,7 +5,7 @@ import replay_factory as rf
 from app_helpers import act, add, app_client, make_settings
 
 from backend import admin_actions as actions
-from backend.achievements import RULES, Game, evaluate, icon_file, overall, tier
+from backend.achievements import RULES, Game, _harder, evaluate, icon_file, overall, tier
 
 BLUE = str(rf.BIG_USER_ID)
 
@@ -23,8 +23,8 @@ def by_id(results):
 
 def test_catalogue():
     ids = [r.id for r in RULES]
-    assert ids == list(range(5, 151)) and len(set(ids)) == 146  # 75 original + 71 new (80-150)
-    assert [r.id for r in RULES if r.new] == list(range(80, 151))
+    assert ids == list(range(5, 152)) and len(set(ids)) == 147  # 75 original + 72 new (80-151)
+    assert [r.id for r in RULES if r.new] == list(range(80, 152))
     assert icon_file(next(r for r in RULES if r.id == 7)) == "comet_daily.png"
     assert icon_file(next(r for r in RULES if r.id == 32)) == "comet_weekly.png"
     assert icon_file(next(r for r in RULES if r.id == 57)) == "comet.png"
@@ -37,8 +37,8 @@ def test_tiers():
 def test_daily_only_weapon_takes_best_day():
     games = [game("2026-10-27")] * 6 + [game("2026-10-28")] * 15 + [game("2026-10-28", loadout=("assault", "heal", "det"))]
     r = by_id(evaluate(games))
-    # One with the Comet: ladder 3 / 6 / 10 / 15 / 20 games in one day; the best day (15 Comet-only games) counts
-    assert (r[7]["tier"], r[7]["count"], r[7]["progress"]) == ("diamond", 15, pytest.approx(0.8))
+    # One with the Comet: ladder 3 / 6 / 10 / 20 / 26 games in one day (diamond and platinum are 30 % harder than 15 / 20); the best day (15 Comet-only games) counts
+    assert (r[7]["tier"], r[7]["count"], r[7]["progress"]) == ("gold", 15, pytest.approx(0.7))
     assert (r[5]["tier"], r[5]["count"], r[5]["progress"]) == (None, 1, pytest.approx(1 / 15, abs=1e-4))  # Pulsar only once
 
 
@@ -160,7 +160,7 @@ def test_new_gear_challenges():
                                                       ("scout", "shield", "arc"): 250, ("rocket", "wraith", "burst"): 250}})
     r = by_id(evaluate([one_game]))
     assert r[87]["progress"] == r[88]["progress"] == r[89]["progress"] == 1.0
-    assert r[110]["progress"] == pytest.approx(4 / 6, abs=1e-4) and r[111]["progress"] == 4 / 5
+    assert r[110]["progress"] == 4 / 5 and r[111]["progress"] == 4 / 5
 
 
 def test_now_public_gear_challenges():
@@ -199,7 +199,8 @@ def test_new_result_challenges():
 
 def test_tiered_achievements():
     """Clean Sweep / Special Delivery (user, 2026-10-31): bronze 1, silver 5, gold 10, diamond 25, platinum 100
-    games; progress 20 % per medal, partial in between; the text lists every target (website text is the spec)."""
+    games (diamond and platinum 30 % harder, 2026-11-03: 33 and 130); progress 20 % per medal, partial in between; the text
+    lists every target (website text is the spec)."""
     from backend.achievements import unlock_threshold
 
     def sweeps(n):
@@ -207,16 +208,16 @@ def test_tiered_achievements():
                 for i in range(n)]
 
     expected = {0: (None, 0.0), 1: ("bronze", 0.2), 3: ("bronze", 0.3), 5: ("silver", 0.4), 10: ("gold", 0.6),
-                25: ("diamond", 0.8), 50: ("diamond", 0.8 + 25 / 75 / 5), 100: ("platinum", 1.0), 120: ("platinum", 1.0)}
+                33: ("diamond", 0.8), 50: ("diamond", 0.8 + 17 / 97 / 5), 130: ("platinum", 1.0), 150: ("platinum", 1.0)}
     for n, (medal, progress) in expected.items():
         r = by_id(evaluate(sweeps(n)))[93]
-        assert (r["tier"], r["count"], r["levels"]) == (medal, n, [1, 5, 10, 25, 100]), n
+        assert (r["tier"], r["count"], r["levels"]) == (medal, n, [1, 5, 10, 33, 130]), n
         assert r["progress"] == pytest.approx(progress, abs=1e-4), n
     rule = next(r for r in RULES if r.id == 93)
-    assert "1 bronze, 5 silver, 10 gold, 25 diamond, 100 platinum" in rule.description
+    assert "1 bronze, 5 silver, 10 gold, 33 diamond, 130 platinum" in rule.description
     assert unlock_threshold(rule) == 0.2 and unlock_threshold(next(r for r in RULES if r.id == 43)) == 0.25
     delivery = next(r for r in RULES if r.id == 94)
-    assert "Deliver the payload to the end" in delivery.description and delivery.levels == (1, 5, 10, 25, 100)
+    assert "Deliver the payload to the end" in delivery.description and delivery.levels == (1, 5, 10, 33, 78)
     assert "count" not in by_id(evaluate(sweeps(1)))[43]  # single-step rules unchanged
 
 
@@ -252,7 +253,7 @@ def test_grand_tour_and_medal_collector():
 
     r = by_id(evaluate([won(m) for m in ("dyson", "combustion", "fission", "surge")]))
     assert r[122]["count"] == 1 and r[122]["tier"] == "bronze"
-    assert r[126]["count"] == 0 and r[126]["levels"] == [5, 10, 25, 50, 75]  # nothing at gold yet
+    assert r[126]["count"] == 0 and r[126]["levels"] == [5, 10, 25, 65, 98]  # nothing at gold yet
     r = by_id(evaluate([won("dyson", f"2026-10-{1 + i % 28:02d}") for i in range(120)]))
     golds = sum(1 for x in r.values() if x["id"] != 126 and (x["count"] >= x["levels"][2] if "levels" in x else x["progress"] >= 1))
     assert golds > 0 and r[126]["count"] == golds  # Medal Collector counts gold-or-better medals of the others
@@ -287,7 +288,7 @@ def test_ranking_only_re_evaluates_changed_players(tmp_path, monkeypatch):
 
 
 def test_new_gear_matches_the_older_gear():
-    """Gear released on 2026-10-30 has the same ladders as the older gear (user, 2026-10-31)."""
+    """Every weapon, ordnance and tac mod has the same ladders, new gear included (user, 2026-10-31 and 2026-11-03)."""
     by = {r.id: r for r in RULES}
     old_vet, old_day, old_week = by[55].levels, by[5].levels, by[30].levels
     assert all(by[i].levels == old_vet for i in (105, 106, 107, 108, 112, 133, 134))  # veterans (+ Overcharge, Blazar, Dot Field)
@@ -305,3 +306,17 @@ def test_one_game_challenges_need_a_4v4():
     assert r[140]["count"] == 0  # Marathon Bot: not a 4v4
     r = by_id(evaluate([Game(**long_game)]))
     assert r[140]["count"] == 20
+
+
+def test_all_gear_shares_one_ladder_per_kind():
+    veteran = {r.levels for r in RULES if r.name.endswith(" Veteran")}
+    assert veteran == {_harder((5, 15, 50, 150, 350), "")}
+    assert {r.levels for r in RULES if "using only" in r.description and r.period == "day"} == {_harder((3, 6, 10, 15, 20), "")}
+    assert {r.levels for r in RULES if "using only" in r.description and r.period == "week" and r.id != 42}  # 42: Gearhead is about loadouts, not one gear == {_harder((5, 10, 15, 30, 50), "")}
+    assert next(r for r in RULES if r.id == 112).levels == _harder((5, 15, 50, 150, 350), "")  # Overclocked is a veteran ladder too
+
+
+def test_victory_lap_needs_a_win():
+    won = Game(**{**game("2026-10-01").__dict__, "team": "blue", "winner": "blue", "emotes": 30})
+    lost = Game(**{**won.__dict__, "winner": "orange"})
+    assert by_id(evaluate([won]))[151]["count"] == 30 and by_id(evaluate([lost]))[151]["count"] == 0
