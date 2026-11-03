@@ -5,6 +5,7 @@ import {
   type ConsoleLogEntry, type ConsoleOverview, type ConsolePlayer, type ProcessingStatus,
 } from "../api";
 import { SplitBar } from "../components/bars";
+import { ProcessingPanel } from "../components/ProcessingPanel";
 import { duration, int, num, pct, playerPath } from "../format";
 import { Status, TableWrap } from "../components/common";
 import { EmptyState } from "../components/ui";
@@ -27,7 +28,7 @@ interface Command {
   /** asked before running, like the console's "[y/N]" */
   confirm?: (values: Record<string, string>) => string | null;
   /** a page of its own instead of a command form */
-  view?: "achievements" | "dashboard" | "players" | "hidden-stats" | "log";
+  view?: "achievements" | "dashboard" | "players" | "hidden-stats" | "log" | "processing";
 }
 
 const lines = (text = "") =>
@@ -89,11 +90,7 @@ const GROUPS: { title: string; commands: Command[] }[] = [
   {
     title: "Processing",
     commands: [
-      {
-        name: "status",
-        label: "Status and import progress",
-        help: "Import progress, replay counts, failures and players, as text (the Dashboard shows the same live).",
-      },
+      { name: "status", label: "Status and import progress", help: "", view: "processing" },
       {
         name: "remote",
         label: "Where replays are processed",
@@ -395,6 +392,8 @@ function Console() {
             <AuditLog api={api} />
           ) : selected.view === "achievements" ? (
             <AchievementExport />
+          ) : selected.view === "processing" ? (
+            <ProcessingPanel />
           ) : (
             <form
               className="panel console-form"

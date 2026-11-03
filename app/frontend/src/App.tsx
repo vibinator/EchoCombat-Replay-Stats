@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState, useSyncExternalStore } from "react";
-import { BrowserRouter, Link, NavLink, Route, Routes, useLocation } from "react-router";
+import { BrowserRouter, Link, Navigate, NavLink, Route, Routes, useLocation } from "react-router";
 import { connection, getHealth, getMe, getProcessing, loginUrl, LOGOUT_URL } from "./api";
 import { GlobalSearch } from "./components/GlobalSearch";
 import { HomePage } from "./pages/HomePage";
@@ -17,7 +17,6 @@ const MatchesPage = lazy(() => import("./pages/MatchesPage").then((m) => ({ defa
 const PermissionsPage = lazy(() => import("./pages/PermissionsPage").then((m) => ({ default: m.PermissionsPage })));
 const PlayerPage = lazy(() => import("./pages/PlayerPage").then((m) => ({ default: m.PlayerPage })));
 const PlayersPage = lazy(() => import("./pages/PlayersPage").then((m) => ({ default: m.PlayersPage })));
-const StatusPage = lazy(() => import("./pages/StatusPage").then((m) => ({ default: m.StatusPage })));
 
 type Theme = "dark" | "light";
 const THEME_KEY = "echovr-theme";
@@ -132,7 +131,6 @@ function Layout() {
         <nav id="main-nav" className={menuOpen ? "open" : ""}>
           {[
             ...NAV,
-            ...(user?.admin || user?.console ? ([["/status", "Status"]] as const) : []),
             ...(user?.console
               ? ([
                   ["/console", "Console"],
@@ -184,7 +182,7 @@ function Layout() {
           <Route path="/achievements/:name/:userId" element={<AchievementsPage />} />
           <Route path="/console" element={<ConsolePage />} />
           <Route path="/permissions" element={<PermissionsPage />} />
-          <Route path="/status" element={<StatusPage />} />
+          <Route path="/status" element={<Navigate to="/console" replace />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
         </Suspense>

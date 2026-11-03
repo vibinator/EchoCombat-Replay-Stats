@@ -18,6 +18,13 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.03.26 — 17:22
+### Console
+- **The Status page is gone**: its live progress (replays read, how many are left, what is built from them, estimated time)
+  is now **Status and import progress** in the Console's Processing group, and refreshes every 10 s while open. The "Status"
+  link is gone from the top bar; an old `/status` link or bookmark opens the Console. Same data and the same access check
+  (`/api/admin/status`).
+
 ## 2026.11.03.25 — 17:19
 ### Console
 - **Fewer menus:** the Console menu has 5 groups instead of 8. Overview now holds Hide stats from players; Players holds the

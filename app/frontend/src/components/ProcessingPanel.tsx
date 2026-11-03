@@ -1,37 +1,16 @@
 import { useEffect, useRef, useState } from "react";
-import { getMe, getProcessingStatus, loginUrl, type ProcessingStatus } from "../api";
-import { BarChart } from "../components/charts";
-import { Status, TableWrap } from "../components/common";
-import { EmptyState } from "../components/ui";
+import { getProcessingStatus, type ProcessingStatus } from "../api";
+import { BarChart } from "./charts";
 import { title } from "../format";
-import { useApi, useWhileVisible } from "../useApi";
+import { useWhileVisible } from "../useApi";
+import { Status, TableWrap } from "./common";
 
 const REFRESH_MS = 10_000;
 
-/** Live progress of replay processing and everything built from it. Admins and console users. */
-export function StatusPage() {
-  const me = useApi(getMe, "me");
-  const user = me.data?.user;
-  // Asked while /api/me is still loading, so the two answers arrive together; the server refuses non-staff anyway.
-  const live = useLiveStatus(!me.data || !!user?.admin || !!user?.console);
-  if (!me.data) return <Status loading={me.loading} error={me.error} />;
-  if (!user?.admin && !user?.console)
-    return (
-      <section>
-        <h1>Status</h1>
-        <EmptyState title="No access">
-          {!me.data.enabled ? (
-            "Discord login is not set up on this server."
-          ) : user ? (
-            <>You are logged in as {user.name}, but you do not have access to this page.</>
-          ) : (
-            <>
-              This page is for site staff. <a href={loginUrl("/status")}>Log in with Discord</a>
-            </>
-          )}
-        </EmptyState>
-      </section>
-    );
+/** Live progress of replay processing and everything built from it: a Console panel (it was the Status page). The
+ *  Console only opens for people with access, and the server refuses everyone else. */
+export function ProcessingPanel() {
+  const live = useLiveStatus(true);
   return <ProcessingView live={live} />;
 }
 
@@ -92,7 +71,7 @@ function ProcessingView({ live: { data: d, error, at } }: { live: ReturnType<typ
   return (
     <section>
       <div className="section-head">
-        <h1>Status</h1>
+        <h2>Status and import progress</h2>
         <span className="muted">
           {error ? <span className="error">Update failed: {error}</span> : <>Updates every 10 s · last {at?.toLocaleTimeString()}</>}
         </span>
