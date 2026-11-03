@@ -605,19 +605,32 @@ def cmd_reprocess_all(sessions, settings: Settings, yes: bool) -> None:
 
 # --- interactive menu -------------------------------------------------------------------------
 
+REMOTE_MODES = {"server": "this server only", "remote": "the PC only", "both": "both the PC and this server"}
+
+
+def cmd_remote_mode(sessions, mode: str | None = None) -> str:
+    """Who reads the replays: "server" (this server only), "remote" (another PC, remote_worker.bat, only), "both" (this
+    server and the PC take replays from the same queue). None only shows the setting."""
+    if mode is not None and mode not in REMOTE_MODES:
+        raise ConsoleError(f"Choose one of: {', '.join(REMOTE_MODES)}")
+    with sessions() as db:
+        if mode is not None:
+            remote.set_mode(db, mode)
+        current = remote.mode(db)
+        where = remote.describe(db)
+    if mode is not None:
+        print({"remote": "Remote processing is ON: this server no longer reads replays itself. Start remote_worker.bat on the PC.",
+               "both": "Remote processing is BOTH: this server and the PC read replays at the same time, each taking different "
+                       "replays from the queue. Start remote_worker.bat on the PC.",
+               "server": "Remote processing is OFF: this server reads replays itself again (what the PC still holds is queued again)."}[current])
+    print(f"Replays are processed {where}")
+    return current
+
+
 def cmd_remote_processing(sessions, on: bool | None = None) -> bool:
     """Replays read on another PC (remote_worker.bat) instead of on this server: on = the server's own worker takes no
     replays, the PC does; off = the server reads them itself again. None only shows the setting."""
-    with sessions() as db:
-        if on is not None:
-            remote.set_enabled(db, on)
-        state = remote.enabled(db)
-        where = remote.describe(db)
-    if on is not None:
-        print("Remote processing is ON: this server no longer reads replays itself. Start remote_worker.bat on the PC."
-              if state else "Remote processing is OFF: this server reads replays itself again (what the PC still holds is queued again).")
-    print(f"Replays are processed {where}")
-    return state
+    return cmd_remote_mode(sessions, None if on is None else "remote" if on else "server") != "server"
 
 
 MENU = f"""
@@ -765,9 +778,9 @@ def interactive(sessions, settings: Settings) -> None:
                     cmd_repair_aggressive(sessions, term)
             elif choice == "21":
                 cmd_remote_processing(sessions)
-                pick = ask("Turn it on (y), off (n), or leave as it is (Enter): ").lower()
-                if pick in ("y", "n"):
-                    cmd_remote_processing(sessions, pick == "y")
+                pick = ask("PC only (y), this server only (n), both at once (b), or leave as it is (Enter): ").lower()
+                if pick in ("y", "n", "b"):
+                    cmd_remote_mode(sessions, {"y": "remote", "n": "server", "b": "both"}[pick])
             else:
                 print("Choose 1-21 or q.")
         except ConsoleError as e:
@@ -842,7 +855,7 @@ def main_command(sessions, settings: Settings, args) -> None:
         case "repair-aggressive-failed":
             cmd_repair_aggressive_failed(sessions, args.yes)
         case "remote":
-            cmd_remote_processing(sessions, True if args.on else False if args.off else None)
+            cmd_remote_mode(sessions, "both" if args.both else "remote" if args.on else "server" if args.off else None)
         case "scan":
             cmd_scan(sessions, settings)
         case "process-missing":
@@ -900,6 +913,7 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("remote", help="process replays on another PC (remote_worker.bat) instead of this server")
     p.add_argument("--on", action="store_true", help="the PC reads replays; this server stops reading them")
     p.add_argument("--off", action="store_true", help="this server reads replays itself again")
+    p.add_argument("--both", action="store_true", help="this server and the PC both read replays")
     sub.add_parser("process-missing", help="scan the folder, then queue replays that never produced a match")
     sub.add_parser("scan", help="look for new / changed files in the replay folder now")
     p = sub.add_parser("reprocess-all", help="rescan the folder, then read every replay again (hours)")

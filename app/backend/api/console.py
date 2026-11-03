@@ -46,6 +46,7 @@ class Args(BaseModel):
     hide_win_loss: bool = False
     show_win_loss: bool = False
     player: str = ""
+    mode: str = ""  # remote: "server", "remote" or "both"; empty = only show the setting
 
 
 def _required(value: str, what: str) -> str:
@@ -74,6 +75,7 @@ COMMANDS = {  # name as in admin.bat -> (sessions, settings, args) -> None
     "reprocess-all": lambda s, st, a: console.cmd_reprocess_all(s, st, yes=True),
     "hide-stats": lambda s, st, a: console.cmd_hide_stats(s, "win_loss" if a.hide_win_loss else None,
                                                           "win_loss" if a.show_win_loss else None, a.player),
+    "remote": lambda s, st, a: console.cmd_remote_mode(s, a.mode or None),
     "remote-on": lambda s, st, a: console.cmd_remote_processing(s, True),
     "remote-off": lambda s, st, a: console.cmd_remote_processing(s, False),
     "remote-status": lambda s, st, a: console.cmd_remote_processing(s, None),

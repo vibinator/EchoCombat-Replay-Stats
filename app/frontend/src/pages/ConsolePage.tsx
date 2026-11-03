@@ -14,8 +14,9 @@ import { useApi, useWhileVisible } from "../useApi";
 type Field = {
   key: string;
   label: string;
-  kind?: "text" | "date" | "check" | "list";
+  kind?: "text" | "date" | "check" | "list" | "select";
   hint?: string;
+  options?: [value: string, label: string][]; // select
 };
 
 interface Command {
@@ -42,6 +43,7 @@ const GROUPS: { title: string; commands: Command[] }[] = [
     commands: [
       { name: "dashboard", label: "Dashboard", help: "", view: "dashboard" },
       { name: "log", label: "Audit log", help: "", view: "log" },
+      { name: "hidden-stats", label: "Hide stats from players", help: "", view: "hidden-stats" },
     ],
   },
   {
@@ -75,11 +77,14 @@ const GROUPS: { title: string; commands: Command[] }[] = [
         fields: [{ key: "alias", label: "Merged id", hint: "From “List merges”" }],
         confirm: (v) => `Undo the merge of ${v.alias}?`,
       },
+
+      {
+        name: "discord-check",
+        label: "Check a member's access",
+        help: "Whether one person is an Admin, gets the Preview and the Console page. To change who gets what, use the Permissions page.",
+        fields: [{ key: "user_id", label: "Discord user id", hint: "In Discord: right-click the person > Copy User ID" }],
+      },
     ],
-  },
-  {
-    title: "Website",
-    commands: [{ name: "hidden-stats", label: "Hide stats from players", help: "", view: "hidden-stats" }],
   },
   {
     title: "Processing",
@@ -90,21 +95,33 @@ const GROUPS: { title: string; commands: Command[] }[] = [
         help: "Import progress, replay counts, failures and players, as text (the Dashboard shows the same live).",
       },
       {
-        name: "remote-status",
+        name: "remote",
         label: "Where replays are processed",
-        help: "Whether this server or another PC (remote_worker.bat) reads the replays, and when the PC last asked for work.",
-      },
-      {
-        name: "remote-on",
-        label: "Process replays on another PC",
-        help: "The server stops reading replays itself and leaves them to the PC running remote_worker.bat, so the NAS stays free for visitors. Nothing is processed until that PC is running.",
-        confirm: () => "Stop this server from reading replays and leave it to the other PC?",
-      },
-      {
-        name: "remote-off",
-        label: "Process replays on this server again",
-        help: "The server reads replays itself again. Replays the PC was still working on are queued again.",
-        confirm: () => "Let this server read replays itself again?",
+        help:
+          "Who reads the replays: this server, another PC (remote_worker.bat) or both at once, each taking different replays from " +
+          "the queue. With the PC only, the NAS stays free for visitors and nothing is processed until the PC is running. Leave it on " +
+          "“just show” to see the current setting and when the PC last asked for work.",
+        fields: [
+          {
+            key: "mode",
+            label: "Process on",
+            kind: "select",
+            options: [
+              ["", "Just show the current setting"],
+              ["server", "This server only"],
+              ["remote", "Another PC only"],
+              ["both", "Both the PC and this server"],
+            ],
+          },
+        ],
+        confirm: (v) =>
+          v.mode === "remote"
+            ? "Stop this server from reading replays and leave it to the other PC?"
+            : v.mode === "both"
+              ? "Let both this server and the PC read replays?"
+              : v.mode === "server"
+                ? "Let this server read replays itself again? What the PC still holds is queued again."
+                : null,
       },
       {
         name: "process-missing",
@@ -152,11 +169,7 @@ const GROUPS: { title: string; commands: Command[] }[] = [
         help: "Try aggressive repair once on every broken replay that repair mode could not fix.",
         confirm: () => "Aggressively repair every broken replay that repair mode could not fix?",
       },
-    ],
-  },
-  {
-    title: "Failed replays",
-    commands: [
+
       {
         name: "cannot-repair",
         label: "Replays that cannot be repaired",
@@ -211,17 +224,6 @@ const GROUPS: { title: string; commands: Command[] }[] = [
       },
     ],
   },
-  {
-    title: "Discord access",
-    commands: [
-      {
-        name: "discord-check",
-        label: "Check a member's access",
-        help: "Whether one person is an Admin, gets the Preview and the Console page. To change who gets what, use the Permissions page.",
-        fields: [{ key: "user_id", label: "Discord user id", hint: "In Discord: right-click the person > Copy User ID" }],
-      },
-    ],
-  },
 ];
 
 const ALL_COMMANDS = GROUPS.flatMap((g) => g.commands);
@@ -230,6 +232,9 @@ const COMMAND_LABELS: Record<string, string> = {
   ...Object.fromEntries(ALL_COMMANDS.map((c) => [c.name, c.label])),
   "hide-stats": "Hide stats from players",
   find: "Find a player",
+  "remote-status": "Where replays are processed",
+  "remote-on": "Process replays on another PC",
+  "remote-off": "Process replays on this server again",
   "preview-roles": "Discord preview roles",
   "admin-roles": "Discord admin roles",
   "admin-users": "Discord admin users",
@@ -409,7 +414,13 @@ function Console() {
                 ) : (
                   <label key={f.key} className="console-field">
                     <span>{f.label}</span>
-                    {f.kind === "list" ? (
+                    {f.kind === "select" ? (
+                      <select value={values[f.key] ?? ""} onChange={(e) => set(f.key, e.target.value)}>
+                        {f.options?.map(([value, label]) => (
+                          <option key={value} value={value}>{label}</option>
+                        ))}
+                      </select>
+                    ) : f.kind === "list" ? (
                       <textarea rows={3} placeholder={f.hint} value={values[f.key] ?? ""} onChange={(e) => set(f.key, e.target.value)} />
                     ) : (
                       <input

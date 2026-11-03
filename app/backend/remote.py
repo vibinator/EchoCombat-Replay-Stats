@@ -26,7 +26,8 @@ from .models import AppSetting, Replay
 
 log = logging.getLogger(__name__)
 
-KEY = "remote_processing"  # "1" = on
+KEY = "remote_processing"  # "1" = the PC only, "2" = this server and the PC both, anything else = this server only
+MODE_VALUES = {"server": None, "remote": "1", "both": "2"}
 SEEN_KEY = "remote_worker_seen"  # when the PC last asked for work (UTC ISO)
 CLAIM_TIMEOUT_S = 30 * 60  # a claimed replay with no answer for this long is queued again
 SEEN_WRITE_EVERY_S = 30
@@ -40,13 +41,30 @@ _lock = threading.Lock()
 _seen_written = 0.0
 
 
+def mode(db: Session) -> str:
+    """Who reads the replays: "server" (this server only), "remote" (the PC only) or "both" (this server and the PC,
+    each taking replays from the same queue: a replay is handed to one of them only)."""
+    value = db.scalar(select(AppSetting.value).where(AppSetting.key == KEY))
+    return "remote" if value == "1" else "both" if value == "2" else "server"
+
+
+def set_mode(db: Session, new: str) -> None:
+    db.merge(AppSetting(key=KEY, value=MODE_VALUES[new], updated_at=utcnow()))
+    db.commit()
+
+
 def enabled(db: Session) -> bool:
-    return db.scalar(select(AppSetting.value).where(AppSetting.key == KEY)) == "1"
+    """The PC is given replays (PC only, or both)."""
+    return mode(db) != "server"
+
+
+def server_works(db: Session) -> bool:
+    """This server's own worker reads replays (this server only, or both)."""
+    return mode(db) != "remote"
 
 
 def set_enabled(db: Session, on: bool) -> None:
-    db.merge(AppSetting(key=KEY, value="1" if on else None, updated_at=utcnow()))
-    db.commit()
+    set_mode(db, "remote" if on else "server")
 
 
 def last_seen(db: Session) -> datetime | None:
@@ -68,15 +86,22 @@ def mark_seen(sessions: sessionmaker) -> None:
 
 def describe(db: Session) -> str:
     """One line for the Console status."""
-    if not enabled(db):
+    current = mode(db)
+    if current == "server":
         return "on this server (remote processing is off)"
     seen = last_seen(db)
+    who = "on another PC" if current == "remote" else "on this server and another PC, both at once"
     if seen is None:
-        return "on another PC (remote processing is on, but no PC has asked for work yet)"
+        return f"{who} (remote processing is on, but no PC has asked for work yet)"
     ago = (datetime.now(timezone.utc) - seen).total_seconds()
     when = f"{ago / 60:.0f} min ago" if ago >= 90 else "just now"
-    state = "" if ago < 300 else "  ** not seen for a while: nothing is being processed **"
-    return f"on another PC (remote processing is on; the PC last asked for work {when}){state}"
+    if ago < 300:
+        state = ""
+    elif current == "remote":
+        state = "  ** not seen for a while: nothing is being processed **"
+    else:
+        state = "  ** the PC has not been seen for a while: only this server is processing **"
+    return f"{who} (remote processing is on; the PC last asked for work {when}){state}"
 
 
 # ---- claims -----------------------------------------------------------------------------------------------------------

@@ -18,6 +18,14 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.03.25 — 17:19
+### Console
+- **Fewer menus:** the Console menu has 5 groups instead of 8. Overview now holds Hide stats from players; Players holds the
+  Discord access check; Repair holds the failed-replay tools.
+- **Where replays are processed** is one form (this server only / another PC only / **both the PC and this server**)
+  instead of three buttons. With *both*, the server and the PC each take different replays from the same queue, so a big
+  re-read is done in roughly half the time. Also `admin.bat remote --both` and option 21 in the text menu.
+
 ## 2026.11.03.24 — 17:16
 ### Achievements page
 - **Top players** is one line of cards that scrolls sideways. Each card shows the number of challenges **completed** (of

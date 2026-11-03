@@ -1888,6 +1888,7 @@ td.best {
   font-size: 0.85rem;
 }
 .console-field input,
+.console-field select,
 .console-field textarea {
   width: 100%;
   box-sizing: border-box;

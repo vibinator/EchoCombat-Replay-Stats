@@ -263,3 +263,19 @@ def test_queue_missing_is_idempotent(client):
         assert actions.queue_missing(db) == {"no_match": 0, "unreadable": 0}  # second run queues nothing
         status = dict(db.execute(select(Replay.source_path, Replay.status)).all())
     assert status == {"a.echoreplay": "queued", "b.echoreplay": "queued", "c.echoreplay": "failed", "d.echoreplay": "queued"}
+
+
+def test_both_mode_lets_the_server_and_the_pc_read_replays(client):
+    from admin_console import ConsoleError, cmd_remote_mode
+    sessions = client.app.state.sessionmaker
+    expected = {"server": (False, True), "remote": (True, False), "both": (True, True)}  # (PC gets replays, server reads too)
+    for mode, flags in expected.items():
+        assert cmd_remote_mode(sessions, mode) == mode
+        with sessions() as db:
+            assert (remote.enabled(db), remote.server_works(db)) == flags and remote.mode(db) == mode
+    with sessions() as db:
+        assert remote.describe(db).startswith("on this server and another PC, both at once")  # still "both"
+    assert claim(client).json()["enabled"] is True  # the PC is asked to work in "both" too
+    with pytest.raises(ConsoleError):
+        cmd_remote_mode(sessions, "nonsense")
+    assert cmd_remote_mode(sessions) == "both"  # only shows

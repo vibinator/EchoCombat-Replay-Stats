@@ -308,11 +308,11 @@ class Worker:
 
     def _claim(self, count: int) -> list[tuple[int, str, bool | str]]:
         """(id, absolute path, repair mode) of up to `count` queued replays, now marked 'processing'. Nothing while
-        remote processing is on: another PC reads them then (remote.py)."""
+        remote processing is set to the PC only (remote.py); with "both" this server takes replays too."""
         with self.sessions() as db:
-            on = remote.enabled(db)
-        remote.requeue_abandoned(self.sessions, everything=not on)  # off: whatever the PC still holds is ours again
-        if on:
+            pc_on, works = remote.enabled(db), remote.server_works(db)
+        remote.requeue_abandoned(self.sessions, everything=not pc_on)  # off: whatever the PC still holds is ours again
+        if not works:  # the PC only: it reads them
             return []
         claimed = claim_queued(self.sessions, count)
         for replay_id, path, _ in claimed:
