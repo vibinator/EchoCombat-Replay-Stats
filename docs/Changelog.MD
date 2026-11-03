@@ -18,6 +18,12 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.03.19 — 16:03
+### Achievements page
+- Medal colours on the progress: each card in **Closest to your next medal** has a bottom edge in the colour of the medal
+  it is heading for (bronze, silver, gold, diamond or platinum), and a section's progress bar takes the colour of its overall
+  level (20 % bronze, 40 % silver, 60 % gold, 80 % diamond, 100 % platinum).
+
 ## 2026.11.03.18 — 16:00
 ### Achievements page
 - The public **All achievements** list scrolls sideways like a player's page: each section is one line of cards (drag the

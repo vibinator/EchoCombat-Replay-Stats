@@ -5,6 +5,7 @@
   --tier-gold: #f0c230;
   --tier-platinum: #5fd6c8;
   --tier-diamond: #6cb8ff;
+  --tier-bar-default: var(--blue);
   --bg: #16181c;
   --panel: #1f2228;
   --line: #30343c;
@@ -2207,7 +2208,22 @@ td.best {
 
 .section-progress .bar div {
   height: 100%;
-  background: var(--blue);
+  background: var(--sec, var(--blue));
+}
+
+/* a card in the Closest row: its bottom edge has the colour of the medal it is heading for */
+.next-card {
+  flex: 0 0 min(300px, 85vw);
+  display: flex;
+}
+
+.next-card .badge-card {
+  flex: 1;
+  border-bottom: 3px solid var(--next);
+}
+
+.badges.scroll-row .next-card .badge-card {
+  flex: 1 1 auto;
 }
 
 .fold-all {

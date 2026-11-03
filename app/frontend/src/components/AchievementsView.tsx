@@ -94,7 +94,7 @@ function Section<T extends AnyBadge>({ id, c, level = 3, title, items, anchor }:
       </Heading>
       {tracked && (
         <div className="section-progress" title={`${counts.done} of ${items.length} completed, ${pct(overall)} overall`}>
-          <div className="bar" role="progressbar" aria-label={`${typeof title === "string" ? title : "Section"} progress`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(overall * 100)}>
+          <div className="bar" style={{ "--sec": `var(--tier-${sectionMedal(overall) ?? "bar-default"})` } as React.CSSProperties} role="progressbar" aria-label={`${typeof title === "string" ? title : "Section"} progress`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(overall * 100)}>
             <div style={{ width: `${overall * 100}%` }} />
           </div>
           <span className="muted">{counts.done}/{items.length} completed · {pct(overall)}</span>
@@ -203,22 +203,34 @@ function MedalTargets({ levels, unit = "" }: { levels: number[]; unit?: string }
   );
 }
 
-/** How far a player is from the next medal, 0..1 (null = every medal reached, or not started). Ladders: between the
- *  previous target and the next one; single-step rules: between the percentage steps. */
-function nextMedalFraction(a: Achievement): number | null {
-  let f: number;
+/** The next medal a player is heading for and how far along it is (0..1); null = every medal reached, or not started.
+ *  Ladders: between the previous target and the next one; single-step rules: between the percentage steps. */
+function nextMedal(a: Achievement): { fraction: number; medal: string } | null {
+  let fraction: number;
+  let medal: string;
   if (a.levels && a.count != null) {
     const next = a.levels.findIndex((need) => a.count! < need);
     if (next < 0) return null;
     const prev = next ? a.levels[next - 1] : 0;
-    f = (a.count - prev) / (a.levels[next] - prev);
+    fraction = (a.count - prev) / (a.levels[next] - prev);
+    medal = LEVELS[next];
   } else {
     const next = PERCENT_STEPS.findIndex((s) => a.progress < s.at);
     if (next < 0) return null;
     const prev = next ? PERCENT_STEPS[next - 1].at : 0;
-    f = (a.progress - prev) / (PERCENT_STEPS[next].at - prev);
+    fraction = (a.progress - prev) / (PERCENT_STEPS[next].at - prev);
+    medal = PERCENT_STEPS[next].medal;
   }
-  return f > 0 ? f : null;
+  return fraction > 0 ? { fraction, medal } : null;
+}
+
+function nextMedalFraction(a: Achievement): number | null {
+  return nextMedal(a)?.fraction ?? null;
+}
+
+/** Medal colour of a section's overall progress (ladders give 20 % per medal: bronze 20 ... platinum 100 %). */
+function sectionMedal(progress: number): string | null {
+  return progress >= 1 ? "platinum" : progress >= 0.8 ? "diamond" : progress >= 0.6 ? "gold" : progress >= 0.4 ? "silver" : progress >= 0.2 ? "bronze" : null;
 }
 
 const CLOSEST_SHOWN = 12;
@@ -227,16 +239,20 @@ const CLOSEST_SHOWN = 12;
  *  (user, 2026-11-03). */
 function ClosestToUnlocking({ items }: { items: Achievement[] }) {
   const closest = items
-    .map((a) => ({ a, f: nextMedalFraction(a) }))
-    .filter((x): x is { a: Achievement; f: number } => x.f !== null)
-    .sort((x, y) => y.f - x.f)
+    .map((a) => ({ a, n: nextMedal(a) }))
+    .filter((x): x is { a: Achievement; n: { fraction: number; medal: string } } => x.n !== null)
+    .sort((x, y) => y.n.fraction - x.n.fraction)
     .slice(0, CLOSEST_SHOWN);
   if (closest.length === 0) return null;
   return (
     <section className="closest">
       <h3>Closest to your next medal</h3>
       <div className="badges scroll-row" tabIndex={0} aria-label="Closest to your next medal, scroll sideways">
-        {closest.map(({ a }) => <Badge key={a.id} a={a} />)}
+        {closest.map(({ a, n }) => (
+          <div key={a.id} className="next-card" style={{ "--next": `var(--tier-${n.medal})` } as React.CSSProperties} title={`Next medal: ${n.medal}`}>
+            <Badge a={a} />
+          </div>
+        ))}
       </div>
     </section>
   );
