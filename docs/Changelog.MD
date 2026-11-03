@@ -32,6 +32,9 @@ Working record of what changed in each release, newest first.
   - the wheel zooms towards the pointer, movement glides to a stop, right-drag (or Shift + drag) moves sideways, middle-drag zooms and the context menu no longer opens;
   - **W A S D** fly (Shift = 3x faster), **Q / E** down / up, **R** puts the camera back; speed follows the distance to what you look at.
 - Weapon labels only update when somebody's weapon changes (a new list every tick made the labels redo their work).
+- **Orange is orange:** the map files used `#ff3800` for the orange team's zones, which looks red next to the site's orange. Zones are now drawn in the site's team colours (orange `#ea7924`, blue to match).
+- **Nicer maps:** warm key light and cool fill with colour-true tone mapping, distance fog, a gradient backdrop with a faint floor grid, readable dark walls instead of near-black, a cleaner glow on glowing parts, and a closer starting camera.
+- **Right and middle mouse buttons:** no browser menu (in every camera, also over name labels and on a touch screen's long press), no middle-click autoscroll, no text selected while dragging, and they never pick a player.
 
 ### Server fixes found in a review of the 3D build
 - 3D positions are built in their own small pool of processes: not behind a queue of replays, and a crash there is never blamed on the replays being read. A damaged replay answers "not available" (404), is not read again for 10 minutes, and at most 8 requests wait for builds at once.
