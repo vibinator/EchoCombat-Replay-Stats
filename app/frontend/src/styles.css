@@ -691,7 +691,7 @@ svg .crosshair {
 /* Main view switcher on a page (match page): bigger than the filter pills, with an underline bar. */
 .section-tabs {
   gap: 0;
-  margin-top: 24px;
+  margin-top: 16px;
   box-shadow: inset 0 -2px 0 var(--line); /* the bar; the active tab's underline sits on top of it */
   flex-wrap: nowrap;
   overflow-x: auto;
@@ -703,8 +703,8 @@ svg .crosshair {
   flex-direction: column;
   align-items: flex-start;
   gap: 2px;
-  flex: 1 0 auto;
-  padding: 12px 20px 10px;
+  flex: 0 0 auto;
+  padding: 8px 16px 6px;
   border-radius: 8px 8px 0 0;
   border-bottom: 3px solid transparent;
   background: none;
@@ -713,12 +713,12 @@ svg .crosshair {
 }
 
 .section-tabs .tab-label {
-  font-size: 1.05rem;
+  font-size: 0.95rem;
   font-weight: 700;
 }
 
 .section-tabs .tab-hint {
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-weight: 400;
 }
 
@@ -744,6 +744,11 @@ svg .crosshair {
   .section-tabs .tab-hint {
     display: none;
   }
+}
+
+.timeline .chart-wrap {
+  max-width: 1000px; /* the SVG scales with its width: on a wide screen it would otherwise blow up text and lines */
+  margin: 0 auto;
 }
 
 .tabs + h2,
@@ -1516,6 +1521,22 @@ kbd {
   overflow: hidden;
   border-radius: 8px;
   background: #101216;
+}
+/* the map scales with its width: on a wide screen it would fill the whole page, so it stops at a comfortable size
+   (full screen mode sizes it by the screen height instead) */
+.heatmap-stage {
+  max-width: 780px;
+  margin-inline: auto;
+}
+.pb-fs.is-full .heatmap-stage {
+  max-width: none;
+}
+/* Combat and Gear use tabs: few columns, so on a wide screen the tables stay readable instead of stretching */
+.tab-narrow {
+  max-width: 1100px;
+}
+.tab-narrow .table-wrap {
+  max-width: 1100px;
 }
 .heatmap-stage.zoomed {
   cursor: grab;
@@ -2750,19 +2771,6 @@ svg .strip-label {
 }
 td.best .mini-fill { background: var(--chart-1); }
 
-/* match: blue vs orange */
-.team-compare {
-  display: grid;
-  gap: 12px;
-  margin: 16px 0;
-}
-.team-compare h2 { margin: 0; }
-.team-compare-row {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
 /* "Mostly pushing", "Right-handed"…: the summary over a split bar, kept on one line */
 .card strong.lean {
   font-size: 1rem;
@@ -3770,3 +3778,14 @@ button.small {
 .combat-weapons ul.plain { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.3rem; }
 .combat-player-events { margin: 0.4rem 0; }
 .combat-player-events > summary { cursor: pointer; padding: 0.3rem 0; }
+
+/* Achievements as tabs (full page) and the per-tab tiles on a player's summary */
+.ach-hint { margin: 12px 0 4px; }
+.ach-tabs { margin-top: 12px; }
+.ach-summary-tabs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+.ach-summary-tabs .bar div { background: var(--sec, var(--blue)); }

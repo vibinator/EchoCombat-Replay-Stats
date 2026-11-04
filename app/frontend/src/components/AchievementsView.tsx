@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useLocation } from "react-router";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
 import { LEVELS, getAchievements, getArenaProgress, getChallenges, searchMegaPrizes, type MegaPrizeSearch as SearchResult, getMe, getRarity, loginUrl, type Achievement, type AchievementPeek, type AchievementRarity, type AchievementRule } from "../api";
 import { achievementsPath, pct, ruleText } from "../format";
 import { useApi } from "../useApi";
@@ -35,35 +35,12 @@ const inPeriodSection = (a: { new: boolean; group: string | null; period: string
 
 type AnyBadge = Parameters<typeof Badge>[0]["a"];
 
-const COLLAPSED_KEY = "achievements-collapsed";
-
-/** Which sections are folded away; remembered in this browser (localStorage may be unavailable: then it just is not kept). */
-function useCollapsed(foldByDefault: string[] = []) {
-  const [folded, setFolded] = useState<Set<string>>(() => {
-    try {
-      const saved = localStorage.getItem(COLLAPSED_KEY);
-      return new Set<string>(saved === null ? foldByDefault : JSON.parse(saved));
-    } catch {
-      return new Set<string>(foldByDefault);
-    }
-  });
-  const save = (next: Set<string>) => {
-    setFolded(next);
-    try {
-      localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...next]));
-    } catch {
-      /* not remembered */
-    }
-  };
-  return {
-    folded,
-    toggle: (id: string) => save(new Set(folded.has(id) ? [...folded].filter((x) => x !== id) : [...folded, id])),
-    setAll: (ids: string[], collapsed: boolean) => save(new Set(collapsed ? ids : [])),
-    open: (id: string) => save(new Set([...folded].filter((x) => x !== id))),
-  };
+/** Which section (tab) a challenge sits in: its period, or the theme section of a new one. */
+export function sectionId(a: { new: boolean; group: string | null; period: string }): string {
+  if (inPeriodSection(a)) return `p-${a.period}`;
+  const theme = NEW_GROUPS.find(([, , gs]) => gs.includes(a.group ?? ""));
+  return `n-${theme ? theme[0] : "More"}`;
 }
-
-type Collapse = ReturnType<typeof useCollapsed>;
 
 type Filter = "done" | "open" | "new";
 const FILTERS: [Filter, string][] = [["open", "In progress"], ["new", "Not started"], ["done", "Completed"]];
@@ -87,27 +64,20 @@ function sortItems<T extends AnyBadge>(list: T[], by: SortBy, tracked: boolean, 
   return out;
 }
 
-/** A section: a heading that folds it away, and (for a player) filters Completed / In progress / Not started. Completed
- *  achievements are hidden until you pick Completed; the view opens on the first filter that has something. `only` is the
- *  status picked for the whole page (it replaces the tabs); `forceOpen` unfolds it while searching. */
-function Section<T extends AnyBadge>({ id, c, level = 3, title, label, items, anchor, only, sort, shares, forceOpen }: { id: string; c: Collapse; level?: 2 | 3; title: React.ReactNode; label: string; items: T[]; anchor?: string; only: Filter | ""; sort: SortBy; shares: Shares; forceOpen: boolean }) {
+/** The challenges of one tab, and (for a player) filters Completed / In progress / Not started. Completed achievements are
+ *  hidden until you pick Completed; the view opens on the first filter that has something. `only` is the status picked for
+ *  the whole page (it replaces the pills). */
+function Section<T extends AnyBadge>({ label, hint, items, only, sort, shares }: { label: string; hint: string; items: T[]; only: Filter | ""; sort: SortBy; shares: Shares }) {
   const [picked, setPicked] = useState<Filter | null>(null);
-  const open = forceOpen || !c.folded.has(id);
-  const Heading = `h${level}` as "h2" | "h3";
   const tracked = items.every((a) => status(a) !== null);
   const counts = { done: 0, open: 0, new: 0 };
   if (tracked) for (const a of items) counts[status(a)!]++;
   const filter = only || picked || FILTERS.find(([f]) => counts[f] > 0)?.[0] || "open";
   const shown = sortItems(tracked ? items.filter((a) => status(a) === filter) : items, sort, tracked, shares);
   const overall = tracked ? items.reduce((sum, a) => sum + (a.progress ?? 0), 0) / items.length : 0;
-  if (tracked && only && counts[only] === 0) return null; // nothing of that status in this section
   return (
-    <div className="fold" id={anchor}>
-      <Heading className="fold-head" id={`sec-${id}`}>
-        <button type="button" aria-expanded={open} onClick={() => c.toggle(id)}>
-          <span className="chevron" aria-hidden="true">{open ? "▾" : "▸"}</span> {title} <span className="muted hint">· {items.length} challenges</span>
-        </button>
-      </Heading>
+    <div className="ach-panel">
+      {hint && <p className="muted ach-hint">{hint}</p>}
       {tracked && (
         <div className="section-progress" title={`${counts.done} of ${items.length} completed, ${pct(overall)} overall`}>
           <div className="bar" style={{ "--sec": `var(--tier-${sectionMedal(overall) ?? "bar-default"})` } as React.CSSProperties} role="progressbar" aria-label={`${label} progress`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(overall * 100)}>
@@ -116,7 +86,7 @@ function Section<T extends AnyBadge>({ id, c, level = 3, title, label, items, an
           <span className="muted">{counts.done}/{items.length} completed · {pct(overall)}</span>
         </div>
       )}
-      {open && tracked && !only && (
+      {tracked && !only && (
         <div className="tabs" role="tablist">
           {FILTERS.map(([f, text]) => (
             <button key={f} role="tab" aria-selected={filter === f} className={filter === f ? "tab active" : "tab"} onClick={() => setPicked(f)}>
@@ -125,11 +95,9 @@ function Section<T extends AnyBadge>({ id, c, level = 3, title, label, items, an
           ))}
         </div>
       )}
-      {open && (
-        <div className="badges scroll-row" tabIndex={0} aria-label={`${label}, scroll sideways`}>
-          {shown.map((a) => <Badge key={a.id} a={a} />)}
-        </div>
-      )}
+      <div className="badges scroll-row" tabIndex={0} aria-label={`${label}, scroll sideways`}>
+        {shown.map((a) => <Badge key={a.id} a={a} />)}
+      </div>
     </div>
   );
 }
@@ -145,26 +113,26 @@ export function GroupedBadges<T extends AnyBadge>({ items: all }: { items: T[] }
   const [only, setOnly] = useState<Filter | "">("");
   const [newOnly, setNewOnly] = useState(false);
   const [sort, setSort] = useState<SortBy>("default");
-  // Every section starts folded (headings with counts; the row at the top of a player's page lifts the best ones). A choice made
-  // with Expand all / Collapse all, a heading or the jump bar is remembered in this browser (user, 2026-11-03).
+  const [params, setParams] = useSearchParams();
+  const { hash } = useLocation();
   const tracked = items.length > 0 && items.every((a) => status(a) !== null);
-  const c = useCollapsed(["p-game", "p-day", "p-week", "p-all", ...[...NEW_GROUPS.map(([n]) => n), "More"].map((n) => `n-${n}`)]);
   const term = q.trim().toLowerCase();
-  const visible = items.filter((a) => (!newOnly || a.new) && (!term || `${a.name} ${ruleText(a.description)}`.toLowerCase().includes(term)));
-  const sections: { id: string; title: React.ReactNode; label: string; items: T[] }[] = [
-    ...GROUPS.map(([period, label]) => ({ id: `p-${period}`, title: label, label, items: visible.filter((a) => inPeriodSection(a) && a.period === period) })),
-    ...[...NEW_GROUPS, ["More", "", []] as [string, string, string[]]].map(([name, hint, groups]) => ({
-      id: `n-${name}`,
-      label: name,
-      title: <>{name} {hint && <span className="muted hint">· {hint}</span>}</>,
-      items: visible.filter((a) => !inPeriodSection(a) && (name === "More" ? !NEW_GROUPS.some(([, , gs]) => gs.includes(a.group ?? "")) : groups.includes(a.group ?? ""))),
-    })),
-  ].filter((x) => x.items.length > 0);
-  const firstNew = sections.find((x) => x.id.startsWith("n-"))?.id;
-  const ids = sections.map((x) => x.id);
-  function jump(id: string) {
-    c.open(id);
-    setTimeout(() => document.getElementById(`sec-${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+  const visible = items.filter((a) => (!newOnly || a.new) && (!term || `${a.name} ${ruleText(a.description)}`.toLowerCase().includes(term))
+    && (!tracked || !only || status(a) === only));
+  const sections: { id: string; label: string; hint: string; items: T[] }[] = [
+    ...GROUPS.map(([period, label]) => ({ id: `p-${period}`, label, hint: "", items: [] as T[] })),
+    ...[...NEW_GROUPS, ["More", "", []] as [string, string, string[]]].map(([name, hint]) => ({ id: `n-${name}`, label: name, hint, items: [] as T[] })),
+  ];
+  for (const a of visible) sections.find((x) => x.id === sectionId(a))?.items.push(a);
+  const shownSections = sections.filter((x) => x.items.length > 0);
+  // the tab comes from the address (?section=), so a link can open one; "Jump to new challenges" (#new) opens the first theme tab
+  const wanted = hash === "#new" ? shownSections.find((x) => x.id.startsWith("n-"))?.id : params.get("section");
+  const active = shownSections.find((x) => x.id === wanted) ?? shownSections[0];
+  function pick(id: string) {
+    const next = new URLSearchParams(params);
+    if (id === shownSections[0]?.id) next.delete("section");
+    else next.set("section", id);
+    setParams(next, { replace: true, preventScrollReset: true });
   }
   return (
     <>
@@ -188,22 +156,22 @@ export function GroupedBadges<T extends AnyBadge>({ items: all }: { items: T[] }
           <option value="name">A to Z</option>
         </select>
       </div>
-      <nav className="jump-bar" aria-label="Jump to a section">
-        {sections.map((x) => (
-          <button key={x.id} type="button" className="tab" onClick={() => jump(x.id)}>
-            {x.label} <span className="muted">{x.items.length}</span>
-          </button>
-        ))}
-        <span className="jump-all">
-          <button type="button" className="tab" onClick={() => c.setAll(ids, false)}>Expand all</button>
-          <button type="button" className="tab" onClick={() => c.setAll(ids, true)}>Collapse all</button>
-        </span>
-      </nav>
-      {sections.length === 0 && <p className="muted">No challenge matches.</p>}
-      {sections.map((x) => (
-        <Section key={x.id} id={x.id} c={c} title={x.title} label={x.label} items={x.items} anchor={x.id === firstNew ? "new" : undefined}
-                 only={only} sort={sort} shares={shares} forceOpen={term.length > 0} />
-      ))}
+      {shownSections.length === 0 && <p className="muted">No challenge matches.</p>}
+      {active && (
+        <>
+          <div className="tabs section-tabs ach-tabs" id="new" role="tablist" aria-label="Achievement groups">
+            {shownSections.map((x) => (
+              <button key={x.id} role="tab" aria-selected={active.id === x.id} className={active.id === x.id ? "tab active" : "tab"} onClick={() => pick(x.id)}>
+                <span className="tab-label">{x.label}</span>
+                <span className="tab-hint">{x.items.length} challenges</span>
+              </button>
+            ))}
+          </div>
+          {tracked && <CloseToMedal items={active.items as unknown as Achievement[]} />}
+          {tracked && <NotYetStarted items={active.items as unknown as Achievement[]} />}
+          <Section key={active.id} label={active.label} hint={active.hint} items={active.items} only={only} sort={sort} shares={shares} />
+        </>
+      )}
     </>
   );
 }
@@ -354,14 +322,19 @@ function PrizeImage({ name, alt }: { name: string; alt: string }) {
   return src ? <img src={src} alt={alt} /> : <div className="mega-img-placeholder" role="img" aria-label={alt} />;
 }
 
-/** Link to the new-challenges section; also scrolls there when the page is opened with #new (data loads late). */
+/** Link to the new-challenges tabs; also opens and scrolls there when the page is opened with #new (data loads late). */
 export function JumpToNew({ ready }: { ready: boolean }) {
   const { hash } = useLocation();
+  const navigate = useNavigate();
   useEffect(() => {
     if (ready && hash === "#new") document.getElementById("new")?.scrollIntoView();
   }, [ready, hash]);
   return (
-    <a className="jump-new" href="#new" onClick={(e) => (e.preventDefault(), document.getElementById("new")?.scrollIntoView({ behavior: "smooth" }))}>
+    <a className="jump-new" href="#new" onClick={(e) => {
+      e.preventDefault();
+      navigate({ hash: "#new" }, { replace: true });
+      setTimeout(() => document.getElementById("new")?.scrollIntoView({ behavior: "smooth" }), 50);
+    }}>
       Jump to new challenges ↓
     </a>
   );
@@ -758,6 +731,21 @@ function LaunchedSummary({ userId }: { userId: string }) {
           </Link>
         )}
       </div>
+      <div className="ach-summary-tabs">
+        {[...GROUPS.map(([period, label]) => [`p-${period}`, label] as const), ...NEW_GROUPS.map(([name]) => [`n-${name}`, name] as const)].map(([id, label]) => {
+          const list = d.items.filter((a) => !a.prize && sectionId(a) === id);
+          if (list.length === 0) return null;
+          const done = list.filter((a) => a.progress >= 1).length;
+          const avg = list.reduce((t, a) => t + a.progress, 0) / list.length;
+          return (
+            <Link key={id} className="card link-card" to={`${achievementsPath(d.user_id, d.name)}?section=${id}`}>
+              <span className="label">{label}</span>
+              <strong>{done} / {list.length}</strong>
+              <div className="bar" style={{ "--sec": `var(--tier-${sectionMedal(avg) ?? "bar-default"})` } as React.CSSProperties}><div style={{ width: `${avg * 100}%` }} /></div>
+            </Link>
+          );
+        })}
+      </div>
     </>
   );
 }
@@ -868,8 +856,6 @@ export function AchievementsView({ userId }: { userId: string }) {
               </div>
             ))}
           </div>
-          {sort === "group" && <CloseToMedal items={data.items} />}
-          {sort === "group" && <NotYetStarted items={data.items} />}
           {sort === "group" && <JumpToNew ready />}
           <label className="inline-check">
             <input type="checkbox" checked={sort === "closest"} onChange={(e) => setSort(e.target.checked ? "closest" : "group")} /> Sort by closest

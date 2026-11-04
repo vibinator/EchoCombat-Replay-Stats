@@ -75,7 +75,8 @@ export function CombatSection({ userId, period, map }: { userId: string; period:
       </h2>
       <p className="muted footnote">
         New data we are still collecting and testing. It comes from a separate source than the stats above, is not part of the
-        replay stats or the achievements, and may change as more matches are recorded.
+        replay stats or the achievements, and may change as more matches are recorded. Only data collected from 4 November 2026
+        onwards.
       </p>
       <h3>Combat stats</h3>
       <p className="muted footnote">
@@ -257,10 +258,10 @@ export function MatchCombatSection({ sessionId }: { sessionId: string }) {
   if (!data) return null; // no report for this match (or not loaded yet): nothing to show
   return (
     <>
-      <h2>Combat stats</h2>
       <p className="muted footnote">
-        The game&apos;s own counters for this match, from a separate source than the replay stats on this page, so numbers can
-        differ. <Link to={`/combat/${data.session_id}`}>Open on its own page</Link>
+        <span className="tag">beta</span> New data we are still collecting and testing, from a separate source than the replay
+        stats on this page, so numbers can differ. Only data collected from 4 November 2026 onwards.{" "}
+        <Link to={`/combat/${data.session_id}`}>Open on its own page</Link>
       </p>
       <CombatMatchBody m={data} />
     </>

@@ -1,7 +1,7 @@
 import { type ReactNode, useState } from "react";
 import { Link, Navigate, useParams, useSearchParams } from "react-router";
 import {
-  getCompanions, getPlayer, getPlayerHeatmap3d, getPlayerHeatmapBy, getTrends,
+  getCombatPlayer, getCompanions, getPlayer, getPlayerHeatmap3d, getPlayerHeatmapBy, getTrends,
   type Companion, type CompanionWindow, type GearUse, type GearUseSet, type HeatmapLayerMode, type Period, type PlayerProfile, type PlayerStats, type TrendPoint,
 } from "../api";
 import { AchievementsSummary } from "../components/AchievementsView";
@@ -11,7 +11,7 @@ import { LineChart } from "../components/charts";
 import { GearName, MatchTable, Status, TableWrap, TeamBadge } from "../components/common";
 import { HEATMAP_CELL_M, HEATMAP_MODES, HeatmapView } from "../components/HeatmapView";
 import { PlayerAvatar, PlayerBio, usePlayerBio } from "../components/PlayerBio";
-import { InfoTip, Skeleton, WhenVisible } from "../components/ui";
+import { InfoTip, Skeleton } from "../components/ui";
 import { MAPS, dateTime, hoursMinutes, int, nameSlug, num, pct, periodLabel, playerPath, title } from "../format";
 import { useApi } from "../useApi";
 import { usePageTitle } from "../usePageTitle";
@@ -396,6 +396,17 @@ function PlayerHeatmap({ userId, period, maps }: { userId: string; period: Perio
   );
 }
 
+type PlayerTab = "overview" | "beta" | "achievements" | "gear" | "trends" | "companions" | "heatmap";
+const PLAYER_TABS: [PlayerTab, string, string][] = [
+  ["overview", "Overview", "Recent matches"],
+  ["beta", "Beta Data Collection", "Combat stats (beta)"],
+  ["achievements", "Achievements", "Medals and progress"],
+  ["gear", "Loadouts & gear use", "What they play with"],
+  ["trends", "Trends", "How they change over time"],
+  ["companions", "Played with", "Teammates and opponents"],
+  ["heatmap", "Heatmap", "Where they spend the match"],
+];
+
 export function PlayerPage() {
   const { userId = "", name: nameInUrl = "" } = useParams();
   const [params, setParams] = useSearchParams();
@@ -405,6 +416,19 @@ export function PlayerPage() {
   const p = profile.data;
   // the same answer the Trends section asks for (shared, cached): the lines under the cards
   const months = useApi(() => getTrends(userId, "month"), `${userId}|month`);
+
+  const hasGames = (p?.stats.games ?? 0) > 0;
+  // the beta tab only exists when there is combat data for this player (the same cached request the tab itself makes)
+  const combat = useApi(() => getCombatPlayer(userId, period, map || undefined), `combat|${userId}|${period}|${map}`);
+  const hasCombat = !!combat.data?.matches && !!combat.data.stats;
+  const tabs = PLAYER_TABS.filter(([t]) => (t !== "beta" || hasCombat) && (hasGames || t === "overview" || t === "achievements" || t === "beta"));
+  const tab = tabs.some(([t]) => t === params.get("tab")) ? (params.get("tab") as PlayerTab) : "overview";
+  const setTab = (t: PlayerTab) => {
+    const next = new URLSearchParams(params);
+    if (t === "overview") next.delete("tab");
+    else next.set("tab", t);
+    setParams(next, { replace: true });
+  };
 
   function set(key: string, value: string) {
     const next = new URLSearchParams(params);
@@ -445,16 +469,8 @@ export function PlayerPage() {
             </label>
           </div>
 
-          {/* "Beta Data Collection": combat stats from the recorder's match reports, its own data apart from the replay stats */}
-          {(() => {
-            const combat = <WhenVisible><CombatSection userId={p.user_id} period={period} map={map} /></WhenVisible>;
-            return p.stats.games === 0 ? (
-            <>
-              <p className="muted">No matches in this period.</p>
-              {combat}
-              {/* achievements do not follow the period filter: still shown when the period has no games */}
-              <WhenVisible><AchievementsSummary userId={p.user_id} /></WhenVisible>
-            </>
+          {p.stats.games === 0 ? (
+            <p className="muted">No matches in this period.</p>
           ) : (
             <>
               <div className="cards">
@@ -468,20 +484,53 @@ export function PlayerPage() {
                     {under}
                   </div>
                 ))}
-                {p.stats.games > 0 && (
-                  <div className="card wide">
-                    <span className="label">Games per map</span>
-                    <MapBar games={p.stats.games_by_map} />
-                  </div>
-                )}
+                <div className="card wide">
+                  <span className="label">Games per map</span>
+                  <MapBar games={p.stats.games_by_map} />
+                </div>
               </div>
               <p className="muted footnote">* Estimated.</p>
+            </>
+          )}
 
-              {combat}
+          <div className="tabs section-tabs" role="tablist" aria-label="Player views">
+            {tabs.map(([t, label, hint]) => (
+              <button key={t} role="tab" aria-selected={tab === t} className={tab === t ? "tab active" : "tab"} onClick={() => setTab(t)}>
+                <span className="tab-label">{label}</span>
+                <span className="tab-hint">{hint}</span>
+              </button>
+            ))}
+          </div>
 
-              {/* above Loadouts (user, 2026-11-02) */}
-              <WhenVisible><AchievementsSummary userId={p.user_id} /></WhenVisible>
+          {tab === "overview" && (
+            <>
+              <h2>Recent matches</h2>
+              <MatchTable
+                matches={p.recent_matches}
+                extra={(m) => {
+                  const pm = p.recent_matches.find((x) => x.id === m.id)!;
+                  return (
+                    <span className="nowrap">
+                      <TeamBadge team={pm.team} /> {pm.result && <span className={`result ${pm.result}`}>{pm.result}</span>}
+                    </span>
+                  );
+                }}
+              />
+              {p.recent_matches.length >= 20 && (
+                <p>
+                  <Link to={`/matches?player=${p.user_id}`}>All matches with {p.name}</Link>
+                </p>
+              )}
+            </>
+          )}
 
+          {tab === "beta" && <CombatSection userId={p.user_id} period={period} map={map} />}
+
+          {/* achievements do not follow the period filter */}
+          {tab === "achievements" && <AchievementsSummary userId={p.user_id} />}
+
+          {tab === "gear" && p.stats.games > 0 && (
+            <>
               <h2>Loadouts</h2>
               <TableWrap>
                 <table className="stack loadouts">
@@ -509,35 +558,13 @@ export function PlayerPage() {
                   </tbody>
                 </table>
               </TableWrap>
-
               {p.gear && <GearUseSection gear={p.gear} />}
             </>
-            );
-          })()}
+          )}
 
-          {/* further down: asked for only when scrolled near (the heatmap is the heaviest request on the site) */}
-          <WhenVisible><Trends userId={p.user_id} /></WhenVisible>
-          <WhenVisible><Companions userId={p.user_id} /></WhenVisible>
-          {p.stats.games > 0 && (
-            <WhenVisible minHeight={400}><PlayerHeatmap userId={p.user_id} period={period} maps={p.stats.games_by_map} /></WhenVisible>
-          )}
-          <h2>Recent matches</h2>
-          <MatchTable
-            matches={p.recent_matches}
-            extra={(m) => {
-              const pm = p.recent_matches.find((x) => x.id === m.id)!;
-              return (
-                <span className="nowrap">
-                  <TeamBadge team={pm.team} /> {pm.result && <span className={`result ${pm.result}`}>{pm.result}</span>}
-                </span>
-              );
-            }}
-          />
-          {p.recent_matches.length >= 20 && (
-            <p>
-              <Link to={`/matches?player=${p.user_id}`}>All matches with {p.name}</Link>
-            </p>
-          )}
+          {tab === "trends" && <Trends userId={p.user_id} />}
+          {tab === "companions" && <Companions userId={p.user_id} />}
+          {tab === "heatmap" && p.stats.games > 0 && <PlayerHeatmap userId={p.user_id} period={period} maps={p.stats.games_by_map} />}
         </>
       )}
     </section>

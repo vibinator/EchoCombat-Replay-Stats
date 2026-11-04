@@ -1,16 +1,15 @@
 import { useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router";
 import {
-  getMatch, getMatchHeatmap3d, getMatchHeatmapBy, getPlayback, getTimeline,
+  getCombatMatch, getMatch, getMatchHeatmap3d, getMatchHeatmapBy, getPlayback, getTimeline,
   type GearUse, type HeatmapLayerMode, type MatchDetail, type MatchPlayer, type Team,
 } from "../api";
-import { SplitBar } from "../components/bars";
 import { MatchCombatSection } from "../components/CombatView";
 import { GearName, LoadoutText, Status, TableWrap } from "../components/common";
 import { HEATMAP_CELL_M, HEATMAP_MODES, HeatmapView } from "../components/HeatmapView";
 import { PlaybackCompare, PlaybackView } from "../components/PlaybackView";
 import { TimelineView } from "../components/TimelineView";
-import { FitText, InfoTip, STAT_HELP, Skeleton, WhenVisible } from "../components/ui";
+import { FitText, InfoTip, STAT_HELP, Skeleton } from "../components/ui";
 import { dateTime, duration, int, modeLabel, num, pct, playerPath, teamLabel, title } from "../format";
 import { useApi } from "../useApi";
 import { usePageTitle } from "../usePageTitle";
@@ -68,43 +67,6 @@ function Scoreboard({ m }: { m: MatchDetail }) {
         )}
       </div>
       <TeamColumn team="orange" m={m} />
-    </div>
-  );
-}
-
-/** Blue vs orange, one split bar per stat: why the match went the way it did. Averages are over the team's players
- * with a value; totals are summed. */
-function TeamComparison({ m }: { m: MatchDetail }) {
-  const blue = m.teams.blue ?? [];
-  const orange = m.teams.orange ?? [];
-  if (blue.length === 0 || orange.length === 0) return null;
-  const sum = (ps: MatchPlayer[], f: (p: MatchPlayer) => number) => ps.reduce((t, p) => t + f(p), 0);
-  const mean = (ps: MatchPlayer[], f: (p: MatchPlayer) => number | null) => {
-    const vs = ps.map(f).filter((v): v is number => v != null);
-    return vs.length ? vs.reduce((a, b) => a + b, 0) / vs.length : null;
-  };
-  const rows: { label: string; hint: string; b: number | null; o: number | null; show: (v: number) => string }[] = [
-    { label: "Deaths*", hint: "Estimated, team total", b: sum(blue, (p) => p.deaths_est), o: sum(orange, (p) => p.deaths_est), show: (v) => int(v) },
-    { label: "Average speed", hint: "Average of the team's players", b: mean(blue, (p) => p.avg_speed), o: mean(orange, (p) => p.avg_speed), show: (v) => `${num(v)} m/s` },
-    { label: "Near an enemy", hint: "Average of the team's players", b: mean(blue, (p) => p.pct_near_enemy), o: mean(orange, (p) => p.pct_near_enemy), show: (v) => pct(v) },
-    { label: "Time idle", hint: "Average of the team's players", b: mean(blue, (p) => p.pct_stopped), o: mean(orange, (p) => p.pct_stopped), show: (v) => pct(v) },
-  ];
-  if (m.mode === "payload") {
-    rows.push({ label: "Time on the payload*", hint: "Pushing or blocking, team total", b: sum(blue, (p) => p.payload_push_s + p.payload_block_s),
-      o: sum(orange, (p) => p.payload_push_s + p.payload_block_s), show: (v) => duration(v) });
-  }
-  return (
-    <div className="panel team-compare">
-      <h2>Blue vs orange</h2>
-      {rows.filter((r) => r.b != null && r.o != null && r.b + r.o > 0).map((r) => (
-        <div key={r.label} className="team-compare-row" title={r.hint}>
-          <span className="label">{r.label}</span>
-          <SplitBar percentages={false} parts={[
-            { label: "Blue", value: r.b!, color: "var(--blue)", detail: r.show(r.b!) },
-            { label: "Orange", value: r.o!, color: "var(--orange)", detail: r.show(r.o!) },
-          ]} />
-        </div>
-      ))}
     </div>
   );
 }
@@ -219,12 +181,14 @@ function GearList({ items }: { items: GearUse[] }) {
 }
 
 /** Every player's weapons, ordnance and tac mods in this match (replays have no shot counts, only what is held). */
+const hasGearData = (m: MatchDetail) =>
+  [...(m.teams.blue ?? []), ...(m.teams.orange ?? [])].some((p) => p.gear && (p.gear.weapons.length || p.gear.ordnances.length || p.gear.tacmods.length));
+
 function GearUseTable({ m }: { m: MatchDetail }) {
   const players = [...(m.teams.blue ?? []), ...(m.teams.orange ?? [])];
-  if (!players.some((p) => p.gear && (p.gear.weapons.length || p.gear.ordnances.length || p.gear.tacmods.length))) return null;
+  if (!hasGearData(m)) return null;
   return (
     <>
-      <h2>Gear use</h2>
       <TableWrap>
         <table className="stack">
           <thead>
@@ -250,9 +214,11 @@ function GearUseTable({ m }: { m: MatchDetail }) {
   );
 }
 
-type Tab = "players" | "timeline" | "heatmap" | "playback";
+type Tab = "players" | "combat" | "gear" | "timeline" | "heatmap" | "playback";
 const TABS: [Tab, string][] = [
   ["players", "Stats per player"],
+  ["combat", "Kills, damage, weapons (beta)"],
+  ["gear", "Weapons, ordnance, tac mods"],
   ["timeline", "Score and events over time"],
   ["heatmap", "Where everyone went"],
   ["playback", "Watch the positions move"],
@@ -347,6 +313,11 @@ export function MatchPage() {
   const [params, setParams] = useSearchParams();
   const tab = (params.get("tab") as Tab) || "players";
   const setTab = (t: Tab) => setParams(t === "players" ? {} : { tab: t }, { replace: true });
+  // the Combat tab only exists for matches the recorder sent a report for (same cached request as the tab's own content)
+  const sessionId = m?.session_id;
+  const combat = useApi(() => (sessionId ? getCombatMatch(sessionId) : Promise.resolve(null)), `combat-match|${sessionId ?? ""}`);
+  const hasCombat = !!combat.data;
+  const tabs = TABS.filter(([t]) => (t !== "combat" || hasCombat) && (t !== "gear" || (!!m && hasGearData(m))));
 
   return (
     <section>
@@ -399,10 +370,9 @@ export function MatchPage() {
 
           <Scoreboard m={m} />
           <Highlights m={m} />
-          <TeamComparison m={m} />
 
           <div className="tabs section-tabs" role="tablist" aria-label="Match views">
-            {TABS.map(([t, hint]) => (
+            {tabs.map(([t, hint]) => (
               <button key={t} role="tab" aria-selected={tab === t} className={tab === t ? "tab active" : "tab"} onClick={() => setTab(t)}>
                 <span className="tab-label">{title(t)}</span>
                 <span className="tab-hint">{hint}</span>
@@ -417,10 +387,10 @@ export function MatchPage() {
               <p className="muted footnote">
                 * Estimated. Percentages count time inside the map bounds only. Hover ⓘ for what each column means.
               </p>
-              <WhenVisible><MatchCombatSection sessionId={m.session_id} /></WhenVisible>
-              <GearUseTable m={m} />
             </>
           )}
+          {tab === "combat" && hasCombat && <div className="tab-narrow"><MatchCombatSection sessionId={m.session_id} /></div>}
+          {tab === "gear" && <div className="tab-narrow"><GearUseTable m={m} /></div>}
           {tab === "timeline" && <TimelineTab id={m.id} />}
           {tab === "heatmap" && <HeatmapTab m={m} />}
           {tab === "playback" && <PlaybackTab id={m.id} />}
