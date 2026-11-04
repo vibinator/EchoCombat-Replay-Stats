@@ -1,9 +1,9 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Link, Navigate, useLocation, useParams, useSearchParams } from "react-router";
 import { getAchievements, getAchievers, getRarity, getRecentUnlocks, searchPlayers } from "../api";
 import { AchievementRules, AchievementsView, ChallengeBanner, ComingSoon, GroupedBadges, JumpToNew, MegaPrizesSection, useAchievementsAccess } from "../components/AchievementsView";
 import { Status } from "../components/common";
-import { achievementsPath, int, nameSlug, pct, playerPath, ruleText } from "../format";
+import { achievementsPath, int, medalRuleText, nameSlug, pct, playerPath } from "../format";
 import { useApi } from "../useApi";
 import { usePageTitle } from "../usePageTitle";
 
@@ -41,8 +41,22 @@ function PlayerPicker() {
   );
 }
 
+/** The ranking behind "Top players" and "Recent medals" is calculated for everyone, which takes minutes after the server
+ *  starts (it answers empty or late meanwhile). Ask again every 10 seconds, up to 5 minutes, until there is something. */
+function useRanking<T extends unknown[]>(load: () => Promise<T>, key: string) {
+  const [round, setRound] = useState(0);
+  const result = useApi(load, `${key}|${round}`);
+  const waiting = !result.loading && (result.error !== null || !result.data || result.data.length === 0);
+  useEffect(() => {
+    if (!waiting || round >= 30) return;
+    const t = setTimeout(() => setRound(round + 1), 10_000);
+    return () => clearTimeout(t);
+  }, [waiting, round]);
+  return result;
+}
+
 function TopPlayers() {
-  const top = useApi(() => getAchievers(10), "top");
+  const top = useRanking(() => getAchievers(10), "top");
   if (!top.data || top.data.length === 0) return null;
   return (
     <>
@@ -70,7 +84,7 @@ function TopPlayers() {
 }
 
 function RecentUnlocks() {
-  const recent = useApi(getRecentUnlocks, "recent");
+  const recent = useRanking(getRecentUnlocks, "recent");
   if (!recent.data || recent.data.length === 0) return null;
   return (
     <>
@@ -83,7 +97,7 @@ function RecentUnlocks() {
               <Link to={achievementsPath(e.user_id, e.name)}>{e.name}</Link> earned{" "}
               <span className={`medal-chip ${e.medal ?? "gold"}`}>{e.medal ?? "completed"}</span> in <strong>{e.achievement}</strong>
             </span>
-            <span className="desc">{ruleText(e.description)}</span>
+            <span className="desc">{medalRuleText(e.description, e.medal)}</span>
             <span className="muted">{e.at.slice(0, 10)} {e.at.slice(11, 16)}</span>
           </li>
         ))}

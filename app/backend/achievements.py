@@ -471,7 +471,7 @@ def _build_rules() -> list[Rule]:
 
     # Weekly (30-54): the most in one calendar week (Monday start)
     names = {
-        "assault": "Set Phasers to Kill!", "blaster": "Eat My Nova!", "scout": "Silicon Assassin", "rocket": "I Came to Drop Bombs",
+        "assault": "Pulse Check", "blaster": "Eat My Nova!", "scout": "Silicon Assassin", "rocket": "I Came to Drop Bombs",
         "det": "Throws Better Than an Arena Disc", "stun": "Don't Taze Me Bro Bot", "arc": "Electroshock Therapy", "burst": "Fully Juiced",
         "heal": "Built to Last", "sensor": "X-Ray Vision Implant Upgrade", "shield": "Check Out My Cool Screensaver", "wraith": "Ghost in the Shell",
     }

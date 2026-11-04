@@ -61,7 +61,7 @@ def test_phasers_switching_weapons_keeps_progress():
     for d in days:
         games += [game(d, loadout=("assault", "heal", "det")), game(d, loadout=("blaster", "heal", "det"))]
     r = by_id(evaluate(games))
-    assert r[30]["count"] == 5 and r[31]["count"] == 5  # Set Phasers to Kill! and Eat My Nova!
+    assert r[30]["count"] == 5 and r[31]["count"] == 5  # Pulse Check and Eat My Nova!
     assert "in any 7 days" in r[30]["description"]
 
 

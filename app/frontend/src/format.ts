@@ -99,3 +99,15 @@ export function scoreText(m: MatchSummary): string {
 export function ruleText(description: string): string {
   return description.replace(/\s*\([^()]*bronze[^()]*platinum[^()]*\)\s*$/, "");
 }
+
+/** The rule as it applies to one medal: "Play games using only Pulsar in any 7 days" + bronze -> "Play 6 games using only
+ *  Pulsar in any 7 days". Rules that do not read "Play ... games ..." (or have a unit like %) get the target appended. */
+export function medalRuleText(description: string, medal: string | null): string {
+  const base = ruleText(description);
+  if (!medal) return base;
+  const m = description.match(new RegExp(`\\((?:[^()]*, )?([\\d.]+)([^,()]*?) ${medal}\\b[^()]*\\)\\s*$`));
+  if (!m) return base;
+  const [, n, unit] = m;
+  if (!unit.trim() && /^Play (?:[A-Z][\w ]*? )?games\b/.test(base)) return base.replace(/^Play /, `Play ${n} `);
+  return `${base} (${n}${unit} for ${medal})`;
+}
