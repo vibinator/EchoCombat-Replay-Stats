@@ -1742,6 +1742,36 @@ td.best {
 .note.ended {
   border-left-color: var(--muted);
 }
+/* The set period in which matches are recorded for achievements and Mega Prizes */
+.rec-window {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  padding: 10px 14px;
+  margin: 8px 0;
+  border: 2px solid var(--blue);
+  border-radius: 8px;
+  background: var(--panel);
+}
+.rec-window .rec-dates {
+  font-size: 1.15em;
+  font-weight: 700;
+}
+.rec-window .rec-state {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.8em;
+  font-weight: 700;
+  text-transform: uppercase;
+  border: 1px solid var(--blue);
+}
+.rec-window.ended {
+  border-color: var(--muted);
+}
+.rec-window.ended .rec-state {
+  border-color: var(--muted);
+}
 .admin-signin {
   display: flex;
   flex-direction: column;

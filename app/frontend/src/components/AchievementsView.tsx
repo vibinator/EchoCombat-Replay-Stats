@@ -258,6 +258,7 @@ function MegaPrizes() {
       <h2>
         Mega Prizes <span className="tag">draft</span>
       </h2>
+      <RecordingWindow what="Mega Prizes" />
       <div className="mega-search">
         <input type="search" placeholder="Search a player for their Mega Prize progress" aria-label="Search a player" value={q} onChange={(e) => setQ(e.target.value)} />
         {error && <p className="error">{error}</p>}
@@ -766,11 +767,24 @@ export function ChallengeBanner() {
       </p>
     );
   if (!d.launched) return null;
+  return <RecordingWindow what="achievements" />;
+}
+
+/** A clear box with the set period in which matches are recorded; used for achievements and for Mega Prizes. */
+export function RecordingWindow({ what }: { what: "achievements" | "Mega Prizes" }) {
+  const d = useApi(getChallenges, "challenge").data;
+  if (!d || !d.start) return null;
   return (
-    <p className={`note${d.active ? "" : " ended"}`}>
-      Flamingo Challenge period: <strong>{d.start}</strong> to <strong>{d.end ?? "open-ended"}</strong>
-      {d.active ? "" : " (not running now)"} — only matches inside it count for achievements; the player stats pages count every match.
-    </p>
+    <div className={`rec-window${d.active ? "" : " ended"}`} role="note">
+      <span className="rec-state">{d.active ? "Recording now" : "Not recording"}</span>
+      <span className="rec-dates">
+        {d.start} → {d.end ?? "open-ended"}
+      </span>
+      <span className="muted">
+        Only matches played inside this period count for {what}
+        {what === "achievements" ? "; the player stats pages count every match" : ""}.
+      </span>
+    </div>
   );
 }
 
