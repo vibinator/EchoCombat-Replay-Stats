@@ -18,6 +18,14 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.04.7 — 13:04
+
+### Mega Prizes: finishers only, no spectators
+- **Arena card:** the list under Play 750 Public Arena Matches shows only players who reached 750, not the top 5 by progress. Searching a player still shows their bar.
+- **Spectators and moderators:** they are not counted, and anyone seen as a spectator or moderator in a public match loses their stored Arena count (the match list's `team` field). Records are cleared the next time they appear in the list.
+- **Do:** restart the backend.
+
+
 ## 2026.11.04.6 — 12:54
 ### Mega Prize pictures show again
 - **Fixed:** the Delta Squad BioMass Chassis and Jack pictures on the Mega Prizes tab appeared as broken images. The pictures are loaded with the site header and shown from memory (`blob:`), which the browser protection (Content-Security-Policy `img-src`) did not allow. It now does; nothing external was opened up.

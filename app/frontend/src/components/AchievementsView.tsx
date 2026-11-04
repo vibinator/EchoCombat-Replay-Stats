@@ -289,7 +289,7 @@ function MegaPrizes() {
             ) : (
               arena.players.length > 0 && (
                 <ul className="mega-results">
-                  {arena.players.slice(0, 5).map((p) => (
+                  {arena.players.filter((p) => p.completed).slice(0, 5).map((p) => (
                     <PlayerBar key={p.user_id} r={p} target={arena.target} />
                   ))}
                 </ul>

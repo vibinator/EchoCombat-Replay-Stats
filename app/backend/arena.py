@@ -25,6 +25,7 @@ MAX_BACKOFF_S = 300.0
 KEEP_COUNTED_S = 2 * 86400
 PRUNE_EVERY_S = 3600
 WINDOW_CHECK_S = 300  # the challenge period is looked up at most this often
+NON_PLAYER_TEAMS = {"spectator", "moderator"}  # on the match list's "team" field: watching, not playing, so never counted (user, 2026-11-04)
 log = logging.getLogger("uvicorn.error")
 
 
@@ -92,11 +93,19 @@ class Tracker:
                 self._counted = {(m, u) for m, u in db.execute(select(ArenaCounted.match_id, ArenaCounted.user_id))}
             self._loaded = True
         present: dict[tuple[str, str], dict] = {}
+        barred: set[str] = set()
         for label in data.get("labels") or []:
             if is_public_arena(label):
                 for p in label.get("players") or []:
-                    if p.get("user_id") and label.get("id"):
+                    if not (p.get("user_id") and label.get("id")):
+                        continue
+                    if p.get("team") in NON_PLAYER_TEAMS:
+                        barred.add(str(p["user_id"]))
+                    else:
                         present[(str(label["id"]), str(p["user_id"]))] = p
+        if barred:
+            self._purge(barred)
+            present = {k: v for k, v in present.items() if k[1] not in barred}
         new: list[tuple[tuple[str, str], dict]] = []
         for key, p in present.items():
             if key in self._seen:
@@ -114,6 +123,17 @@ class Tracker:
         if new or prune:
             self._save(new, now, prune)
         return len(new)
+
+    def _purge(self, user_ids: set[str]) -> None:
+        """Spectators and moderators keep no record (user, 2026-11-04): whoever is seen as one loses their counted matches."""
+        with self.sessionmaker() as db:
+            hit = db.scalars(select(ArenaPlayer.user_id).where(ArenaPlayer.user_id.in_(user_ids))).all()
+            if hit:
+                db.execute(delete(ArenaCounted).where(ArenaCounted.user_id.in_(hit)))
+                db.execute(delete(ArenaPlayer).where(ArenaPlayer.user_id.in_(hit)))
+                db.commit()
+        self._counted = {k for k in self._counted if k[1] not in user_ids}
+        self._seen = {k: v for k, v in self._seen.items() if k[1] not in user_ids}
 
     def _save(self, new, now: float, prune: bool) -> None:
         stamp = datetime.fromtimestamp(now).isoformat(timespec="seconds")

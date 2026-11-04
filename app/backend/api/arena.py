@@ -38,7 +38,8 @@ def image(request: Request, name: str):
 def progress(request: Request, limit: int = Query(10, ge=1, le=100)):
     _require_preview(request)
     with request.app.state.sessionmaker() as db:
-        rows = db.scalars(select(ArenaPlayer).order_by(ArenaPlayer.matches.desc()).limit(limit)).all()
+        rows = db.scalars(select(ArenaPlayer).where(ArenaPlayer.matches >= TARGET)
+                         .order_by(ArenaPlayer.matches.desc()).limit(limit)).all()  # only those who reached it (user, 2026-11-04)
     r = MEGA_COMBAT  # kept out of RULES, so no public list or ranking has it
     combat = [{"id": r.id, "name": r.name, "description": r.description, "period": r.period, "icon": icon_file(r), "estimated": False,
                "new": r.new, "group": r.group, "levels": list(r.levels), "unit": r.unit, "prize": r.prize}]

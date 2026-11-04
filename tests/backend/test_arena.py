@@ -42,6 +42,21 @@ def test_counts_after_three_minutes_once(tmp_path):
         assert {p.user_id: p.matches for p in db.scalars(select(ArenaPlayer))} == {"a": 1, "b": 1}
 
 
+def test_spectators_and_moderators_are_not_counted_and_lose_their_record(tmp_path):
+    steps = int(MIN_PRESENT_S // 60) + 1
+    watching = label("m2", ["s", "m"])
+    watching["players"][0]["team"], watching["players"][1]["team"] = "spectator", "moderator"
+    t, sm = tracker(tmp_path, [[label("m1", ["a", "s", "m"])]] * steps + [[watching]] * steps)
+    for i in range(steps):
+        t.poll(now=1000.0 + 60 * i)
+    with sm() as db:
+        assert {p.user_id for p in db.scalars(select(ArenaPlayer))} == {"a", "s", "m"}  # counted while playing
+    for i in range(steps, 2 * steps):
+        t.poll(now=1000.0 + 60 * i)
+    with sm() as db:
+        assert {p.user_id for p in db.scalars(select(ArenaPlayer))} == {"a"}  # seen as spectator/moderator: record gone
+
+
 def test_short_stays_and_other_modes_do_not_count(tmp_path):
     t, sm = tracker(tmp_path, [[label("m1", ["a"])], [label("m1", ["a"])], [], [label("m2", ["a"], lobby="private")]])
     assert [t.poll(now=1000.0 + 60 * i) for i in range(4)] == [0, 0, 0, 0]
