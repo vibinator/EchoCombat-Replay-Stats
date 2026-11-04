@@ -291,6 +291,7 @@ function MegaPrizes() {
             <strong>Play {arena.target} Public Arena Matches</strong>
             <span className="tag mega-prize">Mega Prize: OG High Quality Jack Model</span>
             <span className="muted">Only counts public matches of 4+ minutes.</span>
+            <span className="muted">Arena history only starts on 2026-11-04, so totals are lower than Combat.</span>
             <span className="muted">{winnersText(arena.winners_arena)}</span>
             {searching ? (
               byKind("arena").length > 0 ? (
