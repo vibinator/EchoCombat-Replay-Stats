@@ -3542,9 +3542,6 @@ button.small {
 .section.mega > h2 {
   margin-top: 0.5rem; /* sits right under the page's "Achievements" title */
 }
-.mega-cards {
-  align-items: start;
-}
 .mega-search input {
   width: 100%;
   max-width: 28rem;
@@ -3584,7 +3581,7 @@ button.small {
   grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
   gap: 1rem;
   margin-top: 0.75rem;
-  max-width: 56rem;
+  align-items: stretch; /* both prize cards the same height */
 }
 .mega-card {
   display: flex;
@@ -3594,11 +3591,16 @@ button.small {
   background: var(--panel, rgba(255, 255, 255, 0.04));
 }
 .mega-card img {
-  width: 100%;
-  height: 9rem;
+  width: min(100%, 20rem); /* smaller, and centred in the card */
+  margin: 0.75rem auto 0;
+  border-radius: 6px;
+  aspect-ratio: 16 / 9; /* the pictures are 1.5-1.8:1, so little is cut off at any card width */
   object-fit: cover;
+  object-position: center 25%; /* keep heads in frame */
+  display: block;
 }
 .mega-body {
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -3688,8 +3690,10 @@ button.small {
 }
 
 .mega-img-placeholder {
-  width: 100%;
-  height: 9rem;
+  width: min(100%, 20rem);
+  margin: 0.75rem auto 0;
+  border-radius: 6px;
+  aspect-ratio: 16 / 9;
   background: var(--panel-2, rgba(255, 255, 255, 0.06));
 }
 
