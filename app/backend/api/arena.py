@@ -1,10 +1,13 @@
 """Mega Prizes tab data (Preview role only; Arena counting is separate from Combat, see arena.py)."""
 
+from pathlib import Path
+
 from fastapi import APIRouter, Query, Request
+from fastapi.responses import FileResponse
 from sqlalchemy import func, select
 
 from .. import auth
-from ..achievements import RULES, icon_file, in_window
+from ..achievements import MEGA_COMBAT, icon_file, in_window
 from ..admin_actions import challenge_window
 from ..errors import ApiError
 from ..models import ArenaPlayer, Player
@@ -13,11 +16,22 @@ from .achievements import _games
 router = APIRouter(prefix="/api/arena", tags=["arena"])
 TARGET = 750  # Mega Prize: OG High Quality Jack Model
 SEARCH_LIMIT = 10
+IMAGES = {"jack.jpg": "image/jpeg", "biomass.jpg": "image/jpeg"}  # exact names only: nothing from the visitor reaches a path
+IMAGE_DIR = Path(__file__).resolve().parent.parent / "private_assets"
 
 
 def _require_preview(request: Request) -> None:
     if not auth.has_preview(request):
-        raise ApiError(403, "no_access", "Mega Prizes are only for the Preview role")
+        raise ApiError(403, "no_access", "You do not have access")
+
+
+@router.get("/image/{name}")
+def image(request: Request, name: str):
+    """The prize pictures. Not in the public folder: only the Preview role can load them."""
+    _require_preview(request)
+    if name not in IMAGES:
+        raise ApiError(404, "not_found", "Not found")
+    return FileResponse(IMAGE_DIR / name, media_type=IMAGES[name])
 
 
 @router.get("/progress")
@@ -25,9 +39,9 @@ def progress(request: Request, limit: int = Query(10, ge=1, le=100)):
     _require_preview(request)
     with request.app.state.sessionmaker() as db:
         rows = db.scalars(select(ArenaPlayer).order_by(ArenaPlayer.matches.desc()).limit(limit)).all()
+    r = MEGA_COMBAT  # kept out of RULES, so no public list or ranking has it
     combat = [{"id": r.id, "name": r.name, "description": r.description, "period": r.period, "icon": icon_file(r), "estimated": False,
-               "new": r.new, "group": r.group, "levels": list(r.levels), "unit": r.unit, "prize": r.prize}
-              for r in RULES if r.prize]  # the Combat Mega Prize challenges (kept out of the public lists)
+               "new": r.new, "group": r.group, "levels": list(r.levels), "unit": r.unit, "prize": r.prize}]
     return {"target": TARGET, "min_minutes": 4, "combat": combat,
             "players": [{"user_id": r.user_id, "name": r.display_name or r.username, "matches": r.matches,
                          "completed": r.matches >= TARGET} for r in rows]}

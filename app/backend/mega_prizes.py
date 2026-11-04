@@ -8,7 +8,7 @@ from io import StringIO
 
 from sqlalchemy import select
 
-from .achievements import RULES, in_window
+from .achievements import MEGA_COMBAT, in_window
 from .admin_actions import challenge_window
 from .api.achievements import _games
 from .api.arena import TARGET as ARENA_TARGET
@@ -19,7 +19,7 @@ ARENA_PRIZE = "OG High Quality Jack Model"
 
 def report(db) -> dict:
     start, end = challenge_window(db)
-    combat_rule = next(r for r in RULES if r.prize)
+    combat_rule = MEGA_COMBAT
     target = int(combat_rule.levels[-1])
     combat: list[dict] = []
     arena: list[dict] = []
@@ -38,6 +38,13 @@ def report(db) -> dict:
                        {"prize": ARENA_PRIZE, "challenge": "Play 750 Public Arena Matches", "target": ARENA_TARGET, "winners": arena}]}
 
 
+def _cell(value) -> str:
+    """Spreadsheet formula injection: a name starting with = + - @ (or a tab / CR) would run as a formula when the CSV is
+    opened in Excel or Sheets, so such a cell gets a leading apostrophe."""
+    text = "" if value is None else str(value)
+    return "'" + text if text[:1] in ("=", "+", "-", "@", "\t", "\r") else text
+
+
 def csv_bytes(data: dict) -> bytes:
     """One row per winner; UTF-8 with BOM so Excel shows names correctly."""
     out = StringIO()
@@ -45,6 +52,6 @@ def csv_bytes(data: dict) -> bytes:
     writer.writerow(["Prize", "Challenge", "Name", "Player id", "Discord id", "Matches", "Period start", "Period end"])
     for p in data["prizes"]:
         for w in p["winners"]:
-            writer.writerow([p["prize"], p["challenge"], w["name"], w["user_id"], w["discord_id"] or "", w["count"],
-                             data["period"]["start"] or "", data["period"]["end"] or ""])
+            writer.writerow([_cell(x) for x in (p["prize"], p["challenge"], w["name"], w["user_id"], w["discord_id"] or "", w["count"],
+                                                data["period"]["start"] or "", data["period"]["end"] or "")])
     return out.getvalue().encode("utf-8-sig")

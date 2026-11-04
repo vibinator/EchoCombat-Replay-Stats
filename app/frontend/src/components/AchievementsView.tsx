@@ -166,13 +166,13 @@ export function MegaPrizes() {
       <div className="badges scroll-row" tabIndex={0} aria-label="Mega Prizes, scroll sideways">
         {items.map((a) => (
           <div key={a.id}>
-            <img src="/mega-prizes/biomass.png" alt="Delta Squad BioMass Chassis (draft)" style={{ width: 160, borderRadius: 6 }} />
+            <img src="/api/arena/image/biomass.jpg" alt="Delta Squad BioMass Chassis (draft)" style={{ width: 160, borderRadius: 6 }} />
             <Badge a={a} />
             <PrizeBar value={0} label={`Target: ${a.levels?.[a.levels.length - 1] ?? 750} matches. Search a player above to see their progress.`} />
           </div>
         ))}
         <div>
-          <img src="/mega-prizes/jack.jpg" alt="Jack, Lone Echo" style={{ width: 160, borderRadius: 6 }} />
+          <img src="/api/arena/image/jack.jpg" alt="Jack, Lone Echo" style={{ width: 160, borderRadius: 6 }} />
           <div className="badge-card">
           <div className="badge-text">
             <strong>Play 750 Public Arena Matches</strong>
