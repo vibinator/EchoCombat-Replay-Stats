@@ -10,6 +10,8 @@ import { usePageTitle } from "./usePageTitle";
 
 // Pages other than home load on first visit: the first page view downloads less.
 const AchievementsPage = lazy(() => import("./pages/AchievementsPage").then((m) => ({ default: m.AchievementsPage })));
+const CombatPage = lazy(() => import("./pages/CombatPage").then((m) => ({ default: m.CombatPage })));
+const CombatMatchPage = lazy(() => import("./pages/CombatPage").then((m) => ({ default: m.CombatMatchPage })));
 const ComparePage = lazy(() => import("./pages/ComparePage").then((m) => ({ default: m.ComparePage })));
 const ConsolePage = lazy(() => import("./pages/ConsolePage").then((m) => ({ default: m.ConsolePage })));
 const LeaderboardPage = lazy(() => import("./pages/LeaderboardPage").then((m) => ({ default: m.LeaderboardPage })));
@@ -96,6 +98,7 @@ const NAV = [
   ["/matches", "Matches"],
   ["/players", "Players"],
   ["/leaderboard", "Leaderboard"],
+  ["/combat", "Combat"],
   ["/achievements", "Achievements"],
   ["/compare", "Compare"],
 ] as const;
@@ -178,6 +181,8 @@ function Layout() {
           <Route path="/players/:name/:userId" element={<PlayerPage />} />
           <Route path="/compare" element={<ComparePage />} />
           <Route path="/leaderboard" element={<LeaderboardPage />} />
+          <Route path="/combat" element={<CombatPage />} />
+          <Route path="/combat/:id" element={<CombatMatchPage />} />
           <Route path="/achievements" element={<AchievementsPage />} />
           <Route path="/achievements/:userId" element={<AchievementsPage />} />
           <Route path="/achievements/:name/:userId" element={<AchievementsPage />} />

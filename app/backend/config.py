@@ -27,6 +27,10 @@ class Settings:
     # /api/import and /api/replays: off on the website, import progress is only in the admin console (user,
     # 2026-10-30); tests turn it on to inspect replays
     import_api: bool = False
+    # Recorder folder with the combat match reports (matches/*.json), read-only like the replay share; None = the folder
+    # above the replay share (Z:\ECRanked). combat.py reads them the same way the scanner/worker read replays
+    combat_source_dir: Path | None = None
+    combat_scan_s: float = 60.0  # between looks at the match report folder (one stat of the folder); 0 = combat stats off
     # Discord login (D41): on only when the secret, bot token and preview role(s) are all set
     public_url: str = "http://127.0.0.1:8000"  # Discord sends people back to <public_url>/api/auth/callback
     discord_client_id: str = DISCORD_CLIENT_ID
@@ -60,6 +64,8 @@ class Settings:
             data_dir=Path(env("ECHOVR_DATA_DIR", PROJECT_ROOT / "data")),
             source_dir=Path(env("ECHOVR_REPLAY_SOURCE", DEFAULT_SOURCE)),
             workers=int(env("ECHOVR_WORKERS", 8)),
+            combat_source_dir=Path(env("ECHOVR_COMBAT_SOURCE")) if env("ECHOVR_COMBAT_SOURCE") else None,
+            combat_scan_s=float(env("ECHOVR_COMBAT_SCAN_S", 60)),
             scan_interval_s=float(env("ECHOVR_SCAN_INTERVAL_S", 300)),
             arena_poll_s=float(env("ECHOVR_ARENA_POLL_S", 60)),
             quick_check_s=float(env("ECHOVR_QUICK_CHECK_S", 15)),
@@ -87,3 +93,7 @@ class Settings:
     @property
     def db_path(self) -> Path:
         return self.data_dir / "database" / "echovr-stats.db"
+
+    @property
+    def combat_dir(self) -> Path:
+        return self.combat_source_dir or self.source_dir.parent

@@ -256,3 +256,69 @@ class ArenaCounted(Base):
     match_id: Mapped[str] = mapped_column(primary_key=True)
     user_id: Mapped[str] = mapped_column(primary_key=True)
     counted_at: Mapped[float] = mapped_column(index=True)  # epoch s
+
+
+class CombatFile(Base):
+    """One match report (`matches/<MatchID>.json`) in the recorder's data folder: the combat-stats twin of `Replay`.
+    Completely separate from the replay data (user, 2026-11-04): own tables, own reader (combat.py), own endpoints."""
+
+    __tablename__ = "combat_files"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    source_path: Mapped[str] = mapped_column(unique=True)  # relative to the recorder folder, e.g. "matches/ABC.json"
+    size_bytes: Mapped[int]
+    source_mtime: Mapped[float]
+    status: Mapped[str]  # done / failed
+    error_message: Mapped[str | None]
+    parser_version: Mapped[str | None]
+    processed_at: Mapped[str | None]
+
+
+class CombatMatch(Base):
+    __tablename__ = "combat_matches"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    file_id: Mapped[int] = mapped_column(ForeignKey("combat_files.id", ondelete="CASCADE"), unique=True)
+    session_id: Mapped[str] = mapped_column(unique=True)  # upper-case match id
+    map: Mapped[str] = mapped_column(index=True)  # combustion / dyson / fission / surge (or the raw level name)
+    started_at: Mapped[str] = mapped_column(index=True)  # recorder-local time, no zone (same clock as replay matches)
+    ended_at: Mapped[str]
+    duration_s: Mapped[float]
+    has_events: Mapped[bool]  # the event log (shots, weapons...) was available for this match
+    events_complete: Mapped[bool | None]  # False = event counts of this match are too low
+    teams: Mapped[str | None]  # JSON {"blue": {...stats}, "orange": {...}}
+
+
+class CombatPlayer(Base):
+    """One player in one match, keyed by the account id as TEXT (64-bit). `damage_taken` is not stored: spectator
+    captures always have 0 there (not available)."""
+
+    __tablename__ = "combat_players"
+    __table_args__ = (Index("ix_combat_players_user_match", "user_id", "match_id"),)
+
+    match_id: Mapped[int] = mapped_column(ForeignKey("combat_matches.id", ondelete="CASCADE"), primary_key=True)
+    user_id: Mapped[str] = mapped_column(primary_key=True)
+    name: Mapped[str]
+    team: Mapped[str | None]
+    present_s: Mapped[float]
+    kills: Mapped[int]
+    assists: Mapped[int]
+    deaths: Mapped[int]
+    eliminations: Mapped[int]
+    damage: Mapped[float]
+    objective_eliminations: Mapped[int]
+    objective_damage: Mapped[float]
+    objective_time: Mapped[float]
+    hill_captures: Mapped[int]
+    hill_defends: Mapped[int]
+    loadouts: Mapped[str | None]  # JSON {"weapons": [...], "tacmods": [...], "ordnance": [...]}
+    # event-log numbers: NULL = no event log for this match (unknown, not zero)
+    shots: Mapped[int | None]
+    tacmod_activations: Mapped[int | None]
+    heal_bubbles: Mapped[int | None]
+    stuns_given: Mapped[int | None]
+    stuns_received: Mapped[int | None]
+    self_kills: Mapped[int | None]
+    shots_by_weapon: Mapped[str | None]  # JSON {weapon: count}
+    kills_by_weapon: Mapped[str | None]
+    deaths_by_weapon: Mapped[str | None]

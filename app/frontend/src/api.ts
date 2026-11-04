@@ -1175,3 +1175,156 @@ export interface MegaPrizeSearch {
   results: { kind: "combat" | "arena"; name: string; user_id: string; matches: number }[];
 }
 export const searchMegaPrizes = (q: string) => send<MegaPrizeSearch>(`/api/arena/search?q=${encodeURIComponent(q)}`);
+
+// ---- Combat stats (the recorder's match reports; separate from the replay-derived stats above) -----------------------
+export interface CombatWeapon {
+  code: string;
+  name: string;
+  count: number;
+}
+
+export interface CombatTotals {
+  matches: number;
+  present_s: number;
+  kills: number;
+  assists: number;
+  deaths: number;
+  eliminations: number;
+  damage: number;
+  objective_eliminations: number;
+  objective_damage: number;
+  objective_time: number;
+  hill_captures: number;
+  hill_defends: number;
+  kd: number | null;
+  kills_per_min: number | null;
+  damage_per_min: number | null;
+}
+
+export interface CombatEvents {
+  matches: number;
+  events_incomplete: number;
+  shots: number;
+  tacmod_activations: number;
+  heal_bubbles: number;
+  stuns_given: number;
+  stuns_received: number;
+  self_kills: number;
+  shots_by_weapon: CombatWeapon[];
+  kills_by_weapon: CombatWeapon[];
+  deaths_by_weapon: CombatWeapon[];
+}
+
+export interface CombatRecent {
+  session_id: string;
+  map: string;
+  started_at: string;
+  duration_s: number;
+  team: Team | null;
+  kills: number;
+  deaths: number;
+  assists: number;
+  damage: number;
+  objective_damage: number;
+}
+
+export interface CombatPlayerStats {
+  user_id: string;
+  name: string | null;
+  matches: number;
+  stats?: CombatTotals;
+  by_map?: { map: string; matches: number; kills: number; deaths: number; assists: number; damage: number; objective_damage: number }[];
+  events?: CombatEvents | null;
+  recent?: CombatRecent[];
+}
+
+export interface CombatBoardRow {
+  rank: number;
+  user_id: string;
+  name: string;
+  matches: number;
+  value: number;
+  kills: number;
+  deaths: number;
+  assists: number;
+  damage: number;
+  kd: number | null;
+}
+
+export interface CombatBoard {
+  stat: string;
+  label: string;
+  higher_is_better: boolean;
+  items: CombatBoardRow[];
+  total: number;
+}
+
+export interface CombatStatOption {
+  key: string;
+  label: string;
+  higher_is_better: boolean;
+  hint: string;
+}
+
+export interface CombatSummary {
+  matches: number;
+  players: number;
+  matches_with_events: number;
+  last_match_at: string | null;
+}
+
+export interface CombatMatchItem {
+  session_id: string;
+  map: string;
+  started_at: string;
+  duration_s: number;
+  players: number;
+  kills: number;
+  damage: number;
+  has_events: boolean;
+}
+
+export interface CombatMatchPlayer {
+  user_id: string;
+  name: string;
+  team: Team | null;
+  present_s: number;
+  kills: number;
+  assists: number;
+  deaths: number;
+  eliminations: number;
+  damage: number;
+  objective_eliminations: number;
+  objective_damage: number;
+  objective_time: number;
+  hill_captures: number;
+  hill_defends: number;
+  weapons: string[];
+  tacmods: string[];
+  ordnance: string[];
+  events: (Omit<CombatEvents, "matches" | "events_incomplete">) | null;
+}
+
+export interface CombatMatchDetail {
+  session_id: string;
+  map: string;
+  started_at: string;
+  ended_at: string;
+  duration_s: number;
+  has_events: boolean;
+  events_complete: boolean | null;
+  teams: Partial<Record<Team, Record<string, number>>>;
+  players: CombatMatchPlayer[];
+}
+
+export const getCombatPlayer = (userId: string, period: Period = "all", map?: string) =>
+  request<CombatPlayerStats>(`/api/combat/players/${encodeURIComponent(userId)}${query({ period, map })}`);
+
+export const getCombatBoard = (q: { stat: string; period: Period; map?: string; min_games: number; offset: number; limit: number }) =>
+  request<CombatBoard>(`/api/combat/leaderboard${query({ ...q })}`);
+
+export const getCombatStats = () => request<CombatStatOption[]>("/api/combat/stats");
+export const getCombatSummary = () => request<CombatSummary>("/api/combat/summary");
+export const listCombatMatches = (limit = 30, offset = 0, map?: string) =>
+  request<Page<CombatMatchItem>>(`/api/combat/matches${query({ limit, offset, map })}`);
+export const getCombatMatch = (id: string) => request<CombatMatchDetail>(`/api/combat/matches/${encodeURIComponent(id)}`);

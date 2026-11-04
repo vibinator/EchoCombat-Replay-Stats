@@ -3763,3 +3763,10 @@ button.small {
   font-size: 0.75rem;
   white-space: nowrap;
 }
+
+/* Combat stats (components/CombatView.tsx): weapon lists in a responsive grid */
+.combat-weapon-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem 1.5rem; margin: 0.75rem 0 1rem; }
+.combat-weapons h3 { margin: 0 0 0.4rem; font-size: 0.95rem; }
+.combat-weapons ul.plain { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.3rem; }
+.combat-player-events { margin: 0.4rem 0; }
+.combat-player-events > summary { cursor: pointer; padding: 0.3rem 0; }

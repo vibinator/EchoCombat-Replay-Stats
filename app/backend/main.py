@@ -10,8 +10,8 @@ from starlette.exceptions import HTTPException
 
 from parser import PARSER_VERSION
 
-from . import arena, auth, discord_names, guard, icons, tracks
-from .api import achievements, admin, arena as arena_api, auth as auth_api, console, imports, profiles, leaderboard, matches, overview, permissions, players, remote_worker, replays
+from . import arena, auth, combat, discord_names, guard, icons, tracks
+from .api import achievements, admin, arena as arena_api, auth as auth_api, combat as combat_api, console, imports, profiles, leaderboard, matches, overview, permissions, players, remote_worker, replays
 from .config import PROJECT_ROOT, Settings
 from .db import open_db, warm
 from .errors import ApiError, api_error_handler
@@ -51,8 +51,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.worker = Worker(app.state.sessionmaker, settings)
         app.state.scanner = Scanner(app.state.sessionmaker, settings, on_queued=app.state.worker.notify)
         app.state.worker.start()
+        app.state.combat = combat.CombatIngest(app.state.sessionmaker, settings)
         if settings.auto_scan:
             app.state.scanner.start()
+            app.state.combat.start()  # the recorder's match reports (combat stats), apart from the replays
 
             def warm_caches():  # the home page first (the first thing people open), then the heavy achievements ranking
                 overview.warm(app)
@@ -65,6 +67,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         yield
         if settings.auto_scan:
             app.state.scanner.stop()
+            app.state.combat.stop()
             app.state.arena.stop()
         app.state.worker.stop()
         engine.dispose()
@@ -100,6 +103,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(profiles.bot_router)
     app.include_router(permissions.router)
     app.include_router(arena_api.router)
+    app.include_router(combat_api.router)
 
     @app.get("/api/health")
     def health():

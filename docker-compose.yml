@@ -32,10 +32,14 @@ services:
       ECHOVR_BOT_LINK_SECRET: YOUR_BOT_LINK_SECRET
       # "Process replays on another PC" (Setup.MD, Remote processing): the PC's remote_worker.bat sends this; placeholder = off
       ECHOVR_REMOTE_WORKER_SECRET: YOUR_REMOTE_WORKER_SECRET
+      # Combat stats (combat.py): the recorder folder (the one holding matches/, events/, combat_stats/, Replays/) mounted
+      # read-only below. Uncomment this line together with the /combat volume. Without it the combat stats stay empty.
+      # ECHOVR_COMBAT_SOURCE: /combat
       ECHOVR_DISCORD_PREVIEW_ROLES: YOUR_PREVIEW_ROLE_ID   # role and / or user id(s), comma-separated: preview + Console page (admin.bat on the website)
     volumes:
       # Replay folder on the NAS (File Station: ECRanked > ECRanked), read-only; subfolders are scanned too
       - /share/ECRanked/ECRanked:/replays:ro
+      # - /share/ECRanked:/combat:ro   # the recorder's folder that CONTAINS matches/ (check the path on your NAS), see ECHOVR_COMBAT_SOURCE
       # Database and processed files: kept when the app is updated (created automatically if missing)
       - /share/Container/echovr-replay-stats/data:/data
 

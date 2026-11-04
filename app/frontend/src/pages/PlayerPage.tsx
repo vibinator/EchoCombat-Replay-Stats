@@ -5,6 +5,7 @@ import {
   type Companion, type CompanionWindow, type GearUse, type GearUseSet, type HeatmapLayerMode, type Period, type PlayerProfile, type PlayerStats, type TrendPoint,
 } from "../api";
 import { AchievementsSummary } from "../components/AchievementsView";
+import { CombatSection } from "../components/CombatView";
 import { ShareBar, Sparkline, SplitBar, VsAverage } from "../components/bars";
 import { LineChart } from "../components/charts";
 import { GearName, MatchTable, Status, TableWrap, TeamBadge } from "../components/common";
@@ -513,6 +514,8 @@ export function PlayerPage() {
           {p.stats.games > 0 && (
             <WhenVisible minHeight={400}><PlayerHeatmap userId={p.user_id} period={period} maps={p.stats.games_by_map} /></WhenVisible>
           )}
+          {/* combat stats from the recorder's match reports: its own data, apart from everything above */}
+          <WhenVisible><CombatSection userId={p.user_id} period={period} map={map} /></WhenVisible>
           <h2>Recent matches</h2>
           <MatchTable
             matches={p.recent_matches}

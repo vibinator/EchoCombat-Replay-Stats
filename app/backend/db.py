@@ -85,6 +85,10 @@ DERIVED_TABLES = ("duplicate_matches", "events", "match_player_loadouts", "match
 PRESERVED_TABLES = ("app_settings", "player_aliases", "repair_requests", "aggressive_repairs", "hidden_replays", "console_log", "player_profiles", "arena_players", "arena_counted")
 
 
+# Combat stats (combat.py): a cache of the recorder's match reports, kept apart from the replay data. Children first.
+COMBAT_TABLES = ("combat_players", "combat_matches", "combat_files")
+
+
 def _stale(inspector, name: str) -> bool:
     if not inspector.has_table(name):
         return False  # created by create_all
@@ -96,13 +100,18 @@ def _rebuild_stale_tables(engine: Engine) -> None:
     clears stats_version (matches recomputed); a `replays`/`players` change drops everything
     (the scanner rediscovers every file)."""
     inspector = inspect(engine)
-    core_stale = any(_stale(inspector, n) for n in Base.metadata.tables if n not in DERIVED_TABLES + PRESERVED_TABLES)
+    if any(_stale(inspector, n) for n in COMBAT_TABLES):
+        # the combat stats are separate from the replay data: a change there drops and re-reads only those tables
+        with engine.begin() as conn:
+            Base.metadata.drop_all(conn, tables=[Base.metadata.tables[n] for n in COMBAT_TABLES])
+    core_stale = any(_stale(inspector, n) for n in Base.metadata.tables
+                     if n not in DERIVED_TABLES + PRESERVED_TABLES + COMBAT_TABLES)
     derived_stale = any(_stale(inspector, n) for n in DERIVED_TABLES)
     if not core_stale and not derived_stale:
         return
     with engine.begin() as conn:
         if core_stale:
-            keep = [t for n, t in Base.metadata.tables.items() if n not in PRESERVED_TABLES]
+            keep = [t for n, t in Base.metadata.tables.items() if n not in PRESERVED_TABLES + COMBAT_TABLES]
             Base.metadata.drop_all(conn, tables=keep)
             return
         for name in DERIVED_TABLES:
