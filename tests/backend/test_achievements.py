@@ -5,7 +5,7 @@ import replay_factory as rf
 from app_helpers import act, add, app_client, make_settings
 
 from backend import admin_actions as actions
-from backend.achievements import medal_times, rule_notes, RULES, Game, _harder, evaluate, icon_file, overall, tier
+from backend.achievements import medal_times, rule_notes, RULES, Game, _all_time, _harder, evaluate, icon_file, overall, tier
 
 BLUE = str(rf.BIG_USER_ID)
 
@@ -23,8 +23,8 @@ def by_id(results):
 
 def test_catalogue():
     ids = [r.id for r in RULES]
-    assert ids == list(range(5, 164)) and len(set(ids)) == 159  # 75 original + 84 new (80-163); the Mega Prize is not in RULES
-    assert [r.id for r in RULES if r.new] == list(range(80, 164))
+    assert ids == [i for i in range(5, 152) if i != 91] and len(set(ids)) == 146  # 75 original + 71 new (80-151 without 91, Unstoppable); the Mega Prize is not in RULES
+    assert [r.id for r in RULES if r.new] == [i for i in range(80, 152) if i != 91]
     assert icon_file(next(r for r in RULES if r.id == 7)) == "comet_daily.png"
     assert icon_file(next(r for r in RULES if r.id == 32)) == "comet_weekly.png"
     assert icon_file(next(r for r in RULES if r.id == 57)) == "comet.png"
@@ -124,9 +124,9 @@ def test_logic_follows_the_text():
     assert "25+ games" in text[73] and "25+ games" in text[43]
     # the counting rules are listed per achievement, not repeated in the description
     notes = {r.id: rule_notes(r) for r in RULES}
-    assert "Games under 4 minutes are ignored" in notes[18] and "Games under 4 minutes are ignored" in notes[21]
-    assert "Your best single game counts" in notes[21] and "Your best 7 days in a row count" in notes[43]
-    assert "4v4 games only" in notes[139] and "4v4 games only" not in notes[23]
+    assert "4+ min games" in notes[18] and "4+ min games" in notes[21]
+    assert "Best game" in notes[21] and "Best 7 days" in notes[43]
+    assert "4v4 only" in notes[139] and "4v4 only" not in notes[23]
     assert not any("4+ minutes" in d or "best game" in d for d in text.values())
     # 4+ minutes: a short game does not count, even with 0 deaths
     assert by_id(evaluate([game(deaths=0, play=60.0)]))[18]["progress"] == 0
@@ -158,9 +158,9 @@ def test_teammate_proximity_targets():
 
 
 def test_new_gear_challenges():
-    starburst = [game(loadout=("rifle", "heal", "loc"))] * 25
+    starburst = [game(loadout=("rifle", "heal", "loc"))] * 30
     r = by_id(evaluate(starburst))
-    assert r[80]["tier"] == "gold" and r[84]["tier"] == "gold" and r[80]["new"]  # 25 games: gold on both ladders
+    assert r[80]["tier"] == "gold" and r[84]["tier"] == "gold" and r[80]["new"]  # 30 games: gold on both ladders (1 / 6 / 30 / ...: all-time ladders are raised 20 %)
     assert r[86]["progress"] == 0.25  # 1 of the 4 unreleased weapons
     one_game = Game(**{**game().__dict__, "loadouts": {("assault", "heal", "det"): 250, ("blaster", "sensor", "stun"): 250,
                                                       ("scout", "shield", "arc"): 250, ("rocket", "wraith", "burst"): 250}})
@@ -187,10 +187,10 @@ def test_new_result_challenges():
     streak = [played(f"2026-10-{d:02d}", True) for d in range(1, 5)]
     streak.insert(2, Game(**{**game("2026-10-02").__dict__, "team": "blue", "winner": None}))  # no result: skipped
     r = by_id(evaluate(streak))
-    assert (r[90]["count"], r[90]["tier"], r[91]["tier"]) == (4, "silver", "bronze")  # On a Roll 2/3/5/8/12, Unstoppable 4/6/8/10/12
+    assert (r[90]["count"], r[90]["tier"]) == (4, "silver")  # On a Roll 2/4/6/13/18 (all-time ladders are raised 20 %)
     streak.append(played("2026-10-05", True))
     r = by_id(evaluate(streak))
-    assert (r[90]["tier"], r[91]["tier"]) == ("gold", "bronze")
+    assert r[90]["tier"] == "silver" and by_id(evaluate(streak + [played("2026-10-06", True)]))[90]["tier"] == "gold"
     assert by_id(evaluate(streak + [played("2026-10-06", False)]))[90]["count"] == 5  # best run kept
 
     sweep = by_id(evaluate([played("2026-10-01", True, rounds_lost=0)]))[93]  # tiered: 1 game = bronze
@@ -213,17 +213,17 @@ def test_tiered_achievements():
         return [Game(**{**game(f"2026-10-{1 + i % 28:02d}").__dict__, "team": "blue", "winner": "blue", "rounds_lost": 0})
                 for i in range(n)]
 
-    expected = {0: (None, 0.0), 1: ("bronze", 0.2), 3: ("bronze", 0.3), 5: ("silver", 0.4), 10: ("gold", 0.6),
-                33: ("diamond", 0.8), 50: ("diamond", 0.8 + 17 / 97 / 5), 130: ("platinum", 1.0), 150: ("platinum", 1.0)}
+    expected = {0: (None, 0.0), 1: ("bronze", 0.2), 3: ("bronze", 0.28), 6: ("silver", 0.4), 12: ("gold", 0.6),
+                39: ("diamond", 0.8), 50: ("diamond", 0.8 + 11 / 117 / 5), 156: ("platinum", 1.0), 180: ("platinum", 1.0)}
     for n, (medal, progress) in expected.items():
         r = by_id(evaluate(sweeps(n)))[93]
-        assert (r["tier"], r["count"], r["levels"]) == (medal, n, [1, 5, 10, 33, 130]), n
+        assert (r["tier"], r["count"], r["levels"]) == (medal, n, [1, 6, 12, 39, 156]), n
         assert r["progress"] == pytest.approx(progress, abs=1e-4), n
     rule = next(r for r in RULES if r.id == 93)
-    assert "1 bronze, 5 silver, 10 gold, 33 diamond, 130 platinum" in rule.description
+    assert "1 bronze, 6 silver, 12 gold, 39 diamond, 156 platinum" in rule.description
     assert unlock_threshold(rule) == 0.2 and unlock_threshold(next(r for r in RULES if r.id == 43)) == 0.25
     delivery = next(r for r in RULES if r.id == 94)
-    assert "Deliver the payload to the end" in delivery.description and delivery.levels == (1, 5, 10, 33, 78)
+    assert "Deliver the payload to the end" in delivery.description and delivery.levels == (1, 6, 12, 39, 94)
     assert "count" not in by_id(evaluate(sweeps(1)))[43]  # single-step rules unchanged
 
 
@@ -259,8 +259,8 @@ def test_grand_tour_and_medal_collector():
 
     r = by_id(evaluate([won(m) for m in ("dyson", "combustion", "fission", "surge")]))
     assert r[122]["count"] == 1 and r[122]["tier"] == "bronze"
-    # only the three "Nothing but ..." single-step challenges (the test loadout) are complete: nothing at gold in the ladders
-    assert r[126]["count"] == 3 and r[126]["levels"] == [5, 10, 25, 65, 98]
+    # nothing is at gold or better in the ladders yet
+    assert r[126]["count"] == 0 and r[126]["levels"] == [5, 10, 25, 65, 98]
     r = by_id(evaluate([won("dyson", f"2026-10-{1 + i % 28:02d}") for i in range(120)]))
     golds = sum(1 for x in r.values() if x["id"] != 126 and (x["count"] >= x["levels"][2] if "levels" in x else x["progress"] >= 1))
     assert golds > 0 and r[126]["count"] == golds  # Medal Collector counts gold-or-better medals of the others
@@ -316,11 +316,11 @@ def test_one_game_challenges_need_a_4v4():
 
 
 def test_all_gear_shares_one_ladder_per_kind():
-    veteran = {r.levels for r in RULES if r.name.endswith(" Veteran")}
-    assert veteran == {_harder((5, 15, 50, 150, 350), "")}
+    veteran = {r.levels for r in RULES if r.name.endswith(" Veteran") and r.period == "all"}
+    assert veteran == {_harder(_all_time((5, 15, 50, 150, 350), ""), "")}  # all-time ladders are raised 20 %
     assert {r.levels for r in RULES if "using only" in r.description and r.period == "day"} == {_harder((3, 5, 8, 12, 15), "")}
     assert {r.levels for r in RULES if "using only" in r.description and r.period == "week" and r.id != 42}  # 42: Gearhead is about loadouts, not one gear == {_harder((5, 10, 15, 30, 50), "")}
-    assert next(r for r in RULES if r.id == 112).levels == _harder((5, 15, 50, 150, 350), "")  # Overclocked is a veteran ladder too
+    assert next(r for r in RULES if r.id == 112).levels == _harder(_all_time((5, 15, 50, 150, 350), ""), "")  # Overclocked is a veteran ladder too
 
 
 def test_victory_lap_needs_a_win():
@@ -381,24 +381,15 @@ def test_visibility_everyone_preview_only_or_hidden(tmp_path, monkeypatch):
             act(client, actions.set_achievements_visibility, "nonsense")
 
 
-def test_nothing_but_one_item_for_one_match():
-    nova = next(r for r in RULES if r.name == "Nothing but Nova")
-    def g(**kw):
-        return Game(**{**game(loadout=None).__dict__, **kw})
-    mixed = lambda share: {("blaster", "heal", "det"): share, ("assault", "heal", "det"): 1000 - share}
-    assert nova.score([g(loadouts=mixed(1000))]) == 1.0
-    assert nova.score([g(loadouts=mixed(900))]) == 1.0  # exactly 90 %: a quick weapon switch is fine
-    assert nova.score([g(loadouts=mixed(850))]) == 0.0
-    assert nova.score([g(loadouts=mixed(1000), play_time_s=200.0)]) == 0.0  # under 4 minutes (late recording)
-    assert nova.score([g(loadouts=mixed(1000), four_v_four=False)]) == 0.0
-    assert rule_notes(nova) == ["Your best single game counts", "Games under 4 minutes are ignored", "4v4 games only",
-                                '"Only" = equipped for 90% or more of the game, so a short switch is fine']
+def test_only_notes_are_short():
+    nova = next(r for r in RULES if r.name == "One with the Nova")
+    assert rule_notes(nova) == ["Best day", '"Only" = 90%+ of the game']
 
 
 def test_medal_times_are_per_medal():
     days = [game(f"2026-10-{d:02d}", deaths=0, loadout=None) for d in range(1, 21)]
     times = medal_times(days)
-    toaster = times[18]  # games with 3 or fewer deaths: 1 / 5 / 15 / 65 / 195
-    assert toaster["bronze"].startswith("2026-10-01") and toaster["silver"].startswith("2026-10-05")
-    assert toaster["gold"].startswith("2026-10-15") and "diamond" not in toaster
+    toaster = times[18]  # games with 3 or fewer deaths: 1 / 6 / 18 / 78 / 234
+    assert toaster["bronze"].startswith("2026-10-01") and toaster["silver"].startswith("2026-10-06")
+    assert toaster["gold"].startswith("2026-10-18") and "diamond" not in toaster
     assert all(len(t) >= 16 for t in toaster.values())  # full time, not just the date

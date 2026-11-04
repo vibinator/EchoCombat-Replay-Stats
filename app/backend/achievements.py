@@ -193,10 +193,29 @@ def _harder(levels: tuple[float, ...], unit: str) -> tuple[float, ...]:
     return tuple(int(v) if whole else v for v in out)
 
 
+ALL_TIME_RAISE = 1.2  # all-time count ladders need 20 % more than the targets written below (user, 2026-11-04; to be reviewed)
+
+
+def _all_time(levels: tuple[float, ...], unit: str) -> tuple[float, ...]:
+    """All-time count ladders x ALL_TIME_RAISE, before _harder. Averages (% and m/s) are left alone: they are not counts and
+    would become unreachable. Whole-number targets stay whole and always rise by at least one step."""
+    if unit in ("%", " m/s"):
+        return levels
+    whole = all(float(v).is_integer() for v in levels)
+    out: list[float] = []
+    for v in levels:
+        v = float(int(v * ALL_TIME_RAISE + 0.5)) if whole else round(v * ALL_TIME_RAISE, 1)
+        out.append(max(v, out[-1] + (1 if whole else 0.1)) if out else v)
+    return tuple(int(v) if whole else v for v in out)
+
+
 def _ladder(id_: int, name: str, what: str, icon: str | None, count, levels: tuple[float, ...], period: str = "all",
-            unit: str = "", **kw) -> "Rule":
+            unit: str = "", raise_all_time: bool = True, **kw) -> "Rule":
     """A medal ladder: `count` is evaluated per period group (game / day / week / all time); the best group counts.
-    The text lists every target. Diamond and platinum are made harder by _harder."""
+    The text lists every target. All-time count ladders are raised by _all_time; diamond and platinum are made harder by
+    _harder. The Mega Prize ladder and Medal Collector (meta) keep their written targets."""
+    if period == "all" and raise_all_time and not kw.get("meta"):
+        levels = _all_time(levels, unit)
     levels = _harder(levels, unit)
     targets = ", ".join(f"{_num(n)}{unit} {medal}" for n, medal in zip(levels, LEVELS))
     return Rule(id_, name, f"{what} ({targets})", period, icon, _levelled(count, levels), levels=levels, count=count,
@@ -512,7 +531,7 @@ def _build_rules() -> list[Rule]:
         Rule(89, "Tac Mod Tinkerer", "Use Repair Matrix, Threat Scanner, Energy Barrier and Phase Shift in one game", "game",
              "loadout", _all_used("tacmod", {c for c, _, _ in TACMODS}), new=True, group="Gear mastery"),
         _ladder(90, "On a Roll", "Win games in a row (games without a result are skipped)", None, _win_streak, (2, 3, 5, 8, 12), new=True, group="Wins"),
-        _ladder(91, "Unstoppable", "Win games in a row (games without a result are skipped)", None, _win_streak, (4, 6, 8, 10, 12), new=True, group="Wins"),
+        # id 91 (Unstoppable, win games in a row) was removed on 2026-11-04: On a Roll is the same challenge (user)
         _tiered(92, "Centurion", "Win games", None, lambda g: g.won, (5, 10, 30, 100, 250), new=True, group="Wins"),
         # the attacking team wins exactly when the payload reaches the end (stats/payload.py)
         _tiered(93, "Clean Sweep", "Win Capture Point games 2-0", "capture_point",
@@ -641,16 +660,8 @@ def _build_rules() -> list[Rule]:
         _ladder(151, "Victory Lap", "Emote as much as you can in one game that your team wins", None,
                 _v4(lambda gs: gs[0].emotes if gs[0].won else 0), (12, 24, 40, 60, 100), "game", new=True, group="Emotes"),
     ]
-    # One match with only one item (user, 2026-11-04): a single game of FULL_GAME_S+ in which it was ONLY_SHARE+ of
-    # the loadout time of its slot. The longer minimum keeps a late-joining recording from qualifying.
-    rid = 152
-    for slot, items in (("weapon", WEAPONS), ("ordnance", ORDNANCES), ("tacmod", TACMODS)):
-        for code, label, icon in items:
-            score = _v4(_full(lambda gs, slot=slot, code=code: 1.0 if gs[0].share(slot, code) >= ONLY_SHARE else 0.0))
-            score.use_only = True
-            rules.append(Rule(rid, f"Nothing but {label}", f"Play one game using only {label}", "game", icon, score,
-                              new=True, group="Gear mastery"))
-            rid += 1
+    # "Nothing but <item>" (one game using only an item, ids 152-163) was removed on 2026-11-04: the daily "One with the <item>" ladders
+    # test the same thing (user).
     return rules
 
 
@@ -664,18 +675,19 @@ def rule_notes(rule: Rule) -> list[str]:
     if rule.meta:
         return []
     fn = rule.count or rule.score
-    notes = [{"game": "Your best single game counts", "day": "Your best calendar day counts", "week": "Your best 7 days in a row count"}.get(rule.period)]
+    # Short tags (user, 2026-11-04): the site shows them on one line, "Best game · 4+ min · 4v4 only · "Only" = 90%+"
+    notes = [{"game": "Best game", "day": "Best day", "week": "Best 7 days"}.get(rule.period)]
     if rule.period == "all":
         need = getattr(rule.count, "min_games", 0)
-        notes = [f"Average over all your games (needs {need}+ games)" if need else "Total over all your games"]
+        notes = [f"Average, {need}+ games" if need else "All-time total"]
     if getattr(fn, "min_length", False) or rule.id in _NOTE_MIN_IDS:
-        notes.append(f"Games under {FULL_GAME_S / 60:g} minutes are ignored")
+        notes.append(f"{FULL_GAME_S / 60:g}+ min games")
     if getattr(fn, "four_v_four", False) or rule.id in _NOTE_4V4_IDS:
-        notes.append("4v4 games only")
+        notes.append("4v4 only")
     if getattr(fn, "use_only", False) or rule.id in _NOTE_ONLY_IDS:
-        notes.append(f"\"Only\" = equipped for {ONLY_SHARE:.0%} or more of the game, so a short switch is fine")
+        notes.append(f"\"Only\" = {ONLY_SHARE:.0%}+ of the game")
     if rule.id == 67:
-        notes.append(f"Each loadout needs {LOADOUT_USED_S / 60:g} minutes of play")
+        notes.append(f"{LOADOUT_USED_S / 60:g}+ min per loadout")
     return [n for n in notes if n]
 
 
@@ -685,7 +697,7 @@ RULES = _build_rules()
 # prize is Preview-only and only served by api/arena.py and the Console report (mega_prizes.py). Written targets are
 # /HARDER_TOP so that platinum = 750 and diamond = 450 matches.
 MEGA_COMBAT = _ladder(0, "Echo Combat Veteran", "Play Echo Combat matches", None, len, (25, 100, 250, 346, 577),
-                      new=True, group="Activity", prize="Delta Squad BioMass Chassis")
+                      raise_all_time=False, new=True, group="Activity", prize="Delta Squad BioMass Chassis")
 
 
 def icon_file(rule: Rule) -> str | None:

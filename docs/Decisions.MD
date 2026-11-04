@@ -103,3 +103,4 @@
 | Live capture (APICapture, websockets, active games, reticle, StreamBot) | Remove | Upload-only app |
 | Rate limiting | Remove | Local only |
 | Legacy `.ecrreplay` import | Defer | Unsafe format (D9) |
+| Remove Unstoppable (id 91) and "Nothing but <item>" (152-163) | 2026-11-04 | On a Roll is the same challenge (win games in a row); the daily "One with <item>" ladders test the same as "Nothing but" | Keep them (D52 kept On a Roll / Unstoppable separate) | User review of all challenges | 146 challenges; daily / weekly / all-time ladders of one thing stay separate on purpose |

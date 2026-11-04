@@ -55,7 +55,19 @@ Working record of what changed in each release, newest first.
   mentions a prize or a winner. The winners CSV can no longer run a spreadsheet formula (names starting with = + - @), and the match list
   read is size-limited.
 
+### Challenges
+- **All-time count ladders raised by 20%** (to be reviewed): e.g. the Veteran ladders 5/15/50/195/455 → 6/18/60/234/546, Frequent Flyer, Loyal Bot,
+  King of the Hill, the maps, Clean Sweep... The averages (% and m/s) and Medal Collector are not changed, and neither is the Mega Prize (750).
+- **Mega Prizes: the progress bars are inside the cards.** Search a player and they show in the Combat and Arena card, one bar each; with no search the
+  Arena card shows its top 5.
+- **Removed "Unstoppable"** (win games in a row): "On a Roll" is the same challenge. 147 → 146 challenges.
+- **Removed the 12 "Nothing but <item>" challenges** (one game using only an item): the daily "One with the <item>" ladders test the same thing. 159 → 147 challenges.
+- **Shorter rule notes on every card**, on one line: "Best game · 4+ min games · 4v4 only · "Only" = 90%+ of the game" (was a long sentence per rule). Rarity stays in a small fold.
+
 ### Fixes
+- **Mega Prize pictures were broken:** the scraper guard refuses `/api` requests without the site's header, which an image tag cannot send. The page now
+  fetches the pictures itself with the header (the guard is unchanged; a test runs with it on).
+- **The Rules box on Achievements is closed by default.**
 - **Docker would not start** (`no such column: discord_id`): the Arena table made by the previous build lacked a column. Tables kept across
   rebuilds now get missing columns added at startup, with their data kept.
 

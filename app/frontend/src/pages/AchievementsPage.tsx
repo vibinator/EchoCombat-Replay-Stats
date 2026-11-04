@@ -160,7 +160,7 @@ function LaunchedAchievementsPage() {
               The original ECRanked achievements plus new ones (marked "new"). Most are medal ladders, bronze to platinum; pick a player to see
               their progress.
             </p>
-            <AchievementRules open />
+            <AchievementRules />
             <ChallengeBanner />
             <PlayerPicker />
           </div>

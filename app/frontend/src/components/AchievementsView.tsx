@@ -210,53 +210,26 @@ export function MegaPrizesSection() {
   return me?.preview || me?.console ? <MegaPrizes /> : null;
 }
 
-/** Search a player, then the two prize cards. Public Arena is counted from the live match list, separately from Combat. */
-function MegaPrizes() {
-  const result = useApi(getArenaProgress, "arena-progress");
-  const arena = result.data;
-  if (!arena) return null; // no Preview role (403) or still loading: the section stays hidden
-  const combat = arena.combat[0];
-  const combatTarget = combat?.levels?.[combat.levels.length - 1] ?? 750;
+type PrizeRow = SearchResult["results"][number];
+
+/** One player's progress inside a prize card: name, a bar and the count. */
+function PlayerBar({ r, target }: { r: { name: string; user_id: string; matches: number }; target: number }) {
   return (
-    <div className="section mega" id="mega-prizes">
-      <h2>
-        Mega Prizes <span className="tag">draft</span>
-      </h2>
-      <MegaPrizeSearch target={arena.target} />
-      <div className="mega-cards">
-        <article className="mega-card">
-          <img src="/api/arena/image/biomass.jpg" alt="Delta Squad BioMass Chassis" />
-          <div className="mega-body">
-            <strong>Play {combatTarget} Echo Combat Matches</strong>
-            <span className="tag mega-prize">Mega Prize: {combat?.prize ?? "Delta Squad BioMass Chassis"}</span>
-            <span className="muted">Games of 4+ minutes from the replay files, counted from the challenge period.</span>
-          </div>
-        </article>
-        <article className="mega-card">
-          <img src="/api/arena/image/jack.jpg" alt="Jack, Lone Echo" />
-          <div className="mega-body">
-            <strong>Play {arena.target} Public Arena Matches</strong>
-            <span className="tag mega-prize">Mega Prize: OG High Quality Jack Model</span>
-            <span className="muted">Public matches of 4+ minutes from the live match list, counted from the challenge period.</span>
-            {arena.players.length > 0 && (
-              <ol className="mega-top">
-                {arena.players.slice(0, 5).map((p) => (
-                  <li key={p.user_id}>
-                    <span>{p.name}</span>
-                    <span className="muted">{p.matches} / {arena.target}</span>
-                  </li>
-                ))}
-              </ol>
-            )}
-          </div>
-        </article>
-      </div>
-    </div>
+    <li>
+      <span className="mega-name" title={r.user_id}>{r.name}</span>
+      <span className="bar" role="progressbar" aria-label={`${r.name} ${r.matches} of ${target}`} aria-valuemin={0} aria-valuemax={target} aria-valuenow={r.matches}>
+        <span style={{ width: `${Math.min(100, (r.matches / target) * 100)}%` }} />
+      </span>
+      <span className="mega-count">{r.matches} / {target}</span>
+    </li>
   );
 }
 
-/** Search a player by name: their progress toward each prize, one compact row per result (from the challenge period on). */
-function MegaPrizeSearch({ target }: { target: number }) {
+/** Search a player, then the two prize cards: the players found show inside the card of each prize, with their progress bar.
+ *  Public Arena is counted from the live match list, separately from Combat. */
+function MegaPrizes() {
+  const result = useApi(getArenaProgress, "arena-progress");
+  const arena = result.data;
   const [q, setQ] = useState("");
   const [found, setFound] = useState<SearchResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -273,30 +246,82 @@ function MegaPrizeSearch({ target }: { target: number }) {
       clearTimeout(t);
     };
   }, [q]);
-  const rows = [...(found?.results ?? [])].sort((x, y) => y.matches - x.matches);
+  if (!arena) return null; // no Preview role (403) or still loading: the section stays hidden
+  const combat = arena.combat[0];
+  const combatTarget = combat?.levels?.[combat.levels.length - 1] ?? 750;
+  const byKind = (kind: PrizeRow["kind"]) => (found?.results ?? []).filter((r) => r.kind === kind).sort((x, y) => y.matches - x.matches);
+  const searching = found !== null;
   return (
-    <div className="mega-search">
-      <input type="search" placeholder="Search a player for their Mega Prize progress" aria-label="Search a player" value={q} onChange={(e) => setQ(e.target.value)} />
-      {error && <p className="error">{error}</p>}
-      {found && rows.length === 0 && <p className="muted">Nobody found.</p>}
-      {rows.length > 0 && (
-        <ul className="mega-results">
-          {rows.map((r) => (
-            <li key={`${r.kind}-${r.user_id}`}>
-              <strong title={r.user_id}>{r.name}</strong>
-              <span className="muted">{r.kind === "combat" ? "Echo Combat" : "Public Arena"}</span>
-              <span className="bar" role="progressbar" aria-label={`${r.name} ${r.matches} of ${target}`} aria-valuemin={0} aria-valuemax={target} aria-valuenow={r.matches}>
-                <span style={{ width: `${Math.min(100, (r.matches / target) * 100)}%` }} />
-              </span>
-              <span>
-                {r.matches} / {target}
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
+    <div className="section mega" id="mega-prizes">
+      <h2>
+        Mega Prizes <span className="tag">draft</span>
+      </h2>
+      <div className="mega-search">
+        <input type="search" placeholder="Search a player for their Mega Prize progress" aria-label="Search a player" value={q} onChange={(e) => setQ(e.target.value)} />
+        {error && <p className="error">{error}</p>}
+      </div>
+      <div className="mega-cards">
+        <article className="mega-card">
+          <PrizeImage name="biomass.jpg" alt="Delta Squad BioMass Chassis" />
+          <div className="mega-body">
+            <strong>Play {combatTarget} Echo Combat Matches</strong>
+            <span className="tag mega-prize">Mega Prize: {combat?.prize ?? "Delta Squad BioMass Chassis"}</span>
+            <span className="muted">Only counts games of 4+ minutes.</span>
+            {searching && (byKind("combat").length > 0 ? (
+              <ul className="mega-results">{byKind("combat").map((r) => <PlayerBar key={r.user_id} r={r} target={combatTarget} />)}</ul>
+            ) : (
+              <span className="muted">Nobody found.</span>
+            ))}
+          </div>
+        </article>
+        <article className="mega-card">
+          <PrizeImage name="jack.jpg" alt="Jack, Lone Echo" />
+          <div className="mega-body">
+            <strong>Play {arena.target} Public Arena Matches</strong>
+            <span className="tag mega-prize">Mega Prize: OG High Quality Jack Model</span>
+            <span className="muted">Only counts public matches of 4+ minutes.</span>
+            {searching ? (
+              byKind("arena").length > 0 ? (
+                <ul className="mega-results">{byKind("arena").map((r) => <PlayerBar key={r.user_id} r={r} target={arena.target} />)}</ul>
+              ) : (
+                <span className="muted">Nobody found.</span>
+              )
+            ) : (
+              arena.players.length > 0 && (
+                <ul className="mega-results">
+                  {arena.players.slice(0, 5).map((p) => (
+                    <PlayerBar key={p.user_id} r={p} target={arena.target} />
+                  ))}
+                </ul>
+              )
+            )}
+          </div>
+        </article>
+      </div>
     </div>
   );
+}
+
+/** A prize picture. It is behind the Preview role and /api answers only requests that carry X-EchoVR (scraper protection), which an
+ *  <img> tag cannot send: so it is fetched with the header and shown from memory. */
+function PrizeImage({ name, alt }: { name: string; alt: string }) {
+  const [src, setSrc] = useState<string | null>(null);
+  useEffect(() => {
+    let url: string | null = null;
+    let live = true;
+    fetch(`/api/arena/image/${name}`, { headers: { "X-EchoVR": "1" } })
+      .then((r) => (r.ok ? r.blob() : Promise.reject(new Error(String(r.status)))))
+      .then((b) => {
+        url = URL.createObjectURL(b);
+        if (live) setSrc(url);
+      })
+      .catch(() => undefined);
+    return () => {
+      live = false;
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [name]);
+  return src ? <img src={src} alt={alt} /> : <div className="mega-img-placeholder" role="img" aria-label={alt} />;
 }
 
 /** Link to the new-challenges section; also scrolls there when the page is opened with #new (data loads late). */
@@ -480,15 +505,13 @@ export function Badge({ a }: { a: AchievementRule & Partial<Pick<Achievement, "p
             </span>
           </>
         )}
-        {((a.rules && a.rules.length > 0) || a.unlocked_share != null) && (
+        {a.rules && a.rules.length > 0 && <span className="muted rule-notes">{a.rules.join(" · ")}</span>}
+        {a.unlocked_share != null && (
           <details className="card-more">
-            <summary>Details</summary>
-            {a.rules && a.rules.length > 0 && <span className="muted rule-notes">{a.rules.join(" · ")}</span>}
-            {a.unlocked_share != null && (
-              <span className="muted rarity" title="Share of players with 10+ games">
-                {pct(a.unlocked_share)} unlocked · {pct(a.completed_share)} completed
-              </span>
-            )}
+            <summary>Rarity</summary>
+            <span className="muted rarity" title="Share of players with 10+ games">
+              {pct(a.unlocked_share)} unlocked · {pct(a.completed_share)} completed
+            </span>
           </details>
         )}
       </div>

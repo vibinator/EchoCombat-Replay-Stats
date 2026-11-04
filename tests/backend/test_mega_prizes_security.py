@@ -109,3 +109,14 @@ def test_console_overview_carries_the_saved_visibility(tmp_path, discord):
         act(client, actions.set_achievements_visibility, "preview")
         challenge = client.get("/api/admin/console/overview").json()["challenge"]
         assert (challenge["start"], challenge["end"], challenge["visibility"]) == ("2026-11-02", "2026-12-01", "preview")
+
+
+def test_prize_pictures_load_with_the_scraper_guard_on(tmp_path, discord):
+    """The page fetches the pictures with the X-EchoVR header (an <img> tag cannot send it); the guard stays on."""
+    browser = {"user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/130"}
+    with app_client(settings(tmp_path, scraper_guard=True, rate_limit_per_min=0, rate_limit_per_hour=0)) as client:
+        login(client, MEMBER)
+        assert client.get("/api/arena/image/jack.jpg", headers=browser).status_code == 403  # no X-EchoVR: an <img> tag, or a scraper
+        for name in ("jack.jpg", "biomass.jpg"):
+            r = client.get(f"/api/arena/image/{name}", headers=browser | {"x-echovr": "1"})
+            assert r.status_code == 200 and r.headers["content-type"] == "image/jpeg" and r.content[:2] == b"\xff\xd8", name
