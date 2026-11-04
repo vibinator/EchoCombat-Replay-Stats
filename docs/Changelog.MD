@@ -18,6 +18,13 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.04.3 — 12:43
+### Easiest challenges made a little harder
+- **Gear (all weapons, ordnances, tac mods, new gear included):** veteran ladders 6 / 17 / 55 / 170 / 400 games, "only X in one day" 3 / 6 / 9 / 13 / 17, "only X in any 7 days" 6 / 12 / 18 / 35 / 55 (diamond and platinum are still 30 % higher, all-time still +20 %). They stay identical for every item.
+- **Others:** Capture Point / Payload games in a day 5 / 7 / 9 / 12 / 17, Combat pubs in a day 9 / 13 / 18 / 24 / 32, map games in any 7 days top steps 18 / 34, Centurion top step 300, Hot Day top step 18.
+- **Medals:** players near a step may drop one medal until they play more.
+
+
 ## 2026.11.04.2 — 12:39
 ### Challenge descriptions in plain language
 - **Reworded:** about 50 challenge descriptions now read as plain instructions ("Share of one game spent close to a teammate", "Use all 4 weapons (...) in one game", "Win games on all 4 maps", ...). Maps read "Play games on Dyson" instead of "of Dyson".
