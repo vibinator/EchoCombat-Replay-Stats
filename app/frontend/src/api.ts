@@ -624,6 +624,7 @@ export interface Achievement extends AchievementRule {
   tier: "white" | "bronze" | "silver" | "gold" | "diamond" | "platinum" | null;
   unlocked_at: string | null;
   count?: number; // tiered achievements: games counted so far
+  try_next?: { weapon: string; tacmod: string; ordnance: string; label: string }[]; // "Different loadouts": ones this player has not tried
 }
 
 export interface PlayerAchievements {

@@ -27,6 +27,11 @@ export const NEW_GROUPS: [name: string, hint: string, groups: string[]][] = [
 // Survival, Movement, Emotes and Activity are not themes any more (user, 2026-11-04): their challenges sit with the others of the same
 // period (mostly "In one game"; the all-time ones, Activity included, under "All time").
 const BY_PERIOD = new Set(["Survival", "Movement", "Emotes", "Activity"]);
+const GEAR_GROUPS = new Set(["Experimental gear", "Gear mastery"]);
+/** Shown under its period (in one game / day / any 7 days / all time) rather than a theme: the old rules, a few themes, and the
+ *  "any 7 days" gear challenges (user, 2026-11-04). */
+const inPeriodSection = (a: { new: boolean; group: string | null; period: string }) =>
+  !a.new || BY_PERIOD.has(a.group ?? "") || (a.period === "week" && GEAR_GROUPS.has(a.group ?? ""));
 
 type AnyBadge = Parameters<typeof Badge>[0]["a"];
 
@@ -147,12 +152,12 @@ export function GroupedBadges<T extends AnyBadge>({ items: all }: { items: T[] }
   const term = q.trim().toLowerCase();
   const visible = items.filter((a) => (!newOnly || a.new) && (!term || `${a.name} ${ruleText(a.description)}`.toLowerCase().includes(term)));
   const sections: { id: string; title: React.ReactNode; label: string; items: T[] }[] = [
-    ...GROUPS.map(([period, label]) => ({ id: `p-${period}`, title: label, label, items: visible.filter((a) => (!a.new || BY_PERIOD.has(a.group ?? "")) && a.period === period) })),
+    ...GROUPS.map(([period, label]) => ({ id: `p-${period}`, title: label, label, items: visible.filter((a) => inPeriodSection(a) && a.period === period) })),
     ...[...NEW_GROUPS, ["More", "", []] as [string, string, string[]]].map(([name, hint, groups]) => ({
       id: `n-${name}`,
       label: name,
       title: <>{name} {hint && <span className="muted hint">· {hint}</span>}</>,
-      items: visible.filter((a) => a.new && !BY_PERIOD.has(a.group ?? "") && (name === "More" ? !NEW_GROUPS.some(([, , gs]) => gs.includes(a.group ?? "")) : groups.includes(a.group ?? ""))),
+      items: visible.filter((a) => !inPeriodSection(a) && (name === "More" ? !NEW_GROUPS.some(([, , gs]) => gs.includes(a.group ?? "")) : groups.includes(a.group ?? ""))),
     })),
   ].filter((x) => x.items.length > 0);
   const firstNew = sections.find((x) => x.id.startsWith("n-"))?.id;
@@ -483,7 +488,7 @@ function levelText(count: number, levels: number[], unit = ""): string {
   return `${shown.toLocaleString()}${unit} more to reach ${LEVELS[next]}`;
 }
 
-export function Badge({ a }: { a: AchievementRule & Partial<Pick<Achievement, "progress" | "tier" | "unlocked_at" | "count">> & Partial<Pick<AchievementRarity, "unlocked_share" | "completed_share">> }) {
+export function Badge({ a }: { a: AchievementRule & Partial<Pick<Achievement, "progress" | "tier" | "unlocked_at" | "count" | "try_next">> & Partial<Pick<AchievementRarity, "unlocked_share" | "completed_share">> }) {
   const tier = a.tier ?? null;
   const catalogue = a.progress === undefined;
   const frame = tier ? `${tier}.png` : "white_lock.png";
@@ -531,6 +536,17 @@ export function Badge({ a }: { a: AchievementRule & Partial<Pick<Achievement, "p
               {a.unlocked_at && ` · completed ${a.unlocked_at}`}
             </span>
           </>
+        )}
+        {!catalogue && a.try_next && a.try_next.length > 0 && a.progress! < 1 && (
+          <span className="muted try-next">
+            Try next:{" "}
+            {a.try_next.map((l, i) => (
+              <span key={l.label}>
+                {i > 0 && " · "}
+                <Link to={`/leaderboard?stat=loadout&weapon=${l.weapon}&ordnance=${l.ordnance}&tacmod=${l.tacmod}`} title="Who plays this loadout most">{l.label}</Link>
+              </span>
+            ))}
+          </span>
         )}
         {a.rules && a.rules.length > 0 && <span className="muted rule-notes">{a.rules.join(" · ")}</span>}
         {a.unlocked_share != null && (

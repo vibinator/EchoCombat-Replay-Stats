@@ -7,9 +7,11 @@ stats on request; nothing is stored. Tiers (user, 2026-10-30): white 25 %, bronz
 
 from collections import Counter, defaultdict
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import date, datetime, timedelta
 from functools import cached_property
+
+from . import gear
 
 WEAPONS = [("assault", "Pulsar", "pulsar"), ("blaster", "Nova", "nova"), ("scout", "Comet", "comet"), ("rocket", "Meteor", "meteor")]
 ORDNANCES = [("det", "Detonator", "detonator"), ("stun", "Stun Field", "stun_field"), ("arc", "Arc Mine", "arcmine"), ("burst", "Instant Repair", "instant_repair")]
@@ -27,7 +29,7 @@ GEAR_ICONS = {"rifle": "starburst", "magnum": "protostar", "smg": "quark", "chai
 ONLY_SHARE = 0.90  # "use only X": X is at least 90 % of the game's loadout time (was 95; user, 2026-11-04: room for mistakes)
 USED_SHARE = 0.10  # below 10 % of the game does not count as "used" (was 5 %, the old loadoutCutoff; user, 2026-11-04)
 FULL_GAME_S = 240.0  # was 180 (user, 2026-11-04); per-game rules ignore short appearances (A: avoids 0-death 10-second games)
-LOADOUT_USED_S = 180.0  # "use all 64 loadouts": at least 3 min each (old code: 3*60*30 frames)
+LOADOUT_USED_S = 60.0  # "different loadouts": at least 1 min each (was 3 min; user, 2026-11-04: more achievable)
 SEASON_MIN_GAMES = 50  # all-time averages need 50 games (A)
 SPEED_MIN_GAMES = 25  # Cyberkinetic Enhancements: 50 left 76 % of the active players out (user, 2026-10-31)
 # One ladder per kind of gear challenge, the same for every weapon, ordnance and tac mod, new gear included (user,
@@ -236,6 +238,98 @@ def _scaled(levels: tuple[float, ...], factor: float) -> tuple[float, ...]:
     return tuple(out)
 
 
+# Platinum for about 5 % of the active players (user, 2026-11-04). Measured on the whole archive (1,885 players with 10+ games):
+# bronze / silver / gold / diamond / platinum are what 40 / 20 / 12 / 7.5 / 5 % of them reached. Every weapon, ordnance and tac mod
+# has the same ladder per kind of challenge (Veteran, "only X" in a day, "only X" in 7 days). Replaces the written targets of the
+# ladders below: those whose platinum was over 2 % before, and all the gear ladders together. The others keep their written targets.
+TUNED_LEVELS: dict[int, tuple[float, ...]] = {
+    5: (1, 3, 4, 5, 7),  # One with the Pulsar
+    6: (1, 3, 4, 5, 7),  # One with the Nova
+    7: (1, 3, 4, 5, 7),  # One with the Comet
+    8: (1, 3, 4, 5, 7),  # One with the Meteor
+    9: (1, 3, 4, 5, 7),  # Yeet and Delete
+    10: (1, 3, 4, 5, 7),  # Ride the Lightning
+    11: (1, 3, 4, 5, 7),  # Paralyzer
+    12: (1, 3, 4, 5, 7),  # RAD_DavidN Heal Us w/5th Map
+    13: (1, 3, 4, 5, 7),  # Damage Control
+    14: (1, 3, 4, 5, 7),  # Search and Destroy
+    15: (1, 3, 4, 5, 7),  # n00b Protector 9000
+    16: (1, 3, 4, 5, 7),  # Wraith
+    18: (2, 5, 8, 15, 23),  # My Other Chassis Is a Toaster
+    21: (50, 61, 69, 74, 81),  # Full Team Salvo
+    22: (26, 34, 42, 51, 60),  # Can We Talk About This?
+    24: (19, 43, 61, 78, 89),  # I’m Bat Bot
+    30: (1, 4, 6, 9, 13),  # Pulse Check
+    31: (1, 4, 6, 9, 13),  # Eat My Nova!
+    32: (1, 4, 6, 9, 13),  # Silicon Assassin
+    33: (1, 4, 6, 9, 13),  # I Came to Drop Bombs
+    34: (1, 4, 6, 9, 13),  # Throws Better Than an Arena Disc
+    35: (1, 4, 6, 9, 13),  # Don't Taze Me Bro Bot
+    36: (1, 4, 6, 9, 13),  # Electroshock Therapy
+    37: (1, 4, 6, 9, 13),  # Fully Juiced
+    38: (1, 4, 6, 9, 13),  # Built to Last
+    39: (1, 4, 6, 9, 13),  # X-Ray Vision Implant Upgrade
+    40: (1, 4, 6, 9, 13),  # Check Out My Cool Screensaver
+    41: (1, 4, 6, 9, 13),  # Ghost in the Shell
+    46: (32, 42, 49, 53, 58),  # Tech Support w/RAD_Natalie
+    47: (18, 24, 28, 33, 40),  # Hug Your Frenemy
+    49: (9.3, 22, 36, 47, 57),  # I’ɯ ꓭɐʇ ꓭoʇ
+    55: (5, 11, 19, 29, 49),  # Pulsar Veteran
+    56: (5, 11, 19, 29, 49),  # Nova Veteran
+    57: (5, 11, 19, 29, 49),  # Comet Veteran
+    58: (5, 11, 19, 29, 49),  # Meteor Veteran
+    59: (5, 11, 19, 29, 49),  # Detonator Veteran
+    60: (5, 11, 19, 29, 49),  # Stun Field Veteran
+    61: (5, 11, 19, 29, 49),  # Arc Mine Veteran
+    62: (5, 11, 19, 29, 49),  # Instant Repair Veteran
+    63: (5, 11, 19, 29, 49),  # Repair Matrix Veteran
+    64: (5, 11, 19, 29, 49),  # Threat Scanner Veteran
+    65: (5, 11, 19, 29, 49),  # Energy Barrier Veteran
+    66: (5, 11, 19, 29, 49),  # Phase Shift Veteran
+    68: (205, 440, 810, 1460, 2470),  # Pixel Party!
+    69: (14, 30, 54, 95, 165),  # King of the Hill
+    70: (14, 29, 51, 90, 155),  # Feed the Flamingo
+    75: (8, 16, 27, 50, 80),  # Brute Force Attack
+    76: (7, 15, 26, 49, 80),  # Molten Mechanical Mayhem
+    77: (7, 15, 26, 45, 80),  # George and I Go Way Back
+    78: (7, 15, 26, 46, 75),  # Good ol' George
+    79: (28, 60, 105, 190, 320),  # King/Queen of Pubs
+    90: (3, 4, 5, 6, 7),  # On a Roll
+    96: (112, 160, 182, 198, 207),  # Pedal to the Metal
+    97: (22, 44, 60, 73, 84),  # Immovable Object
+    98: (3.3, 8.6, 15, 25, 46),  # Freight Train
+    101: (1, 3, 4, 5, 7),  # Starburst Stream
+    102: (1, 3, 4, 5, 7),  # Protostar Power Trip
+    103: (1, 3, 4, 5, 7),  # Quark Storm
+    104: (1, 3, 4, 5, 7),  # Here, There and Everywhere
+    105: (5, 11, 19, 29, 49),  # Starburst Veteran
+    106: (5, 11, 19, 29, 49),  # Protostar Veteran
+    107: (5, 11, 19, 29, 49),  # Quark Veteran
+    108: (5, 11, 19, 29, 49),  # Translocator Veteran
+    112: (5, 11, 19, 29, 49),  # Overclocked
+    113: (28, 60, 105, 190, 320),  # Frequent Flyer
+    114: (10, 19, 31, 47, 75),  # Regular
+    115: (6, 11, 16, 23, 32),  # Loyal Bot
+    117: (3.5, 7.7, 14, 26, 43),  # Time Well Wasted
+    122: (1, 2, 3, 7, 12),  # Grand Tour
+    127: (1, 4, 6, 9, 13),  # Star Power
+    128: (1, 4, 6, 9, 13),  # Protostar Powerhouse
+    129: (1, 4, 6, 9, 13),  # Quark Quake
+    130: (1, 4, 6, 9, 13),  # Blink and You'll Miss It
+    131: (1, 3, 4, 5, 7),  # Full Charge
+    132: (1, 4, 6, 9, 13),  # Charged Up
+    133: (5, 11, 19, 29, 49),  # Blazar Veteran
+    134: (5, 11, 19, 29, 49),  # Dot Field Veteran
+    135: (1, 3, 4, 5, 7),  # Blazing Trail
+    136: (1, 3, 4, 5, 7),  # Dot to Dot
+    137: (1, 4, 6, 9, 13),  # Blazar Barrage
+    138: (1, 4, 6, 9, 13),  # Dot Matrix
+    142: (59, 67, 73, 79, 85),  # Statue
+    143: (94.6, 96.4, 98.2, 99.1, 100),  # Lone Wolf (a share of one game: it cannot pass 100; most players are above 95, so it is easy on purpose; user, 2026-11-04)
+    148: (2, 6, 12, 22, 38),  # One-Trick Pony
+}
+
+
 def _ladder(id_: int, name: str, what: str, icon: str | None, count, levels: tuple[float, ...], period: str = "all",
             unit: str = "", raise_all_time: bool = True, **kw) -> "Rule":
     """A medal ladder: `count` is evaluated per period group (game / day / week / all time); the best group counts.
@@ -337,16 +431,40 @@ def _pew_pew_proof(games):
     return min(1.0, len(games) / 25) * (1.0 if avg < limit else min(limit / avg, 0.99))
 
 
-def _loadouts_used(games):
-    """Different released loadouts (of 64) played at least 3 minutes in total."""
+def _released_gear() -> tuple[list[str], list[str], list[str]]:
+    """(weapons, tac mods, ordnances) in use, the most played first (archive hours, 2026-11-04): 8 x 5 x 6 = 240 loadouts."""
+    return (["assault", "scout", "blaster", "rocket", "rifle", "magnum", "smg", "chain"],
+            ["heal", "wraith", "sensor", "shield", "buff"],
+            ["det", "burst", "stun", "arc", "loc", "dot"])
+
+
+def _loadouts_tried(games) -> set[tuple[str, str, str]]:
+    """Released loadouts (weapon, tac mod, ordnance) played at least LOADOUT_USED_S in total."""
     seconds = Counter()
     for g in games:
         for key, frames in g.loadouts.items():
             seconds[key] += frames / (g.frame_rate or 20)
-    released = {w for w, _, _ in WEAPONS}, {t for t, _, _ in TACMODS}, {o for o, _, _ in ORDNANCES}
-    return len({k for k, s in seconds.items() if s >= LOADOUT_USED_S and all(k[i] in released[i] for i in range(3))})
+    gear = [set(x) for x in _released_gear()]
+    return {k for k, s in seconds.items() if s >= LOADOUT_USED_S and all(k[i] in gear[i] for i in range(3))}
 
 
+def _loadouts_used(games):
+    """Different released loadouts (of 240: 8 weapons x 5 tac mods x 6 ordnances) played at least 1 minute in total."""
+    return len(_loadouts_tried(games))
+
+
+def loadouts_to_try(games, n: int = 3) -> list[dict]:
+    """The `n` loadouts this player has not tried yet, made of the most played gear (so they are easy to find a game with)."""
+    tried = _loadouts_tried(games)
+    weapons, tacmods, ordnances = _released_gear()
+    todo = sorted(((wi + ti + oi, w, t, o) for wi, w in enumerate(weapons) for ti, t in enumerate(tacmods) for oi, o in enumerate(ordnances)
+                   if (w, t, o) not in tried))
+    return [{"weapon": w, "tacmod": t, "ordnance": o,
+             "label": " · ".join((gear.lookup(gear.WEAPONS, w).display_name, gear.lookup(gear.ORDNANCES, o).display_name, gear.lookup(gear.TACMODS, t).display_name))}
+            for _, w, t, o in todo[:n]]
+
+
+LOADOUT_RULE_ID = 67
 RELEASED = {c for c, _, _ in WEAPONS + ORDNANCES + TACMODS}
 
 
@@ -466,7 +584,7 @@ def _build_rules() -> list[Rule]:
     rules += [
         _ladder(17, "Versatile Bot", "Days on which you used all 12 items (4 weapons, 4 ordnances, 4 tac mods)", None, _days_all_equipables, (1, 2, 4, 8, 15)),
         _tiered(18, "My Other Chassis Is a Toaster", "Finish games with 3 deaths or fewer", "deaths",
-                lambda g: g.play_time_s >= FULL_GAME_S and g.deaths <= 3, (1, 5, 15, 50, 150), estimated=True),
+                lambda g: g.play_time_s >= FULL_GAME_S and g.deaths <= 3, (1, 4, 7, 16, 24), estimated=True),
         _tiered(19, "Point Captured", "Play Capture Point games in one day", "capture_point", _capture, (5, 7, 9, 12, 17), "day"),
         _tiered(20, "Checkpoint Reached", "Play Payload games in one day", "payload", _payload, (5, 7, 9, 12, 17), "day"),
         _ladder(21, "Full Team Salvo", "Share of one game spent close to a teammate", "team_proximity",
@@ -520,10 +638,10 @@ def _build_rules() -> list[Rule]:
             rules.append(_ladder(i, f"{label} Veteran", f"Play games using {label}", icon, _games_using(slot, code), GEAR_VETERAN))
             i += 1
     rules += [
-        _ladder(67, "5th Loadout when? \"Soon™\"", "Use different loadouts (weapon + ordnance + tac mod), at least 3 minutes each; there are 64 in total", "loadout", _loadouts_used, (6, 12, 24, 40, 56)),
-        _ladder(68, "Pixel Party!", "Total number of times you died, across all games", "deaths", lambda gs: sum(g.deaths for g in gs), (100, 300, 750, 2000, 4000), estimated=True),
-        _tiered(69, "King of the Hill", "Play Capture Point games", "capture_point", _capture, (10, 25, 50, 100, 250)),
-        _tiered(70, "Feed the Flamingo", "Play Payload games", "payload", _payload, (10, 25, 50, 100, 250)),
+        _ladder(67, "5th Loadout when? \"Soon™\"", "Use different loadouts (weapon + ordnance + tac mod), at least 1 minute each; there are 240 in total", "loadout", _loadouts_used, (6, 12, 24, 40, 56)),
+        _ladder(68, "Pixel Party!", "Total number of times you died, across all games", "deaths", lambda gs: sum(g.deaths for g in gs), (75, 225, 563, 1500, 3000), estimated=True),
+        _tiered(69, "King of the Hill", "Play Capture Point games", "capture_point", _capture, (12, 29, 58, 115, 288)),
+        _tiered(70, "Feed the Flamingo", "Play Payload games", "payload", _payload, (12, 29, 58, 115, 288)),
         _ladder(71, "Robot Wrecking Squad", "Average share of each game spent close to a teammate (needs 50+ games)", "team_proximity",
                 _AvgValue("near_mate", 100.0, SEASON_MIN_GAMES), (14, 15.5, 17, 19.5, 22.5), "all", "%"),
         _ladder(72, "Roboticide", "Average share of each game spent close to an enemy (needs 50+ games)", "enemy_proximity",
@@ -681,7 +799,7 @@ def _build_rules() -> list[Rule]:
                 "capture_point", _v4(lambda gs: gs[0].contested_s / 60 if _capture(gs[0]) else 0.0), (2, 3.5, 5, 6.5, 8), "game", " min",
                 new=True, group="Capture Point"),
         _tiered(148, "One-Trick Pony", "Win a game using just one loadout (one weapon, one tac mod and one ordnance)",
-                "loadout", lambda g: g.enough_players and g.won and g.main_loadout() is not None, (1, 10, 30, 80, 200), new=True, group="Gear mastery"),
+                "loadout", lambda g: g.enough_players and g.won and g.main_loadout() is not None, (1, 10, 18, 36, 70), new=True, group="Gear mastery"),
         _ladder(149, "Loadout Roulette", "Use many different loadouts in one game (each must be used for at least 10 % of the game)",
                 "loadout", _v4(lambda gs: gs[0].loadouts_played()), (4, 5, 6, 7, 8), "game", new=True, group="Gear mastery"),
         _ladder(150, "Mime Troupe", "Use as many emotes as you can in one game without dying", None,
@@ -721,7 +839,17 @@ def rule_notes(rule: Rule) -> list[str]:
     return [n for n in notes if n]
 
 
-RULES = _build_rules()
+def _tuned(rule: Rule) -> Rule:
+    """The rule with its TUNED_LEVELS (targets, text and scoring), if it has any."""
+    levels = TUNED_LEVELS.get(rule.id)
+    if levels is None:
+        return rule
+    what = rule.description.rsplit(" (", 1)[0]
+    targets = ", ".join(f"{_num(n)}{rule.unit} {medal}" for n, medal in zip(levels, LEVELS))
+    return replace(rule, description=f"{what} ({targets})", levels=levels, score=_levelled(rule.count, levels))
+
+
+RULES = [_tuned(r) for r in _build_rules()]
 
 # Mega Prize (user, 2026-11-04): NOT in RULES on purpose. RULES feeds every public list, ranking, medal feed and total; the
 # prize is Preview-only and only served by api/arena.py and the Console report (mega_prizes.py). Written targets are
@@ -814,6 +942,8 @@ def evaluate(games: list[Game]) -> list[dict]:
         }
         if n is not None:  # the website shows "12 / 25 for diamond"
             entry |= {"tier": level_tier(n, rule.levels), "count": round(n, 2), "levels": list(rule.levels), "unit": rule.unit}
+        if rule.id == LOADOUT_RULE_ID:
+            entry["try_next"] = loadouts_to_try(games)  # "try these next": the website links each to its leaderboard
         entries[rule.id] = entry
     for rule in RULES:
         if rule.meta:
@@ -833,7 +963,9 @@ SECTION_MIN_RULES = 4  # a section needs this many challenges to be somebody's "
 
 def section_of(rule: Rule) -> str:
     """The section of the website a rule is shown in: its period (original rules) or its theme (new ones)."""
-    return (rule.group or "More") if rule.new else PERIOD_SECTIONS[rule.period]
+    if rule.new and not (rule.period == "week" and rule.group in ("Experimental gear", "Gear mastery")):  # 7-day gear rules: by period
+        return rule.group or "More"
+    return PERIOD_SECTIONS[rule.period]
 
 
 def achiever_facts(progress: list[float]) -> dict:
