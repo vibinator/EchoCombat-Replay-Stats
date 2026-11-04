@@ -325,7 +325,7 @@ def _recent(games: dict[int, list[Game]], latest: str | None, people: dict, eval
                 if at[:10] >= cutoff:
                     uid, name = people[pid]
                     events.append({"date": at[:10], "at": at, "user_id": uid, "name": name, "id": rule_id, "medal": medal,
-                                   "achievement": rules[rule_id].name, "icon": icon_file(rules[rule_id])})
+                                   "achievement": rules[rule_id].name, "description": rules[rule_id].description, "icon": icon_file(rules[rule_id])})
     events.sort(key=lambda e: e["at"], reverse=True)
     return events
 

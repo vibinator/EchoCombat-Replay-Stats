@@ -711,6 +711,7 @@ def interactive(sessions, settings: Settings) -> None:
                 cmd_challenge(sessions, None, None, False)
                 print("New dates: YYYY-MM-DD, '-' to clear, Enter to keep. Start = launch date: achievements and")
                 print("challenges are \"Coming soon\" on the website until then and only count matches from it.")
+                print("This affects achievements only: the general player stats keep counting every match.")
                 start, end = ask("Start: "), ask("End: ")
                 if start or end:
                     cmd_challenge(sessions, None if not start else ("" if start == "-" else start),

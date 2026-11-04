@@ -209,14 +209,29 @@ def _all_time(levels: tuple[float, ...], unit: str) -> tuple[float, ...]:
     return tuple(int(v) if whole else v for v in out)
 
 
+PLATINUM_EASIER = 0.9  # gear Veteran ladders (every weapon, ordnance and tac mod): platinum needs 10 % less than after _harder (user, 2026-11-04)
+
+
+def _easier_platinum(levels: tuple[float, ...]) -> tuple[float, ...]:
+    """Platinum (last target) x PLATINUM_EASIER, still above diamond. Whole-number targets stay whole."""
+    whole = all(float(v).is_integer() for v in levels)
+    v = levels[4] * PLATINUM_EASIER
+    v = float(int(v + 0.5)) if whole else round(v, 1)
+    v = max(v, levels[3] + (1 if whole else 0.1))
+    return tuple(int(x) if whole else x for x in (*levels[:4], v))
+
+
 def _ladder(id_: int, name: str, what: str, icon: str | None, count, levels: tuple[float, ...], period: str = "all",
             unit: str = "", raise_all_time: bool = True, **kw) -> "Rule":
     """A medal ladder: `count` is evaluated per period group (game / day / week / all time); the best group counts.
     The text lists every target. All-time count ladders are raised by _all_time; diamond and platinum are made harder by
-    _harder. The Mega Prize ladder and Medal Collector (meta) keep their written targets."""
+    _harder, then platinum of the gear Veteran ladders is eased by _easier_platinum. The Mega Prize ladder and Medal Collector (meta) keep their written targets."""
+    gear_veteran = levels == GEAR_VETERAN  # one ladder for all gear, so one platinum target for all gear
     if period == "all" and raise_all_time and not kw.get("meta"):
         levels = _all_time(levels, unit)
     levels = _harder(levels, unit)
+    if gear_veteran:
+        levels = _easier_platinum(levels)
     targets = ", ".join(f"{_num(n)}{unit} {medal}" for n, medal in zip(levels, LEVELS))
     return Rule(id_, name, f"{what} ({targets})", period, icon, _levelled(count, levels), levels=levels, count=count,
                 unit=unit, **kw)

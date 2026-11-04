@@ -5,6 +5,7 @@ import {
   type ConsoleLogEntry, type ConsoleOverview, type ConsolePlayer, type ProcessingStatus,
 } from "../api";
 import { SplitBar } from "../components/bars";
+import { PlayerSuggest } from "../components/PlayerSuggest";
 import { ProcessingPanel } from "../components/ProcessingPanel";
 import { duration, int, num, pct, playerPath } from "../format";
 import { Status, TableWrap } from "../components/common";
@@ -17,7 +18,7 @@ import { usePageTitle } from "../usePageTitle";
 type Field = {
   key: string;
   label: string;
-  kind?: "text" | "date" | "check" | "list" | "select";
+  kind?: "text" | "date" | "check" | "list" | "select" | "player" | "players"; // player(s): suggests players while typing (one / one per line)
   hint?: string;
   options?: [value: string, label: string][]; // select
 };
@@ -58,12 +59,12 @@ const GROUPS: { title: string; commands: Command[] }[] = [
         label: "Merge player records",
         help: "For one person who appears under several player ids. Their replays are read again, so the merge can always be undone.",
         fields: [
-          { key: "main", label: "Player to keep", hint: "Name or id" },
+          { key: "main", label: "Player to keep", kind: "player", hint: "Start typing a name or id" },
           {
             key: "others",
             label: "Records to merge into it",
-            kind: "list",
-            hint: "One name or id per line",
+            kind: "players",
+            hint: "One name or id per line; start typing to find a player",
           },
         ],
         confirm: (v) => `Merge ${lines(v.others).length} record(s) into ${v.main}?`,
@@ -203,6 +204,7 @@ const GROUPS: { title: string; commands: Command[] }[] = [
         help:
           "The start date is the launch: until then achievements and challenges show “Coming soon”, and only matches from that day count. " +
           "“Visible to” decides who sees them: everyone once the start date has come, only people with the Preview role (the date still counts), or nobody. " +
+          "These dates only affect achievements, challenges and Mega Prizes: the games, wins and other numbers on the general player stats pages always count every match. " +
           "Leave everything empty to see the current setting; an empty date is kept as it is.",
         fields: [
           { key: "start", label: "Start", kind: "date" },
@@ -271,7 +273,7 @@ function toArgs(fields: Field[], values: Record<string, string>): Record<string,
     if (f.key === "start_today" || f.key === "end_today") continue;
     const v = values[f.key] ?? "";
     if (f.kind === "check") args[f.key] = v === "1";
-    else if (f.kind === "list") args[f.key] = lines(v);
+    else if (f.kind === "list" || f.kind === "players") args[f.key] = lines(v);
     else if (f.kind !== "date" || v) args[f.key] = v.trim();
   }
   if (values.start_today === "1") args.start = todayIso();
@@ -461,6 +463,14 @@ function Console() {
                           <option key={value} value={value}>{label}</option>
                         ))}
                       </select>
+                    ) : f.kind === "player" || f.kind === "players" ? (
+                      <PlayerSuggest
+                        multiline={f.kind === "players"}
+                        placeholder={f.hint}
+                        value={values[f.key] ?? ""}
+                        onChange={(v) => set(f.key, v)}
+                        search={searchConsolePlayers}
+                      />
                     ) : f.kind === "list" ? (
                       <textarea rows={3} placeholder={f.hint} value={values[f.key] ?? ""} onChange={(e) => set(f.key, e.target.value)} />
                     ) : (

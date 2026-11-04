@@ -992,6 +992,7 @@ export interface RecentUnlock {
   name: string;
   id: number;
   achievement: string;
+  description: string;
   icon: string | null;
 }
 

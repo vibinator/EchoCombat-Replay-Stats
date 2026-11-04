@@ -1694,7 +1694,7 @@ td.best {
   flex: 0 0 min(230px, 75vw);
   display: grid;
   grid-template-columns: 28px 1fr;
-  grid-template-areas: "icon text" "icon date";
+  grid-template-areas: "icon text" "icon desc" "icon date";
   column-gap: 8px;
   align-items: center;
   padding: 8px 10px;
@@ -1712,6 +1712,13 @@ td.best {
 .recent-unlocks li > span:first-of-type {
   grid-area: text;
   min-width: 0;
+}
+.recent-unlocks .desc {
+  grid-area: desc;
+  min-width: 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin: 2px 0;
 }
 .recent-unlocks .muted {
   grid-area: date;
@@ -3674,4 +3681,48 @@ button.small {
 .mega-body .mega-count {
   text-align: right;
   color: var(--muted, #9aa0a6);
+}
+
+/* Player autocomplete: a list under a text box that suggests players while you type */
+.suggest {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+.suggest input,
+.suggest textarea {
+  width: 100%;
+  box-sizing: border-box;
+}
+.suggest-list {
+  position: absolute;
+  z-index: 30;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin: 2px 0 0;
+  padding: 4px;
+  list-style: none;
+  max-height: 280px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+.suggest-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.suggest-list li:hover,
+.suggest-list li.active {
+  background: var(--line);
+}
+.suggest-list .muted {
+  font-size: 0.75rem;
+  white-space: nowrap;
 }

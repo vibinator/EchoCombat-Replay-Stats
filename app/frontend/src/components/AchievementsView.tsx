@@ -449,11 +449,13 @@ function CloseToMedal({ items }: { items: Achievement[] }) {
 }
 
 /** A rule with a player's progress, or just the catalogue entry when `progress` is absent. */
-/** Tiered achievements: "12 / 25 for diamond", or the top medal once every target is reached. */
+/** Tiered achievements: "13 more to reach diamond", or the top medal once every target is reached. */
 function levelText(count: number, levels: number[], unit = ""): string {
   const next = levels.findIndex((need) => count < need);
   if (next < 0) return `${count.toLocaleString()}${unit} · ${LEVELS[levels.length - 1]} (max)`;
-  return `${count.toLocaleString()} / ${levels[next].toLocaleString()}${unit} for ${LEVELS[next]}`;
+  const left = Math.round(Math.max(levels[next] - count, 0) * 100) / 100; // count arrives rounded to 2 decimals
+  const shown = Number.isInteger(left) ? left : Math.ceil(left * 10) / 10; // round up: "0.0 more" would be wrong
+  return `${shown.toLocaleString()}${unit} more to reach ${LEVELS[next]}`;
 }
 
 export function Badge({ a }: { a: AchievementRule & Partial<Pick<Achievement, "progress" | "tier" | "unlocked_at" | "count">> & Partial<Pick<AchievementRarity, "unlocked_share" | "completed_share">> }) {
@@ -744,7 +746,7 @@ export function ChallengeBanner() {
   return (
     <p className={`note${d.active ? "" : " ended"}`}>
       Flamingo Challenge period: <strong>{d.start}</strong> to <strong>{d.end ?? "open-ended"}</strong>
-      {d.active ? "" : " (not running now)"} — only matches inside it count.
+      {d.active ? "" : " (not running now)"} — only matches inside it count for achievements; the player stats pages count every match.
     </p>
   );
 }
@@ -806,6 +808,12 @@ export function AchievementsView({ userId }: { userId: string }) {
                 {data.completed} / {data.total}
               </strong>
             </div>
+            {LEVELS.map((medal, i) => (
+              <div className={`card t-${medal}`} key={medal} title={`Challenges where the ${medal} medal (or better) is earned`}>
+                <span className="label" style={{ color: "var(--tier)" }}>{medal}</span>
+                <strong>{data.items.filter((a) => a.levels && a.tier && LEVELS.indexOf(a.tier as (typeof LEVELS)[number]) >= i).length}</strong>
+              </div>
+            ))}
           </div>
           {sort === "group" && <CloseToMedal items={data.items} />}
           {sort === "group" && <NotYetStarted items={data.items} />}

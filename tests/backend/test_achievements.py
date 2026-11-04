@@ -5,7 +5,7 @@ import replay_factory as rf
 from app_helpers import act, add, app_client, make_settings
 
 from backend import admin_actions as actions
-from backend.achievements import medal_times, rule_notes, RULES, Game, _all_time, _harder, evaluate, icon_file, overall, tier
+from backend.achievements import medal_times, rule_notes, RULES, Game, _all_time, _easier_platinum, _harder, evaluate, icon_file, overall, tier
 
 BLUE = str(rf.BIG_USER_ID)
 
@@ -317,10 +317,10 @@ def test_one_game_challenges_need_a_4v4():
 
 def test_all_gear_shares_one_ladder_per_kind():
     veteran = {r.levels for r in RULES if r.name.endswith(" Veteran") and r.period == "all"}
-    assert veteran == {_harder(_all_time((6, 17, 55, 170, 400), ""), "")}  # all-time ladders are raised 20 %
+    assert veteran == {_easier_platinum(_harder(_all_time((6, 17, 55, 170, 400), ""), ""))}  # raised 20 %, harder top, platinum 10 % easier
     assert {r.levels for r in RULES if "using only" in r.description and r.period == "day"} == {_harder((3, 6, 9, 13, 17), "")}
     assert {r.levels for r in RULES if "using only" in r.description and r.period == "week" and r.id != 42}  # 42: Gearhead is about loadouts, not one gear == {_harder((6, 12, 18, 35, 55), "")}
-    assert next(r for r in RULES if r.id == 112).levels == _harder(_all_time((6, 17, 55, 170, 400), ""), "")  # Overclocked is a veteran ladder too
+    assert next(r for r in RULES if r.id == 112).levels == _easier_platinum(_harder(_all_time((6, 17, 55, 170, 400), ""), ""))  # Overclocked is a veteran ladder too
 
 
 def test_victory_lap_needs_a_win():
