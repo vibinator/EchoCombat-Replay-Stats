@@ -317,10 +317,10 @@ def test_one_game_challenges_need_a_4v4():
 
 def test_all_gear_shares_one_ladder_per_kind():
     veteran = {r.levels for r in RULES if r.name.endswith(" Veteran") and r.period == "all"}
-    assert veteran == {(*_scaled(_easier_platinum(_harder(_all_time((6, 17, 55, 170, 400), ""), "")), 1.32)[:3], 160, 260)}  # raised 20 %, harder top, platinum 10 % easier, then every tier 20 % harder
+    assert veteran == {(*_scaled(_easier_platinum(_harder(_all_time((6, 17, 55, 170, 400), ""), "")), 1.32)[:3], 115, 150)}  # raised 20 %, harder top, platinum 10 % easier, then every tier 20 % harder
     assert {r.levels for r in RULES if "using only" in r.description and r.period == "day"} == {_harder((3, 6, 9, 13, 17), "")}
     assert {r.levels for r in RULES if "using only" in r.description and r.period == "week" and r.id != 42}  # 42: Gearhead is about loadouts, not one gear == {_harder((6, 12, 18, 35, 55), "")}
-    assert next(r for r in RULES if r.id == 112).levels == (*_scaled(_easier_platinum(_harder(_all_time((6, 17, 55, 170, 400), ""), "")), 1.32)[:3], 160, 260)  # Overclocked is a veteran ladder too
+    assert next(r for r in RULES if r.id == 112).levels == (*_scaled(_easier_platinum(_harder(_all_time((6, 17, 55, 170, 400), ""), "")), 1.32)[:3], 115, 150)  # Overclocked is a veteran ladder too
 
 
 def test_victory_lap_needs_a_win():

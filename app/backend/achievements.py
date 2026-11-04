@@ -224,7 +224,7 @@ def _easier_platinum(levels: tuple[float, ...]) -> tuple[float, ...]:
 VETERAN_HARDER = 1.32  # gear Veteran ladders (every weapon, ordnance and tac mod): every tier needs 20 % more, then another 10 % (1.2 x 1.1), after the steps above (user, 2026-11-04)
 
 
-VETERAN_TOP = (160, 260)  # gear Veteran diamond and platinum: platinum is reachable for about 10 % of active players in 3 months (user, 2026-11-04; from the 31 Oct-3 Nov pace)
+VETERAN_TOP = (115, 150)  # gear Veteran diamond and platinum: all 18 platinums = ~1,200 weapon games (was 260 = ~2,100), so completing every gear Veteran is possible; platinum is reachable for well over 10 % of active players in 3 months (user, 2026-11-04; from the 31 Oct-3 Nov pace)
 
 
 def _scaled(levels: tuple[float, ...], factor: float) -> tuple[float, ...]:

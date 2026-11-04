@@ -18,6 +18,12 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.04.9 — 14:10
+
+### Gear Veteran challenges retuned
+- **All 18 gear Veterans (every weapon, ordnance and tac mod, plus Overclocked):** bronze / silver / gold / diamond / platinum are now 9 / 26 / 87 / 115 / 150 games (were 8 / 24 / 79 / 318 / 674). Bronze to gold are about 32 % above the previous base; diamond and platinum were lowered so that completing every gear Veteran is possible: all 18 platinums need about 1,200 weapon games (8 weapons x 150).
+- **Do:** restart the backend (progress is computed on request, so levels change at once).
+
 ## 2026.11.04.8 — 13:06
 
 ### Achievements page
