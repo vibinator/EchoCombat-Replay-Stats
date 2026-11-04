@@ -212,6 +212,8 @@ export function MegaPrizesSection() {
 
 type PrizeRow = SearchResult["results"][number];
 
+const winnersText = (n: number) => (n === 0 ? "Nobody has won it yet." : `${n} ${n === 1 ? "player has" : "players have"} won it.`);
+
 /** One player's progress inside a prize card: name, a bar and the count. */
 function PlayerBar({ r, target }: { r: { name: string; user_id: string; matches: number }; target: number }) {
   return (
@@ -267,11 +269,19 @@ function MegaPrizes() {
             <strong>Play {combatTarget} Echo Combat Matches</strong>
             <span className="tag mega-prize">Mega Prize: {combat?.prize ?? "Delta Squad BioMass Chassis"}</span>
             <span className="muted">Only counts games of 4+ minutes.</span>
-            {searching && (byKind("combat").length > 0 ? (
+            <span className="muted">{winnersText(arena.winners_combat)}</span>
+            {searching ? (byKind("combat").length > 0 ? (
               <ul className="mega-results">{byKind("combat").map((r) => <PlayerBar key={r.user_id} r={r} target={combatTarget} />)}</ul>
             ) : (
               <span className="muted">Nobody found.</span>
-            ))}
+            )) : (
+              arena.closest_combat.length > 0 && (
+                <>
+                  <span className="muted">Closest to the prize</span>
+                  <ul className="mega-results">{arena.closest_combat.map((r) => <PlayerBar key={r.user_id} r={r} target={combatTarget} />)}</ul>
+                </>
+              )
+            )}
           </div>
         </article>
         <article className="mega-card">
@@ -280,6 +290,7 @@ function MegaPrizes() {
             <strong>Play {arena.target} Public Arena Matches</strong>
             <span className="tag mega-prize">Mega Prize: OG High Quality Jack Model</span>
             <span className="muted">Only counts public matches of 4+ minutes.</span>
+            <span className="muted">{winnersText(arena.winners_arena)}</span>
             {searching ? (
               byKind("arena").length > 0 ? (
                 <ul className="mega-results">{byKind("arena").map((r) => <PlayerBar key={r.user_id} r={r} target={arena.target} />)}</ul>
@@ -287,13 +298,25 @@ function MegaPrizes() {
                 <span className="muted">Nobody found.</span>
               )
             ) : (
-              arena.players.length > 0 && (
-                <ul className="mega-results">
-                  {arena.players.filter((p) => p.completed).slice(0, 5).map((p) => (
-                    <PlayerBar key={p.user_id} r={p} target={arena.target} />
-                  ))}
-                </ul>
-              )
+              <>
+                {arena.closest_arena.length > 0 && (
+                  <>
+                    <span className="muted">Closest to the prize</span>
+                    <ul className="mega-results">{arena.closest_arena.map((p) => <PlayerBar key={p.user_id} r={p} target={arena.target} />)}</ul>
+                  </>
+                )}
+                {arena.players.length > 0 && (
+                  <>
+                    <span className="muted">Reached it</span>
+                    <ul className="mega-results">
+                      {arena.players.filter((p) => p.completed).slice(0, 5).map((p) => (
+                        <PlayerBar key={p.user_id} r={p} target={arena.target} />
+                      ))}
+                    </ul>
+                  </>
+                )}
+              </>
+
             )}
           </div>
         </article>

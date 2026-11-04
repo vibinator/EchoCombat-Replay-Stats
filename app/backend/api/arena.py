@@ -7,15 +7,17 @@ from fastapi.responses import FileResponse
 from sqlalchemy import func, select
 
 from .. import auth
-from ..achievements import MEGA_COMBAT, icon_file, mega_combat_games
+from ..achievements import FULL_GAME_S, MEGA_COMBAT, icon_file, mega_combat_games
 from ..admin_actions import challenge_window
+from ..duplicates import counted
 from ..errors import ApiError
-from ..models import ArenaPlayer, Player
+from ..models import ArenaPlayer, Match, MatchPlayer, Player
 from .achievements import _games
 
 router = APIRouter(prefix="/api/arena", tags=["arena"])
 TARGET = 750  # Mega Prize: OG High Quality Jack Model
 SEARCH_LIMIT = 10
+CLOSEST = 2  # players shown as "closest to the prize"
 IMAGES = {"jack.jpg": "image/jpeg", "biomass.jpg": "image/jpeg"}  # exact names only: nothing from the visitor reaches a path
 IMAGE_DIR = Path(__file__).resolve().parent.parent / "private_assets"
 
@@ -40,12 +42,50 @@ def progress(request: Request, limit: int = Query(10, ge=1, le=100)):
     with request.app.state.sessionmaker() as db:
         rows = db.scalars(select(ArenaPlayer).where(ArenaPlayer.matches >= TARGET)
                          .order_by(ArenaPlayer.matches.desc()).limit(limit)).all()  # only those who reached it (user, 2026-11-04)
+        near_arena = db.scalars(select(ArenaPlayer).where(ArenaPlayer.matches < TARGET)
+                                .order_by(ArenaPlayer.matches.desc()).limit(CLOSEST)).all()
+        combat_target = int(MEGA_COMBAT.levels[-1])
+        near_combat = _closest_combat(db, combat_target)
+        won_arena = db.scalar(select(func.count()).select_from(ArenaPlayer).where(ArenaPlayer.matches >= TARGET)) or 0
+        won_combat = _combat_winners(db, combat_target)
     r = MEGA_COMBAT  # kept out of RULES, so no public list or ranking has it
     combat = [{"id": r.id, "name": r.name, "description": r.description, "period": r.period, "icon": icon_file(r), "estimated": False,
                "new": r.new, "group": r.group, "levels": list(r.levels), "unit": r.unit, "prize": r.prize}]
     return {"target": TARGET, "min_minutes": 4, "combat": combat,
             "players": [{"user_id": r.user_id, "name": r.display_name or r.username, "matches": r.matches,
-                         "completed": r.matches >= TARGET} for r in rows]}
+                         "completed": r.matches >= TARGET} for r in rows],
+            # the two players nearest to the prize who have not reached it yet (user, 2026-11-04)
+            "winners_combat": won_combat, "winners_arena": won_arena,
+            "closest_combat": near_combat,
+            "closest_arena": [{"user_id": a.user_id, "name": a.display_name or a.username, "matches": a.matches} for a in near_arena]}
+
+
+def _combat_counts(db, start: str, end: str | None):
+    """Per player: games of 4+ minutes inside the challenge period, counted in SQL (same rule as mega_combat_games)
+    so no game list is loaded."""
+    day = func.substr(Match.started_at, 1, 10)
+    query = (select(Player.user_id, Player.name, func.count().label("n"))
+             .select_from(MatchPlayer).join(Match, Match.id == MatchPlayer.match_id).join(Player, Player.id == MatchPlayer.player_id)
+             .where(counted(MatchPlayer.match_id), MatchPlayer.play_time_s >= FULL_GAME_S, day >= start))
+    return (query.where(day <= end) if end else query).group_by(Player.id)
+
+
+def _closest_combat(db, target: int) -> list[dict]:
+    """The CLOSEST players below the Combat target."""
+    start, end = challenge_window(db)
+    if not start:
+        return []
+    q = _combat_counts(db, start, end).having(func.count() < target).order_by(func.count().desc()).limit(CLOSEST)
+    return [{"user_id": u, "name": n, "matches": c} for u, n, c in db.execute(q).all()]
+
+
+def _combat_winners(db, target: int) -> int:
+    """How many players reached the Combat target inside the challenge period."""
+    start, end = challenge_window(db)
+    if not start:
+        return 0
+    sub = _combat_counts(db, start, end).having(func.count() >= target).subquery()
+    return db.scalar(select(func.count()).select_from(sub)) or 0
 
 
 @router.get("/search")

@@ -1161,6 +1161,10 @@ export interface ArenaProgress {
   min_minutes: number;
   combat: AchievementRule[]; // the Combat Mega Prize challenges
   players: { user_id: string; name: string; matches: number; completed: boolean }[];
+  winners_combat: number; // players who reached the target
+  winners_arena: number;
+  closest_combat: { user_id: string; name: string; matches: number }[]; // top 2 not yet at the target
+  closest_arena: { user_id: string; name: string; matches: number }[];
 }
 export const getArenaProgress = () => send<ArenaProgress>("/api/arena/progress");
 
