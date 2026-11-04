@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router";
-import { LEVELS, getAchievements, getArenaProgress, getChallenges, getMe, getRarity, loginUrl, type Achievement, type AchievementPeek, type AchievementRarity, type AchievementRule } from "../api";
+import { LEVELS, getAchievements, getArenaProgress, getChallenges, searchMegaPrizes, type MegaPrizeSearch as SearchResult, getMe, getRarity, loginUrl, type Achievement, type AchievementPeek, type AchievementRarity, type AchievementRule } from "../api";
 import { achievementsPath, pct, ruleText } from "../format";
 import { useApi } from "../useApi";
 import { Status } from "./common";
@@ -162,23 +162,13 @@ export function MegaPrizes() {
       <h2>
         Mega Prizes <span className="tag">draft</span>
       </h2>
-      {arena.me && (
-        <div className="panel" aria-label="Your progress">
-          <strong>Your progress{arena.me.name ? `, ${arena.me.name}` : ""}</strong>
-          <PrizeBar value={arena.me.arena / arena.target} label={`Public Arena: ${arena.me.arena} / ${arena.target} matches → OG High Quality Jack Model`} />
-          {arena.me.combat_linked ? (
-            <PrizeBar value={(arena.me.combat ?? 0) / (items[0]?.levels?.[items[0].levels.length - 1] ?? 750)} label={`Echo Combat: ${arena.me.combat ?? 0} / ${items[0]?.levels?.[items[0].levels.length - 1] ?? 750} matches → Delta Squad BioMass Chassis`} />
-          ) : (
-            <span className="muted">Link your Discord account to your player to see your Echo Combat progress.</span>
-          )}
-        </div>
-      )}
+      <MegaPrizeSearch target={arena.target} />
       <div className="badges scroll-row" tabIndex={0} aria-label="Mega Prizes, scroll sideways">
         {items.map((a) => (
           <div key={a.id}>
             <img src="/mega-prizes/biomass.png" alt="Delta Squad BioMass Chassis (draft)" style={{ width: 160, borderRadius: 6 }} />
             <Badge a={a} />
-            <PrizeBar value={0} label={`Target: ${a.levels?.[a.levels.length - 1] ?? 750} matches (draft: progress not shown yet)`} />
+            <PrizeBar value={0} label={`Target: ${a.levels?.[a.levels.length - 1] ?? 750} matches. Search a player above to see their progress.`} />
           </div>
         ))}
         <div>
@@ -200,6 +190,40 @@ export function MegaPrizes() {
           <span className="muted">Public Arena only, 4+ minutes in the match, counted from the live match list.</span>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** Search a player by name: shows their progress toward the Combat and Arena prizes (from the challenge period on). */
+function MegaPrizeSearch({ target }: { target: number }) {
+  const [q, setQ] = useState("");
+  const [found, setFound] = useState<SearchResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    const term = q.trim();
+    if (term.length < 2) {
+      setFound(null);
+      return;
+    }
+    let live = true;
+    const t = setTimeout(() => searchMegaPrizes(term).then((r) => live && (setFound(r), setError(null)), (e: Error) => live && setError(e.message)), 300);
+    return () => {
+      live = false;
+      clearTimeout(t);
+    };
+  }, [q]);
+  return (
+    <div className="panel" aria-label="Search progress">
+      <input type="search" placeholder="Search a player name" aria-label="Search a player" value={q} onChange={(e) => setQ(e.target.value)} />
+      {error && <p className="error">{error}</p>}
+      {found && found.results.length === 0 && <p className="muted">Nobody found.</p>}
+      {found?.results.map((r) => (
+        <PrizeBar
+          key={`${r.kind}-${r.user_id}`}
+          value={r.matches / target}
+          label={`${r.name}: ${r.matches} / ${target} ${r.kind === "combat" ? "Echo Combat matches → Delta Squad BioMass Chassis" : "Public Arena matches → OG High Quality Jack Model"}`}
+        />
+      ))}
     </div>
   );
 }

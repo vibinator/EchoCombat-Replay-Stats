@@ -35,6 +35,7 @@ def open_db(db_path: Path, cache_mb: int = 0) -> tuple[Engine, sessionmaker]:
 
     _rebuild_stale_tables(engine)
     Base.metadata.create_all(engine)
+    _add_missing_columns(engine)
     _add_missing_indexes(engine)
     return engine, sessionmaker(engine, expire_on_commit=False)
 
@@ -51,6 +52,22 @@ def warm(db_path: Path, cache_mb: int) -> None:
             pass
 
     threading.Thread(target=_read, name="db-warm", daemon=True).start()
+
+
+def _add_missing_columns(engine: Engine) -> None:
+    """A table kept across rebuilds (PRESERVED_TABLES, e.g. arena_players) is never dropped, so a column added to its model
+    later would be missing from an existing database (and an index on it would fail at startup). Nullable columns are
+    added in place; the data stays."""
+    inspector = inspect(engine)
+    for table in Base.metadata.sorted_tables:
+        if table.name not in PRESERVED_TABLES or not inspector.has_table(table.name):
+            continue
+        have = {c["name"] for c in inspector.get_columns(table.name)}
+        with engine.begin() as conn:
+            for column in table.columns:
+                if column.name not in have and column.nullable:
+                    kind = column.type.compile(engine.dialect)
+                    conn.execute(text(f'ALTER TABLE "{table.name}" ADD COLUMN "{column.name}" {kind}'))
 
 
 def _add_missing_indexes(engine: Engine) -> None:

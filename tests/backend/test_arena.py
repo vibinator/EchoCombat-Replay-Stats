@@ -83,3 +83,37 @@ def test_winners_report_needs_console_and_lists_nobody_without_a_period(client):
         data = mega_prizes.report(db)
     assert [len(p["winners"]) for p in data["prizes"]] == [0, 1] and data["prizes"][1]["winners"][0]["name"] == "U"
     assert b"OG High Quality Jack Model" in mega_prizes.csv_bytes(data)
+
+
+def test_opens_a_database_made_before_discord_id_existed(tmp_path):
+    """The Docker crash: arena_players already existed without discord_id and is kept across rebuilds."""
+    import sqlite3
+    path = tmp_path / "old.db"
+    con = sqlite3.connect(path)
+    con.execute("CREATE TABLE arena_players (user_id VARCHAR NOT NULL PRIMARY KEY, username VARCHAR NOT NULL, "
+                "display_name VARCHAR, matches INTEGER NOT NULL, last_match_at VARCHAR NOT NULL)")
+    con.execute("INSERT INTO arena_players VALUES ('u', 'u', 'U', 12, 'x')")
+    con.commit()
+    con.close()
+    _, sm = open_db(path, 0)
+    with sm() as db:
+        row = db.get(ArenaPlayer, "u")
+        assert row.matches == 12 and row.discord_id is None  # data kept, column added
+
+
+def test_search_is_for_the_preview_role_only(client):
+    assert client.get("/api/arena/search", params={"q": "ab"}).status_code == 403
+
+
+def test_search_finds_arena_players_by_name(tmp_path, monkeypatch):
+    from backend.api import arena as api
+    _, sm = open_db(tmp_path / "s.db", 0)
+    with sm() as db:
+        db.add(ArenaPlayer(user_id="u1", username="zed", display_name="Zed The Great", discord_id=None, matches=40, last_match_at="x"))
+        db.commit()
+    from types import SimpleNamespace
+    request = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(sessionmaker=sm)))
+    monkeypatch.setattr(api.auth, "has_preview", lambda r: True)  # the role check is covered above
+    found = api.search(request, q="the gre")
+    assert found["results"] == [{"kind": "arena", "name": "Zed The Great", "user_id": "u1", "matches": 40}]
+    assert api.search(request, q="z")["results"] == []  # one letter: too broad

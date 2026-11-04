@@ -1159,8 +1159,13 @@ export interface ArenaProgress {
   target: number;
   min_minutes: number;
   combat: AchievementRule[]; // the Combat Mega Prize challenges
-  /** the visitor's own progress; null = not logged in. combat null = their Discord account is not linked to a player */
-  me: { name: string; arena: number; combat: number | null; combat_linked: boolean } | null;
   players: { user_id: string; name: string; matches: number; completed: boolean }[];
 }
 export const getArenaProgress = () => send<ArenaProgress>("/api/arena/progress");
+
+/** Search a player by name: their progress toward each Mega Prize (from the challenge period on). */
+export interface MegaPrizeSearch {
+  target: number;
+  results: { kind: "combat" | "arena"; name: string; user_id: string; matches: number }[];
+}
+export const searchMegaPrizes = (q: string) => send<MegaPrizeSearch>(`/api/arena/search?q=${encodeURIComponent(q)}`);

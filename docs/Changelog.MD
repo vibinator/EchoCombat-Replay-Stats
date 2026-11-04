@@ -19,6 +19,10 @@ Working record of what changed in each release, newest first.
 ---
 
 ## 2026.11.04.1 — 10:58
+### Fixes
+- **Docker would not start** (`no such column: discord_id`): the Arena table made by the previous build lacked a column. Tables kept across
+  rebuilds now get missing columns added at startup, with their data kept.
+
 ### Console
 - **Permissions moved into the Console:** the Permissions tab is gone; the same panel is now at the bottom of the Console page
   (`/permissions` redirects there). Same access: the Console permission, and the server still checks every change.
@@ -35,10 +39,10 @@ Working record of what changed in each release, newest first.
 - **Console report, Mega Prize winners:** the prizes are given out by hand, so the Console has a *Mega Prize winners* panel (Refresh, Copy,
   Download CSV): everyone who reached 750 inside the challenge period, with player id and Discord id. Combat counts the replay files,
   Public Arena the live match list. Arena needs 4+ minutes in the match (changed from 3).
-- **Mega Prizes tab (Preview role only):** a *Mega Prizes* tab (`/mega-prizes`) shows **your own progress** first: Public Arena matches
-  (matched through your Discord id on the match list) and Echo Combat games (the player your Discord account is linked to), each with
-  a bar toward 750; then the top 10 Arena players. **Progress starts at the set challenge period** (start date; end date if any): Arena counts nothing
-  before it (and nothing at all while no start date is set), and Combat games before it are not counted. The Discord id from the match list is stored to make that link.
+- **Mega Prizes tab (Preview role only):** a *Mega Prizes* tab (`/mega-prizes`) with a **search box**: type a player name and their progress
+  toward each prize shows as a bar (Echo Combat games from the replay files; Public Arena matches from the match list), then the prize
+  cards and the top 10 Arena players. **Progress starts at the set challenge period** (start date; end date if any): Arena counts nothing
+  before it (and nothing at all while no start date is set), and Combat games before it are not counted.
 
 ## 2026.11.03.31 — 19:08
 ### GUI test fixes
