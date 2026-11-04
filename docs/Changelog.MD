@@ -19,6 +19,28 @@ Working record of what changed in each release, newest first.
 ---
 
 ## 2026.11.04.1 — 10:58
+### Console form remembers its settings
+- **Launch date and challenge period:** the form now opens with the saved start date, end date and "Visible to" instead of empty. They were
+  always kept in the database (so they survive closing the Console and restarting the server); the form just did not show them.
+
+### Layout
+- **Mega Prizes is the first thing on the Achievements page** (Preview role only).
+
+### Layout
+- **Achievements page, more compact:** a one-line intro, tighter Rules / Preview note / player search.
+- **Mega Prizes layout:** the search results are one compact row per result (name, prize, bar, count) and the two prizes are matching
+  cards with a picture, the prize and the rule (Arena also shows its top 5).
+- **Echo Combat Mega Prize: games of 4+ minutes only** (like Arena), inside the challenge period.
+
+### Security (Mega Prizes)
+- **The Combat prize challenge is no longer in the public achievement list at all:** it used to be, which would have put it (and who
+  completed it) in the public "recent medals", rankings and totals. It now lives apart and is only served to the Preview role.
+- **Prize pictures are no longer public files:** they load through `/api/arena/image/...`, Preview role only.
+- **Checked with the real login flow:** no login, a login without the role and a Preview-only login get nothing (the refusal says nothing
+  about prizes); the winners report (it has Discord ids) is Console only; answers are never kept in a shared cache; no public answer
+  mentions a prize or a winner. The winners CSV can no longer run a spreadsheet formula (names starting with = + - @), and the match list
+  read is size-limited.
+
 ### Fixes
 - **Docker would not start** (`no such column: discord_id`): the Arena table made by the previous build lacked a column. Tables kept across
   rebuilds now get missing columns added at startup, with their data kept.
@@ -30,7 +52,7 @@ Working record of what changed in each release, newest first.
 ### Mega Prizes
 - **New challenge, Echo Combat Veteran:** play 750 Echo Combat matches (25 bronze, 100 silver, 250 gold, 450 diamond,
   750 platinum). Completing it earns the **Delta Squad BioMass Chassis** Mega Prize. Draft / beta: it is not in the
-  normal sections, only in the *Mega Prizes* tab.
+  normal sections, only in the Mega Prizes section of the Achievements page.
 - **Arena counting (draft):** Public Echo Arena matches are now counted from the live Nakama match list
   (`g.echovrce.com/status/matches`), completely separate from the Combat stats (own tables and module, kept across rebuilds).
   Public Arena only (private matches and social lobbies are ignored); a match counts for a player once they have been in it
@@ -39,7 +61,7 @@ Working record of what changed in each release, newest first.
 - **Console report, Mega Prize winners:** the prizes are given out by hand, so the Console has a *Mega Prize winners* panel (Refresh, Copy,
   Download CSV): everyone who reached 750 inside the challenge period, with player id and Discord id. Combat counts the replay files,
   Public Arena the live match list. Arena needs 4+ minutes in the match (changed from 3).
-- **Mega Prizes tab (Preview role only):** a *Mega Prizes* tab (`/mega-prizes`) with a **search box**: type a player name and their progress
+- **Mega Prizes, now inside Achievements (Preview role only):** a *Mega Prizes* section at the bottom of the Achievements page (no separate tab; `/mega-prizes` redirects there; people without the role never see it) with a **search box**: type a player name and their progress
   toward each prize shows as a bar (Echo Combat games from the replay files; Public Arena matches from the match list), then the prize
   cards and the top 10 Arena players. **Progress starts at the set challenge period** (start date; end date if any): Arena counts nothing
   before it (and nothing at all while no start date is set), and Combat games before it are not counted.

@@ -20,6 +20,7 @@ from .models import ArenaCounted, ArenaPlayer
 URL = "https://g.echovrce.com/status/matches"
 MIN_PRESENT_S = 240.0  # time spent in one match before it counts (user, 2026-11-04)
 TIMEOUT_S = 5
+MAX_BYTES = 5_000_000
 MAX_BACKOFF_S = 300.0
 KEEP_COUNTED_S = 2 * 86400
 PRUNE_EVERY_S = 3600
@@ -55,6 +56,8 @@ class Tracker:
     def _fetch() -> dict:
         r = httpx.get(URL, timeout=TIMEOUT_S, headers={"User-Agent": "EchoVR-Replay-Stats"})
         r.raise_for_status()
+        if len(r.content) > MAX_BYTES:  # the list is a few KB: a huge answer is not it
+            raise ValueError("match list too large")
         return r.json()
 
     def _run(self) -> None:

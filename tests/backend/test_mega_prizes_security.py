@@ -99,3 +99,13 @@ def test_csv_cannot_run_a_formula(tmp_path):
 def test_the_prize_rule_is_not_part_of_the_public_rule_list():
     from backend.achievements import MEGA_COMBAT, RULES
     assert MEGA_COMBAT not in RULES and not any(r.prize for r in RULES)
+
+
+def test_console_overview_carries_the_saved_visibility(tmp_path, discord):
+    """The Console form opens with the saved launch date, end date and "Visible to" (they are kept in the database)."""
+    with app_client(settings(tmp_path)) as client:
+        login(client, MEMBER)
+        act(client, actions.set_challenge_window, "2026-11-02", "2026-12-01")
+        act(client, actions.set_achievements_visibility, "preview")
+        challenge = client.get("/api/admin/console/overview").json()["challenge"]
+        assert (challenge["start"], challenge["end"], challenge["visibility"]) == ("2026-11-02", "2026-12-01", "preview")

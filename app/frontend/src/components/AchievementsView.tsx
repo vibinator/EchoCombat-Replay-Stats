@@ -150,51 +150,59 @@ export function GroupedBadges<T extends AnyBadge>({ items: all }: { items: T[] }
   );
 }
 
-/** The Mega Prizes tab (/mega-prizes, Preview role only): your own progress first, then the challenges. Public Arena is
- * counted from the live match list, separately from Combat. */
-export function MegaPrizes() {
+/** The Mega Prizes section of the Achievements page: only for the Preview role (the server checks it too, so nobody else
+ * even asks for the data). */
+export function MegaPrizesSection() {
+  const me = useApi(getMe, "me").data?.user;
+  return me?.preview || me?.console ? <MegaPrizes /> : null;
+}
+
+/** Search a player, then the two prize cards. Public Arena is counted from the live match list, separately from Combat. */
+function MegaPrizes() {
   const result = useApi(getArenaProgress, "arena-progress");
   const arena = result.data;
-  if (!arena) return null; // no Preview role (403) or still loading: the tab stays hidden
-  const items = arena.combat;
+  if (!arena) return null; // no Preview role (403) or still loading: the section stays hidden
+  const combat = arena.combat[0];
+  const combatTarget = combat?.levels?.[combat.levels.length - 1] ?? 750;
   return (
-    <div className="section" id="mega-prizes">
+    <div className="section mega" id="mega-prizes">
       <h2>
         Mega Prizes <span className="tag">draft</span>
       </h2>
       <MegaPrizeSearch target={arena.target} />
-      <div className="badges scroll-row" tabIndex={0} aria-label="Mega Prizes, scroll sideways">
-        {items.map((a) => (
-          <div key={a.id}>
-            <img src="/api/arena/image/biomass.jpg" alt="Delta Squad BioMass Chassis (draft)" style={{ width: 160, borderRadius: 6 }} />
-            <Badge a={a} />
-            <PrizeBar value={0} label={`Target: ${a.levels?.[a.levels.length - 1] ?? 750} matches. Search a player above to see their progress.`} />
+      <div className="mega-cards">
+        <article className="mega-card">
+          <img src="/api/arena/image/biomass.jpg" alt="Delta Squad BioMass Chassis" />
+          <div className="mega-body">
+            <strong>Play {combatTarget} Echo Combat Matches</strong>
+            <span className="tag mega-prize">Mega Prize: {combat?.prize ?? "Delta Squad BioMass Chassis"}</span>
+            <span className="muted">Games of 4+ minutes from the replay files, counted from the challenge period.</span>
           </div>
-        ))}
-        <div>
-          <img src="/api/arena/image/jack.jpg" alt="Jack, Lone Echo" style={{ width: 160, borderRadius: 6 }} />
-          <div className="badge-card">
-          <div className="badge-text">
-            <strong>Play 750 Public Arena Matches</strong>
+        </article>
+        <article className="mega-card">
+          <img src="/api/arena/image/jack.jpg" alt="Jack, Lone Echo" />
+          <div className="mega-body">
+            <strong>Play {arena.target} Public Arena Matches</strong>
             <span className="tag mega-prize">Mega Prize: OG High Quality Jack Model</span>
-            <span className="muted">Counted separately from Combat.</span>
+            <span className="muted">Public matches of 4+ minutes from the live match list, counted from the challenge period.</span>
+            {arena.players.length > 0 && (
+              <ol className="mega-top">
+                {arena.players.slice(0, 5).map((p) => (
+                  <li key={p.user_id}>
+                    <span>{p.name}</span>
+                    <span className="muted">{p.matches} / {arena.target}</span>
+                  </li>
+                ))}
+              </ol>
+            )}
           </div>
-          </div>
-          {arena?.players.length ? (
-            arena.players.slice(0, 10).map((p) => (
-              <PrizeBar key={p.user_id} value={p.matches / arena.target} label={`${p.name}: ${p.matches} / ${arena.target}`} />
-            ))
-          ) : (
-            <PrizeBar value={0} label="No Arena matches counted yet" />
-          )}
-          <span className="muted">Public Arena only, 4+ minutes in the match, counted from the live match list.</span>
-        </div>
+        </article>
       </div>
     </div>
   );
 }
 
-/** Search a player by name: shows their progress toward the Combat and Arena prizes (from the challenge period on). */
+/** Search a player by name: their progress toward each prize, one compact row per result (from the challenge period on). */
 function MegaPrizeSearch({ target }: { target: number }) {
   const [q, setQ] = useState("");
   const [found, setFound] = useState<SearchResult | null>(null);
@@ -212,31 +220,28 @@ function MegaPrizeSearch({ target }: { target: number }) {
       clearTimeout(t);
     };
   }, [q]);
+  const rows = [...(found?.results ?? [])].sort((x, y) => y.matches - x.matches);
   return (
-    <div className="panel" aria-label="Search progress">
-      <input type="search" placeholder="Search a player name" aria-label="Search a player" value={q} onChange={(e) => setQ(e.target.value)} />
+    <div className="mega-search">
+      <input type="search" placeholder="Search a player for their Mega Prize progress" aria-label="Search a player" value={q} onChange={(e) => setQ(e.target.value)} />
       {error && <p className="error">{error}</p>}
-      {found && found.results.length === 0 && <p className="muted">Nobody found.</p>}
-      {found?.results.map((r) => (
-        <PrizeBar
-          key={`${r.kind}-${r.user_id}`}
-          value={r.matches / target}
-          label={`${r.name}: ${r.matches} / ${target} ${r.kind === "combat" ? "Echo Combat matches → Delta Squad BioMass Chassis" : "Public Arena matches → OG High Quality Jack Model"}`}
-        />
-      ))}
-    </div>
-  );
-}
-
-/** Progress toward a Mega Prize; no value = not tracked in this app. */
-function PrizeBar({ value, label }: { value: number | null; label: string }) {
-  const w = Math.round(Math.max(0, Math.min(1, value ?? 0)) * 100);
-  return (
-    <div className="section-progress">
-      <div className="bar" style={{ "--sec": "var(--tier-gold, #c9a227)" } as React.CSSProperties} role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={w}>
-        <div style={{ width: `${w}%` }} />
-      </div>
-      <span className="muted">{label}</span>
+      {found && rows.length === 0 && <p className="muted">Nobody found.</p>}
+      {rows.length > 0 && (
+        <ul className="mega-results">
+          {rows.map((r) => (
+            <li key={`${r.kind}-${r.user_id}`}>
+              <strong title={r.user_id}>{r.name}</strong>
+              <span className="muted">{r.kind === "combat" ? "Echo Combat" : "Public Arena"}</span>
+              <span className="bar" role="progressbar" aria-label={`${r.name} ${r.matches} of ${target}`} aria-valuemin={0} aria-valuemax={target} aria-valuenow={r.matches}>
+                <span style={{ width: `${Math.min(100, (r.matches / target) * 100)}%` }} />
+              </span>
+              <span>
+                {r.matches} / {target}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

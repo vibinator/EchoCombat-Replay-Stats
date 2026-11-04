@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Link, Navigate, useLocation, useParams, useSearchParams } from "react-router";
 import { getAchievements, getAchievers, getRarity, getRecentUnlocks, searchPlayers } from "../api";
-import { AchievementRules, AchievementsView, ChallengeBanner, ComingSoon, GroupedBadges, JumpToNew, useAchievementsAccess } from "../components/AchievementsView";
+import { AchievementRules, AchievementsView, ChallengeBanner, ComingSoon, GroupedBadges, JumpToNew, MegaPrizesSection, useAchievementsAccess } from "../components/AchievementsView";
 import { Status } from "../components/common";
 import { achievementsPath, int, nameSlug, pct, playerPath } from "../format";
 import { useApi } from "../useApi";
@@ -154,14 +154,16 @@ function LaunchedAchievementsPage() {
         </>
       ) : (
         <>
-          <p className="muted">
-            The achievements from the original ECRanked site, plus new ones (marked "new") built on data it never used:
-            unreleased gear, wins, payload push / block time, emotes and how often you play. Almost every challenge is a ladder of medals
-            (bronze, silver, gold, diamond, platinum); pick a player to see their progress to each medal.
-          </p>
-          <AchievementRules open />
-          <ChallengeBanner />
-          <PlayerPicker />
+          <MegaPrizesSection />
+          <div className="ach-intro">
+            <p className="muted">
+              The original ECRanked achievements plus new ones (marked "new"). Most are medal ladders, bronze to platinum; pick a player to see
+              their progress.
+            </p>
+            <AchievementRules open />
+            <ChallengeBanner />
+            <PlayerPicker />
+          </div>
           <TopPlayers />
           <RecentUnlocks />
           <Catalogue />

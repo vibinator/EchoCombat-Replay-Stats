@@ -117,3 +117,11 @@ def test_search_finds_arena_players_by_name(tmp_path, monkeypatch):
     found = api.search(request, q="the gre")
     assert found["results"] == [{"kind": "arena", "name": "Zed The Great", "user_id": "u1", "matches": 40}]
     assert api.search(request, q="z")["results"] == []  # one letter: too broad
+
+
+def test_combat_prize_counts_only_games_of_four_minutes_inside_the_period():
+    from backend.achievements import mega_combat_games
+    g = lambda day, secs: SimpleNamespace(started_at=f"{day}T10:00:00", play_time_s=secs)  # noqa: E731
+    games = [g("2026-11-01", 239), g("2026-11-01", 240), g("2026-11-02", 900), g("2026-10-31", 900), g("2026-11-09", 900)]
+    assert mega_combat_games(games, "2026-11-01", "2026-11-05") == 2  # under 4 minutes, before the start and after the end: out
+    assert mega_combat_games(games, "2026-11-01", None) == 3

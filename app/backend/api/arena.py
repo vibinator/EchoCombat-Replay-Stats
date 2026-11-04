@@ -7,7 +7,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy import func, select
 
 from .. import auth
-from ..achievements import MEGA_COMBAT, icon_file, in_window
+from ..achievements import MEGA_COMBAT, icon_file, mega_combat_games
 from ..admin_actions import challenge_window
 from ..errors import ApiError
 from ..models import ArenaPlayer, Player
@@ -65,6 +65,6 @@ def search(request: Request, q: str = Query("", max_length=60)):
                                                      | func.lower(func.coalesce(ArenaPlayer.display_name, "")).like(like))
                            .order_by(ArenaPlayer.matches.desc()).limit(SEARCH_LIMIT)).all()
     results = [{"kind": "combat", "name": p.name, "user_id": p.user_id,
-                "matches": len(in_window(games.get(p.id, []), start, end)) if start else 0} for p in players]
+                "matches": mega_combat_games(games.get(p.id, []), start, end) if start else 0} for p in players]
     results += [{"kind": "arena", "name": a.display_name or a.username, "user_id": a.user_id, "matches": a.matches} for a in arena]
     return {"target": TARGET, "results": results}

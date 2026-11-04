@@ -905,7 +905,7 @@ export interface ConsoleOverview {
   repairable: number;
   aggressive_repairable: number;
   hidden_replays: number;
-  challenge: { start: string | null; end: string | null; launched: boolean };
+  challenge: { start: string | null; end: string | null; launched: boolean; visibility: "everyone" | "preview" | "hidden" };
   stat_groups: { key: string; label: string; hidden: boolean; players: { user_id: string; name: string }[] }[];
   recent: ConsoleLogEntry[];
 }

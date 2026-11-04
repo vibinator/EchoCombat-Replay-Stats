@@ -365,6 +365,19 @@ function Console() {
     await execute(selected.name, selected.label, toArgs(selected.fields ?? [], values));
   }
 
+  // The launch date, end date and "Visible to" are saved on the server (they survive closing the Console and restarts): the form
+  // shows what is saved instead of opening empty (user, 2026-11-04). Reloaded after every command, so it never shows old values.
+  useEffect(() => {
+    if (selected.name !== "challenge") return;
+    let live = true;
+    getConsoleOverview().then((o) => {
+      if (live) setValues({ start: o.challenge.start ?? "", end: o.challenge.end ?? "", visible: o.challenge.visibility });
+    }, () => undefined);
+    return () => {
+      live = false;
+    };
+  }, [selected, results.length]);
+
   const api: ConsoleApi = { run: execute, open, version: results.length };
   const term = filter.trim().toLowerCase();
   const groups = GROUPS.map((g) => ({

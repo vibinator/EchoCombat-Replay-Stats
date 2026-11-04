@@ -3488,3 +3488,99 @@ button.small {
   color: #1a1400;
   align-self: flex-start;
 }
+
+/* Achievements page: compact top (user, 2026-11-04) */
+.ach-intro > p {
+  margin: 0 0 0.4rem;
+  font-size: 0.9rem;
+  max-width: none;
+}
+.ach-intro .rules-help {
+  margin: 0 0 0.4rem;
+}
+.ach-intro .note {
+  margin: 0 0 0.4rem;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.9rem;
+}
+
+/* Mega Prizes (Preview role only) */
+.mega-search input {
+  width: 100%;
+  max-width: 28rem;
+}
+.mega-results {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.25rem;
+  max-width: 44rem;
+}
+.mega-results li {
+  display: grid;
+  grid-template-columns: minmax(6rem, 1.2fr) 6.5rem minmax(5rem, 2fr) 5.5rem;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.9rem;
+}
+.mega-results .bar {
+  display: block;
+  height: 0.5rem;
+  background: var(--panel-2, rgba(255, 255, 255, 0.08));
+  border-radius: 999px;
+  overflow: hidden;
+}
+.mega-results .bar span {
+  display: block;
+  height: 100%;
+  background: #c9a227;
+}
+.mega-results li > span:last-child {
+  text-align: right;
+}
+.mega-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: 1rem;
+  margin-top: 0.75rem;
+  max-width: 44rem;
+}
+.mega-card {
+  display: flex;
+  flex-direction: column;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--panel, rgba(255, 255, 255, 0.04));
+}
+.mega-card img {
+  width: 100%;
+  height: 9rem;
+  object-fit: cover;
+}
+.mega-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+  padding: 0.75rem;
+  font-size: 0.9rem;
+}
+.mega-top {
+  margin: 0.25rem 0 0;
+  padding-left: 1.25rem;
+  width: 100%;
+}
+.mega-top li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+@media (max-width: 40rem) {
+  .mega-results li {
+    grid-template-columns: 1fr auto;
+  }
+  .mega-results .bar {
+    grid-column: 1 / -1;
+  }
+}
