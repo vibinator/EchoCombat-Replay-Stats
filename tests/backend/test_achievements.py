@@ -37,9 +37,9 @@ def test_tiers():
 def test_daily_only_weapon_takes_best_day():
     games = [game("2026-10-27")] * 6 + [game("2026-10-28")] * 15 + [game("2026-10-28", loadout=("assault", "heal", "det"))]
     r = by_id(evaluate(games))
-    # One with the Comet: ladder 3 / 5 / 8 / 16 / 20 games in one day (diamond and platinum are 30 % harder than 12 / 15); the best day (15 Comet-only games) counts
-    assert (r[7]["tier"], r[7]["count"], r[7]["progress"]) == ("gold", 15, pytest.approx(0.775))
-    assert (r[5]["tier"], r[5]["count"], r[5]["progress"]) == (None, 1, pytest.approx(1 / 15, abs=1e-4))  # Pulsar only once
+    # One with the Comet: ladder 3 / 6 / 9 / 17 / 22 games in one day (diamond and platinum are 30 % harder than 13 / 17); the best day (15 Comet-only games) counts
+    assert (r[7]["tier"], r[7]["count"], r[7]["progress"]) == ("gold", 15, pytest.approx(0.55))
+    assert (r[5]["tier"], r[5]["count"], r[5]["progress"]) == (None, 1, pytest.approx(1 / 3 / 5, abs=1e-4))  # Pulsar only once: a third of the way to bronze
 
 
 def test_weekly_is_a_rolling_seven_days():
@@ -301,9 +301,9 @@ def test_new_gear_matches_the_older_gear():
     assert all(by[i].levels == old_vet for i in (105, 106, 107, 108, 112, 133, 134))  # veterans (+ Overcharge, Blazar, Dot Field)
     assert all(by[i].levels == old_day for i in (101, 102, 103, 104, 131, 135, 136))  # only X in one day
     assert all(by[i].levels == old_week for i in (127, 128, 129, 130, 132, 137, 138))  # only X in one week
-    week = [game(f"2026-10-{d:02d}", loadout=("smg", "buff", "loc")) for d in (26, 27, 28) for _ in range(5)]
+    week = [game(f"2026-10-{d:02d}", loadout=("smg", "buff", "loc")) for d in (26, 27, 28) for _ in range(6)]
     r = by_id(evaluate(week))
-    assert (r[129]["tier"], r[129]["count"]) == ("gold", 15) and r[132]["count"] == 15  # 15 Quark-only games in a week
+    assert (r[129]["tier"], r[129]["count"]) == ("gold", 18) and r[132]["count"] == 18  # 18 Quark-only games in a week
 
 
 def test_one_game_challenges_need_a_4v4():
@@ -317,10 +317,10 @@ def test_one_game_challenges_need_a_4v4():
 
 def test_all_gear_shares_one_ladder_per_kind():
     veteran = {r.levels for r in RULES if r.name.endswith(" Veteran") and r.period == "all"}
-    assert veteran == {_harder(_all_time((5, 15, 50, 150, 350), ""), "")}  # all-time ladders are raised 20 %
-    assert {r.levels for r in RULES if "using only" in r.description and r.period == "day"} == {_harder((3, 5, 8, 12, 15), "")}
-    assert {r.levels for r in RULES if "using only" in r.description and r.period == "week" and r.id != 42}  # 42: Gearhead is about loadouts, not one gear == {_harder((5, 10, 15, 30, 50), "")}
-    assert next(r for r in RULES if r.id == 112).levels == _harder(_all_time((5, 15, 50, 150, 350), ""), "")  # Overclocked is a veteran ladder too
+    assert veteran == {_harder(_all_time((6, 17, 55, 170, 400), ""), "")}  # all-time ladders are raised 20 %
+    assert {r.levels for r in RULES if "using only" in r.description and r.period == "day"} == {_harder((3, 6, 9, 13, 17), "")}
+    assert {r.levels for r in RULES if "using only" in r.description and r.period == "week" and r.id != 42}  # 42: Gearhead is about loadouts, not one gear == {_harder((6, 12, 18, 35, 55), "")}
+    assert next(r for r in RULES if r.id == 112).levels == _harder(_all_time((6, 17, 55, 170, 400), ""), "")  # Overclocked is a veteran ladder too
 
 
 def test_victory_lap_needs_a_win():
