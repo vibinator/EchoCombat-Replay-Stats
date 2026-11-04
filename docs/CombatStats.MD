@@ -49,6 +49,10 @@ listed in `db.COMBAT_TABLES`: a column change drops and re-reads only these, nev
   `scout_aoe` Comet blast...). Unknown symbols stay as written, raw `0x...` hashes unchanged.
 - `weapon_value` in shot events is unconfirmed by the recorder's docs: not used.
 
+## Where it shows
+Player profile: "Beta Data Collection" section (still beta). Replay match page, Players tab, right under the players:
+"Combat stats" for that match (not beta, only when a report exists). `/combat` and `/combat/:id` as standalone pages.
+
 ## Stats on the site
 Game counters: kills, deaths, assists, eliminations, damage, objective eliminations / damage / time, hill captures / defends,
 time played. Event-log: shots (and by weapon), kills / deaths by weapon, tac mod activations, heal bubbles, stuns given /

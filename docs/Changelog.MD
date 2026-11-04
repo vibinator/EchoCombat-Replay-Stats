@@ -23,7 +23,7 @@ Working record of what changed in each release, newest first.
 ### Beta Data Collection: combat stats
 - **New data source:** the recorder's match reports (`matches\*.json`) are collected like the replays: read-only folder, a scanner checks it about every minute, new and changed reports are read by themselves. It is completely separate from the replay data (own tables, own reader, own pages); numbers can differ from the replay stats.
 - **Player profile:** new "Beta Data Collection" section (above Recent matches) with kills, deaths, assists, eliminations, damage, objective damage / time, K/D, kills and damage per minute, per-map table, and, for matches with an event log, shots, kills / deaths / shots by weapon, tac mod uses, heal bubbles, stuns and self-kills.
-- **Match page:** the same section on the Players tab, with the combat scoreboard of that match (only when a report exists for it).
+- **Match page:** a "Combat stats" block on the Players tab, right under the players (no beta label: these are the game's own exact counters), with the combat scoreboard of that match (only when a report exists for it).
 - **Combat page** (`/combat`, new in the top bar): leaderboard by stat, period, map and minimum matches, and the latest combat matches; `/combat/<match id>` for one match.
 - **Not shown:** damage taken (spectators do not get it). Shots and weapon numbers exist only for matches with an event log.
 - **Do:** recreate the container (docker-compose now sets `ECHOVR_COMBAT_SOURCE: /replays`). Nothing to re-read: the replay data is untouched. See CombatStats.MD.

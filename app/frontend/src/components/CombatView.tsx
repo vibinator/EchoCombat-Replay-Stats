@@ -248,22 +248,20 @@ export function CombatMatchBody({ m }: { m: CombatMatchDetail }) {
 }
 
 /**
- * "Beta Data Collection" on a replay match page: the recorder's combat report for the same match id. Shown only when the
- * match has one. Joined by match id at read time; the replay stats on the page never use these numbers.
+ * Combat stats on a replay match page, under the players: the recorder's report for the same match id (the game's own
+ * counters, not beta). Shown only when the match has one. Joined by match id at read time; the replay stats on the page
+ * never use these numbers.
  */
 export function MatchCombatSection({ sessionId }: { sessionId: string }) {
   const { data } = useApi(() => getCombatMatch(sessionId), `combat-match|${sessionId}`);
   if (!data) return null; // no report for this match (or not loaded yet): nothing to show
   return (
     <>
-      <h2>
-        Beta Data Collection <span className="tag">beta</span>
-      </h2>
+      <h2>Combat stats</h2>
       <p className="muted footnote">
-        New data we are still collecting and testing, from a separate source than the replay stats on this page, so numbers can
+        The game&apos;s own counters for this match, from a separate source than the replay stats on this page, so numbers can
         differ. <Link to={`/combat/${data.session_id}`}>Open on its own page</Link>
       </p>
-      <h3>Combat stats for this match</h3>
       <CombatMatchBody m={data} />
     </>
   );

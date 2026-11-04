@@ -417,8 +417,8 @@ export function MatchPage() {
               <p className="muted footnote">
                 * Estimated. Percentages count time inside the map bounds only. Hover ⓘ for what each column means.
               </p>
-              <GearUseTable m={m} />
               <WhenVisible><MatchCombatSection sessionId={m.session_id} /></WhenVisible>
+              <GearUseTable m={m} />
             </>
           )}
           {tab === "timeline" && <TimelineTab id={m.id} />}
