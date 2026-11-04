@@ -243,6 +243,7 @@ class ArenaPlayer(Base):
     user_id: Mapped[str] = mapped_column(primary_key=True)  # Nakama user id
     username: Mapped[str]
     display_name: Mapped[str | None]
+    discord_id: Mapped[str | None] = mapped_column(index=True)  # links the visitor (Discord login) to their Arena matches
     matches: Mapped[int] = mapped_column(default=0, index=True)
     last_match_at: Mapped[str]
 

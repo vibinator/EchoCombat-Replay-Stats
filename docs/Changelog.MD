@@ -26,12 +26,16 @@ Working record of what changed in each release, newest first.
 ### Mega Prizes
 - **New challenge, Echo Combat Veteran:** play 750 Echo Combat matches (25 bronze, 100 silver, 250 gold, 450 diamond,
   750 platinum). Completing it earns the **Delta Squad BioMass Chassis** Mega Prize. Draft / beta: it is not in the
-  normal sections, only in a hidden *Mega Prizes* tab (open `/achievements#mega-prizes`).
+  normal sections, only in the *Mega Prizes* tab.
 - **Arena counting (draft):** Public Echo Arena matches are now counted from the live Nakama match list
   (`g.echovrce.com/status/matches`), completely separate from the Combat stats (own tables and module, kept across rebuilds).
   Public Arena only (private matches and social lobbies are ignored); a match counts for a player once they have been in it
-  for 3 minutes, once per match. Polling is very light: one small request a minute (`ECHOVR_ARENA_POLL_S`, 0 = off), backing off
-  to 5 minutes when the list is unreachable. The hidden Mega Prizes tab shows the top 10 with a bar toward 750 (Preview role only).
+  for 4 minutes, once per match. Polling is very light: one small request a minute (`ECHOVR_ARENA_POLL_S`, 0 = off), backing off
+  to 5 minutes when the list is unreachable.
+- **Mega Prizes tab (Preview role only):** a *Mega Prizes* tab (`/mega-prizes`) shows **your own progress** first: Public Arena matches
+  (matched through your Discord id on the match list) and Echo Combat games (the player your Discord account is linked to), each with
+  a bar toward 750; then the top 10 Arena players. **Progress starts at the set challenge period** (start date; end date if any): Arena counts nothing
+  before it (and nothing at all while no start date is set), and Combat games before it are not counted. The Discord id from the match list is stored to make that link.
 
 ## 2026.11.03.31 — 19:08
 ### GUI test fixes

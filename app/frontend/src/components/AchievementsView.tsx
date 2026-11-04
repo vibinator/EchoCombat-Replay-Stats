@@ -123,7 +123,6 @@ export function GroupedBadges<T extends AnyBadge>({ items: all }: { items: T[] }
   // Mega Prize challenges (very draft / beta, user 2026-11-04) are not in the normal sections: they only show in a
   // hidden tab that opens with #mega-prizes (no link to it anywhere).
   const items = all.filter((a) => !a.prize);
-  const { hash } = useLocation();
   // A player's page opens with every section folded (the row at the top already lifts the best ones); a choice made with
   // Expand all / Collapse all or a heading is remembered in this browser (user, 2026-11-03).
   const tracked = items.length > 0 && items.every((a) => status(a) !== null);
@@ -147,13 +146,13 @@ export function GroupedBadges<T extends AnyBadge>({ items: all }: { items: T[] }
       {sections.map((x) => (
         <Section key={x.id} id={x.id} c={c} title={x.title} items={x.items} anchor={x.id === firstNew ? "new" : undefined} />
       ))}
-      {hash === "#mega-prizes" && <MegaPrizes />}
     </>
   );
 }
 
-/** Hidden draft tab (#mega-prizes): challenges that award an in-game item. Public Arena is tracked outside this app. */
-function MegaPrizes() {
+/** The Mega Prizes tab (/mega-prizes, Preview role only): your own progress first, then the challenges. Public Arena is
+ * counted from the live match list, separately from Combat. */
+export function MegaPrizes() {
   const result = useApi(getArenaProgress, "arena-progress");
   const arena = result.data;
   if (!arena) return null; // no Preview role (403) or still loading: the tab stays hidden
@@ -163,6 +162,17 @@ function MegaPrizes() {
       <h2>
         Mega Prizes <span className="tag">draft</span>
       </h2>
+      {arena.me && (
+        <div className="panel" aria-label="Your progress">
+          <strong>Your progress{arena.me.name ? `, ${arena.me.name}` : ""}</strong>
+          <PrizeBar value={arena.me.arena / arena.target} label={`Public Arena: ${arena.me.arena} / ${arena.target} matches → OG High Quality Jack Model`} />
+          {arena.me.combat_linked ? (
+            <PrizeBar value={(arena.me.combat ?? 0) / (items[0]?.levels?.[items[0].levels.length - 1] ?? 750)} label={`Echo Combat: ${arena.me.combat ?? 0} / ${items[0]?.levels?.[items[0].levels.length - 1] ?? 750} matches → Delta Squad BioMass Chassis`} />
+          ) : (
+            <span className="muted">Link your Discord account to your player to see your Echo Combat progress.</span>
+          )}
+        </div>
+      )}
       <div className="badges scroll-row" tabIndex={0} aria-label="Mega Prizes, scroll sideways">
         {items.map((a) => (
           <div key={a.id}>
@@ -187,7 +197,7 @@ function MegaPrizes() {
           ) : (
             <PrizeBar value={0} label="No Arena matches counted yet" />
           )}
-          <span className="muted">Public Arena only, 3+ minutes in the match, counted from the live match list.</span>
+          <span className="muted">Public Arena only, 4+ minutes in the match, counted from the live match list.</span>
         </div>
       </div>
     </div>
