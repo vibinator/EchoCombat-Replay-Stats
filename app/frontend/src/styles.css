@@ -3537,11 +3537,21 @@ button.small {
 }
 .ach-intro .note {
   margin: 0 0 0.4rem;
-  padding: 0.35rem 0.75rem;
+  padding: 8px 12px;
   font-size: 0.9rem;
+  max-width: none;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--blue);
+  border-radius: 8px;
 }
 
 /* Mega Prizes (Preview role only) */
+.section.mega {
+  margin-bottom: 1rem;
+}
+.mega-cards {
+  align-items: start;
+}
 .mega-search input {
   width: 100%;
   max-width: 28rem;
