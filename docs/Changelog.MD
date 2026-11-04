@@ -18,6 +18,12 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.04.8 — 13:06
+
+### Achievements page
+- **Removed:** the intro line "The original ECRanked achievements plus new ones…" above the player search.
+
+
 ## 2026.11.04.7 — 13:04
 
 ### Mega Prizes: finishers only, no spectators
