@@ -1748,28 +1748,18 @@ td.best {
   flex-wrap: wrap;
   align-items: center;
   gap: 6px 12px;
-  padding: 10px 14px;
-  margin: 8px 0;
+  padding: 6px 12px;
+  margin: 6px 0;
   border: 2px solid var(--blue);
   border-radius: 8px;
   background: var(--panel);
+  font-size: 0.9em;
 }
 .rec-window .rec-dates {
-  font-size: 1.15em;
+  font-size: 1.05em;
   font-weight: 700;
-}
-.rec-window .rec-state {
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 0.8em;
-  font-weight: 700;
-  text-transform: uppercase;
-  border: 1px solid var(--blue);
 }
 .rec-window.ended {
-  border-color: var(--muted);
-}
-.rec-window.ended .rec-state {
   border-color: var(--muted);
 }
 .admin-signin {
@@ -3548,6 +3538,9 @@ button.small {
 /* Mega Prizes (Preview role only) */
 .section.mega {
   margin-bottom: 1rem;
+}
+.section.mega > h2 {
+  margin-top: 0.5rem; /* sits right under the page's "Achievements" title */
 }
 .mega-cards {
   align-items: start;

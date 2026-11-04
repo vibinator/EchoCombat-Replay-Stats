@@ -776,7 +776,6 @@ export function RecordingWindow({ what }: { what: "achievements" | "Mega Prizes"
   if (!d || !d.start) return null;
   return (
     <div className={`rec-window${d.active ? "" : " ended"}`} role="note">
-      <span className="rec-state">{d.active ? "Recording now" : "Not recording"}</span>
       <span className="rec-dates">
         {d.start} → {d.end ?? "open-ended"}
       </span>
