@@ -417,8 +417,10 @@ function Console() {
           ) : selected.view === "log" ? (
             <AuditLog api={api} />
           ) : selected.view === "achievements" ? (
-            <AchievementExport />
-            <MegaPrizeReport />
+            <>
+              <AchievementExport />
+              <MegaPrizeReport />
+            </>
           ) : selected.view === "processing" ? (
             <ProcessingPanel />
           ) : (

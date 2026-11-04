@@ -32,6 +32,9 @@ Working record of what changed in each release, newest first.
   Public Arena only (private matches and social lobbies are ignored); a match counts for a player once they have been in it
   for 4 minutes, once per match. Polling is very light: one small request a minute (`ECHOVR_ARENA_POLL_S`, 0 = off), backing off
   to 5 minutes when the list is unreachable.
+- **Console report, Mega Prize winners:** the prizes are given out by hand, so the Console has a *Mega Prize winners* panel (Refresh, Copy,
+  Download CSV): everyone who reached 750 inside the challenge period, with player id and Discord id. Combat counts the replay files,
+  Public Arena the live match list. Arena needs 4+ minutes in the match (changed from 3).
 - **Mega Prizes tab (Preview role only):** a *Mega Prizes* tab (`/mega-prizes`) shows **your own progress** first: Public Arena matches
   (matched through your Discord id on the match list) and Echo Combat games (the player your Discord account is linked to), each with
   a bar toward 750; then the top 10 Arena players. **Progress starts at the set challenge period** (start date; end date if any): Arena counts nothing
