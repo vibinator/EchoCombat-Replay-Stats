@@ -152,14 +152,15 @@ def _games(db, player_ids: list[int] | None = None, fingerprints: dict[int, int]
          team, winner, attacking, blue_rounds, orange_rounds, push, block, emotes, stopped, left, right, contested,
          blue_cap, orange_cap) = row = tuple(row)
         four = sizes.get((mid, "blue")) == 4 and sizes.get((mid, "orange")) == 4
-        fp[pid] = (fp.get(pid, 0) + _stable_hash(row + (four,))) & FINGERPRINT_MASK
+        three = sizes.get((mid, "blue"), 0) >= 3 and sizes.get((mid, "orange"), 0) >= 3
+        fp[pid] = (fp.get(pid, 0) + _stable_hash(row + (four, three))) & FINGERPRINT_MASK
         games[pid].append(Game(
             started_at=started, map=map_, mode=mode, private=private, play_time_s=play, deaths=deaths,
             in_bounds=bounds, near_mate=mate, near_enemy=enemy, upside=upside, speed_sum=speed, top_speed=top,
             frame_rate=hz, loadouts=loadouts.get((mid, pid), {}), team=team, winner=winner, attacking_team=attacking,
             rounds_lost=orange_rounds if team == "blue" else blue_rounds, push_s=push, block_s=block, emotes=emotes,
             stopped=stopped, left_arm=left, right_arm=right, contested_s=contested,
-            capture_s=blue_cap if team == "blue" else orange_cap, four_v_four=four,
+            capture_s=blue_cap if team == "blue" else orange_cap, four_v_four=four, three_v_three=three,
         ))
     return games
 

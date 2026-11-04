@@ -347,7 +347,7 @@ function TierSteps({ a }: { a: Achievement & AchievementRule }) {
     a.levels && a.count != null
       ? a.levels.map((need, i) => {
           const prev = i ? a.levels![i - 1] : 0;
-          return { medal: LEVELS[i], label: need.toLocaleString(), fill: Math.max(0, Math.min(1, (a.count! - prev) / (need - prev))) };
+          return { medal: LEVELS[i], label: `${need.toLocaleString()}${a.unit ?? ""}`, fill: Math.max(0, Math.min(1, (a.count! - prev) / (need - prev))) };
         })
       : PERCENT_STEPS.map((s, i) => {
           const prev = i ? PERCENT_STEPS[i - 1].at : 0;

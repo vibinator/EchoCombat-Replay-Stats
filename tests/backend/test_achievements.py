@@ -187,20 +187,20 @@ def test_new_result_challenges():
     streak = [played(f"2026-10-{d:02d}", True) for d in range(1, 5)]
     streak.insert(2, Game(**{**game("2026-10-02").__dict__, "team": "blue", "winner": None}))  # no result: skipped
     r = by_id(evaluate(streak))
-    assert (r[90]["count"], r[90]["tier"]) == (4, "silver")  # On a Roll 2/4/6/13/18 (all-time ladders are raised 20 %)
+    assert (r[90]["count"], r[90]["tier"]) == (4, "gold")  # On a Roll 2/3/4/7/8 (eased 2026-11-04; was 2/4/6/13/18)
     streak.append(played("2026-10-05", True))
     r = by_id(evaluate(streak))
-    assert r[90]["tier"] == "silver" and by_id(evaluate(streak + [played("2026-10-06", True)]))[90]["tier"] == "gold"
+    assert r[90]["tier"] == "gold" and by_id(evaluate(streak + [played("2026-10-06", True)]))[90]["tier"] == "gold"
     assert by_id(evaluate(streak + [played("2026-10-06", False)]))[90]["count"] == 5  # best run kept
 
     sweep = by_id(evaluate([played("2026-10-01", True, rounds_lost=0)]))[93]  # tiered: 1 game = bronze
     assert (sweep["tier"], sweep["count"], sweep["progress"]) == ("bronze", 1, 0.2)
     assert by_id(evaluate([played("2026-10-01", True, rounds_lost=1)]))[93]["progress"] == 0
-    attack = played("2026-10-01", True, mode="payload", map="fission", attacking_team="blue", push_s=200.0)
+    attack = played("2026-10-01", True, mode="payload", map="fission", attacking_team="blue", push_s=120.0)
     defend = played("2026-10-01", True, mode="payload", map="fission", attacking_team="orange", block_s=30.0)
     r = by_id(evaluate([attack, defend]))
-    assert (r[94]["tier"], r[94]["count"], r[95]["tier"], r[96]["tier"]) == ("bronze", 1, "bronze", "gold")  # push 3.3 min
-    assert (r[97]["tier"], r[97]["unit"]) == ("bronze", " min") and r[96]["estimated"]  # block 30 s = first medal
+    assert (r[94]["tier"], r[94]["count"], r[95]["tier"], r[96]["tier"]) == ("bronze", 1, "bronze", "gold")  # push 120 s: 100 s = gold
+    assert (r[97]["tier"], r[97]["unit"]) == ("silver", " s") and r[96]["estimated"]  # block 30 s = silver (15 / 30 / 45 / 62 / 81 s)
 
 
 def test_tiered_achievements():
@@ -259,8 +259,8 @@ def test_grand_tour_and_medal_collector():
 
     r = by_id(evaluate([won(m) for m in ("dyson", "combustion", "fission", "surge")]))
     assert r[122]["count"] == 1 and r[122]["tier"] == "bronze"
-    # nothing is at gold or better in the ladders yet
-    assert r[126]["count"] == 0 and r[126]["levels"] == [5, 10, 25, 65, 98]
+    # only On a Roll (4 wins in a row = gold since 2026-11-04) is at gold or better
+    assert r[126]["count"] == 1 and r[90]["tier"] == "gold" and r[126]["levels"] == [5, 10, 25, 65, 98]
     r = by_id(evaluate([won("dyson", f"2026-10-{1 + i % 28:02d}") for i in range(120)]))
     golds = sum(1 for x in r.values() if x["id"] != 126 and (x["count"] >= x["levels"][2] if "levels" in x else x["progress"] >= 1))
     assert golds > 0 and r[126]["count"] == golds  # Medal Collector counts gold-or-better medals of the others
