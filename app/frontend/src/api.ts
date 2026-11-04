@@ -847,6 +847,19 @@ export interface ConsoleAchievement extends IconRow {
 export const getConsoleAchievements = () => send<ConsoleAchievement[]>("/api/admin/console/achievements");
 export const CONSOLE_ACHIEVEMENTS_CSV = "/api/admin/console/achievements.csv";
 
+/** Console report: who has reached each Mega Prize target inside the challenge period (prizes are given out by hand). */
+export interface MegaPrizeReport {
+  period: { start: string | null; end: string | null };
+  prizes: {
+    prize: string;
+    challenge: string;
+    target: number;
+    winners: { name: string; user_id: string; discord_id: string | null; count: number }[];
+  }[];
+}
+export const getMegaPrizeWinners = () => send<MegaPrizeReport>("/api/admin/console/mega-prizes");
+export const CONSOLE_MEGA_PRIZES_CSV = "/api/admin/console/mega-prizes.csv";
+
 /** Console merge suggestions: player records that used the same name (backend/merge_suggestions.py). */
 export interface MergeCandidate {
   user_id: string;

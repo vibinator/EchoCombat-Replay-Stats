@@ -1,6 +1,6 @@
 import { Fragment, type ReactNode, useEffect, useState } from "react";
 import {
-  CONSOLE_ACHIEVEMENTS_CSV, forgetResponses, getConsoleAchievements, getConsoleLog, getConsoleOverview, getMe, getMergeSuggestions,
+  CONSOLE_ACHIEVEMENTS_CSV, CONSOLE_MEGA_PRIZES_CSV, forgetResponses, getMegaPrizeWinners, getConsoleAchievements, getConsoleLog, getConsoleOverview, getMe, getMergeSuggestions,
   getProcessingStatus, loginUrl, runConsole, searchConsolePlayers,
   type ConsoleLogEntry, type ConsoleOverview, type ConsolePlayer, type ProcessingStatus,
 } from "../api";
@@ -418,6 +418,7 @@ function Console() {
             <AuditLog api={api} />
           ) : selected.view === "achievements" ? (
             <AchievementExport />
+            <MegaPrizeReport />
           ) : selected.view === "processing" ? (
             <ProcessingPanel />
           ) : (
@@ -993,6 +994,81 @@ function MergeSuggestions({ version, onUse }: { version: number; onUse: (keep: s
           </article>
         );
       })}
+    </div>
+  );
+}
+
+/** Mega Prize winners report (prizes are given out by hand): who reached each target inside the challenge period. */
+function MegaPrizeReport() {
+  const [run, setRun] = useState(0); // Refresh asks again
+  const report = useApi(getMegaPrizeWinners, `console-mega-prizes-${run}`);
+  const [copied, setCopied] = useState(false);
+  const d = report.data;
+
+  async function copy() {
+    const rows = d!.prizes.flatMap((p) => p.winners.map((w) => [p.prize, w.name, w.user_id, w.discord_id ?? "", w.count].join("\t")));
+    await navigator.clipboard.writeText(["Prize\tName\tPlayer id\tDiscord id\tMatches", ...rows].join("\n"));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  return (
+    <div className="panel console-form">
+      <h2>Mega Prize winners</h2>
+      <p className="muted">
+        Everyone who has reached a Mega Prize target inside the challenge period
+        {d ? ` (${d.period.start ?? "no start date set"} to ${d.period.end ?? "open-ended"})` : ""}. Combat counts the replay files; Public Arena counts
+        matches of 4+ minutes from the live match list.
+      </p>
+      <div className="filters">
+        <button className="secondary" type="button" onClick={() => setRun((n) => n + 1)}>
+          Refresh
+        </button>
+        <button className="secondary" type="button" disabled={!d?.prizes.some((p) => p.winners.length)} onClick={copy}>
+          {copied ? "Copied" : "Copy"}
+        </button>
+        <a className="button" href={CONSOLE_MEGA_PRIZES_CSV} download>
+          Download CSV
+        </a>
+      </div>
+      <Status loading={report.loading} error={report.error} />
+      {d &&
+        d.prizes.map((p) => (
+          <div key={p.prize}>
+            <h3>
+              {p.prize}{" "}
+              <span className="muted">
+                · {p.challenge} · {p.winners.length} winner{p.winners.length === 1 ? "" : "s"}
+              </span>
+            </h3>
+            {p.winners.length > 0 && (
+              <TableWrap>
+                <table className="stack">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Player id</th>
+                      <th>Discord id</th>
+                      <th>Matches</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {p.winners.map((w) => (
+                      <tr key={w.user_id}>
+                        <td data-label="Name">
+                          <strong>{w.name}</strong>
+                        </td>
+                        <td data-label="Player id">{w.user_id}</td>
+                        <td data-label="Discord id">{w.discord_id ?? "not linked"}</td>
+                        <td data-label="Matches">{w.count}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </TableWrap>
+            )}
+          </div>
+        ))}
     </div>
   );
 }

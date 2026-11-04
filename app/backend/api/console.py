@@ -22,6 +22,7 @@ from .. import auth, icons
 from .. import merge_suggestions as suggestions
 from ..admin_actions import hidden_failure, unrepairable
 from ..models import Player, PlayerAlias, Replay
+from .. import mega_prizes
 from ..achievement_sheet import csv_bytes, name_and_rule
 from ..errors import ApiError
 
@@ -203,6 +204,23 @@ def achievements_csv(request: Request):
     require_console(request, "achievements.csv")
     return Response(csv_bytes(), media_type="text/csv; charset=utf-8",
                     headers={"Content-Disposition": 'attachment; filename="EchoVR-Achievements.csv"'})
+
+
+@router.get("/mega-prizes")
+def mega_prize_winners(request: Request):
+    """Who has reached each Mega Prize target inside the challenge period (the prizes are given out by hand)."""
+    require_console(request, "mega-prizes")
+    with request.app.state.sessionmaker() as db:
+        return mega_prizes.report(db)
+
+
+@router.get("/mega-prizes.csv")
+def mega_prize_winners_csv(request: Request):
+    require_console(request, "mega-prizes.csv")
+    with request.app.state.sessionmaker() as db:
+        data = mega_prizes.report(db)
+    return Response(mega_prizes.csv_bytes(data), media_type="text/csv; charset=utf-8",
+                    headers={"Content-Disposition": 'attachment; filename="EchoVR-Mega-Prize-Winners.csv"'})
 
 
 @router.post("/{command}")

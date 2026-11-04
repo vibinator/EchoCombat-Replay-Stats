@@ -68,3 +68,18 @@ def client(tmp_path):
 def test_progress_is_for_the_preview_role_only(client):
     r = client.get("/api/arena/progress")
     assert r.status_code == 403 and r.headers["cache-control"] == "private, no-store"
+
+
+def test_winners_report_needs_console_and_lists_nobody_without_a_period(client):
+    assert client.get("/api/admin/console/mega-prizes").status_code in (401, 403, 404)  # not a console user
+    from backend import mega_prizes
+    with client.app.state.sessionmaker() as db:
+        db.add(ArenaPlayer(user_id="u", username="u", display_name="U", discord_id=None, matches=750, last_match_at="x"))
+        db.commit()
+        none = mega_prizes.report(db)
+        assert [len(p["winners"]) for p in none["prizes"]] == [0, 0]  # no start date set: nobody has won yet
+        actions.set_challenge_window(db, "2020-01-01", None)
+        db.commit()
+        data = mega_prizes.report(db)
+    assert [len(p["winners"]) for p in data["prizes"]] == [0, 1] and data["prizes"][1]["winners"][0]["name"] == "U"
+    assert b"OG High Quality Jack Model" in mega_prizes.csv_bytes(data)
