@@ -258,7 +258,7 @@ TUNED_LEVELS: dict[int, tuple[float, ...]] = {
     18: (2, 5, 8, 15, 23),  # My Other Chassis Is a Toaster
     21: (50, 61, 69, 74, 81),  # Full Team Salvo
     22: (26, 34, 42, 51, 60),  # Can We Talk About This?
-    24: (19, 43, 61, 78, 89),  # I’m Bat Bot
+    24: (15, 35, 52, 66, 78),  # I’m Bat Bot (eased 2026-11-04, user; was 19/43/61/78/89)
     30: (1, 4, 6, 9, 13),  # Pulse Check
     31: (1, 4, 6, 9, 13),  # Eat My Nova!
     32: (1, 4, 6, 9, 13),  # Silicon Assassin
@@ -324,7 +324,7 @@ TUNED_LEVELS: dict[int, tuple[float, ...]] = {
     136: (1, 3, 4, 5, 7),  # Dot to Dot
     137: (1, 4, 6, 9, 13),  # Blazar Barrage
     138: (1, 4, 6, 9, 13),  # Dot Matrix
-    142: (59, 67, 73, 79, 85),  # Statue
+    142: (45, 54, 61, 67, 73),  # Statue (eased 2026-11-04, user; was 59/67/73/79/85)
     143: (94.6, 96.4, 98.2, 99.1, 100),  # Lone Wolf (a share of one game: it cannot pass 100; most players are above 95, so it is easy on purpose; user, 2026-11-04)
     148: (2, 6, 12, 22, 38),  # One-Trick Pony
 }
