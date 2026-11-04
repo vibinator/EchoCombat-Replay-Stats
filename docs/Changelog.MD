@@ -18,6 +18,22 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.04.6 — 12:54
+### Mega Prize pictures show again
+- **Fixed:** the Delta Squad BioMass Chassis and Jack pictures on the Mega Prizes tab appeared as broken images. The pictures are loaded with the site header and shown from memory (`blob:`), which the browser protection (Content-Security-Policy `img-src`) did not allow. It now does; nothing external was opened up.
+- **Do:** restart the backend, then hard-refresh the page (browsers cache the old protection header).
+
+
+## 2026.11.04.5 — 12:47
+### Super Ultra Hyper Turbo easier
+- **Targets:** top speed in one game 14 / 17 / 20 / 26 / 30 m/s (was 14 / 18 / 22 / 35 / 42). From the archive about 12 % of players reach gold, 1.4 % diamond and 0.3 % platinum (before: 0.1 % and 0.0 %).
+
+
+## 2026.11.04.4 — 12:46
+### Lone Wolf 15 % harder
+- **Targets:** the distance to 100 % shrank by 15 %: 93.2 / 95.8 / 97.5 / 98.7 / 99.6 % of a game away from teammates (was 92 / 95 / 97 / 98.5 / 99.5). Diamond and platinum are still 30 % further up.
+
+
 ## 2026.11.04.3 — 12:43
 ### Easiest challenges made a little harder
 - **Gear (all weapons, ordnances, tac mods, new gear included):** veteran ladders 6 / 17 / 55 / 170 / 400 games, "only X in one day" 3 / 6 / 9 / 13 / 17, "only X in any 7 days" 6 / 12 / 18 / 35 / 55 (diamond and platinum are still 30 % higher, all-time still +20 %). They stay identical for every item.

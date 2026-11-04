@@ -444,7 +444,7 @@ def _build_rules() -> list[Rule]:
         _ladder(22, "Can We Talk About This?", "Share of one game spent close to an enemy", "enemy_proximity",
                 _full(_pct("near_enemy")), (10, 25, 40, 55, 75), "game", "%"),
         _ladder(23, "Super Ultra Hyper Turbo", "Reach a high top speed in one game", "speed",
-                lambda gs: gs[0].top_speed, (14, 18, 22, 27, 32), "game", " m/s"),
+                lambda gs: gs[0].top_speed, (14, 17, 20, 20, 23), "game", " m/s"),
         _ladder(24, "I’m Bat Bot", "Share of one game spent upside down", "inverted",
                 _full(_pct("upside")), (15, 30, 55, 80, 92), "game", "%"),
     ]
@@ -639,7 +639,7 @@ def _build_rules() -> list[Rule]:
         _ladder(142, "Statue", "Stand still (moving slower than 1 m/s) for part of one game", None,
                 _v4(_full(_pct("stopped"))), (50, 60, 70, 80, 90), "game", "%", new=True, group="Movement"),
         _ladder(143, "Lone Wolf", "Stay far from your teammates (more than 2.6 m away) for most of one game",
-                "team_proximity", _v4(_full(_away_from_mates)), (92, 95, 97, 98.5, 99.5), "game", "%", new=True, group="Movement"),
+                "team_proximity", _v4(_full(_away_from_mates)), (93.2, 95.8, 97.5, 98.7, 99.6), "game", "%", new=True, group="Movement"),
         Rule(144, "Ambidextrous", "Play one game using both the left-arm and the right-arm setting, each for at least 40 % of the time", "game", None,
              _v4(_full(_both_arms)), new=True, group="Movement"),
         _ladder(145, "Speed Demon", "Keep a high average speed through one whole game", "speed",
