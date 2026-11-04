@@ -392,7 +392,7 @@ def test_nothing_but_one_item_for_one_match():
     assert nova.score([g(loadouts=mixed(1000), play_time_s=200.0)]) == 0.0  # under 4 minutes (late recording)
     assert nova.score([g(loadouts=mixed(1000), four_v_four=False)]) == 0.0
     assert rule_notes(nova) == ["Your best single game counts", "Games under 4 minutes are ignored", "4v4 games only",
-                                '"Only" = 90% or more of the game, so a quick switch is fine']
+                                '"Only" = equipped for 90% or more of the game, so a short switch is fine']
 
 
 def test_medal_times_are_per_medal():

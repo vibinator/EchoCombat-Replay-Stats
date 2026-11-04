@@ -3584,3 +3584,65 @@ button.small {
     grid-column: 1 / -1;
   }
 }
+
+/* Achievements: toolbar, sticky jump bar, medal dots, lighter cards (user, 2026-11-04) */
+.ach-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin: 0.5rem 0;
+}
+.ach-toolbar input[type="search"] {
+  flex: 1 1 12rem;
+  max-width: 22rem;
+}
+.jump-bar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0;
+  margin-bottom: 0.5rem;
+  background: var(--bg, #1f2125);
+  border-bottom: 1px solid var(--line, rgba(255, 255, 255, 0.08));
+}
+.jump-bar .jump-all {
+  margin-left: auto;
+  display: flex;
+  gap: 0.35rem;
+}
+.medal-dots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.75rem;
+  font-size: 0.8rem;
+}
+.medal-dots .dot {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.medal-dots .dot i {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+  background: var(--tier-bronze);
+}
+.medal-dots .t-silver i { background: var(--tier-silver); }
+.medal-dots .t-gold i { background: var(--tier-gold); }
+.medal-dots .t-diamond i { background: var(--tier-diamond); }
+.medal-dots .t-platinum i { background: var(--tier-platinum); }
+.card-more summary {
+  cursor: pointer;
+  font-size: 0.8rem;
+  color: var(--muted, #9aa0a6);
+}
+.card-more > span {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.8rem;
+}

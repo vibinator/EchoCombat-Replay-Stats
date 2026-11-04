@@ -17,18 +17,16 @@ export const GROUPS: [Achievement["period"], string][] = [
   ["all", "All time"],
 ];
 
-// New achievements (not on the original site) get their own sections, in this order.
-export const NEW_GROUPS: [string, string][] = [
-  ["Experimental gear", "Weapons and ordnances that were never released, seen in recent replays (now public)"],
-  ["Gear mastery", "All four weapons, ordnances or tac mods in one game"],
-  ["Wins", "Results: streaks and totals"],
-  ["Payload", "Winning, pushing and blocking the payload"],
-  ["Capture Point", "Winning and sweeping Capture Point"],
-  ["Activity", "How often and how long you play"],
-  ["Survival", "Deaths in one game and flawless wins"],
-  ["Movement", "How you move in a single game"],
-  ["Emotes", ""],
+// New achievements (not on the original site) get their own sections, in this order. Merged (user, 2026-11-04): each section lists
+// the themes it holds (a challenge's `group`).
+export const NEW_GROUPS: [name: string, hint: string, groups: string[]][] = [
+  ["Gear", "Experimental weapons and ordnances (never released), and using all four weapons, ordnances or tac mods in one game", ["Experimental gear", "Gear mastery"]],
+  ["Modes & wins", "Winning, streaks, and Payload and Capture Point play", ["Wins", "Payload", "Capture Point"]],
 ];
+
+// Survival, Movement, Emotes and Activity are not themes any more (user, 2026-11-04): their challenges sit with the others of the same
+// period (mostly "In one game"; the all-time ones, Activity included, under "All time").
+const BY_PERIOD = new Set(["Survival", "Movement", "Emotes", "Activity"]);
 
 type AnyBadge = Parameters<typeof Badge>[0]["a"];
 
@@ -56,6 +54,7 @@ function useCollapsed(foldByDefault: string[] = []) {
     folded,
     toggle: (id: string) => save(new Set(folded.has(id) ? [...folded].filter((x) => x !== id) : [...folded, id])),
     setAll: (ids: string[], collapsed: boolean) => save(new Set(collapsed ? ids : [])),
+    open: (id: string) => save(new Set([...folded].filter((x) => x !== id))),
   };
 }
 
@@ -70,47 +69,59 @@ function status(a: AnyBadge): Filter | null {
   return a.progress >= 1 ? "done" : a.progress > 0 ? "open" : "new";
 }
 
+type SortBy = "default" | "closest" | "rarest" | "name";
+type Shares = Map<number, number | null>;
+
+/** Order of the cards in a section. Default: a player's list is closest-to-the-next-medal first, a catalogue keeps the rule order. */
+function sortItems<T extends AnyBadge>(list: T[], by: SortBy, tracked: boolean, shares: Shares): T[] {
+  const out = [...list];
+  const closest = (x: T) => nextMedalFraction(x as unknown as Achievement) ?? 0;
+  if (by === "name") return out.sort((x, y) => x.name.localeCompare(y.name));
+  if (by === "rarest") return out.sort((x, y) => (shares.get(x.id) ?? 1) - (shares.get(y.id) ?? 1));
+  if (by === "closest" || (by === "default" && tracked)) return out.sort((x, y) => closest(y) - closest(x));
+  return out;
+}
+
 /** A section: a heading that folds it away, and (for a player) filters Completed / In progress / Not started. Completed
- *  achievements are hidden until you pick Completed; the view opens on the first filter that has something. */
-function Section<T extends AnyBadge>({ id, c, level = 3, title, items, anchor }: { id: string; c: Collapse; level?: 2 | 3; title: React.ReactNode; items: T[]; anchor?: string }) {
+ *  achievements are hidden until you pick Completed; the view opens on the first filter that has something. `only` is the
+ *  status picked for the whole page (it replaces the tabs); `forceOpen` unfolds it while searching. */
+function Section<T extends AnyBadge>({ id, c, level = 3, title, label, items, anchor, only, sort, shares, forceOpen }: { id: string; c: Collapse; level?: 2 | 3; title: React.ReactNode; label: string; items: T[]; anchor?: string; only: Filter | ""; sort: SortBy; shares: Shares; forceOpen: boolean }) {
   const [picked, setPicked] = useState<Filter | null>(null);
-  const open = !c.folded.has(id);
+  const open = forceOpen || !c.folded.has(id);
   const Heading = `h${level}` as "h2" | "h3";
   const tracked = items.every((a) => status(a) !== null);
   const counts = { done: 0, open: 0, new: 0 };
   if (tracked) for (const a of items) counts[status(a)!]++;
-  const filter = picked ?? FILTERS.find(([f]) => counts[f] > 0)?.[0] ?? "open";
-  // closest to the next medal first, like the row at the top; not started / completed ones keep the rule order (stable sort)
-  const shown = tracked
-    ? items.filter((a) => status(a) === filter).sort((a, b) => (nextMedalFraction(b as Achievement) ?? 0) - (nextMedalFraction(a as Achievement) ?? 0))
-    : items;
+  const filter = only || picked || FILTERS.find(([f]) => counts[f] > 0)?.[0] || "open";
+  const shown = sortItems(tracked ? items.filter((a) => status(a) === filter) : items, sort, tracked, shares);
   const overall = tracked ? items.reduce((sum, a) => sum + (a.progress ?? 0), 0) / items.length : 0;
+  if (tracked && only && counts[only] === 0) return null; // nothing of that status in this section
   return (
     <div className="fold" id={anchor}>
-      <Heading className="fold-head">
+      <Heading className="fold-head" id={`sec-${id}`}>
         <button type="button" aria-expanded={open} onClick={() => c.toggle(id)}>
-          <span className="chevron" aria-hidden="true">{open ? "▾" : "▸"}</span> {title} <span className="muted hint">({items.length})</span>
+          <span className="chevron" aria-hidden="true">{open ? "▾" : "▸"}</span> {title} <span className="muted hint">· {items.length} challenges</span>
         </button>
       </Heading>
       {tracked && (
         <div className="section-progress" title={`${counts.done} of ${items.length} completed, ${pct(overall)} overall`}>
-          <div className="bar" style={{ "--sec": `var(--tier-${sectionMedal(overall) ?? "bar-default"})` } as React.CSSProperties} role="progressbar" aria-label={`${typeof title === "string" ? title : "Section"} progress`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(overall * 100)}>
+          <div className="bar" style={{ "--sec": `var(--tier-${sectionMedal(overall) ?? "bar-default"})` } as React.CSSProperties} role="progressbar" aria-label={`${label} progress`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(overall * 100)}>
             <div style={{ width: `${overall * 100}%` }} />
           </div>
           <span className="muted">{counts.done}/{items.length} completed · {pct(overall)}</span>
         </div>
       )}
-      {open && tracked && (
+      {open && tracked && !only && (
         <div className="tabs" role="tablist">
-          {FILTERS.map(([f, label]) => (
+          {FILTERS.map(([f, text]) => (
             <button key={f} role="tab" aria-selected={filter === f} className={filter === f ? "tab active" : "tab"} onClick={() => setPicked(f)}>
-              {label} ({counts[f]})
+              {text} ({counts[f]})
             </button>
           ))}
         </div>
       )}
       {open && (
-        <div className="badges scroll-row" tabIndex={0} aria-label={`${typeof title === "string" ? title : "Section"}, scroll sideways`}>
+        <div className="badges scroll-row" tabIndex={0} aria-label={`${label}, scroll sideways`}>
           {shown.map((a) => <Badge key={a.id} a={a} />)}
         </div>
       )}
@@ -118,33 +129,75 @@ function Section<T extends AnyBadge>({ id, c, level = 3, title, items, anchor }:
   );
 }
 
-/** Original achievements by period, then the new ones by theme, in one flat list of sections. */
+/** Original achievements by period, then the new ones by theme, in one flat list of sections. A sticky bar jumps to a
+ *  section; the controls above filter (text, status, new only) and sort every section at once (user, 2026-11-04). */
 export function GroupedBadges<T extends AnyBadge>({ items: all }: { items: T[] }) {
-  // Mega Prize challenges (very draft / beta, user 2026-11-04) are not in the normal sections: they only show in a
-  // hidden tab that opens with #mega-prizes (no link to it anywhere).
+  // Mega Prize challenges are never in this list (they are not in the public rules at all, see achievements.py)
   const items = all.filter((a) => !a.prize);
-  // A player's page opens with every section folded (the row at the top already lifts the best ones); a choice made with
-  // Expand all / Collapse all or a heading is remembered in this browser (user, 2026-11-03).
+  const rarity = useApi(getRarity, "rarity").data;
+  const shares: Shares = new Map((rarity ?? []).map((r) => [r.id, r.unlocked_share]));
+  const [q, setQ] = useState("");
+  const [only, setOnly] = useState<Filter | "">("");
+  const [newOnly, setNewOnly] = useState(false);
+  const [sort, setSort] = useState<SortBy>("default");
+  // Every section starts folded (headings with counts; the row at the top of a player's page lifts the best ones). A choice made
+  // with Expand all / Collapse all, a heading or the jump bar is remembered in this browser (user, 2026-11-03).
   const tracked = items.length > 0 && items.every((a) => status(a) !== null);
-  const c = useCollapsed(tracked ? ["p-game", "p-day", "p-week", "p-all", ...[...NEW_GROUPS.map(([n]) => n), "More"].map((n) => `n-${n}`)] : []);
-  const sections: { id: string; title: React.ReactNode; items: T[] }[] = [
-    ...GROUPS.map(([period, label]) => ({ id: `p-${period}`, title: label, items: items.filter((a) => !a.new && a.period === period) })),
-    ...[...NEW_GROUPS, ["More", ""] as [string, string]].map(([name, hint]) => ({
+  const c = useCollapsed(["p-game", "p-day", "p-week", "p-all", ...[...NEW_GROUPS.map(([n]) => n), "More"].map((n) => `n-${n}`)]);
+  const term = q.trim().toLowerCase();
+  const visible = items.filter((a) => (!newOnly || a.new) && (!term || `${a.name} ${ruleText(a.description)}`.toLowerCase().includes(term)));
+  const sections: { id: string; title: React.ReactNode; label: string; items: T[] }[] = [
+    ...GROUPS.map(([period, label]) => ({ id: `p-${period}`, title: label, label, items: visible.filter((a) => (!a.new || BY_PERIOD.has(a.group ?? "")) && a.period === period) })),
+    ...[...NEW_GROUPS, ["More", "", []] as [string, string, string[]]].map(([name, hint, groups]) => ({
       id: `n-${name}`,
+      label: name,
       title: <>{name} {hint && <span className="muted hint">· {hint}</span>}</>,
-      items: items.filter((a) => a.new && (NEW_GROUPS.some(([n]) => n === name) ? a.group === name : !NEW_GROUPS.some(([n]) => n === a.group))),
+      items: visible.filter((a) => a.new && !BY_PERIOD.has(a.group ?? "") && (name === "More" ? !NEW_GROUPS.some(([, , gs]) => gs.includes(a.group ?? "")) : groups.includes(a.group ?? ""))),
     })),
   ].filter((x) => x.items.length > 0);
   const firstNew = sections.find((x) => x.id.startsWith("n-"))?.id;
   const ids = sections.map((x) => x.id);
+  function jump(id: string) {
+    c.open(id);
+    setTimeout(() => document.getElementById(`sec-${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+  }
   return (
     <>
-      <div className="fold-all">
-        <button type="button" className="tab" onClick={() => c.setAll(ids, false)}>Expand all</button>
-        <button type="button" className="tab" onClick={() => c.setAll(ids, true)}>Collapse all</button>
+      <div className="ach-toolbar">
+        <input type="search" placeholder="Filter challenges" aria-label="Filter challenges" value={q} onChange={(e) => setQ(e.target.value)} />
+        {tracked && (
+          <select aria-label="Status" value={only} onChange={(e) => setOnly(e.target.value as Filter | "")}>
+            <option value="">All statuses</option>
+            {FILTERS.map(([f, text]) => (
+              <option key={f} value={f}>{text}</option>
+            ))}
+          </select>
+        )}
+        <label className="inline-check">
+          <input type="checkbox" checked={newOnly} onChange={(e) => setNewOnly(e.target.checked)} /> New only
+        </label>
+        <select aria-label="Sort" value={sort} onChange={(e) => setSort(e.target.value as SortBy)}>
+          <option value="default">{tracked ? "Closest to next medal" : "Original order"}</option>
+          {tracked && <option value="closest">Closest to next medal (all)</option>}
+          <option value="rarest">Rarest first</option>
+          <option value="name">A to Z</option>
+        </select>
       </div>
+      <nav className="jump-bar" aria-label="Jump to a section">
+        {sections.map((x) => (
+          <button key={x.id} type="button" className="tab" onClick={() => jump(x.id)}>
+            {x.label} <span className="muted">{x.items.length}</span>
+          </button>
+        ))}
+        <span className="jump-all">
+          <button type="button" className="tab" onClick={() => c.setAll(ids, false)}>Expand all</button>
+          <button type="button" className="tab" onClick={() => c.setAll(ids, true)}>Collapse all</button>
+        </span>
+      </nav>
+      {sections.length === 0 && <p className="muted">No challenge matches.</p>}
       {sections.map((x) => (
-        <Section key={x.id} id={x.id} c={c} title={x.title} items={x.items} anchor={x.id === firstNew ? "new" : undefined} />
+        <Section key={x.id} id={x.id} c={c} title={x.title} label={x.label} items={x.items} anchor={x.id === firstNew ? "new" : undefined}
+                 only={only} sort={sort} shares={shares} forceOpen={term.length > 0} />
       ))}
     </>
   );
@@ -287,21 +340,6 @@ function TierSteps({ a }: { a: Achievement & AchievementRule }) {
   );
 }
 
-function MedalTargets({ levels, unit = "" }: { levels: number[]; unit?: string }) {
-  return (
-    <details className="medal-targets">
-      <summary>Medal targets</summary>
-      <ul>
-        {levels.map((need, i) => (
-          <li key={LEVELS[i]} className={`t-${LEVELS[i]}`}>
-            <span className="medal-name">{LEVELS[i]}</span> {need.toLocaleString()}{unit}
-          </li>
-        ))}
-      </ul>
-    </details>
-  );
-}
-
 /** The next medal a player is heading for and how far along it is (0..1); null = every medal reached, or not started.
  *  Ladders: between the previous target and the next one; single-step rules: between the percentage steps. */
 function nextMedal(a: Achievement): { fraction: number; medal: string } | null {
@@ -362,6 +400,29 @@ function NotYetStarted({ items }: { items: Achievement[] }) {
   );
 }
 
+/** First row of a player's page: the challenges they are closest to a medal in (a quarter of the way or more to the next one). */
+function CloseToMedal({ items }: { items: Achievement[] }) {
+  const close = items
+    .filter((a) => a.progress < 1)
+    .map((a) => ({ a, m: nextMedal(a) }))
+    .filter((x): x is { a: Achievement; m: { fraction: number; medal: string } } => x.m !== null && x.m.fraction >= 0.25)
+    .sort((x, y) => y.m.fraction - x.m.fraction)
+    .slice(0, EASY_SHOWN);
+  if (close.length === 0) return null;
+  return (
+    <section className="closest">
+      <h3>Close to a medal <span className="muted hint">· the next one is within reach</span></h3>
+      <div className="badges scroll-row" tabIndex={0} aria-label="Close to a medal, scroll sideways">
+        {close.map(({ a, m }) => (
+          <div key={a.id} className="next-card" style={{ "--next": `var(--tier-${m.medal})` } as React.CSSProperties} title={`Next medal: ${m.medal}`}>
+            <Badge a={a} />
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 /** A rule with a player's progress, or just the catalogue entry when `progress` is absent. */
 /** Tiered achievements: "12 / 25 for diamond", or the top medal once every target is reached. */
 function levelText(count: number, levels: number[], unit = ""): string {
@@ -398,8 +459,7 @@ export function Badge({ a }: { a: AchievementRule & Partial<Pick<Achievement, "p
           {ruleText(a.description)}
           {a.estimated && " *"}
         </span>
-        {a.rules && a.rules.length > 0 && <span className="muted rule-notes">{a.rules.join(" · ")}</span>}
-        {a.levels && a.levels.length > 0 && <MedalTargets levels={a.levels} unit={a.unit} />}
+        {catalogue && <TierSteps a={{ ...a, progress: 0, count: 0, tier: null } as unknown as Achievement & AchievementRule} />}
         {a.prize && <span className="tag mega-prize" title="Mega Prize for completing this challenge">Mega Prize: {a.prize}</span>}
         {!catalogue && (
           <>
@@ -420,10 +480,16 @@ export function Badge({ a }: { a: AchievementRule & Partial<Pick<Achievement, "p
             </span>
           </>
         )}
-        {a.unlocked_share != null && (
-          <span className="muted rarity" title="Share of players with 10+ games">
-            {pct(a.unlocked_share)} unlocked · {pct(a.completed_share)} completed
-          </span>
+        {((a.rules && a.rules.length > 0) || a.unlocked_share != null) && (
+          <details className="card-more">
+            <summary>Details</summary>
+            {a.rules && a.rules.length > 0 && <span className="muted rule-notes">{a.rules.join(" · ")}</span>}
+            {a.unlocked_share != null && (
+              <span className="muted rarity" title="Share of players with 10+ games">
+                {pct(a.unlocked_share)} unlocked · {pct(a.completed_share)} completed
+              </span>
+            )}
+          </details>
         )}
       </div>
     </div>
@@ -622,7 +688,7 @@ function LaunchedSummary({ userId }: { userId: string }) {
             <strong>
               {added.filter((a) => a.progress >= 1).length} / {added.length}
             </strong>
-            <span className="muted">gear, wins, payload, emotes</span>
+            <span className="muted">gear, modes and wins</span>
           </Link>
         )}
       </div>
@@ -685,8 +751,10 @@ export function AchievementRules({ open = false }: { open?: boolean }) {
           everywhere.
         </li>
         <li>
-          <strong>"Use only" an item</strong> = it was 90% or more of that game's time in its slot, so a quick switch is fine. <strong>"Use"</strong> =
-          5% or more.
+          <strong>Using an item.</strong> In every game you carry a weapon, an ordnance and a tac mod, and you can change them. For each of those
+          three slots the site measures how long each item was equipped during the game. <strong>"Use"</strong> an item = it was equipped for at least
+          10% of the game, so trying it out for a moment does not count. <strong>"Use only"</strong> an item = it was equipped for at least 90% of
+          the game in its slot, so a short switch is fine: in a 10-minute game up to 1 minute of something else is allowed.
         </li>
         <li>* Deaths are estimated from the recording.</li>
       </ul>
@@ -716,6 +784,7 @@ export function AchievementsView({ userId }: { userId: string }) {
               </strong>
             </div>
           </div>
+          {sort === "group" && <CloseToMedal items={data.items} />}
           {sort === "group" && <NotYetStarted items={data.items} />}
           {sort === "group" && <JumpToNew ready />}
           <label className="inline-check">

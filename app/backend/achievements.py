@@ -25,7 +25,7 @@ UNRELEASED_WEAPONS = [("rifle", "Starburst"), ("magnum", "Protostar"), ("smg", "
 GEAR_ICONS = {"rifle": "starburst", "magnum": "protostar", "smg": "quark", "chain": "blazar", "loc": "translocator"}
 
 ONLY_SHARE = 0.90  # "use only X": X is at least 90 % of the game's loadout time (was 95; user, 2026-11-04: room for mistakes)
-USED_SHARE = 0.05  # old loadoutCutoff: below 5 % of the time does not count as "used"
+USED_SHARE = 0.10  # below 10 % of the game does not count as "used" (was 5 %, the old loadoutCutoff; user, 2026-11-04)
 FULL_GAME_S = 240.0  # was 180 (user, 2026-11-04); per-game rules ignore short appearances (A: avoids 0-death 10-second games)
 LOADOUT_USED_S = 180.0  # "use all 64 loadouts": at least 3 min each (old code: 3*60*30 frames)
 SEASON_MIN_GAMES = 50  # all-time averages need 50 games (A)
@@ -326,7 +326,7 @@ def _only_games(slot: str, code: str):
 
 
 def _all_used(slot: str, codes: set[str]):
-    """Share of `codes` used (5%+ of a game) in these games."""
+    """Share of `codes` used (10%+ of a game) in these games."""
     return lambda games: len(set().union(*(g.used(slot) for g in games)) & codes) / len(codes)
 
 
@@ -633,7 +633,7 @@ def _build_rules() -> list[Rule]:
                 new=True, group="Capture Point"),
         _tiered(148, "One-Trick Pony", "Win a game using only one single loadout (weapon, tac mod and ordnance)",
                 "loadout", lambda g: g.four_v_four and g.won and g.main_loadout() is not None, (1, 10, 30, 80, 200), new=True, group="Gear mastery"),
-        _ladder(149, "Loadout Roulette", "Switch between loadouts in one game: each loadout used for at least 5 % of the game counts",
+        _ladder(149, "Loadout Roulette", "Switch between loadouts in one game: each loadout used for at least 10 % of the game counts",
                 "loadout", _v4(lambda gs: gs[0].loadouts_played()), (4, 5, 6, 7, 8), "game", new=True, group="Gear mastery"),
         _ladder(150, "Mime Troupe", "Emote as much as you can in one game without dying", None,
                 _v4(lambda gs: gs[0].emotes if gs[0].play_time_s >= FULL_GAME_S and gs[0].deaths == 0 else 0), (4, 8, 12, 16, 20), "game",  # x4 (user, 2026-11-03)
@@ -673,7 +673,7 @@ def rule_notes(rule: Rule) -> list[str]:
     if getattr(fn, "four_v_four", False) or rule.id in _NOTE_4V4_IDS:
         notes.append("4v4 games only")
     if getattr(fn, "use_only", False) or rule.id in _NOTE_ONLY_IDS:
-        notes.append(f"\"Only\" = {ONLY_SHARE:.0%} or more of the game, so a quick switch is fine")
+        notes.append(f"\"Only\" = equipped for {ONLY_SHARE:.0%} or more of the game, so a short switch is fine")
     if rule.id == 67:
         notes.append(f"Each loadout needs {LOADOUT_USED_S / 60:g} minutes of play")
     return [n for n in notes if n]

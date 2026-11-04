@@ -25,6 +25,20 @@ Working record of what changed in each release, newest first.
 
 ### Layout
 - **Mega Prizes is the first thing on the Achievements page** (Preview role only).
+- **Achievements page, easier to read:** a sticky jump bar (one button per section with its count, plus Expand all / Collapse all); a
+  toolbar that filters (text, status, new only) and sorts (closest to the next medal, rarest first, A to Z) every section at once;
+  sections start folded with their challenge count; a *Close to a medal* row above *Not yet started* on a player's page; the five medal
+  targets as coloured dots on every card; and the rule notes and rarity moved into a *Details* fold on each card.
+- **The medal progress bar is on every challenge card again** (empty, with its five targets, in the list of all challenges; filled in on a
+  player's page). The coloured dots are gone.
+- **"Use" an item now needs 10% of the game (was 5%)**: using a different weapon, ordnance or tac mod only counts once it was equipped for 10%
+  of the match (affects Jack of All Trades, the gear challenges and Loadout Roulette). "Use only" stays at 90%.
+- **"Use" and "Use only" explained better** in the Rules (and the card note): per slot (weapon, ordnance, tac mod), "use" = equipped for 5%+ of
+  the game, "use only" = 90%+ (a short switch is fine; no rule changed).
+- **Fewer sections:** *Experimental gear* and *Gear mastery* are one *Gear* section; *Wins*, *Payload* and *Capture Point* are one *Modes & wins*
+  section; *Activity* is under *In one game* / *All time*. Six sections instead of ten (In one game 12, In one day 19, In any 7 days 25, All time 36, Gear 50, Modes & wins 17); nothing was removed.
+- **Survival, Movement and Emotes are no longer separate sections either:** their one-game challenges are under *In one game*, their all-time
+  ones (Untouchable, Dance Floor Legend) under *All time*.
 
 ### Layout
 - **Achievements page, more compact:** a one-line intro, tighter Rules / Preview note / player search.
