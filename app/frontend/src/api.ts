@@ -1313,6 +1313,7 @@ export interface CombatMatchDetail {
   duration_s: number;
   has_events: boolean;
   events_complete: boolean | null;
+  replay_match_id: number | null;
   teams: Partial<Record<Team, Record<string, number>>>;
   players: CombatMatchPlayer[];
 }

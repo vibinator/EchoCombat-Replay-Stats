@@ -201,3 +201,32 @@ def test_match_endpoints(settings):
         blue, orange = detail["players"]
         assert blue["events"]["shots"] == 434 and orange["events"] is None and blue["weapons"] == ["Pulsar", "Starburst"]
         assert client.get("/api/combat/matches/" + SESSION_2).status_code == 404
+
+
+def test_combat_match_links_to_the_replay_match_with_the_same_id(settings):
+    import replay_factory as rf
+    from app_helpers import add
+    session = "00000000-0000-4000-8000-0000000000AA"
+    put(settings, f"{session}.json", report(session=session))
+    put(settings, f"{SESSION}.json", report())
+    with app_client(settings) as client:
+        add(client, {"dyson/a.echoreplay": rf.zipped(rf.lines(5, sessionid=session))})
+        sync(client)
+        replay_match = client.get("/api/matches").json()["items"][0]
+        assert replay_match["session_id"].upper() == session
+        assert client.get(f"/api/combat/matches/{session}").json()["replay_match_id"] == replay_match["id"]
+        assert client.get(f"/api/combat/matches/{SESSION}").json()["replay_match_id"] is None  # no replay for it here
+        # the replay match itself carries nothing of the combat report
+        assert "kills" not in str(client.get(f"/api/matches/{replay_match['id']}").json().get("teams", {}).get("blue", [{}])[:0])
+
+
+def test_combat_folder_default_follows_where_matches_is(tmp_path):
+    share = tmp_path / "ECRanked" / "Replays"
+    share.mkdir(parents=True)
+    s = make_settings(tmp_path)
+    from dataclasses import replace
+    s = replace(s, source_dir=share)
+    assert s.combat_dir == share.parent  # PC layout: matches/ beside Replays/
+    (share / "matches").mkdir()
+    assert s.combat_dir == share  # NAS layout: the whole recorder folder is the share
+    assert replace(s, combat_source_dir=tmp_path).combat_dir == tmp_path

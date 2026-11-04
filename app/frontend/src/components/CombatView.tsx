@@ -1,8 +1,8 @@
 import { Link } from "react-router";
-import { getCombatPlayer, type CombatEvents, type CombatWeapon, type Period } from "../api";
+import { getCombatMatch, getCombatPlayer, type CombatEvents, type CombatMatchDetail, type CombatMatchPlayer, type CombatWeapon, type Period } from "../api";
 import { TableWrap, TeamBadge } from "./common";
 import { InfoTip } from "./ui";
-import { dateTime, duration, hoursMinutes, int, num, title } from "../format";
+import { dateTime, duration, hoursMinutes, int, num, playerPath, title } from "../format";
 import { useApi } from "../useApi";
 
 /** One labelled number in the card grid. */
@@ -71,11 +71,16 @@ export function CombatSection({ userId, period, map }: { userId: string; period:
   return (
     <>
       <h2>
-        Combat stats <span className="tag">game feed</span>
+        Beta Data Collection <span className="tag">beta</span>
       </h2>
       <p className="muted footnote">
+        New data we are still collecting and testing. It comes from a separate source than the stats above, is not part of the
+        replay stats or the achievements, and may change as more matches are recorded.
+      </p>
+      <h3>Combat stats</h3>
+      <p className="muted footnote">
         The game&apos;s own counters from {int(data.matches)} recorded match{data.matches === 1 ? "" : "es"} ({hoursMinutes(s.present_s)} played).
-        These come from a separate source than the replay stats on this page, so numbers can differ. <Link to="/combat">All combat stats</Link>
+        Numbers can differ from the replay stats above. <Link to="/combat">All combat stats</Link>
       </p>
       <div className="cards">
         <Stat label="Matches" value={int(data.matches)} />
@@ -166,6 +171,100 @@ export function CombatSection({ userId, period, map }: { userId: string; period:
           </TableWrap>
         </>
       )}
+    </>
+  );
+}
+
+function PlayerEvents({ p }: { p: CombatMatchPlayer }) {
+  if (!p.events) return null;
+  return (
+    <details className="combat-player-events">
+      <summary>
+        {p.name} · {int(p.events.shots)} shots
+      </summary>
+      <EventCards e={p.events} />
+      <div className="combat-weapon-grid">
+        <WeaponList heading="Kills by weapon" items={p.events.kills_by_weapon} />
+        <WeaponList heading="Deaths by weapon" items={p.events.deaths_by_weapon} />
+        <WeaponList heading="Shots by weapon" items={p.events.shots_by_weapon} />
+      </div>
+    </details>
+  );
+}
+
+/** Scoreboard + per-player shots / weapons of one match, from the match report. Used by /combat/:id and the match page. */
+export function CombatMatchBody({ m }: { m: CombatMatchDetail }) {
+  return (
+    <>
+      <p className="muted">
+        {duration(m.duration_s)} · {m.players.length} players.{" "}
+        {!m.has_events && "No event log for this match, so shots and weapon numbers are not available. "}
+        {m.events_complete === false && "The event log ended early: shot and weapon counts are too low. "}
+        Damage taken is not available (spectators do not get it).
+      </p>
+      {(["blue", "orange"] as const).map((team) => {
+        const players = m.players.filter((p) => p.team === team);
+        if (players.length === 0) return null;
+        return (
+          <div key={team}>
+            <h3><TeamBadge team={team} /></h3>
+            <TableWrap>
+              <table className="stack">
+                <thead>
+                  <tr>
+                    <th>Player</th><th className="num">K</th><th className="num">D</th><th className="num">A</th>
+                    <th className="num">Elims<InfoTip text="The game's separate elimination counter." /></th>
+                    <th className="num">Damage</th><th className="num">Obj. dmg</th><th className="num">Obj. time</th><th>Weapons</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {players.map((p) => (
+                    <tr key={p.user_id}>
+                      <td data-label="Player"><Link to={playerPath(p.user_id, p.name)}>{p.name}</Link></td>
+                      <td data-label="K" className="num">{p.kills}</td>
+                      <td data-label="D" className="num">{p.deaths}</td>
+                      <td data-label="A" className="num">{p.assists}</td>
+                      <td data-label="Elims" className="num">{p.eliminations}</td>
+                      <td data-label="Damage" className="num">{int(p.damage)}</td>
+                      <td data-label="Obj. dmg" className="num">{int(p.objective_damage)}</td>
+                      <td data-label="Obj. time" className="num">{duration(p.objective_time)}</td>
+                      <td data-label="Weapons">{p.weapons.join(", ") || "–"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </TableWrap>
+          </div>
+        );
+      })}
+      {m.has_events && (
+        <>
+          <h3>Shots, weapons and tac mods</h3>
+          {m.players.map((p) => <PlayerEvents key={p.user_id} p={p} />)}
+        </>
+      )}
+    </>
+  );
+}
+
+/**
+ * "Beta Data Collection" on a replay match page: the recorder's combat report for the same match id. Shown only when the
+ * match has one. Joined by match id at read time; the replay stats on the page never use these numbers.
+ */
+export function MatchCombatSection({ sessionId }: { sessionId: string }) {
+  const { data } = useApi(() => getCombatMatch(sessionId), `combat-match|${sessionId}`);
+  if (!data) return null; // no report for this match (or not loaded yet): nothing to show
+  return (
+    <>
+      <h2>
+        Beta Data Collection <span className="tag">beta</span>
+      </h2>
+      <p className="muted footnote">
+        New data we are still collecting and testing, from a separate source than the replay stats on this page, so numbers can
+        differ. <Link to={`/combat/${data.session_id}`}>Open on its own page</Link>
+      </p>
+      <h3>Combat stats for this match</h3>
+      <CombatMatchBody m={data} />
     </>
   );
 }

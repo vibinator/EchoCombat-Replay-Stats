@@ -1,8 +1,8 @@
 import { Link, useParams, useSearchParams } from "react-router";
-import { getCombatBoard, getCombatMatch, getCombatStats, getCombatSummary, listCombatMatches, type CombatMatchPlayer, type Period } from "../api";
-import { EventCards, WeaponList } from "../components/CombatView";
-import { Status, TableWrap, TeamBadge } from "../components/common";
-import { InfoTip, Skeleton } from "../components/ui";
+import { getCombatBoard, getCombatMatch, getCombatStats, getCombatSummary, listCombatMatches, type Period } from "../api";
+import { CombatMatchBody } from "../components/CombatView";
+import { Status, TableWrap } from "../components/common";
+import { Skeleton } from "../components/ui";
 import { MAPS, dateTime, duration, int, num, playerPath, title } from "../format";
 import { useApi } from "../useApi";
 import { usePageTitle } from "../usePageTitle";
@@ -135,23 +135,6 @@ export function CombatPage() {
   );
 }
 
-function PlayerEvents({ p }: { p: CombatMatchPlayer }) {
-  if (!p.events) return null;
-  return (
-    <details className="combat-player-events">
-      <summary>
-        {p.name} · {int(p.events.shots)} shots
-      </summary>
-      <EventCards e={p.events} />
-      <div className="combat-weapon-grid">
-        <WeaponList heading="Kills by weapon" items={p.events.kills_by_weapon} />
-        <WeaponList heading="Deaths by weapon" items={p.events.deaths_by_weapon} />
-        <WeaponList heading="Shots by weapon" items={p.events.shots_by_weapon} />
-      </div>
-    </details>
-  );
-}
-
 export function CombatMatchPage() {
   const { id = "" } = useParams();
   const match = useApi(() => getCombatMatch(id), `combat-match|${id}`);
@@ -165,53 +148,8 @@ export function CombatMatchPage() {
       {m && (
         <>
           <h1>{title(m.map)} · {dateTime(m.started_at)}</h1>
-          <p className="muted">
-            {duration(m.duration_s)} · {m.players.length} players.{" "}
-            {!m.has_events && "No event log for this match, so shots and weapon numbers are not available. "}
-            {m.events_complete === false && "The event log ended early: shot and weapon counts are too low. "}
-            Damage taken is not available (spectators do not get it).
-          </p>
-          {(["blue", "orange"] as const).map((team) => {
-            const players = m.players.filter((p) => p.team === team);
-            if (players.length === 0) return null;
-            return (
-              <div key={team}>
-                <h2><TeamBadge team={team} /></h2>
-                <TableWrap>
-                  <table className="stack">
-                    <thead>
-                      <tr>
-                        <th>Player</th><th className="num">K</th><th className="num">D</th><th className="num">A</th>
-                        <th className="num">Elims<InfoTip text="The game's separate elimination counter." /></th>
-                        <th className="num">Damage</th><th className="num">Obj. dmg</th><th className="num">Obj. time</th><th>Weapons</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {players.map((p) => (
-                        <tr key={p.user_id}>
-                          <td data-label="Player"><Link to={playerPath(p.user_id, p.name)}>{p.name}</Link></td>
-                          <td data-label="K" className="num">{p.kills}</td>
-                          <td data-label="D" className="num">{p.deaths}</td>
-                          <td data-label="A" className="num">{p.assists}</td>
-                          <td data-label="Elims" className="num">{p.eliminations}</td>
-                          <td data-label="Damage" className="num">{int(p.damage)}</td>
-                          <td data-label="Obj. dmg" className="num">{int(p.objective_damage)}</td>
-                          <td data-label="Obj. time" className="num">{duration(p.objective_time)}</td>
-                          <td data-label="Weapons">{p.weapons.join(", ") || "–"}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </TableWrap>
-              </div>
-            );
-          })}
-          {m.has_events && (
-            <>
-              <h2>Shots, weapons and tac mods</h2>
-              {m.players.map((p) => <PlayerEvents key={p.user_id} p={p} />)}
-            </>
-          )}
+          {m.replay_match_id != null && <p><Link to={`/matches/${m.replay_match_id}`}>Open the replay match</Link></p>}
+          <CombatMatchBody m={m} />
         </>
       )}
     </section>

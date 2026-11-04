@@ -14,7 +14,7 @@ from sqlalchemy import case, func, select
 from ..aliases import ids_of
 from ..errors import ApiError
 from ..gear import ORDNANCES, WEAPONS
-from ..models import CombatMatch, CombatPlayer, PlayerAlias
+from ..models import CombatMatch, CombatPlayer, Match, PlayerAlias
 from .derived import MAP_PATTERN, PERIODS, ID_MAX, period_start, ratio
 
 router = APIRouter(prefix="/api/combat", tags=["combat"])
@@ -226,6 +226,8 @@ def match(request: Request, session_id: str = SESSION_PATH):
             raise ApiError(404, "not_found", "No combat stats for this match")
         rows = db.scalars(select(CombatPlayer).where(CombatPlayer.match_id == m.id)
                           .order_by(CombatPlayer.team, CombatPlayer.kills.desc(), CombatPlayer.name)).all()
+        # the replay match with the same match id, only to link to it (nothing of it is used)
+        replay_match_id = db.scalar(select(Match.id).where(Match.session_id == m.session_id).order_by(Match.id).limit(1))
     players = []
     for p in rows:
         events = None
@@ -244,4 +246,4 @@ def match(request: Request, session_id: str = SESSION_PATH):
                         "tacmods": loadouts.get("tacmods", []), "ordnance": [weapon_name(w) for w in loadouts.get("ordnance", [])],
                         "events": events})
     return {"session_id": m.session_id, "map": m.map, "started_at": m.started_at, "ended_at": m.ended_at, "duration_s": m.duration_s,
-            "has_events": m.has_events, "events_complete": m.events_complete, "teams": _json(m.teams), "players": players}
+            "has_events": m.has_events, "events_complete": m.events_complete, "replay_match_id": replay_match_id, "teams": _json(m.teams), "players": players}

@@ -514,7 +514,7 @@ export function PlayerPage() {
           {p.stats.games > 0 && (
             <WhenVisible minHeight={400}><PlayerHeatmap userId={p.user_id} period={period} maps={p.stats.games_by_map} /></WhenVisible>
           )}
-          {/* combat stats from the recorder's match reports: its own data, apart from everything above */}
+          {/* "Beta Data Collection": combat stats from the recorder's match reports, its own data apart from everything above */}
           <WhenVisible><CombatSection userId={p.user_id} period={period} map={map} /></WhenVisible>
           <h2>Recent matches</h2>
           <MatchTable

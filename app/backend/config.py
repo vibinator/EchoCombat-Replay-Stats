@@ -96,4 +96,8 @@ class Settings:
 
     @property
     def combat_dir(self) -> Path:
-        return self.combat_source_dir or self.source_dir.parent
+        """The recorder folder holding matches/: set explicitly, else the replay folder itself when matches/ is inside it
+        (the NAS mounts the whole recorder folder as the replay share), else the folder above it (Z:\ECRanked\Replays)."""
+        if self.combat_source_dir:
+            return self.combat_source_dir
+        return self.source_dir if (self.source_dir / "matches").is_dir() else self.source_dir.parent

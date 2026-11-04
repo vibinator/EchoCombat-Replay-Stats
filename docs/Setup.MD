@@ -22,6 +22,8 @@ npm install
 |---|---|---|
 | `ECHOVR_DATA_DIR` | `<project>\data` | Database and processed files |
 | `ECHOVR_REPLAY_SOURCE` | `Z:\ECRanked\Replays` | Read-only replay share (D25). Use the share's network (UNC) path, e.g. `\\<server>\<share>\Replays`, if `Z:` is not mapped for the account running the app |
+| `ECHOVR_COMBAT_SOURCE` | the replay folder itself if it contains `matches\`, else the folder above it | Read-only recorder folder that contains `matches\` (combat stats, see CombatStats.MD). On the NAS (QNAP) it is the same share as the replays, `/share/ECRanked/ECRanked`, mounted at `/replays`: set `/replays` |
+| `ECHOVR_COMBAT_SCAN_S` | `60` | Seconds between looks at `matches\` (one stat of the folder; `0` = combat stats off) |
 | `ECHOVR_WORKERS` | `8` | Parallel processes for the import (PC has 24 cores) |
 | `ECHOVR_SCAN_INTERVAL_S` | `300` | Seconds between full scans of the share |
 | `ECHOVR_QUICK_CHECK_S` | `15` | Seconds between quick checks of the share's folders; a new file starts a full scan straight away (0 = off, full scans only) |

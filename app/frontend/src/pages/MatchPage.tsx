@@ -5,11 +5,12 @@ import {
   type GearUse, type HeatmapLayerMode, type MatchDetail, type MatchPlayer, type Team,
 } from "../api";
 import { SplitBar } from "../components/bars";
+import { MatchCombatSection } from "../components/CombatView";
 import { GearName, LoadoutText, Status, TableWrap } from "../components/common";
 import { HEATMAP_CELL_M, HEATMAP_MODES, HeatmapView } from "../components/HeatmapView";
 import { PlaybackCompare, PlaybackView } from "../components/PlaybackView";
 import { TimelineView } from "../components/TimelineView";
-import { FitText, InfoTip, STAT_HELP, Skeleton } from "../components/ui";
+import { FitText, InfoTip, STAT_HELP, Skeleton, WhenVisible } from "../components/ui";
 import { dateTime, duration, int, modeLabel, num, pct, playerPath, teamLabel, title } from "../format";
 import { useApi } from "../useApi";
 import { usePageTitle } from "../usePageTitle";
@@ -417,6 +418,7 @@ export function MatchPage() {
                 * Estimated. Percentages count time inside the map bounds only. Hover ⓘ for what each column means.
               </p>
               <GearUseTable m={m} />
+              <WhenVisible><MatchCombatSection sessionId={m.session_id} /></WhenVisible>
             </>
           )}
           {tab === "timeline" && <TimelineTab id={m.id} />}
