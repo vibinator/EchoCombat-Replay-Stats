@@ -18,6 +18,16 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.04.10 — 14:27
+
+### Challenges eased, units shown, 3+ players per team
+- **On a Roll:** win 2 / 3 / 4 / 7 / 8 games in a row (was 2 / 4 / 6 / 13 / 18).
+- **Grand Tour:** win on all 4 maps 1 / 3 / 6 / 16 / 26 times (was 1 / 4 / 10 / 39 / 117).
+- **Payload, now in plain units:** Pedal to the Metal (longest push in one game) 40 / 70 / 100 / 150 / 200 **seconds**; Immovable Object (longest block in one game) 15 / 30 / 45 / 62 / 81 **seconds**; Freight Train (total push time) 5 / 12 / 25 / 46 / 70 **minutes**. Hold the Line is unchanged (its description now says what a defence win is).
+- **Units on the tier steps:** the targets under each progress bar now include the unit (m/s, s, min, %).
+- **3+ players per team:** win challenges (Centurion, On a Roll, Hot Day, Grand Tour, Point Taker, Cargo Hauler, Clean Sweep, Special Delivery, Hold the Line) and the Payload time challenges count only games where both teams had at least 3 players for half the match (3v3, 3v4, 4v4, 5v5 ... all count; against cheating). The one-game challenges that needed a 4v4 now accept 3v3 and up. Shown as "3+ players per team" on each card.
+- **Do:** restart the backend. Totals for some players will drop where their wins came from small games.
+
 ## 2026.11.04.9 — 14:10
 
 ### Gear Veteran challenges retuned

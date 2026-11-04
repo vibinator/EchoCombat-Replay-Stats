@@ -126,7 +126,7 @@ def test_logic_follows_the_text():
     notes = {r.id: rule_notes(r) for r in RULES}
     assert "4+ min games" in notes[18] and "4+ min games" in notes[21]
     assert "Best game" in notes[21] and "Best 7 days" in notes[43]
-    assert "4v4 only" in notes[139] and "4v4 only" not in notes[23]
+    assert "3+ players per team" in notes[139] and "3+ players per team" not in notes[23]
     assert not any("4+ minutes" in d or "best game" in d for d in text.values())
     # 4+ minutes: a short game does not count, even with 0 deaths
     assert by_id(evaluate([game(deaths=0, play=60.0)]))[18]["progress"] == 0
@@ -306,11 +306,11 @@ def test_new_gear_matches_the_older_gear():
     assert (r[129]["tier"], r[129]["count"]) == ("gold", 18) and r[132]["count"] == 18  # 18 Quark-only games in a week
 
 
-def test_one_game_challenges_need_a_4v4():
+def test_one_game_challenges_need_enough_players():
     base = game("2026-10-01")
     long_game = {**base.__dict__, "play_time_s": 1200.0}
-    r = by_id(evaluate([Game(**{**long_game, "four_v_four": False})]))
-    assert r[140]["count"] == 0  # Marathon Bot: not a 4v4
+    r = by_id(evaluate([Game(**{**long_game, "enough_players": False})]))
+    assert r[140]["count"] == 0  # Marathon Bot: fewer than 3 per team
     r = by_id(evaluate([Game(**long_game)]))
     assert r[140]["count"] == 20
 

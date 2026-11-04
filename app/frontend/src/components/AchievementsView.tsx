@@ -576,7 +576,7 @@ function SneakPeek({ peek }: { peek: AchievementPeek }) {
       </div>
       {peek.one_game > 0 && (
         <p className="muted">
-          <strong>{peek.one_game}</strong> “In one game” challenges — every one is played in a 4v4 match.
+          <strong>{peek.one_game}</strong> “In one game” challenges — every one needs at least 3 players on each team.
         </p>
       )}
       <h3>From the original ECRanked site</h3>
@@ -772,7 +772,7 @@ export function AchievementRules({ open = false }: { open?: boolean }) {
         </li>
         <li>
           <strong>Each achievement lists its own rules</strong> under its description: whether the best game, day or 7 days counts, whether games
-          under 4 minutes are ignored, whether it is 4v4 only and how "only" is judged. Recordings that cover less than half a match are ignored
+          under 4 minutes are ignored, whether it needs 3+ players per team and how "only" is judged. <strong>"3+ players per team"</strong> = both teams had at least 3 players for at least half of the match (3v3, 3v4, 4v4, 5v5 and so on all count); smaller games do not count towards it. Recordings that cover less than half a match are ignored
           everywhere.
         </li>
         <li>

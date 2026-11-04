@@ -606,7 +606,7 @@ export interface AchievementRule {
   id: number;
   name: string;
   description: string;
-  rules?: string[]; // how it is counted (best game / day / 7 days, minimum length, 4v4, "only" share)
+  rules?: string[]; // how it is counted (best game / day / 7 days, minimum length, 3v3+, "only" share)
   period: "game" | "day" | "week" | "all";
   icon: string | null;
   estimated: boolean;
@@ -797,7 +797,7 @@ export interface AchievementPeek {
   new: Record<string, number>; // theme -> count
   revealed: AchievementRule[]; // shown in full before the launch
   icons: string[]; // more badge pictures, shown blurred
-  one_game: number; // "In one game" challenges (all 4v4), original and new
+  one_game: number; // "In one game" challenges (all 3v3 or bigger), original and new
 }
 
 export interface Me {

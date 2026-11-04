@@ -69,8 +69,7 @@ class Game:
     right_arm: int = 0
     capture_s: float = 0.0  # capture point: time the player's team's progress was rising
     contested_s: float = 0.0
-    three_v_three: bool = True  # both teams had at least 3 players for at least half of the match (the Payload push / block / defence challenges need it; user, 2026-11-04)
-    four_v_four: bool = True  # both teams had 4 players for at least half of the match; the one-game challenges need it
+    enough_players: bool = True  # both teams had at least 3 players for at least half of the match (3v3, 3v4, 4v4, 5v5 ... all fine); one-game, win and Payload challenges need it (user, 2026-11-04)
 
     @property
     def won(self) -> bool:
@@ -414,23 +413,14 @@ def _least_used_equipable(games):
     return min(_least_used(slot, items)(games) for slot, items in (("weapon", WEAPONS), ("ordnance", ORDNANCES), ("tacmod", TACMODS)))
 
 
-def _v3(count):
-    """Payload push / block challenges only count games with at least 3 players per team (user, 2026-11-04: against cheating)."""
-    def only_3v3(games):
-        games = [g for g in games if g.three_v_three]
-        return count(games) if games else 0.0
-    only_3v3.three_v_three = True  # shown as a rule note
-    return only_3v3
-
-
 def _v4(count):
-    """One-game challenges (139+) only count 4v4 games (user, 2026-11-03)."""
-    def only_4v4(games):
-        games = [g for g in games if g.four_v_four]
+    """Challenges that only count games with at least 3 players per team (was 4v4 only, user 2026-11-03; eased and widened 2026-11-04)."""
+    def only_enough(games):
+        games = [g for g in games if g.enough_players]
         return count(games) if games else 0.0
-    only_4v4.four_v_four = True  # shown as a rule note
-    only_4v4.min_length = getattr(count, "min_length", False)
-    return only_4v4
+    only_enough.enough_players = True  # shown as a rule note
+    only_enough.min_length = getattr(count, "min_length", False)
+    return only_enough
 
 
 def _away_from_mates(games):
@@ -570,22 +560,22 @@ def _build_rules() -> list[Rule]:
              _all_used("ordnance", {c for c, _, _ in ORDNANCES}), new=True, group="Gear mastery"),
         Rule(89, "Tac Mod Tinkerer", "Use all 4 tac mods (Repair Matrix, Threat Scanner, Energy Barrier and Phase Shift) in one game", "game",
              "loadout", _all_used("tacmod", {c for c, _, _ in TACMODS}), new=True, group="Gear mastery"),
-        _ladder(90, "On a Roll", "Win games in a row (games with no result do not break the streak)", None, _win_streak, (2, 2, 3, 4, 5), new=True, group="Wins"),
+        _ladder(90, "On a Roll", "Win games in a row (games with no result do not break the streak)", None, _v4(_win_streak), (2, 2, 3, 4, 5), new=True, group="Wins"),
         # id 91 (Unstoppable, win games in a row) was removed on 2026-11-04: On a Roll is the same challenge (user)
-        _tiered(92, "Centurion", "Win games", None, lambda g: g.won, (5, 10, 30, 100, 300), new=True, group="Wins"),
+        _tiered(92, "Centurion", "Win games", None, lambda g: g.enough_players and g.won, (5, 10, 30, 100, 300), new=True, group="Wins"),
         # the attacking team wins exactly when the payload reaches the end (stats/payload.py)
         _tiered(93, "Clean Sweep", "Win Capture Point games without losing a round (2-0)", "capture_point",
-                lambda g: _capture(g) and g.won and g.rounds_lost == 0, (1, 5, 10, 25, 100), new=True, group="Capture Point"),
+                lambda g: g.enough_players and _capture(g) and g.won and g.rounds_lost == 0, (1, 5, 10, 25, 100), new=True, group="Capture Point"),
         _tiered(94, "Special Delivery", "Deliver the payload to the end: win Payload games as the attacking team", "payload",
-                lambda g: _payload(g) and g.won and g.attacking_team == g.team, (1, 5, 10, 25, 60), new=True, group="Payload"),
+                lambda g: g.enough_players and _payload(g) and g.won and g.attacking_team == g.team, (1, 5, 10, 25, 60), new=True, group="Payload"),
         _tiered(95, "Hold the Line", "Win Payload games as the defending team (the other team does not get the payload to the end)", "payload",
-                lambda g: g.three_v_three and _payload(g) and g.won and g.attacking_team not in (None, g.team), (1, 5, 10, 25, 60), new=True, group="Payload"),  # left as is 2026-11-04 (user: only ease what is unrealistic): 1/6/12/39/94 wins, platinum reached by 29 players
+                lambda g: g.enough_players and _payload(g) and g.won and g.attacking_team not in (None, g.team), (1, 5, 10, 25, 60), new=True, group="Payload"),  # left as is 2026-11-04 (user: only ease what is unrealistic): 1/6/12/39/94 wins, platinum reached by 29 players
         _ladder(96, "Pedal to the Metal", "Longest time your team pushes the payload in one game, in seconds", "payload",
-                _v3(lambda gs: gs[0].push_s), (40, 70, 100, 115, 154), "game", " s", estimated=True, new=True, group="Payload"),  # seconds, eased 2026-11-04 (user): 40/70/100/150/200 s; was 1-8 min
+                _v4(lambda gs: gs[0].push_s), (40, 70, 100, 115, 154), "game", " s", estimated=True, new=True, group="Payload"),  # seconds, eased 2026-11-04 (user): 40/70/100/150/200 s; was 1-8 min
         _ladder(97, "Immovable Object", "Longest time you block the payload in one game, in seconds", "payload",
-                _v3(lambda gs: gs[0].block_s), (15, 30, 45, 48, 62), "game", " s", estimated=True, new=True, group="Payload"),  # seconds, eased 2026-11-04 (user): 15/30/45/62/81 s; was 0.5-3.9 min
+                _v4(lambda gs: gs[0].block_s), (15, 30, 45, 48, 62), "game", " s", estimated=True, new=True, group="Payload"),  # seconds, eased 2026-11-04 (user): 15/30/45/62/81 s; was 0.5-3.9 min
         _ladder(98, "Freight Train", "Total time spent pushing the payload, in minutes", "payload",
-                _v3(lambda gs: sum(g.push_s for g in gs) / 60), (5, 12, 25, 35, 54), "all", " min", raise_all_time=False, estimated=True, new=True, group="Payload"),  # eased 2026-11-04 (user): 5/12/25/46/70 min; was 12/36/72/234/468, platinum 0.3 % of players
+                _v4(lambda gs: sum(g.push_s for g in gs) / 60), (5, 12, 25, 35, 54), "all", " min", raise_all_time=False, estimated=True, new=True, group="Payload"),  # eased 2026-11-04 (user): 5/12/25/46/70 min; was 12/36/72/234/468, platinum 0.3 % of players
         _ladder(99, "Showboat", "Use emotes in one game", None, lambda gs: gs[0].emotes, (12, 24, 40, 60, 100), "game",  # emotes are easy: x4 (user, 2026-11-03)
                 new=True, group="Emotes"),
         _ladder(100, "Dance Floor Legend", "Use emotes (total across all games)", None, lambda gs: sum(g.emotes for g in gs), (40, 200, 800, 2000, 8000),  # x4 (user, 2026-11-03)
@@ -623,10 +613,10 @@ def _build_rules() -> list[Rule]:
         _ladder(117, "Time Well Wasted", "Total hours played", None, lambda gs: sum(g.play_time_s for g in gs) / 3600, (1, 5, 20, 50, 80), "all", " h",
                 new=True, group="Activity"),
         _tiered(118, "Overtime", "Games of 10 minutes or longer", None, lambda g: g.play_time_s >= 600, (5, 20, 50, 100, 250), new=True, group="Activity"),
-        _tiered(119, "Hot Day", "Win games in one day", None, lambda g: g.won, (3, 5, 8, 12, 18), "day", new=True, group="Wins"),
-        _tiered(120, "Point Taker", "Win Capture Point games", "capture_point", lambda g: _capture(g) and g.won, (5, 10, 30, 80, 150), new=True, group="Capture Point"),
-        _tiered(121, "Cargo Hauler", "Win Payload games", "payload", lambda g: _payload(g) and g.won, (5, 10, 30, 80, 150), new=True, group="Payload"),
-        _ladder(122, "Grand Tour", "Win games on all 4 maps (your weakest map sets the count)", None, _fewest_wins, (1, 3, 6, 12, 20),
+        _tiered(119, "Hot Day", "Win games in one day", None, lambda g: g.enough_players and g.won, (3, 5, 8, 12, 18), "day", new=True, group="Wins"),
+        _tiered(120, "Point Taker", "Win Capture Point games", "capture_point", lambda g: g.enough_players and _capture(g) and g.won, (5, 10, 30, 80, 150), new=True, group="Capture Point"),
+        _tiered(121, "Cargo Hauler", "Win Payload games", "payload", lambda g: g.enough_players and _payload(g) and g.won, (5, 10, 30, 80, 150), new=True, group="Payload"),
+        _ladder(122, "Grand Tour", "Win games on all 4 maps (your weakest map sets the count)", None, _v4(_fewest_wins), (1, 3, 6, 12, 20),
                 raise_all_time=False, new=True, group="Wins"),  # eased 2026-11-04 (user): 1/3/6/16/26; was 1/4/10/39/117, platinum reached by ~10 players
         _ladder(123, "Weapons Master", "Play games with your least-used weapon (of Pulsar, Nova, Comet and Meteor)", "loadout", _least_used("weapon", WEAPONS),
                 (1, 5, 15, 50, 100), new=True, group="Gear mastery"),
@@ -671,11 +661,11 @@ def _build_rules() -> list[Rule]:
     # nearly every game), so there is no arm ladder, only "both arms". Glass Cannon (most deaths) was dropped by the user.
     rules += [
         _tiered(139, "Untouchable", "Win a game without dying once", "deaths",
-                lambda g: g.four_v_four and g.won and g.play_time_s >= FULL_GAME_S and g.deaths == 0, (1, 2, 3, 5, 8), estimated=True, new=True, group="Survival"),
+                lambda g: g.enough_players and g.won and g.play_time_s >= FULL_GAME_S and g.deaths == 0, (1, 2, 3, 5, 8), estimated=True, new=True, group="Survival"),
         _ladder(140, "Marathon Bot", "Play one very long game (your longest game counts)", None, _v4(lambda gs: gs[0].play_time_s / 60),
                 (12, 15, 18, 21, 26), "game", " min", new=True, group="Activity"),
         _tiered(141, "Comeback Kid", "Win a Capture Point game after losing the first round (a 2-1 win)", "capture_point",
-                lambda g: g.four_v_four and _capture(g) and g.won and g.rounds_lost == 1, (1, 5, 15, 40, 100), new=True, group="Capture Point"),
+                lambda g: g.enough_players and _capture(g) and g.won and g.rounds_lost == 1, (1, 5, 15, 40, 100), new=True, group="Capture Point"),
         _ladder(142, "Statue", "Stand still (moving slower than 1 m/s) for part of one game", None,
                 _v4(_full(_pct("stopped"))), (50, 60, 70, 80, 90), "game", "%", new=True, group="Movement"),
         _ladder(143, "Lone Wolf", "Stay far from your teammates (more than 2.6 m away) for most of one game",
@@ -691,7 +681,7 @@ def _build_rules() -> list[Rule]:
                 "capture_point", _v4(lambda gs: gs[0].contested_s / 60 if _capture(gs[0]) else 0.0), (2, 3.5, 5, 6.5, 8), "game", " min",
                 new=True, group="Capture Point"),
         _tiered(148, "One-Trick Pony", "Win a game using just one loadout (one weapon, one tac mod and one ordnance)",
-                "loadout", lambda g: g.four_v_four and g.won and g.main_loadout() is not None, (1, 10, 30, 80, 200), new=True, group="Gear mastery"),
+                "loadout", lambda g: g.enough_players and g.won and g.main_loadout() is not None, (1, 10, 30, 80, 200), new=True, group="Gear mastery"),
         _ladder(149, "Loadout Roulette", "Use many different loadouts in one game (each must be used for at least 10 % of the game)",
                 "loadout", _v4(lambda gs: gs[0].loadouts_played()), (4, 5, 6, 7, 8), "game", new=True, group="Gear mastery"),
         _ladder(150, "Mime Troupe", "Use as many emotes as you can in one game without dying", None,
@@ -706,8 +696,7 @@ def _build_rules() -> list[Rule]:
 
 
 _NOTE_MIN_IDS = {18, 43, 139, 150}  # rules that check the length in their own function
-_NOTE_4V4_IDS = {139, 141, 148}
-_NOTE_3V3_IDS = {95}  # Hold the Line: its test is a lambda, the others are wrapped in _v3
+_NOTE_4V4_IDS = {95, 119, 120, 121, 139, 141, 148, 92, 93, 94}  # rules whose test is a lambda that checks enough_players itself
 _NOTE_ONLY_IDS = {42, 148}
 
 
@@ -716,17 +705,15 @@ def rule_notes(rule: Rule) -> list[str]:
     if rule.meta:
         return []
     fn = rule.count or rule.score
-    # Short tags (user, 2026-11-04): the site shows them on one line, "Best game · 4+ min · 4v4 only · "Only" = 90%+"
+    # Short tags (user, 2026-11-04): the site shows them on one line, "Best game · 4+ min · 3+ players per team · "Only" = 90%+"
     notes = [{"game": "Best game", "day": "Best day", "week": "Best 7 days"}.get(rule.period)]
     if rule.period == "all":
         need = getattr(rule.count, "min_games", 0)
         notes = [f"Average, {need}+ games" if need else "All-time total"]
     if getattr(fn, "min_length", False) or rule.id in _NOTE_MIN_IDS:
         notes.append(f"{FULL_GAME_S / 60:g}+ min games")
-    if getattr(fn, "four_v_four", False) or rule.id in _NOTE_4V4_IDS:
-        notes.append("4v4 only")
-    if getattr(fn, "three_v_three", False) or rule.id in _NOTE_3V3_IDS:
-        notes.append("3v3+ only")
+    if getattr(fn, "enough_players", False) or rule.id in _NOTE_4V4_IDS:
+        notes.append("3+ players per team")
     if getattr(fn, "use_only", False) or rule.id in _NOTE_ONLY_IDS:
         notes.append(f"\"Only\" = {ONLY_SHARE:.0%}+ of the game")
     if rule.id == 67:
