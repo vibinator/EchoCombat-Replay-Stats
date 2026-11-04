@@ -863,8 +863,8 @@ def overall(results: list[dict]) -> float:
 
 def mega_combat_games(games: list[Game], start: str | None, end: str | None) -> int:
     """Combat games that count for the Mega Prize (user, 2026-11-04): started inside the challenge period and 4+ minutes
-    played (FULL_GAME_S), so a short appearance does not count."""
-    return sum(1 for g in in_window(games, start, end) if g.play_time_s >= FULL_GAME_S)
+    played (FULL_GAME_S), so a short appearance does not count, and 3v3 or bigger (enough_players)."""
+    return sum(1 for g in in_window(games, start, end) if g.play_time_s >= FULL_GAME_S and g.enough_players)
 
 
 def in_window(games: list[Game], start: str | None, end: str | None) -> list[Game]:

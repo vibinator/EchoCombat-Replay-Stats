@@ -64,9 +64,16 @@ def _combat_counts(db, start: str, end: str | None):
     """Per player: games of 4+ minutes inside the challenge period, counted in SQL (same rule as mega_combat_games)
     so no game list is loaded."""
     day = func.substr(Match.started_at, 1, 10)
+    # 3v3 or bigger: matches where each team has 3+ players present for half of the match (same rule as Game.enough_players)
+    team_n = (select(MatchPlayer.match_id, MatchPlayer.team, func.count().label("c"))
+              .join(Match, Match.id == MatchPlayer.match_id)
+              .where(MatchPlayer.play_time_s >= 0.5 * Match.duration_s, MatchPlayer.team.in_(("blue", "orange")))
+              .group_by(MatchPlayer.match_id, MatchPlayer.team).having(func.count() >= 3).subquery())
+    big = select(team_n.c.match_id).group_by(team_n.c.match_id).having(func.count() == 2)
     query = (select(Player.user_id, Player.name, func.count().label("n"))
              .select_from(MatchPlayer).join(Match, Match.id == MatchPlayer.match_id).join(Player, Player.id == MatchPlayer.player_id)
-             .where(counted(MatchPlayer.match_id), MatchPlayer.play_time_s >= FULL_GAME_S, day >= start))
+             .where(counted(MatchPlayer.match_id), MatchPlayer.play_time_s >= FULL_GAME_S, day >= start,
+                    MatchPlayer.match_id.in_(big)))
     return (query.where(day <= end) if end else query).group_by(Player.id)
 
 

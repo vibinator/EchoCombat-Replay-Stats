@@ -34,27 +34,28 @@ def test_only_public_arena():
 
 def test_counts_after_three_minutes_once(tmp_path):
     steps = int(MIN_PRESENT_S // 60) + 3
-    t, sm = tracker(tmp_path, [[label("m1", ["a", "b"])]] * steps + [[label("m1", ["a"])]])
+    six = list("abcdef")  # 6 players seen = big enough (3v3 or a min of 6, user 2026-11-04)
+    t, sm = tracker(tmp_path, [[label("m1", six)]] * steps + [[label("m1", ["a"])]])
     counted = [t.poll(now=1000.0 + 60 * i) for i in range(steps)]
-    assert sum(counted) == 2 and counted[:4] == [0, 0, 0, 0]  # 0-180 s in: not yet; 240 s: counted
+    assert sum(counted) == 6 and counted[:4] == [0, 0, 0, 0]  # 0-180 s in: not yet; 240 s: counted
     assert t.poll(now=1000.0 + 60 * steps) == 0  # already counted, never twice
     with sm() as db:
-        assert {p.user_id: p.matches for p in db.scalars(select(ArenaPlayer))} == {"a": 1, "b": 1}
+        assert {p.user_id: p.matches for p in db.scalars(select(ArenaPlayer))} == {u: 1 for u in six}
 
 
 def test_spectators_and_moderators_are_not_counted_and_lose_their_record(tmp_path):
     steps = int(MIN_PRESENT_S // 60) + 1
     watching = label("m2", ["s", "m"])
     watching["players"][0]["team"], watching["players"][1]["team"] = "spectator", "moderator"
-    t, sm = tracker(tmp_path, [[label("m1", ["a", "s", "m"])]] * steps + [[watching]] * steps)
+    t, sm = tracker(tmp_path, [[label("m1", ["a", "s", "m", "b", "c", "d", "e"])]] * steps + [[watching]] * steps)
     for i in range(steps):
         t.poll(now=1000.0 + 60 * i)
     with sm() as db:
-        assert {p.user_id for p in db.scalars(select(ArenaPlayer))} == {"a", "s", "m"}  # counted while playing
+        assert {p.user_id for p in db.scalars(select(ArenaPlayer))} == set("asmbcde")  # counted while playing
     for i in range(steps, 2 * steps):
         t.poll(now=1000.0 + 60 * i)
     with sm() as db:
-        assert {p.user_id for p in db.scalars(select(ArenaPlayer))} == {"a"}  # seen as spectator/moderator: record gone
+        assert {p.user_id for p in db.scalars(select(ArenaPlayer))} == set("abcde")  # seen as spectator/moderator: record gone
 
 
 def test_short_stays_and_other_modes_do_not_count(tmp_path):
@@ -136,7 +137,22 @@ def test_search_finds_arena_players_by_name(tmp_path, monkeypatch):
 
 def test_combat_prize_counts_only_games_of_four_minutes_inside_the_period():
     from backend.achievements import mega_combat_games
-    g = lambda day, secs: SimpleNamespace(started_at=f"{day}T10:00:00", play_time_s=secs)  # noqa: E731
+    g = lambda day, secs: SimpleNamespace(started_at=f"{day}T10:00:00", play_time_s=secs, enough_players=True)  # noqa: E731
     games = [g("2026-11-01", 239), g("2026-11-01", 240), g("2026-11-02", 900), g("2026-10-31", 900), g("2026-11-09", 900)]
     assert mega_combat_games(games, "2026-11-01", "2026-11-05") == 2  # under 4 minutes, before the start and after the end: out
     assert mega_combat_games(games, "2026-11-01", None) == 3
+
+
+def test_small_matches_do_not_count_until_big_enough(tmp_path):
+    steps = int(MIN_PRESENT_S // 60) + 2
+    small = label("m1", ["a", "b", "c", "d"])
+    for i, p in enumerate(small["players"]):
+        p["team"] = "blue" if i < 2 else "orange"  # 2v2
+    t, sm = tracker(tmp_path, [[small]] * steps)
+    assert sum(t.poll(now=1000.0 + 60 * i) for i in range(steps)) == 0
+    for i, p in enumerate(small["players"]):
+        p["team"] = "blue" if i % 2 else "orange"
+    big = label("m1", list("abcdef"))
+    for i, p in enumerate(big["players"]):
+        p["team"] = "blue" if i < 3 else "orange"  # 3v3
+    t, _ = tracker(tmp_path / "x" if False else tmp_path, [[big]] * steps)

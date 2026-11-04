@@ -269,7 +269,7 @@ function MegaPrizes() {
           <div className="mega-body">
             <strong>Play {combatTarget} Echo Combat Matches</strong>
             <span className="tag mega-prize">Mega Prize: {combat?.prize ?? "Delta Squad BioMass Chassis"}</span>
-            <span className="muted">Only counts games of 4+ minutes.</span>
+            <span className="muted">Only counts games of 4+ minutes with at least 3v3.</span>
             <span className="muted">{winnersText(arena.winners_combat)}</span>
             {searching ? (byKind("combat").length > 0 ? (
               <ul className="mega-results">{byKind("combat").map((r) => <PlayerBar key={r.user_id} r={r} target={combatTarget} />)}</ul>
@@ -290,7 +290,7 @@ function MegaPrizes() {
           <div className="mega-body">
             <strong>Play {arena.target} Public Arena Matches</strong>
             <span className="tag mega-prize">Mega Prize: OG High Quality Jack Model</span>
-            <span className="muted">Only counts public matches of 4+ minutes.</span>
+            <span className="muted">Only counts public matches of 4+ minutes with at least 3v3 (or 6+ players).</span>
             <span className="muted">Arena history only starts on 2026-11-04, so totals are lower than Combat.</span>
             <span className="muted">{winnersText(arena.winners_arena)}</span>
             {searching ? (

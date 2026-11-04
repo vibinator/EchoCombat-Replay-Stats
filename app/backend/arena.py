@@ -19,6 +19,8 @@ from .models import ArenaCounted, ArenaPlayer
 
 URL = "https://g.echovrce.com/status/matches"
 MIN_PRESENT_S = 240.0  # time spent in one match before it counts (user, 2026-11-04)
+MIN_TEAM = 3  # a match needs 3v3 or bigger, or at least MIN_SEEN players seen in it (not spectators), when it would count (user, 2026-11-04)
+MIN_SEEN = 6
 TIMEOUT_S = 5
 MAX_BYTES = 5_000_000
 MAX_BACKOFF_S = 300.0
@@ -94,8 +96,12 @@ class Tracker:
             self._loaded = True
         present: dict[tuple[str, str], dict] = {}
         barred: set[str] = set()
+        small: set[tuple[str, str]] = set()  # in a match that is smaller than 3v3 right now: may not count yet
         for label in data.get("labels") or []:
             if is_public_arena(label):
+                teams = [p.get("team") for p in label.get("players") or []]
+                seen = sum(1 for t in teams if t not in NON_PLAYER_TEAMS)
+                too_small = seen < MIN_SEEN and (teams.count("blue") < MIN_TEAM or teams.count("orange") < MIN_TEAM)
                 for p in label.get("players") or []:
                     if not (p.get("user_id") and label.get("id")):
                         continue
@@ -103,6 +109,8 @@ class Tracker:
                         barred.add(str(p["user_id"]))
                     else:
                         present[(str(label["id"]), str(p["user_id"]))] = p
+                        if too_small:
+                            small.add((str(label["id"]), str(p["user_id"])))
         if barred:
             self._purge(barred)
             present = {k: v for k, v in present.items() if k[1] not in barred}
@@ -115,7 +123,7 @@ class Tracker:
             else:
                 secs = 0.0
             self._seen[key] = [now, secs]
-            if secs >= MIN_PRESENT_S and key not in self._counted:
+            if secs >= MIN_PRESENT_S and key not in self._counted and key not in small:  # needs 3+ per team (user, 2026-11-04)
                 new.append((key, p))
         for key in [k for k, v in self._seen.items() if k not in present and now - v[0] > 2 * self.interval + 1]:
             del self._seen[key]  # gone from the list

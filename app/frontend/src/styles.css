@@ -3581,10 +3581,10 @@ button.small {
 }
 .mega-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
   gap: 1rem;
   margin-top: 0.75rem;
-  max-width: 44rem;
+  max-width: 56rem;
 }
 .mega-card {
   display: flex;
