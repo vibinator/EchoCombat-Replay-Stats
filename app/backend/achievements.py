@@ -221,6 +221,21 @@ def _easier_platinum(levels: tuple[float, ...]) -> tuple[float, ...]:
     return tuple(int(x) if whole else x for x in (*levels[:4], v))
 
 
+VETERAN_HARDER = 1.32  # gear Veteran ladders (every weapon, ordnance and tac mod): every tier needs 20 % more, then another 10 % (1.2 x 1.1), after the steps above (user, 2026-11-04)
+
+
+VETERAN_TOP = (160, 260)  # gear Veteran diamond and platinum: platinum is reachable for about 10 % of active players in 3 months (user, 2026-11-04; from the 31 Oct-3 Nov pace)
+
+
+def _scaled(levels: tuple[float, ...], factor: float) -> tuple[float, ...]:
+    """Every target x factor, whole numbers stay whole and strictly ascending."""
+    out: list[int] = []
+    for v in levels:
+        v = int(v * factor + 0.5)
+        out.append(max(v, out[-1] + 1) if out else v)
+    return tuple(out)
+
+
 def _ladder(id_: int, name: str, what: str, icon: str | None, count, levels: tuple[float, ...], period: str = "all",
             unit: str = "", raise_all_time: bool = True, **kw) -> "Rule":
     """A medal ladder: `count` is evaluated per period group (game / day / week / all time); the best group counts.
@@ -231,7 +246,7 @@ def _ladder(id_: int, name: str, what: str, icon: str | None, count, levels: tup
         levels = _all_time(levels, unit)
     levels = _harder(levels, unit)
     if gear_veteran:
-        levels = _easier_platinum(levels)
+        levels = (*_scaled(_easier_platinum(levels), VETERAN_HARDER)[:3], *VETERAN_TOP)
     targets = ", ".join(f"{_num(n)}{unit} {medal}" for n, medal in zip(levels, LEVELS))
     return Rule(id_, name, f"{what} ({targets})", period, icon, _levelled(count, levels), levels=levels, count=count,
                 unit=unit, **kw)
