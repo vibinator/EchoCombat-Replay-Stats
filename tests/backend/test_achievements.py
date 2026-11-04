@@ -5,7 +5,7 @@ import replay_factory as rf
 from app_helpers import act, add, app_client, make_settings
 
 from backend import admin_actions as actions
-from backend.achievements import RULES, Game, _harder, evaluate, icon_file, overall, tier
+from backend.achievements import medal_times, rule_notes, RULES, Game, _harder, evaluate, icon_file, overall, tier
 
 BLUE = str(rf.BIG_USER_ID)
 
@@ -23,8 +23,8 @@ def by_id(results):
 
 def test_catalogue():
     ids = [r.id for r in RULES]
-    assert ids == list(range(5, 152)) and len(set(ids)) == 147  # 75 original + 72 new (80-151)
-    assert [r.id for r in RULES if r.new] == list(range(80, 152))
+    assert ids == list(range(5, 164)) and len(set(ids)) == 159  # 75 original + 84 new (80-163)
+    assert [r.id for r in RULES if r.new] == list(range(80, 164))
     assert icon_file(next(r for r in RULES if r.id == 7)) == "comet_daily.png"
     assert icon_file(next(r for r in RULES if r.id == 32)) == "comet_weekly.png"
     assert icon_file(next(r for r in RULES if r.id == 57)) == "comet.png"
@@ -121,8 +121,14 @@ def test_coming_soon_until_the_start_date(tmp_path):
 def test_logic_follows_the_text():
     """Every condition is in the description (user, 2026-10-30)."""
     text = {r.id: r.description for r in RULES}
-    assert "(3+ minutes)" in text[18] and "3+ minutes" in text[21] and "25+ games" in text[73]
-    # 3+ minutes: a short game does not count, even with 0 deaths
+    assert "25+ games" in text[73] and "25+ games" in text[43]
+    # the counting rules are listed per achievement, not repeated in the description
+    notes = {r.id: rule_notes(r) for r in RULES}
+    assert "Games under 4 minutes are ignored" in notes[18] and "Games under 4 minutes are ignored" in notes[21]
+    assert "Your best single game counts" in notes[21] and "Your best 7 days in a row count" in notes[43]
+    assert "4v4 games only" in notes[139] and "4v4 games only" not in notes[23]
+    assert not any("4+ minutes" in d or "best game" in d for d in text.values())
+    # 4+ minutes: a short game does not count, even with 0 deaths
     assert by_id(evaluate([game(deaths=0, play=60.0)]))[18]["progress"] == 0
     assert by_id(evaluate([game(deaths=3)]))[18]["tier"] == "bronze"
     # Pew Pew Proof: "fewer than 5" -> an average of exactly 5 is not enough
@@ -253,7 +259,8 @@ def test_grand_tour_and_medal_collector():
 
     r = by_id(evaluate([won(m) for m in ("dyson", "combustion", "fission", "surge")]))
     assert r[122]["count"] == 1 and r[122]["tier"] == "bronze"
-    assert r[126]["count"] == 0 and r[126]["levels"] == [5, 10, 25, 65, 98]  # nothing at gold yet
+    # only the three "Nothing but ..." single-step challenges (the test loadout) are complete: nothing at gold in the ladders
+    assert r[126]["count"] == 3 and r[126]["levels"] == [5, 10, 25, 65, 98]
     r = by_id(evaluate([won("dyson", f"2026-10-{1 + i % 28:02d}") for i in range(120)]))
     golds = sum(1 for x in r.values() if x["id"] != 126 and (x["count"] >= x["levels"][2] if "levels" in x else x["progress"] >= 1))
     assert golds > 0 and r[126]["count"] == golds  # Medal Collector counts gold-or-better medals of the others
@@ -372,3 +379,26 @@ def test_visibility_everyone_preview_only_or_hidden(tmp_path, monkeypatch):
         assert client.get("/api/achievements").status_code == 200
         with pytest.raises(actions.AdminError):
             act(client, actions.set_achievements_visibility, "nonsense")
+
+
+def test_nothing_but_one_item_for_one_match():
+    nova = next(r for r in RULES if r.name == "Nothing but Nova")
+    def g(**kw):
+        return Game(**{**game(loadout=None).__dict__, **kw})
+    mixed = lambda share: {("blaster", "heal", "det"): share, ("assault", "heal", "det"): 1000 - share}
+    assert nova.score([g(loadouts=mixed(1000))]) == 1.0
+    assert nova.score([g(loadouts=mixed(900))]) == 1.0  # exactly 90 %: a quick weapon switch is fine
+    assert nova.score([g(loadouts=mixed(850))]) == 0.0
+    assert nova.score([g(loadouts=mixed(1000), play_time_s=200.0)]) == 0.0  # under 4 minutes (late recording)
+    assert nova.score([g(loadouts=mixed(1000), four_v_four=False)]) == 0.0
+    assert rule_notes(nova) == ["Your best single game counts", "Games under 4 minutes are ignored", "4v4 games only",
+                                '"Only" = 90% or more of the game, so a quick switch is fine']
+
+
+def test_medal_times_are_per_medal():
+    days = [game(f"2026-10-{d:02d}", deaths=0, loadout=None) for d in range(1, 21)]
+    times = medal_times(days)
+    toaster = times[18]  # games with 3 or fewer deaths: 1 / 5 / 15 / 65 / 195
+    assert toaster["bronze"].startswith("2026-10-01") and toaster["silver"].startswith("2026-10-05")
+    assert toaster["gold"].startswith("2026-10-15") and "diamond" not in toaster
+    assert all(len(t) >= 16 for t in toaster.values())  # full time, not just the date

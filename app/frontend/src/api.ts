@@ -606,6 +606,7 @@ export interface AchievementRule {
   id: number;
   name: string;
   description: string;
+  rules?: string[]; // how it is counted (best game / day / 7 days, minimum length, 4v4, "only" share)
   period: "game" | "day" | "week" | "all";
   icon: string | null;
   estimated: boolean;
@@ -971,6 +972,8 @@ export interface AchievementRarity extends AchievementRule {
 
 export interface RecentUnlock {
   date: string;
+  at: string; // started_at of the game that earned it, "YYYY-MM-DDTHH:MM:SS"
+  medal: "bronze" | "silver" | "gold" | "diamond" | "platinum" | null; // null = a single-step challenge, completed
   user_id: string;
   name: string;
   id: number;

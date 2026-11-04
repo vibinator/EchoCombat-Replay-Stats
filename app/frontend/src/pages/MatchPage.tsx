@@ -112,7 +112,7 @@ type Highlight = { label: string; hint: string; player: MatchPlayer; value: stri
 
 function Highlights({ m }: { m: MatchDetail }) {
   const all = [...(m.teams.blue ?? []), ...(m.teams.orange ?? [])];
-  const full = all.filter((p) => p.play_time_s >= 180);
+  const full = all.filter((p) => p.play_time_s >= 240);
   function best(list: MatchPlayer[], key: (p: MatchPlayer) => number | null, low = false): MatchPlayer | undefined {
     return list.filter((p) => key(p) != null).sort((a, b) => (low ? key(a)! - key(b)! : key(b)! - key(a)!))[0];
   }
@@ -120,8 +120,8 @@ function Highlights({ m }: { m: MatchDetail }) {
   const add = (label: string, hint: string, p: MatchPlayer | undefined, value: (p: MatchPlayer) => string) =>
     items.push(p ? { label, hint, player: p, value: value(p) } : null);
   add("Fastest", "Top speed held for a second", best(all, (p) => p.top_speed), (p) => `${num(p.top_speed)} m/s`);
-  add("Most mobile", "Average speed, 3+ min played", best(full, (p) => p.avg_speed), (p) => `${num(p.avg_speed)} m/s`);
-  add("Fewest deaths*", "Estimated deaths, 3+ min played", best(full, (p) => p.deaths_est, true), (p) => String(p.deaths_est));
+  add("Most mobile", "Average speed, 4+ min played", best(full, (p) => p.avg_speed), (p) => `${num(p.avg_speed)} m/s`);
+  add("Fewest deaths*", "Estimated deaths, 4+ min played", best(full, (p) => p.deaths_est, true), (p) => String(p.deaths_est));
   add("In the thick of it", "Most time near enemies", best(full, (p) => p.pct_near_enemy), (p) => pct(p.pct_near_enemy));
   if (m.mode === "payload") {
     add("Top pusher*", "Time on the payload as attacker", best(all, (p) => p.payload_push_s || null), (p) => duration(p.payload_push_s));

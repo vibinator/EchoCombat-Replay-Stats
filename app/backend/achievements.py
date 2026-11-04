@@ -24,9 +24,9 @@ UNRELEASED_WEAPONS = [("rifle", "Starburst"), ("magnum", "Protostar"), ("smg", "
 # have no art yet: they keep the generic icon (an admin can pick or upload one on the Console page).
 GEAR_ICONS = {"rifle": "starburst", "magnum": "protostar", "smg": "quark", "chain": "blazar", "loc": "translocator"}
 
-ONLY_SHARE = 0.95  # "use only X": X is at least 95 % of the game's loadout time
+ONLY_SHARE = 0.90  # "use only X": X is at least 90 % of the game's loadout time (was 95; user, 2026-11-04: room for mistakes)
 USED_SHARE = 0.05  # old loadoutCutoff: below 5 % of the time does not count as "used"
-FULL_GAME_S = 180.0  # per-game rules ignore short appearances (A: avoids 0-death 10-second games)
+FULL_GAME_S = 240.0  # was 180 (user, 2026-11-04); per-game rules ignore short appearances (A: avoids 0-death 10-second games)
 LOADOUT_USED_S = 180.0  # "use all 64 loadouts": at least 3 min each (old code: 3*60*30 frames)
 SEASON_MIN_GAMES = 50  # all-time averages need 50 games (A)
 SPEED_MIN_GAMES = 25  # Cyberkinetic Enhancements: 50 left 76 % of the active players out (user, 2026-10-31)
@@ -216,7 +216,10 @@ def ratio(num: float, den: float) -> float:
 
 
 def _only(slot: str, code: str, need: int):
-    return lambda games: sum(1 for g in games if g.share(slot, code) >= ONLY_SHARE) / need
+    def only(games):
+        return sum(1 for g in games if g.share(slot, code) >= ONLY_SHARE) / need
+    only.use_only = True
+    return only
 
 
 def _count(pred, need: int):
@@ -250,7 +253,10 @@ class _AvgValue:
 
 def _full(value):
     """Per-game rules: only games played at least FULL_GAME_S."""
-    return lambda games: value(games) if games and games[0].play_time_s >= FULL_GAME_S else 0.0
+    def full(games):
+        return value(games) if games and games[0].play_time_s >= FULL_GAME_S else 0.0
+    full.min_length = True  # shown as a rule note
+    return full
 
 
 def _gearhead_run(games):
@@ -265,12 +271,15 @@ def _gearhead_run(games):
     return best
 
 
+PEW_PEW_MIN_S = FULL_GAME_S  # recordings shorter than this are ignored (4 min = half an average game; revisit, user 2026-11-04)
 PEW_PEW_MAX_DEATHS = 5  # was 3 in the original text; raised by the user (2026-10-30)
 
 
 def _pew_pew_proof(games):
     """Average fewer than PEW_PEW_MAX_DEATHS deaths per game over any 7 days with at least 25 games. Exactly the
-    limit is not fewer: partial progress stays below 100 % until the average is under it."""
+    limit is not fewer: partial progress stays below 100 % until the average is under it. Recordings shorter than
+    PEW_PEW_MIN_S are ignored: a spectator bot that joins late only sees the tail of a game, with few deaths."""
+    games = [g for g in games if g.play_time_s >= PEW_PEW_MIN_S]
     if not games:
         return 0.0
     avg = sum(g.deaths for g in games) / len(games)
@@ -309,7 +318,10 @@ def _games_using(slot: str, code: str):
 
 
 def _only_games(slot: str, code: str):
-    return lambda games: sum(1 for g in games if code in g._only[slot])
+    def only_games(games):
+        return sum(1 for g in games if code in g._only[slot])
+    only_games.use_only = True  # shown as a rule note
+    return only_games
 
 
 def _all_used(slot: str, codes: set[str]):
@@ -356,11 +368,13 @@ def _v4(count):
     def only_4v4(games):
         games = [g for g in games if g.four_v_four]
         return count(games) if games else 0.0
+    only_4v4.four_v_four = True  # shown as a rule note
+    only_4v4.min_length = getattr(count, "min_length", False)
     return only_4v4
 
 
 def _away_from_mates(games):
-    """% of the in-bounds time not near a teammate (3+ minute games only, see _full)."""
+    """% of the in-bounds time not near a teammate (4+ minute games only, see _full)."""
     return 100.0 - _pct("near_mate")(games) if games[0].in_bounds else 0.0
 
 
@@ -396,29 +410,29 @@ def _build_rules() -> list[Rule]:
     i = 5
     for slot, items in (("weapon", WEAPONS), ("ordnance", ORDNANCES), ("tacmod", TACMODS)):
         for code, label, icon in items:
-            rules.append(_ladder(i, names[code], f"Play games using only {label} in one day: the most in a single day counts", icon,
+            rules.append(_ladder(i, names[code], f"Play games using only {label} in one day", icon,
                                  _only_games(slot, code), GEAR_DAY, "day"))
             i += 1
     rules += [
         _ladder(17, "Versatile Bot", "Days on which you used all 12 equipables", None, _days_all_equipables, (1, 2, 4, 8, 15)),
-        _tiered(18, "My Other Chassis Is a Toaster", "Games with 3 or fewer deaths (3+ minutes)", "deaths",
+        _tiered(18, "My Other Chassis Is a Toaster", "Games with 3 or fewer deaths", "deaths",
                 lambda g: g.play_time_s >= FULL_GAME_S and g.deaths <= 3, (1, 5, 15, 50, 150), estimated=True),
-        _tiered(19, "Point Captured", "Play Capture Point games in one day: the most in a single day counts", "capture_point", _capture, (4, 6, 8, 10, 15), "day"),
-        _tiered(20, "Checkpoint Reached", "Play Payload games in one day: the most in a single day counts", "payload", _payload, (4, 6, 8, 10, 15), "day"),
-        _ladder(21, "Full Team Salvo", "Time near a teammate in one game of 3+ minutes: your best game counts", "team_proximity",
+        _tiered(19, "Point Captured", "Play Capture Point games in one day", "capture_point", _capture, (4, 6, 8, 10, 15), "day"),
+        _tiered(20, "Checkpoint Reached", "Play Payload games in one day", "payload", _payload, (4, 6, 8, 10, 15), "day"),
+        _ladder(21, "Full Team Salvo", "Time near a teammate in one game", "team_proximity",
                 _full(_pct("near_mate")), (45, 55, 65, 80, 92), "game", "%"),
-        _ladder(22, "Can We Talk About This?", "Time near an enemy in one game of 3+ minutes: your best game counts", "enemy_proximity",
+        _ladder(22, "Can We Talk About This?", "Time near an enemy in one game", "enemy_proximity",
                 _full(_pct("near_enemy")), (10, 25, 40, 55, 75), "game", "%"),
-        _ladder(23, "Super Ultra Hyper Turbo", "Top speed reached in one game: your best game counts", "speed",
+        _ladder(23, "Super Ultra Hyper Turbo", "Top speed reached in one game", "speed",
                 lambda gs: gs[0].top_speed, (14, 18, 22, 27, 32), "game", " m/s"),
-        _ladder(24, "I’m Bat Bot", "Time spent inverted in one game of 3+ minutes: your best game counts", "inverted",
+        _ladder(24, "I’m Bat Bot", "Time spent inverted in one game", "inverted",
                 _full(_pct("upside")), (15, 30, 55, 80, 92), "game", "%"),
     ]
     for rid, name, m in ((25, "Constant Contesting", "dyson"), (26, "Blast Furnace", "combustion"),
                          (27, "Techneium-99", "fission"), (28, "Bird of Prey", "surge")):
-        rules.append(_tiered(rid, name, f"Play games of {m.title()} in one day: the most in a single day counts", m,
+        rules.append(_tiered(rid, name, f"Play games of {m.title()} in one day", m,
                              lambda g, m=m: g.map == m, (3, 4, 6, 8, 10), "day"))
-    rules.append(_tiered(29, "Combat on Quest When?", "Play Combat pubs in one day: the most in a single day counts", "pubs", _pub, (8, 12, 16, 22, 29), "day"))  # 20 % lower (user, 2026-11-03)
+    rules.append(_tiered(29, "Combat on Quest When?", "Play Combat pubs in one day", "pubs", _pub, (8, 12, 16, 22, 29), "day"))  # 20 % lower (user, 2026-11-03)
 
     # Weekly (30-54): the most in one calendar week (Monday start)
     names = {
@@ -429,25 +443,25 @@ def _build_rules() -> list[Rule]:
     i = 30
     for slot, items in (("weapon", WEAPONS), ("ordnance", ORDNANCES), ("tacmod", TACMODS)):
         for code, label, icon in items:
-            rules.append(_ladder(i, names[code], f"Play games using only {label} in any 7 days: the most in any 7 days counts", icon,
+            rules.append(_ladder(i, names[code], f"Play games using only {label} in any 7 days", icon,
                                  _only_games(slot, code), GEAR_WEEK, "week"))
             i += 1
     rules += [
-        _ladder(42, "Gearhead", "Games in a row using only one loadout in any 7 days: your best 7 days count", "loadout", _gearhead_run, (4, 8, 15, 30, 50), "week"),
+        _ladder(42, "Gearhead", "Games in a row using only one loadout in any 7 days", "loadout", _gearhead_run, (4, 8, 15, 30, 50), "week"),
         Rule(43, "Pew Pew Proof", "Average fewer than 5 deaths per game over any 7 days (25+ games)", "week", "deaths", _pew_pew_proof, estimated=True),
-        _tiered(44, "I'd Rather Be on Kronos II", "Play Capture Point games in any 7 days: the most in any 7 days counts", "capture_point", _capture, (10, 18, 25, 40, 50), "week"),
-        _tiered(45, "Sakura's Dancing Flamingo", "Play Payload games in any 7 days: the most in any 7 days counts", "payload", _payload, (10, 18, 25, 40, 50), "week"),
-        _ladder(46, "Tech Support w/RAD_Natalie", "Time near a teammate over any 7 days: your best 7 days count", "team_proximity", _pct("near_mate"), (22, 27, 32, 40, 55), "week", "%"),
-        _ladder(47, "Hug Your Frenemy", "Time near an enemy over any 7 days: your best 7 days count", "enemy_proximity", _pct("near_enemy"), (15, 20, 25, 35, 50), "week", "%"),
-        _ladder(48, "The Wings of RAD_Wyvern", "Average speed over any 7 days: your best 7 days count", "speed", _AvgValue("speed_sum", 1.0), (3.5, 4, 4.5, 5, 6), "week", " m/s"),
-        _ladder(49, "I’ɯ ꓭɐʇ ꓭoʇ", "Time spent inverted over any 7 days: your best 7 days count", "inverted", _pct("upside"), (5, 10, 15, 30, 50), "week", "%"),
+        _tiered(44, "I'd Rather Be on Kronos II", "Play Capture Point games in any 7 days", "capture_point", _capture, (10, 18, 25, 40, 50), "week"),
+        _tiered(45, "Sakura's Dancing Flamingo", "Play Payload games in any 7 days", "payload", _payload, (10, 18, 25, 40, 50), "week"),
+        _ladder(46, "Tech Support w/RAD_Natalie", "Time near a teammate over any 7 days", "team_proximity", _pct("near_mate"), (22, 27, 32, 40, 55), "week", "%"),
+        _ladder(47, "Hug Your Frenemy", "Time near an enemy over any 7 days", "enemy_proximity", _pct("near_enemy"), (15, 20, 25, 35, 50), "week", "%"),
+        _ladder(48, "The Wings of RAD_Wyvern", "Average speed over any 7 days", "speed", _AvgValue("speed_sum", 1.0), (3.5, 4, 4.5, 5, 6), "week", " m/s"),
+        _ladder(49, "I’ɯ ꓭɐʇ ꓭoʇ", "Time spent inverted over any 7 days", "inverted", _pct("upside"), (5, 10, 15, 30, 50), "week", "%"),
     ]
     for rid, name, m in ((50, "Frame-Drop Hell", "dyson"), (51, "I've Got a Fever, and the Only Prescription Is Pew Pew Pew!", "combustion"),
                          (52, "Phoeniconaias minor", "fission"), (53, "Phoenicopterus ruber", "surge")):
-        rules.append(_tiered(rid, name, f"Play games of {m.title()} in any 7 days: the most in any 7 days counts", m,
+        rules.append(_tiered(rid, name, f"Play games of {m.title()} in any 7 days", m,
                              lambda g, m=m: g.map == m, (4, 6, 8, 16, 30), "week"))
     rules.append(_tiered(54, "Who Do I Have to Pew Pew Pew to Get a Combat Update Around Here?",
-                         "Play Combat pubs in any 7 days: the most in any 7 days counts", "pubs", _pub, (15, 30, 60, 100, 150), "week"))
+                         "Play Combat pubs in any 7 days", "pubs", _pub, (15, 30, 60, 100, 150), "week"))
 
     # All time (55-79). 55-66 have no title in the old code (A: names generated).
     i = 55
@@ -506,13 +520,13 @@ def _build_rules() -> list[Rule]:
                 lambda g: _payload(g) and g.won and g.attacking_team == g.team, (1, 5, 10, 25, 60), new=True, group="Payload"),
         _tiered(95, "Hold the Line", "Win Payload games as the defending team", "payload",
                 lambda g: _payload(g) and g.won and g.attacking_team not in (None, g.team), (1, 5, 10, 25, 60), new=True, group="Payload"),
-        _ladder(96, "Pedal to the Metal", "Time pushing the payload in one game: your best game counts", "payload",
+        _ladder(96, "Pedal to the Metal", "Time pushing the payload in one game", "payload",
                 lambda gs: gs[0].push_s / 60, (1, 2, 3, 4, 6), "game", " min", estimated=True, new=True, group="Payload"),
-        _ladder(97, "Immovable Object", "Time blocking the payload in one game: your best game counts", "payload",
+        _ladder(97, "Immovable Object", "Time blocking the payload in one game", "payload",
                 lambda gs: gs[0].block_s / 60, (0.5, 1, 1.5, 2, 3), "game", " min", estimated=True, new=True, group="Payload"),
         _ladder(98, "Freight Train", "Time pushing the payload in total", "payload",
                 lambda gs: sum(g.push_s for g in gs) / 60, (10, 30, 60, 150, 300), "all", " min", estimated=True, new=True, group="Payload"),
-        _ladder(99, "Showboat", "Emotes in one game: your best game counts", None, lambda gs: gs[0].emotes, (12, 24, 40, 60, 100), "game",  # emotes are easy: x4 (user, 2026-11-03)
+        _ladder(99, "Showboat", "Emotes in one game", None, lambda gs: gs[0].emotes, (12, 24, 40, 60, 100), "game",  # emotes are easy: x4 (user, 2026-11-03)
                 new=True, group="Emotes"),
         _ladder(100, "Dance Floor Legend", "Emotes in total", None, lambda gs: sum(g.emotes for g in gs), (40, 200, 800, 2000, 8000),  # x4 (user, 2026-11-03)
                 new=True, group="Emotes"),
@@ -523,7 +537,7 @@ def _build_rules() -> list[Rule]:
     now_public = (("weapon", "rifle", "Starburst", "Starburst Stream"), ("weapon", "magnum", "Protostar", "Protostar Power Trip"),
                   ("weapon", "smg", "Quark", "Quark Storm"), ("ordnance", "loc", "Translocator", "Here, There and Everywhere"))
     for i, (slot, code, label, name) in enumerate(now_public, 101):
-        rules.append(_ladder(i, name, f"Play games using only {label} in one day: the most in a single day counts", GEAR_ICONS[code],
+        rules.append(_ladder(i, name, f"Play games using only {label} in one day", GEAR_ICONS[code],
                              _only_games(slot, code), GEAR_DAY, "day", new=True, group="Experimental gear"))
     for i, (slot, code, label, _) in enumerate(now_public, 105):
         rules.append(_ladder(i, f"{label} Veteran", f"Play games using {label}", GEAR_ICONS[code], _games_using(slot, code),
@@ -549,7 +563,7 @@ def _build_rules() -> list[Rule]:
         _ladder(117, "Time Well Wasted", "Hours played", None, lambda gs: sum(g.play_time_s for g in gs) / 3600, (1, 5, 20, 50, 80), "all", " h",
                 new=True, group="Activity"),
         _tiered(118, "Overtime", "Games of 10 minutes or longer", None, lambda g: g.play_time_s >= 600, (5, 20, 50, 100, 250), new=True, group="Activity"),
-        _tiered(119, "Hot Day", "Win games in one day: the most in a single day counts", None, lambda g: g.won, (3, 5, 8, 12, 16), "day", new=True, group="Wins"),
+        _tiered(119, "Hot Day", "Win games in one day", None, lambda g: g.won, (3, 5, 8, 12, 16), "day", new=True, group="Wins"),
         _tiered(120, "Point Taker", "Win Capture Point games", "capture_point", lambda g: _capture(g) and g.won, (5, 10, 30, 80, 150), new=True, group="Capture Point"),
         _tiered(121, "Cargo Hauler", "Win Payload games", "payload", lambda g: _payload(g) and g.won, (5, 10, 30, 80, 150), new=True, group="Payload"),
         _ladder(122, "Grand Tour", "Wins on each of the 4 maps (the map with the fewest wins counts)", None, _fewest_wins, (1, 3, 8, 25, 75),
@@ -569,64 +583,99 @@ def _build_rules() -> list[Rule]:
     weekly = (("weapon", "rifle", "Starburst", "Star Power"), ("weapon", "magnum", "Protostar", "Protostar Powerhouse"),
               ("weapon", "smg", "Quark", "Quark Quake"), ("ordnance", "loc", "Translocator", "Blink and You'll Miss It"))
     for i, (slot, code, label, name) in enumerate(weekly, 127):
-        rules.append(_ladder(i, name, f"Play games using only {label} in any 7 days: the most in any 7 days counts", GEAR_ICONS[code],
+        rules.append(_ladder(i, name, f"Play games using only {label} in any 7 days", GEAR_ICONS[code],
                              _only_games(slot, code), GEAR_WEEK, "week", new=True, group="Experimental gear"))
     rules += [
-        _ladder(131, "Full Charge", "Play games using only Overcharge in one day: the most in a single day counts", None,
+        _ladder(131, "Full Charge", "Play games using only Overcharge in one day", None,
                 _only_games("tacmod", "buff"), GEAR_DAY, "day", new=True, group="Experimental gear"),
-        _ladder(132, "Charged Up", "Play games using only Overcharge in any 7 days: the most in any 7 days counts", None,
+        _ladder(132, "Charged Up", "Play games using only Overcharge in any 7 days", None,
                 _only_games("tacmod", "buff"), GEAR_WEEK, "week", new=True, group="Experimental gear"),
         # Blazar and Dot Field were released too (user, 2026-10-31): the same set as the other new gear
         _ladder(133, "Blazar Veteran", "Play games using Blazar", "blazar", _games_using("weapon", "chain"), GEAR_VETERAN,
                 new=True, group="Experimental gear"),
         _ladder(134, "Dot Field Veteran", "Play games using Dot Field", None, _games_using("ordnance", "dot"), GEAR_VETERAN,
                 new=True, group="Experimental gear"),
-        _ladder(135, "Blazing Trail", "Play games using only Blazar in one day: the most in a single day counts", "blazar",
+        _ladder(135, "Blazing Trail", "Play games using only Blazar in one day", "blazar",
                 _only_games("weapon", "chain"), GEAR_DAY, "day", new=True, group="Experimental gear"),
-        _ladder(136, "Dot to Dot", "Play games using only Dot Field in one day: the most in a single day counts", None,
+        _ladder(136, "Dot to Dot", "Play games using only Dot Field in one day", None,
                 _only_games("ordnance", "dot"), GEAR_DAY, "day", new=True, group="Experimental gear"),
-        _ladder(137, "Blazar Barrage", "Play games using only Blazar in any 7 days: the most in any 7 days counts", "blazar",
+        _ladder(137, "Blazar Barrage", "Play games using only Blazar in any 7 days", "blazar",
                 _only_games("weapon", "chain"), GEAR_WEEK, "week", new=True, group="Experimental gear"),
-        _ladder(138, "Dot Matrix", "Play games using only Dot Field in any 7 days: the most in any 7 days counts", None,
+        _ladder(138, "Dot Matrix", "Play games using only Dot Field in any 7 days", None,
                 _only_games("ordnance", "dot"), GEAR_WEEK, "week", new=True, group="Experimental gear"),
     ]
 
-    # In one game (user, 2026-11-03); 4v4 games only. Targets from the archive's per-game distributions (3+ minute games):
+    # In one game (user, 2026-11-03); 4v4 games only. Targets from the archive's per-game distributions (4+ minute games):
     # standing still median 34 % / p99 70 %, average speed p50 2.8 / p99 4.6 m/s, length p50 8.5 / p99 17 min,
     # own capture time p90 3.2 / p99 4.1 min, up to 8 loadouts. Left / right arm is a handedness flag (0 or 100 % in
     # nearly every game), so there is no arm ladder, only "both arms". Glass Cannon (most deaths) was dropped by the user.
     rules += [
-        _tiered(139, "Untouchable", "Win a 4v4 game of 3+ minutes without dying once. Counts every such win", "deaths",
+        _tiered(139, "Untouchable", "Win a game without dying once", "deaths",
                 lambda g: g.four_v_four and g.won and g.play_time_s >= FULL_GAME_S and g.deaths == 0, (1, 2, 3, 5, 8), estimated=True, new=True, group="Survival"),
-        _ladder(140, "Marathon Bot", "Play one long 4v4 game: the length of your longest game counts", None, _v4(lambda gs: gs[0].play_time_s / 60),
+        _ladder(140, "Marathon Bot", "Length of your longest game", None, _v4(lambda gs: gs[0].play_time_s / 60),
                 (12, 15, 18, 21, 26), "game", " min", new=True, group="Activity"),
-        _tiered(141, "Comeback Kid", "Win a 4v4 Capture Point game after losing the first round (a 2-1 win). Counts every such win", "capture_point",
+        _tiered(141, "Comeback Kid", "Win a Capture Point game after losing the first round (a 2-1 win)", "capture_point",
                 lambda g: g.four_v_four and _capture(g) and g.won and g.rounds_lost == 1, (1, 5, 15, 40, 100), new=True, group="Capture Point"),
-        _ladder(142, "Statue", "Stand still (under 1 m/s) for a share of one 4v4 game of 3+ minutes: your best game counts", None,
+        _ladder(142, "Statue", "Stand still (under 1 m/s) for a share of one game", None,
                 _v4(_full(_pct("stopped"))), (50, 60, 70, 80, 90), "game", "%", new=True, group="Movement"),
-        _ladder(143, "Lone Wolf", "Stay away from your teammates (more than 2.6 m) for a share of one 4v4 game of 3+ minutes: your best game counts",
+        _ladder(143, "Lone Wolf", "Stay away from your teammates (more than 2.6 m) for a share of one game",
                 "team_proximity", _v4(_full(_away_from_mates)), (92, 95, 97, 98.5, 99.5), "game", "%", new=True, group="Movement"),
-        Rule(144, "Ambidextrous", "Play one 4v4 game of 3+ minutes holding the disc-arm on each side for at least 40 % of the time", "game", None,
+        Rule(144, "Ambidextrous", "Play one game holding the disc-arm on each side for at least 40 % of the time", "game", None,
              _v4(_full(_both_arms)), new=True, group="Movement"),
-        _ladder(145, "Speed Demon", "Keep a high average speed through one whole 4v4 game of 3+ minutes: your best game counts", "speed",
+        _ladder(145, "Speed Demon", "Keep a high average speed through one whole game", "speed",
                 _v4(_full(_AvgValue("speed_sum", 1.0))), (3.5, 4, 4.5, 5.5, 7), "game", " m/s", new=True, group="Movement"),
-        _ladder(146, "Point Guard", "Your team's capture progress is rising for part of one 4v4 Capture Point game: your best game counts",
+        _ladder(146, "Point Guard", "Your team's capture progress is rising for part of one Capture Point game",
                 "capture_point", _v4(lambda gs: gs[0].capture_s / 60 if _capture(gs[0]) else 0.0), (2, 3, 3.5, 4.2, 5), "game", " min",
                 new=True, group="Capture Point"),
-        _ladder(147, "Contested Ground", "The point is contested (both teams on it) for part of one 4v4 Capture Point game: your best game counts",
+        _ladder(147, "Contested Ground", "The point is contested (both teams on it) for part of one Capture Point game",
                 "capture_point", _v4(lambda gs: gs[0].contested_s / 60 if _capture(gs[0]) else 0.0), (2, 3.5, 5, 6.5, 8), "game", " min",
                 new=True, group="Capture Point"),
-        _tiered(148, "One-Trick Pony", "Win a 4v4 game while using one single loadout (weapon, tac mod and ordnance) for at least 95 % of it. Counts every such win",
+        _tiered(148, "One-Trick Pony", "Win a game using only one single loadout (weapon, tac mod and ordnance)",
                 "loadout", lambda g: g.four_v_four and g.won and g.main_loadout() is not None, (1, 10, 30, 80, 200), new=True, group="Gear mastery"),
-        _ladder(149, "Loadout Roulette", "Switch between loadouts in one 4v4 game: each loadout used for at least 5 % of the game counts, your best game wins",
+        _ladder(149, "Loadout Roulette", "Switch between loadouts in one game: each loadout used for at least 5 % of the game counts",
                 "loadout", _v4(lambda gs: gs[0].loadouts_played()), (4, 5, 6, 7, 8), "game", new=True, group="Gear mastery"),
-        _ladder(150, "Mime Troupe", "Emote as much as you can in one 4v4 game of 3+ minutes without dying: your best game counts", None,
+        _ladder(150, "Mime Troupe", "Emote as much as you can in one game without dying", None,
                 _v4(lambda gs: gs[0].emotes if gs[0].play_time_s >= FULL_GAME_S and gs[0].deaths == 0 else 0), (4, 8, 12, 16, 20), "game",  # x4 (user, 2026-11-03)
                 estimated=True, new=True, group="Emotes"),
-        _ladder(151, "Victory Lap", "Emote as much as you can in one 4v4 game that your team wins: your best game counts", None,
+        _ladder(151, "Victory Lap", "Emote as much as you can in one game that your team wins", None,
                 _v4(lambda gs: gs[0].emotes if gs[0].won else 0), (12, 24, 40, 60, 100), "game", new=True, group="Emotes"),
     ]
+    # One match with only one item (user, 2026-11-04): a single game of FULL_GAME_S+ in which it was ONLY_SHARE+ of
+    # the loadout time of its slot. The longer minimum keeps a late-joining recording from qualifying.
+    rid = 152
+    for slot, items in (("weapon", WEAPONS), ("ordnance", ORDNANCES), ("tacmod", TACMODS)):
+        for code, label, icon in items:
+            score = _v4(_full(lambda gs, slot=slot, code=code: 1.0 if gs[0].share(slot, code) >= ONLY_SHARE else 0.0))
+            score.use_only = True
+            rules.append(Rule(rid, f"Nothing but {label}", f"Play one game using only {label}", "game", icon, score,
+                              new=True, group="Gear mastery"))
+            rid += 1
     return rules
+
+
+_NOTE_MIN_IDS = {18, 43, 139, 150}  # rules that check the length in their own function
+_NOTE_4V4_IDS = {139, 141, 148}
+_NOTE_ONLY_IDS = {42, 148}
+
+
+def rule_notes(rule: Rule) -> list[str]:
+    """The counting rules of one achievement in short lines (shown on the site; the description says what to do)."""
+    if rule.meta:
+        return []
+    fn = rule.count or rule.score
+    notes = [{"game": "Your best single game counts", "day": "Your best calendar day counts", "week": "Your best 7 days in a row count"}.get(rule.period)]
+    if rule.period == "all":
+        need = getattr(rule.count, "min_games", 0)
+        notes = [f"Average over all your games (needs {need}+ games)" if need else "Total over all your games"]
+    if getattr(fn, "min_length", False) or rule.id in _NOTE_MIN_IDS:
+        notes.append(f"Games under {FULL_GAME_S / 60:g} minutes are ignored")
+    if getattr(fn, "four_v_four", False) or rule.id in _NOTE_4V4_IDS:
+        notes.append("4v4 games only")
+    if getattr(fn, "use_only", False) or rule.id in _NOTE_ONLY_IDS:
+        notes.append(f"\"Only\" = {ONLY_SHARE:.0%} or more of the game, so a quick switch is fine")
+    if rule.id == 67:
+        notes.append(f"Each loadout needs {LOADOUT_USED_S / 60:g} minutes of play")
+    return [n for n in notes if n]
 
 
 RULES = _build_rules()
@@ -711,7 +760,7 @@ def evaluate(games: list[Game]) -> list[dict]:
             best = max((rule.score(g) for g in groups[_week_key(rule)] if g), default=0.0)
         progress = round(clamp(best), 4)
         entry = {
-            "id": rule.id, "name": rule.name, "description": rule.description, "period": rule.period,
+            "id": rule.id, "name": rule.name, "description": rule.description, "rules": rule_notes(rule), "period": rule.period,
             "icon": icon_file(rule), "estimated": rule.estimated, "new": rule.new, "group": rule.group, "progress": progress, "tier": tier(progress),
         }
         if n is not None:  # the website shows "12 / 25 for diamond"
@@ -722,7 +771,7 @@ def evaluate(games: list[Game]) -> list[dict]:
             n = sum(1 for r in RULES if not r.meta and _reached_gold(entries[r.id], r))
             progress = round(clamp(_levelled(lambda _: n, rule.levels)([])), 4)
             entries[rule.id] = {
-                "id": rule.id, "name": rule.name, "description": rule.description, "period": rule.period, "icon": icon_file(rule),
+                "id": rule.id, "name": rule.name, "description": rule.description, "rules": rule_notes(rule), "period": rule.period, "icon": icon_file(rule),
                 "estimated": False, "new": rule.new, "group": rule.group, "progress": progress, "tier": level_tier(n, rule.levels),
                 "count": n, "levels": list(rule.levels), "unit": rule.unit,
             }
@@ -799,4 +848,56 @@ def unlock_dates(games: list[Game]) -> dict[int, str]:
             done = [pick(g.started_at for g in group) for group in groups[_week_key(rule)] if group and rule.score(group) >= 1]
             if done:
                 out[rule.id] = min(done)[:10]
+    return out
+
+
+def medal_times(games: list[Game]) -> dict[int, dict[str | None, str]]:
+    """When each medal of each rule was first earned: {rule id: {medal: started_at of the game that completed it}}.
+    A ladder has one entry per medal (bronze ... platinum); a single-step rule one entry under the key None (completed).
+    Same rules as unlock_dates (a rolling week is complete at its last game, a day / game at its first), but for
+    every medal and with the full time, not just the date."""
+    ordered = sorted(games, key=lambda g: g.started_at)
+    groups = {p: _groups(ordered, p) for p in ("game", "day", "week", "week_all")}
+    out: dict[int, dict[str | None, str]] = {}
+    eps = 1e-9
+    for rule in RULES:
+        if rule.meta or not ordered:
+            continue
+        n = len(rule.levels)
+        steps = [((k + 1) / n, LEVELS[k] if n == len(LEVELS) else None) for k in range(n)] if n else [(1.0, None)]
+        found: dict[str | None, str] = {}
+        if rule.period == "all":
+            if rule.score(ordered) < steps[0][0] - eps:
+                continue
+            for k, (thr, medal) in enumerate(steps):
+                if rule.score(ordered) < thr - eps:
+                    break
+                if isinstance(rule.count, _AvgValue):
+                    i = rule.count.first_reached(ordered, rule.levels[k])
+                    if i is None:
+                        break
+                    found[medal] = ordered[i].started_at
+                    continue
+                lo, hi = 1, len(ordered)
+                while lo < hi:
+                    mid = (lo + hi) // 2
+                    if rule.score(ordered[:mid]) >= thr - eps:
+                        hi = mid
+                    else:
+                        lo = mid + 1
+                found[medal] = ordered[lo - 1].started_at
+        else:
+            pick = max if rule.period == "week" else min
+            for group in groups[_week_key(rule)]:
+                if not group:
+                    continue
+                score = rule.score(group)
+                when = None
+                for thr, medal in steps:
+                    if score >= thr - eps:
+                        when = when or pick(g.started_at for g in group)
+                        if medal not in found or when < found[medal]:
+                            found[medal] = when
+        if found:
+            out[rule.id] = found
     return out

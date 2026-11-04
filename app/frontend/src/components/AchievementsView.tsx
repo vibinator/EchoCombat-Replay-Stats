@@ -299,6 +299,7 @@ export function Badge({ a }: { a: AchievementRule & Partial<Pick<Achievement, "p
           {ruleText(a.description)}
           {a.estimated && " *"}
         </span>
+        {a.rules && a.rules.length > 0 && <span className="muted rule-notes">{a.rules.join(" · ")}</span>}
         {a.levels && a.levels.length > 0 && <MedalTargets levels={a.levels} unit={a.unit} />}
         {!catalogue && (
           <>
@@ -500,7 +501,7 @@ function LaunchedSummary({ userId }: { userId: string }) {
       </div>
       <div className="cards">
         <div className="card">
-          <span className="label">Overall</span>
+          <span className="label" title="Average progress across every achievement, counting partial progress toward each one">Average progress</span>
           <strong>{pct(d.overall)}</strong>
         </div>
         <div className="card">
@@ -559,6 +560,40 @@ export function ChallengeBanner() {
   );
 }
 
+/** The counting rules in plain words, on the overview and on every player's page. */
+export function AchievementRules({ open = false }: { open?: boolean }) {
+  return (
+    <details className="rules-help" open={open}>
+      <summary>Rules</summary>
+      <ul>
+        <li>
+          <strong>Medals.</strong> Almost every challenge is a ladder: bronze, silver, gold, diamond, platinum. The bar has one step per medal, the
+          colour of a name is the medal reached and the number under each step is its target. A few single-step challenges keep white 25%, bronze
+          50%, silver 75%, gold 100%.
+        </li>
+        <li>
+          <strong>Completed</strong> means platinum (or 100% for a single-step challenge). <strong>Average progress</strong> counts partial progress
+          toward every challenge, so it is always higher than the share completed.
+        </li>
+        <li>
+          <strong>Progress is your best ever</strong>: your best game, best calendar day, best rolling 7 days, or the all-time total. A "7 days" window
+          is any 7 days in a row, not a calendar week.
+        </li>
+        <li>
+          <strong>Each achievement lists its own rules</strong> under its description: whether the best game, day or 7 days counts, whether games
+          under 4 minutes are ignored, whether it is 4v4 only and how "only" is judged. Recordings that cover less than half a match are ignored
+          everywhere.
+        </li>
+        <li>
+          <strong>"Use only" an item</strong> = it was 90% or more of that game's time in its slot, so a quick switch is fine. <strong>"Use"</strong> =
+          5% or more.
+        </li>
+        <li>* Deaths are estimated from the recording.</li>
+      </ul>
+    </details>
+  );
+}
+
 export function AchievementsView({ userId }: { userId: string }) {
   const result = useApi(() => getAchievements(userId), userId);
   const [sort, setSort] = useState<"group" | "closest">("group");
@@ -571,7 +606,7 @@ export function AchievementsView({ userId }: { userId: string }) {
         <>
           <div className="filters">
             <div className="card">
-              <span className="label">Overall</span>
+              <span className="label" title="Average progress across every achievement, counting partial progress toward each one">Average progress</span>
               <strong>{pct(data.overall)}</strong>
             </div>
             <div className="card">
@@ -598,13 +633,7 @@ export function AchievementsView({ userId }: { userId: string }) {
           {sort === "group" && (
             <GroupedBadges items={data.items} />
           )}
-          <p className="muted footnote">
-            Almost every challenge is a ladder of medals (bronze, silver, gold, diamond, platinum): the bar has one step per medal, the
-            colour of a name is the medal reached, and the number under each step is its target. Progress is the best ever reached (best game,
-            best calendar day, best rolling 7 days, or all-time total). A few single-step challenges keep white 25%, bronze 50%, silver 75%, gold 100%.
-            "Use only" an item = 95%+ of that game's loadout time; "use" = 5%+. Days are
-            calendar days; "7 days" is any 7-day window, not a calendar week. * Based on estimated deaths.
-          </p>
+          <AchievementRules />
         </>
       )}
     </>

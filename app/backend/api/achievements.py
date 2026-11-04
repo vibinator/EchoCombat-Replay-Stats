@@ -16,7 +16,7 @@ from fastapi import APIRouter, Query, Request
 from sqlalchemy import func, select
 
 from .. import auth, icons
-from ..achievements import RULES, Game, evaluate, icon_file, in_window, overall, unlock_dates, unlock_threshold
+from ..achievements import RULES, Game, evaluate, icon_file, in_window, medal_times, overall, rule_notes, unlock_dates, unlock_threshold
 from ..admin_actions import (WINDOW_KEYS, achievements_counting, achievements_launched, achievements_visibility,
                              challenge_window, previews_can_see)
 from ..cache import cached, current_stamp
@@ -90,7 +90,7 @@ def _peek() -> dict:
         else:
             periods[r.period] += 1
     by_id = {r.id: r for r in RULES}
-    revealed = [{"id": r.id, "name": r.name, "description": r.description, "period": r.period, "icon": icon_file(r),
+    revealed = [{"id": r.id, "name": r.name, "description": r.description, "rules": rule_notes(r), "period": r.period, "icon": icon_file(r),
                  "estimated": r.estimated, "new": r.new, "group": r.group} for r in map(by_id.get, REVEALED_IDS)]
     shown = {r["icon"] for r in revealed}
     art = [f for f in dict.fromkeys(icon_file(r) for r in RULES if r.icon) if f and f not in shown]
@@ -205,7 +205,7 @@ _refreshing: set[int] = set()
 _lock = threading.Lock()
 
 
-# id(sessions) -> player_id -> [(fingerprint, window), progress per rule, overall, unlock dates or None]. A new
+# id(sessions) -> player_id -> [(fingerprint, window), progress per rule, overall, medal times or None]. A new
 # replay changes the games of ~8 players: only those are evaluated again (all 8k players take ~15 s).
 _evaluated: dict[int, dict[int, list]] = {}
 
@@ -307,7 +307,8 @@ def _compute_ranking(sessions, window: tuple) -> dict:
 
 
 def _recent(games: dict[int, list[Game]], latest: str | None, people: dict, evaluated: dict[int, list]) -> list[dict]:
-    """Every 100 % completion in the last RECENT_DAYS of the archive, newest first."""
+    """Every medal earned in the last RECENT_DAYS of the archive (bronze ... platinum; a single-step challenge when
+    completed, medal None), newest first, with the time of the game that earned it."""
     if not latest:
         return []
     cutoff = (date.fromisoformat(latest[:10]) - timedelta(days=RECENT_DAYS)).isoformat()
@@ -318,13 +319,14 @@ def _recent(games: dict[int, list[Game]], latest: str | None, people: dict, eval
             continue
         entry = evaluated[pid]
         if entry[3] is None:
-            entry[3] = unlock_dates(gs)
-        for rule_id, day in entry[3].items():
-            if day >= cutoff:
-                uid, name = people[pid]
-                events.append({"date": day, "user_id": uid, "name": name, "id": rule_id,
-                               "achievement": rules[rule_id].name, "icon": icon_file(rules[rule_id])})
-    events.sort(key=lambda e: e["date"], reverse=True)
+            entry[3] = medal_times(gs)
+        for rule_id, medals in entry[3].items():
+            for medal, at in medals.items():
+                if at[:10] >= cutoff:
+                    uid, name = people[pid]
+                    events.append({"date": at[:10], "at": at, "user_id": uid, "name": name, "id": rule_id, "medal": medal,
+                                   "achievement": rules[rule_id].name, "icon": icon_file(rules[rule_id])})
+    events.sort(key=lambda e: e["at"], reverse=True)
     return events
 
 
@@ -431,7 +433,7 @@ def list_achievements(request: Request):
     out = []
     for i, r in enumerate(RULES):
         values = [p[i] for p in eligible]
-        out.append({"id": r.id, "name": r.name, "description": r.description, "period": r.period,
+        out.append({"id": r.id, "name": r.name, "description": r.description, "rules": rule_notes(r), "period": r.period,
                     "icon": icon_file(r), "estimated": r.estimated, "new": r.new, "group": r.group,
                     "levels": list(r.levels) or None,  # ladder: targets for bronze ... platinum
                     "unit": r.unit,

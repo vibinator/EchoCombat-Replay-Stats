@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Link, Navigate, useLocation, useParams, useSearchParams } from "react-router";
 import { getAchievements, getAchievers, getRarity, getRecentUnlocks, searchPlayers } from "../api";
-import { AchievementsView, ChallengeBanner, ComingSoon, GroupedBadges, JumpToNew, useAchievementsAccess } from "../components/AchievementsView";
+import { AchievementRules, AchievementsView, ChallengeBanner, ComingSoon, GroupedBadges, JumpToNew, useAchievementsAccess } from "../components/AchievementsView";
 import { Status } from "../components/common";
 import { achievementsPath, int, nameSlug, pct, playerPath } from "../format";
 import { useApi } from "../useApi";
@@ -58,9 +58,10 @@ function TopPlayers() {
             <strong className="big">
               {int(p.completed)} <span className="muted">/ {int(p.total)} completed</span>
             </strong>
-            <span className="muted">{int(p.medals)} medals · {int(p.gold_plus)} gold or better</span>
-            {p.best_section && <span className="muted">Strongest: {p.best_section} ({pct(p.best_section_share)})</span>}
-            <span className="muted">Overall {pct(p.overall)}</span>
+            <span className="muted" title="Gold or better = challenges where the player reached the gold, diamond or platinum medal">{int(p.gold_plus)} challenges at gold or better</span>
+            <span className="muted" title="Every medal step reached, added up across all challenges (a challenge can give up to 5)">{int(p.medals)} medals earned in total</span>
+            {p.best_section && <span className="muted">Best category: {p.best_section} ({pct(p.best_section_share)} done)</span>}
+            <span className="muted">Avg progress {pct(p.overall)}</span>
           </li>
         ))}
       </ol>
@@ -73,15 +74,16 @@ function RecentUnlocks() {
   if (!recent.data || recent.data.length === 0) return null;
   return (
     <>
-      <h2>Recently completed</h2>
-      <ul className="recent-unlocks" tabIndex={0} aria-label="Recently completed, scroll sideways">
+      <h2>Recent medals</h2>
+      <ul className="recent-unlocks" tabIndex={0} aria-label="Recent medals, scroll sideways">
         {recent.data.map((e, i) => (
           <li key={`${e.user_id}-${e.id}-${i}`}>
             <img src={`/achievements/${e.icon ?? "happy_cubesat.png"}`} alt="" />
             <span>
-              <Link to={achievementsPath(e.user_id, e.name)}>{e.name}</Link> completed <strong>{e.achievement}</strong>
+              <Link to={achievementsPath(e.user_id, e.name)}>{e.name}</Link> earned{" "}
+              <span className={`medal-chip ${e.medal ?? "gold"}`}>{e.medal ?? "completed"}</span> in <strong>{e.achievement}</strong>
             </span>
-            <span className="muted">{e.date}</span>
+            <span className="muted">{e.at.slice(0, 10)} {e.at.slice(11, 16)}</span>
           </li>
         ))}
       </ul>
@@ -155,10 +157,9 @@ function LaunchedAchievementsPage() {
           <p className="muted">
             The achievements from the original ECRanked site, plus new ones (marked "new") built on data it never used:
             unreleased gear, wins, payload push / block time, emotes and how often you play. Almost every challenge is a ladder of medals
-            (bronze, silver, gold, diamond, platinum); pick a player to see their progress to each medal. A few single-step challenges keep
-            white 25%, bronze 50%, silver 75%, gold 100%. "Use only" an item = 95%+ of that game's loadout time; "use" = 5%+. Days are calendar days;
-            "7 days" is any 7-day window, not a calendar week.
+            (bronze, silver, gold, diamond, platinum); pick a player to see their progress to each medal.
           </p>
+          <AchievementRules open />
           <ChallengeBanner />
           <PlayerPicker />
           <TopPlayers />

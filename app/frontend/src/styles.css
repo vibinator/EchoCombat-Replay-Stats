@@ -1717,6 +1717,21 @@ td.best {
   grid-area: date;
   font-size: 0.75rem;
 }
+.medal-chip {
+  display: inline-block;
+  padding: 0 6px;
+  border: 1px solid var(--tier, var(--line));
+  border-radius: 999px;
+  color: var(--tier, inherit);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+.medal-chip.bronze { --tier: var(--tier-bronze); }
+.medal-chip.silver { --tier: var(--tier-silver); }
+.medal-chip.gold { --tier: var(--tier-gold); }
+.medal-chip.diamond { --tier: var(--tier-diamond); }
+.medal-chip.platinum { --tier: var(--tier-platinum); }
 .note.ended {
   border-left-color: var(--muted);
 }
@@ -3441,4 +3456,29 @@ button.small {
   display: flex;
   gap: 16px;
   flex-wrap: wrap;
+}
+
+/* "How achievements are counted" (user, 2026-11-04) */
+.rules-help {
+  margin: 12px 0;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  font-size: 0.9rem;
+}
+.rules-help summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+.rules-help ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+.rules-help li + li {
+  margin-top: 6px;
+}
+.rule-notes {
+  font-size: 0.75rem;
+  font-style: italic;
 }
