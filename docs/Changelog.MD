@@ -18,6 +18,11 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.04.2 — 12:39
+### Challenge descriptions in plain language
+- **Reworded:** about 50 challenge descriptions now read as plain instructions ("Share of one game spent close to a teammate", "Use all 4 weapons (...) in one game", "Win games on all 4 maps", ...). Maps read "Play games on Dyson" instead of "of Dyson".
+- **Unchanged:** targets, counting rules and medals. The small tags under each challenge (best game, 4v4 only, ...) are as before.
+
 ## 2026.11.04.1 — 10:58
 ### Console form remembers its settings
 - **Launch date and challenge period:** the form now opens with the saved start date, end date and "Visible to" instead of empty. They were
