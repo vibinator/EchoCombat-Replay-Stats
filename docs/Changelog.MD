@@ -18,6 +18,21 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.04.1 — 10:58
+### Console
+- **Permissions moved into the Console:** the Permissions tab is gone; the same panel is now at the bottom of the Console page
+  (`/permissions` redirects there). Same access: the Console permission, and the server still checks every change.
+
+### Mega Prizes
+- **New challenge, Echo Combat Veteran:** play 750 Echo Combat matches (25 bronze, 100 silver, 250 gold, 450 diamond,
+  750 platinum). Completing it earns the **Delta Squad BioMass Chassis** Mega Prize. Draft / beta: it is not in the
+  normal sections, only in a hidden *Mega Prizes* tab (open `/achievements#mega-prizes`).
+- **Arena counting (draft):** Public Echo Arena matches are now counted from the live Nakama match list
+  (`g.echovrce.com/status/matches`), completely separate from the Combat stats (own tables and module, kept across rebuilds).
+  Public Arena only (private matches and social lobbies are ignored); a match counts for a player once they have been in it
+  for 3 minutes, once per match. Polling is very light: one small request a minute (`ECHOVR_ARENA_POLL_S`, 0 = off), backing off
+  to 5 minutes when the list is unreachable. The hidden Mega Prizes tab shows the top 10 with a bar toward 750 (Preview role only).
+
 ## 2026.11.03.31 — 19:08
 ### GUI test fixes
 - **Tab titles:** every page has its own browser-tab title ("davidyarker · Echo Combat Stats", "Surge #32779 · …").

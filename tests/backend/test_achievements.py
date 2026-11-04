@@ -23,8 +23,8 @@ def by_id(results):
 
 def test_catalogue():
     ids = [r.id for r in RULES]
-    assert ids == list(range(5, 164)) and len(set(ids)) == 159  # 75 original + 84 new (80-163)
-    assert [r.id for r in RULES if r.new] == list(range(80, 164))
+    assert ids == list(range(5, 165)) and len(set(ids)) == 160  # 75 original + 85 new (80-164; 164 = Echo Combat Veteran, Mega Prize)
+    assert [r.id for r in RULES if r.new] == list(range(80, 165))
     assert icon_file(next(r for r in RULES if r.id == 7)) == "comet_daily.png"
     assert icon_file(next(r for r in RULES if r.id == 32)) == "comet_weekly.png"
     assert icon_file(next(r for r in RULES if r.id == 57)) == "comet.png"
@@ -91,9 +91,10 @@ def test_api_and_leaderboard(tmp_path):
         add(client, {f"dyson/{i}.echoreplay": rf.plain(rf.lines(20)) for i in range(2)})
         act(client, actions.set_challenge_window, "2026-01-01", None)
         a = client.get(f"/api/players/{BLUE}/achievements").json()
-        assert a["total"] == len(RULES) and len(a["items"]) == len(RULES) and 0 <= a["overall"] <= 1
+        public = [r for r in RULES if not r.prize]  # Mega Prizes are only in /api/arena/progress (Preview role)
+        assert a["total"] == len(public) and len(a["items"]) == len(public) and 0 <= a["overall"] <= 1
         assert client.get("/api/players/nobody/achievements").status_code == 404
-        assert len(client.get("/api/achievements").json()) == len(RULES)
+        assert len(client.get("/api/achievements").json()) == len(public)
         board = client.get("/api/leaderboard", params={"stat": "achievements", "min_games": 1}).json()
         assert {r["name"] for r in board["items"]} == {"Player", "Other"}
         assert board["label"] == "Achievements (overall %)"
@@ -316,7 +317,7 @@ def test_one_game_challenges_need_a_4v4():
 
 
 def test_all_gear_shares_one_ladder_per_kind():
-    veteran = {r.levels for r in RULES if r.name.endswith(" Veteran")}
+    veteran = {r.levels for r in RULES if r.name.endswith(" Veteran") and not r.prize}
     assert veteran == {_harder((5, 15, 50, 150, 350), "")}
     assert {r.levels for r in RULES if "using only" in r.description and r.period == "day"} == {_harder((3, 5, 8, 12, 15), "")}
     assert {r.levels for r in RULES if "using only" in r.description and r.period == "week" and r.id != 42}  # 42: Gearhead is about loadouts, not one gear == {_harder((5, 10, 15, 30, 50), "")}

@@ -170,8 +170,9 @@ def player_achievements(request: Request, user_id: str):
     with request.app.state.sessionmaker() as db:
         window = counted_window(db)  # part of the cache key: an admin period change shows at once
     result = cached(request, "achievements", (user_id, window), lambda: _player_achievements(request, user_id))
+    items = [i for i in result["items"] if not i.get("prize")]  # Mega Prizes are in /api/arena/progress (Preview role only), so this answer stays the same for everyone (shared cache)
     with request.app.state.sessionmaker() as db:
-        return result | {"items": icons.apply(db, result["items"])}  # icons chosen on the Console page (D43)
+        return result | {"items": icons.apply(db, items), "total": len(items)}  # icons chosen on the Console page (D43)
 
 
 def _player_achievements(request: Request, user_id: str) -> dict:
@@ -436,9 +437,10 @@ def list_achievements(request: Request):
         out.append({"id": r.id, "name": r.name, "description": r.description, "rules": rule_notes(r), "period": r.period,
                     "icon": icon_file(r), "estimated": r.estimated, "new": r.new, "group": r.group,
                     "levels": list(r.levels) or None,  # ladder: targets for bronze ... platinum
-                    "unit": r.unit,
+                    "unit": r.unit, "prize": r.prize or None,
                     "unlocked_share": round(sum(v >= unlock_threshold(r) for v in values) / len(values), 4) if values else None,
                     "completed_share": round(sum(v >= 1 for v in values) / len(values), 4) if values else None})
+    out = [o for o in out if not o["prize"]]  # Mega Prizes: /api/arena/progress (Preview role only)
     with request.app.state.sessionmaker() as db:
         return icons.apply(db, out)
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router";
-import { LEVELS, getAchievements, getChallenges, getMe, getRarity, loginUrl, type Achievement, type AchievementPeek, type AchievementRarity, type AchievementRule } from "../api";
+import { LEVELS, getAchievements, getArenaProgress, getChallenges, getMe, getRarity, loginUrl, type Achievement, type AchievementPeek, type AchievementRarity, type AchievementRule } from "../api";
 import { achievementsPath, pct, ruleText } from "../format";
 import { useApi } from "../useApi";
 import { Status } from "./common";
@@ -119,7 +119,11 @@ function Section<T extends AnyBadge>({ id, c, level = 3, title, items, anchor }:
 }
 
 /** Original achievements by period, then the new ones by theme, in one flat list of sections. */
-export function GroupedBadges<T extends AnyBadge>({ items }: { items: T[] }) {
+export function GroupedBadges<T extends AnyBadge>({ items: all }: { items: T[] }) {
+  // Mega Prize challenges (very draft / beta, user 2026-11-04) are not in the normal sections: they only show in a
+  // hidden tab that opens with #mega-prizes (no link to it anywhere).
+  const items = all.filter((a) => !a.prize);
+  const { hash } = useLocation();
   // A player's page opens with every section folded (the row at the top already lifts the best ones); a choice made with
   // Expand all / Collapse all or a heading is remembered in this browser (user, 2026-11-03).
   const tracked = items.length > 0 && items.every((a) => status(a) !== null);
@@ -143,7 +147,63 @@ export function GroupedBadges<T extends AnyBadge>({ items }: { items: T[] }) {
       {sections.map((x) => (
         <Section key={x.id} id={x.id} c={c} title={x.title} items={x.items} anchor={x.id === firstNew ? "new" : undefined} />
       ))}
+      {hash === "#mega-prizes" && <MegaPrizes />}
     </>
+  );
+}
+
+/** Hidden draft tab (#mega-prizes): challenges that award an in-game item. Public Arena is tracked outside this app. */
+function MegaPrizes() {
+  const result = useApi(getArenaProgress, "arena-progress");
+  const arena = result.data;
+  if (!arena) return null; // no Preview role (403) or still loading: the tab stays hidden
+  const items = arena.combat;
+  return (
+    <div className="section" id="mega-prizes">
+      <h2>
+        Mega Prizes <span className="tag">draft</span>
+      </h2>
+      <div className="badges scroll-row" tabIndex={0} aria-label="Mega Prizes, scroll sideways">
+        {items.map((a) => (
+          <div key={a.id}>
+            <img src="/mega-prizes/biomass.png" alt="Delta Squad BioMass Chassis (draft)" style={{ width: 160, borderRadius: 6 }} />
+            <Badge a={a} />
+            <PrizeBar value={0} label={`Target: ${a.levels?.[a.levels.length - 1] ?? 750} matches (draft: progress not shown yet)`} />
+          </div>
+        ))}
+        <div>
+          <img src="/mega-prizes/jack.jpg" alt="Jack, Lone Echo" style={{ width: 160, borderRadius: 6 }} />
+          <div className="badge-card">
+          <div className="badge-text">
+            <strong>Play 750 Public Arena Matches</strong>
+            <span className="tag mega-prize">Mega Prize: OG High Quality Jack Model</span>
+            <span className="muted">Counted separately from Combat.</span>
+          </div>
+          </div>
+          {arena?.players.length ? (
+            arena.players.slice(0, 10).map((p) => (
+              <PrizeBar key={p.user_id} value={p.matches / arena.target} label={`${p.name}: ${p.matches} / ${arena.target}`} />
+            ))
+          ) : (
+            <PrizeBar value={0} label="No Arena matches counted yet" />
+          )}
+          <span className="muted">Public Arena only, 3+ minutes in the match, counted from the live match list.</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Progress toward a Mega Prize; no value = not tracked in this app. */
+function PrizeBar({ value, label }: { value: number | null; label: string }) {
+  const w = Math.round(Math.max(0, Math.min(1, value ?? 0)) * 100);
+  return (
+    <div className="section-progress">
+      <div className="bar" style={{ "--sec": "var(--tier-gold, #c9a227)" } as React.CSSProperties} role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={w}>
+        <div style={{ width: `${w}%` }} />
+      </div>
+      <span className="muted">{label}</span>
+    </div>
   );
 }
 
@@ -301,6 +361,7 @@ export function Badge({ a }: { a: AchievementRule & Partial<Pick<Achievement, "p
         </span>
         {a.rules && a.rules.length > 0 && <span className="muted rule-notes">{a.rules.join(" · ")}</span>}
         {a.levels && a.levels.length > 0 && <MedalTargets levels={a.levels} unit={a.unit} />}
+        {a.prize && <span className="tag mega-prize" title="Mega Prize for completing this challenge">Mega Prize: {a.prize}</span>}
         {!catalogue && (
           <>
             <TierSteps a={a as Achievement & AchievementRule} />

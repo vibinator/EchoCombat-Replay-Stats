@@ -614,6 +614,7 @@ export interface AchievementRule {
   group: string | null; // theme of a new achievement
   unit?: string; // ladder targets are in this unit ("%", " m/s", " min"); empty = a count
   levels?: number[] | null; // tiered achievements: count targets for bronze, silver, gold, diamond, platinum
+  prize?: string | null; // Mega Prize (in-game item) for completing it
 }
 
 export const LEVELS = ["bronze", "silver", "gold", "diamond", "platinum"] as const;
@@ -1139,3 +1140,12 @@ export const savePlayerBio = (userId: string, edit: { bio: string | null; show_a
     headers: { ...ADMIN_WRITE, "Content-Type": "application/json" },
     body: JSON.stringify(edit),
   });
+
+/** Public Echo Arena matches (Mega Prize, hidden tab, Preview role only): separate from the Combat stats. */
+export interface ArenaProgress {
+  target: number;
+  min_minutes: number;
+  combat: AchievementRule[]; // the Combat Mega Prize challenges
+  players: { user_id: string; name: string; matches: number; completed: boolean }[];
+}
+export const getArenaProgress = () => send<ArenaProgress>("/api/arena/progress");

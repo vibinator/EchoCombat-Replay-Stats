@@ -22,7 +22,7 @@ from starlette.requests import Request
 from . import guard
 from .cache import STATUS_HEADER
 
-PER_VISITOR = ("/api/auth", "/api/admin", "/api/profiles", "/api/bot", "/api/worker")
+PER_VISITOR = ("/api/auth", "/api/admin", "/api/arena", "/api/profiles", "/api/bot", "/api/worker")
 WRITES = ("/api/admin/achievements/", "/api/admin/console/", "/api/admin/permissions", "/api/profiles/")
 BOT = ("/api/bot/", "/api/worker/")  # the Discord bot and the remote processing PC: POST with their shared secret (checked by the endpoint), no X-EchoVR header
 STATIC_MAX_AGE_S = 4 * 3600

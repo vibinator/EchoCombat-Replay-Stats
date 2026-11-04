@@ -136,7 +136,6 @@ function Layout() {
             ...(user?.console
               ? ([
                   ["/console", "Console"],
-                  ["/permissions", "Permissions"],
                 ] as const)
               : []),
           ].map(([to, label]) => (

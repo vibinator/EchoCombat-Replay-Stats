@@ -232,3 +232,26 @@ class ConsoleLog(Base):
     args: Mapped[str | None]  # JSON
     ok: Mapped[bool]
     output: Mapped[str | None]  # what it printed, cut to OUTPUT_MAX
+
+
+class ArenaPlayer(Base):
+    """Public Echo Arena matches per player, counted from the live Nakama match list (arena.py). Completely separate
+    from the Combat stats (user, 2026-11-04). Kept across rebuilds: it cannot be recomputed from anything."""
+
+    __tablename__ = "arena_players"
+
+    user_id: Mapped[str] = mapped_column(primary_key=True)  # Nakama user id
+    username: Mapped[str]
+    display_name: Mapped[str | None]
+    matches: Mapped[int] = mapped_column(default=0, index=True)
+    last_match_at: Mapped[str]
+
+
+class ArenaCounted(Base):
+    """A (match, player) already counted, so a restart or a rejoin never counts it twice. Pruned after 2 days."""
+
+    __tablename__ = "arena_counted"
+
+    match_id: Mapped[str] = mapped_column(primary_key=True)
+    user_id: Mapped[str] = mapped_column(primary_key=True)
+    counted_at: Mapped[float] = mapped_column(index=True)  # epoch s

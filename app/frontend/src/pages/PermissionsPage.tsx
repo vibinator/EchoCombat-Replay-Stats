@@ -1,9 +1,7 @@
 import { useEffect, useState } from "react";
-import { changePermission, getMe, getPermissions, loginUrl, type DiscordEntry, type Permission, type PermissionState } from "../api";
+import { Navigate } from "react-router";
+import { changePermission, getPermissions, type DiscordEntry, type Permission, type PermissionState } from "../api";
 import { Status } from "../components/common";
-import { EmptyState } from "../components/ui";
-import { useApi } from "../useApi";
-import { usePageTitle } from "../usePageTitle";
 
 const PERMISSIONS: { key: Permission; title: string; gives: string }[] = [
   {
@@ -19,34 +17,13 @@ const PERMISSIONS: { key: Permission; title: string; gives: string }[] = [
   { key: "preview", title: "Preview", gives: "Achievements and challenges before the launch date." },
 ];
 
-/** Who gets Admin, the Console and the Preview, by Discord role or user id. Console users only; the server
- * checks every change. */
+/** Old /permissions address: the panel now lives on the Console page, which does the access check. */
 export function PermissionsPage() {
-  usePageTitle("Permissions");
-  const me = useApi(getMe, "me");
-  if (!me.data) return <Status loading={me.loading} error={me.error} />;
-  const user = me.data.user;
-  if (!user?.console)
-    return (
-      <section>
-        <h1>Permissions</h1>
-        <EmptyState title="No access">
-          {!me.data.enabled ? (
-            "Discord login is not set up on this server."
-          ) : user ? (
-            <>You are logged in as {user.name}, but you do not have access to this page.</>
-          ) : (
-            <>
-              This page is for site staff. <a href={loginUrl("/permissions")}>Log in with Discord</a>
-            </>
-          )}
-        </EmptyState>
-      </section>
-    );
-  return <Permissions />;
+  return <Navigate to="/console#permissions" replace />;
 }
 
-function Permissions() {
+/** The permissions panel, shown under the Console (console users only; the server checks every change). */
+export function Permissions() {
   const [state, setState] = useState<PermissionState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -54,6 +31,9 @@ function Permissions() {
   useEffect(() => {
     getPermissions().then(setState, (e: Error) => setError(e.message));
   }, []);
+  useEffect(() => {
+    if (state && window.location.hash === "#permissions") document.getElementById("permissions")?.scrollIntoView(); // opened from the old /permissions address
+  }, [state]);
 
   async function change(c: Parameters<typeof changePermission>[0]): Promise<boolean> {
     setBusy(true);
@@ -70,8 +50,8 @@ function Permissions() {
   }
 
   return (
-    <section>
-      <h1>Permissions</h1>
+    <section id="permissions">
+      <h2>Permissions</h2>
       <p className="muted">
         Give or take away access by Discord role (everyone with the role) or by a person's Discord user id. Changes apply straight away;
         someone who is logged in sees a new tab within 5 minutes, or at once after logging out and in again.

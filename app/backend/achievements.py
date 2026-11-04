@@ -143,6 +143,7 @@ class Rule:
     count: Callable[[list[Game]], float] | None = None  # per period group; the best group counts
     unit: str = ""  # shown after each target ("%", " m/s", " min")
     meta: bool = False  # Medal Collector: counts the medals of the other rules
+    prize: str = ""  # Mega Prize (in-game item) for completing it; shown on the site, handed out outside the app
 
 
 # Tiered rules (user, 2026-10-31): almost every rule is a ladder. Order (user, 2026-10-31): bronze, silver, gold, diamond, platinum (platinum is the top medal).
@@ -650,6 +651,9 @@ def _build_rules() -> list[Rule]:
             rules.append(Rule(rid, f"Nothing but {label}", f"Play one game using only {label}", "game", icon, score,
                               new=True, group="Gear mastery"))
             rid += 1
+    # Mega Prize (user, 2026-11-04). Written targets are /HARDER_TOP so that platinum = 750 and diamond = 450 matches.
+    rules.append(_ladder(rid, "Echo Combat Veteran", "Play Echo Combat matches", None, len, (25, 100, 250, 346, 577),
+                         new=True, group="Activity", prize="Delta Squad BioMass Chassis"))
     return rules
 
 
@@ -761,7 +765,7 @@ def evaluate(games: list[Game]) -> list[dict]:
         progress = round(clamp(best), 4)
         entry = {
             "id": rule.id, "name": rule.name, "description": rule.description, "rules": rule_notes(rule), "period": rule.period,
-            "icon": icon_file(rule), "estimated": rule.estimated, "new": rule.new, "group": rule.group, "progress": progress, "tier": tier(progress),
+            "icon": icon_file(rule), "estimated": rule.estimated, "new": rule.new, "group": rule.group, "prize": rule.prize or None, "progress": progress, "tier": tier(progress),
         }
         if n is not None:  # the website shows "12 / 25 for diamond"
             entry |= {"tier": level_tier(n, rule.levels), "count": round(n, 2), "levels": list(rule.levels), "unit": rule.unit}
@@ -772,7 +776,7 @@ def evaluate(games: list[Game]) -> list[dict]:
             progress = round(clamp(_levelled(lambda _: n, rule.levels)([])), 4)
             entries[rule.id] = {
                 "id": rule.id, "name": rule.name, "description": rule.description, "rules": rule_notes(rule), "period": rule.period, "icon": icon_file(rule),
-                "estimated": False, "new": rule.new, "group": rule.group, "progress": progress, "tier": level_tier(n, rule.levels),
+                "estimated": False, "new": rule.new, "group": rule.group, "prize": rule.prize or None, "progress": progress, "tier": level_tier(n, rule.levels),
                 "count": n, "levels": list(rule.levels), "unit": rule.unit,
             }
     return [entries[rule.id] for rule in RULES]

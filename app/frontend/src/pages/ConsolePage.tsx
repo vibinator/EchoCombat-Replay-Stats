@@ -9,6 +9,7 @@ import { ProcessingPanel } from "../components/ProcessingPanel";
 import { duration, int, num, pct, playerPath } from "../format";
 import { Status, TableWrap } from "../components/common";
 import { EmptyState } from "../components/ui";
+import { Permissions } from "./PermissionsPage";
 import { GENERIC_ICON, IconEditor, IMG } from "../components/IconEditor";
 import { useApi, useWhileVisible } from "../useApi";
 import { usePageTitle } from "../usePageTitle";
@@ -317,7 +318,12 @@ export function ConsolePage() {
         </EmptyState>
       </section>
     );
-  return <Console />;
+  return (
+    <>
+      <Console />
+      <Permissions />
+    </>
+  );
 }
 
 function Console() {

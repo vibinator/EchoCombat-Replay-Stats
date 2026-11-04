@@ -3482,3 +3482,9 @@ button.small {
   font-size: 0.75rem;
   font-style: italic;
 }
+
+.tag.mega-prize {
+  background: #c9a227;
+  color: #1a1400;
+  align-self: flex-start;
+}
