@@ -445,9 +445,13 @@ export function PlayerPage() {
             </label>
           </div>
 
-          {p.stats.games === 0 ? (
+          {/* "Beta Data Collection": combat stats from the recorder's match reports, its own data apart from the replay stats */}
+          {(() => {
+            const combat = <WhenVisible><CombatSection userId={p.user_id} period={period} map={map} /></WhenVisible>;
+            return p.stats.games === 0 ? (
             <>
               <p className="muted">No matches in this period.</p>
+              {combat}
               {/* achievements do not follow the period filter: still shown when the period has no games */}
               <WhenVisible><AchievementsSummary userId={p.user_id} /></WhenVisible>
             </>
@@ -472,6 +476,8 @@ export function PlayerPage() {
                 )}
               </div>
               <p className="muted footnote">* Estimated.</p>
+
+              {combat}
 
               {/* above Loadouts (user, 2026-11-02) */}
               <WhenVisible><AchievementsSummary userId={p.user_id} /></WhenVisible>
@@ -506,7 +512,8 @@ export function PlayerPage() {
 
               {p.gear && <GearUseSection gear={p.gear} />}
             </>
-          )}
+            );
+          })()}
 
           {/* further down: asked for only when scrolled near (the heatmap is the heaviest request on the site) */}
           <WhenVisible><Trends userId={p.user_id} /></WhenVisible>
@@ -514,8 +521,6 @@ export function PlayerPage() {
           {p.stats.games > 0 && (
             <WhenVisible minHeight={400}><PlayerHeatmap userId={p.user_id} period={period} maps={p.stats.games_by_map} /></WhenVisible>
           )}
-          {/* "Beta Data Collection": combat stats from the recorder's match reports, its own data apart from everything above */}
-          <WhenVisible><CombatSection userId={p.user_id} period={period} map={map} /></WhenVisible>
           <h2>Recent matches</h2>
           <MatchTable
             matches={p.recent_matches}
