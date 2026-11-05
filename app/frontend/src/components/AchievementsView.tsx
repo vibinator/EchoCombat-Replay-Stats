@@ -22,11 +22,12 @@ export const GROUPS: [Achievement["period"], string][] = [
 export const NEW_GROUPS: [name: string, hint: string, groups: string[]][] = [
   ["Gear", "Experimental weapons and ordnances (never released), and using all four weapons, ordnances or tac mods in one game", ["Experimental gear", "Gear mastery"]],
   ["Modes & wins", "Winning, streaks, and Payload and Capture Point play", ["Wins", "Payload", "Capture Point"]],
+  ["Combat", "Kills, assists, damage and objective play, from the game's own counters in the recorder's match reports, from 4 November 2026 on, apart from the replay stats. Targets are provisional. These do not count toward your average progress, totals or Medal Collector.", ["Combat"]],
 ];
 
 // Survival, Movement, Emotes and Activity are not themes any more (user, 2026-11-04): their challenges sit with the others of the same
 // period (mostly "In one game"; the all-time ones, Activity included, under "All time").
-const BY_PERIOD = new Set(["Survival", "Movement", "Emotes", "Activity"]);
+const BY_PERIOD = new Set(["Survival", "Movement", "Emotes", "Activity", "Gear in one game"]);
 const GEAR_GROUPS = new Set(["Experimental gear", "Gear mastery"]);
 /** Shown under its period (in one game / day / any 7 days / all time) rather than a theme: the old rules, a few themes, and the
  *  "any 7 days" gear challenges (user, 2026-11-04). */
@@ -167,7 +168,6 @@ export function GroupedBadges<T extends AnyBadge>({ items: all }: { items: T[] }
               </button>
             ))}
           </div>
-          {tracked && <CloseToMedal items={active.items as unknown as Achievement[]} />}
           {tracked && <NotYetStarted items={active.items as unknown as Achievement[]} />}
           <Section key={active.id} label={active.label} hint={active.hint} items={active.items} only={only} sort={sort} shares={shares} />
         </>
@@ -428,27 +428,21 @@ function NotYetStarted({ items }: { items: Achievement[] }) {
   );
 }
 
-/** First row of a player's page: the challenges they are closest to a medal in (a quarter of the way or more to the next one). */
-function CloseToMedal({ items }: { items: Achievement[] }) {
-  const close = items
-    .filter((a) => a.progress < 1)
-    .map((a) => ({ a, m: nextMedal(a) }))
-    .filter((x): x is { a: Achievement; m: { fraction: number; medal: string } } => x.m !== null && x.m.fraction >= 0.25)
-    .sort((x, y) => y.m.fraction - x.m.fraction)
-    .slice(0, EASY_SHOWN);
-  if (close.length === 0) return null;
-  return (
-    <section className="closest">
-      <h3>Close to a medal <span className="muted hint">· the next one is within reach</span></h3>
-      <div className="badges scroll-row" tabIndex={0} aria-label="Close to a medal, scroll sideways">
-        {close.map(({ a, m }) => (
-          <div key={a.id} className="next-card" style={{ "--next": `var(--tier-${m.medal})` } as React.CSSProperties} title={`Next medal: ${m.medal}`}>
-            <Badge a={a} />
-          </div>
-        ))}
-      </div>
-    </section>
-  );
+const CLOSE_FROM = 0.25; // a quarter of the way or more to the next medal counts as close
+const CLOSE_HUE_FAR = 50; // yellow
+const CLOSE_HUE_NEAR = 130; // green
+
+/** A card close to its next medal is highlighted in its own list, yellow to green as it nears the medal (user, 2026-11-05;
+ *  it replaced the "Close to a medal" row). Null = not close, or a catalogue entry without progress. */
+function closeness(a: Parameters<typeof Badge>[0]["a"]): { hue: number; label: string } | null {
+  if (a.progress === undefined || a.progress >= 1) return null;
+  const next = nextMedal(a as Achievement);
+  if (!next || next.fraction < CLOSE_FROM) return null;
+  const nearness = (next.fraction - CLOSE_FROM) / (1 - CLOSE_FROM);
+  return {
+    hue: Math.round(CLOSE_HUE_FAR + nearness * (CLOSE_HUE_NEAR - CLOSE_HUE_FAR)),
+    label: `${Math.floor(next.fraction * 100)}% of the way to ${next.medal}`,
+  };
 }
 
 /** A rule with a player's progress, or just the catalogue entry when `progress` is absent. */
@@ -470,8 +464,11 @@ export function Badge({ a }: { a: AchievementRule & Partial<Pick<Achievement, "p
   // 2026-11-02). Built-in art is one colour on transparent, so it is used as a mask; uploads keep their own colours.
   const state = catalogue ? "" : tier ? " tinted" : a.progress! > 0 ? " tinted started" : " not-started";
   const tinted = state.includes("tinted") && a.icon != null && !a.icon.startsWith("custom/");
+  const close = closeness(a);
   return (
-    <div className={`badge-card${tier || catalogue ? "" : " locked"}${tier ? ` t-${tier}` : ""}${tinted ? state : state.replace(" tinted", "")}`} title={`${ruleText(a.description)}${a.estimated ? " (estimated)" : ""}`}>
+    <div className={`badge-card${tier || catalogue ? "" : " locked"}${tier ? ` t-${tier}` : ""}${tinted ? state : state.replace(" tinted", "")}${close ? " close" : ""}`}
+      style={close ? ({ "--close-hue": close.hue } as React.CSSProperties) : undefined}
+      title={`${ruleText(a.description)}${a.estimated ? " (estimated)" : ""}${close ? ` · ${close.label}` : ""}`}>
       <div className="badge-art">
         {tinted ? (
           <span className="icon glyph" style={{ WebkitMaskImage: `url(${src})`, maskImage: `url(${src})` }} aria-hidden="true" />
@@ -695,8 +692,9 @@ function LaunchedSummary({ userId }: { userId: string }) {
   const result = useApi(() => getAchievements(userId), userId);
   const d = result.data;
   if (!d) return null;
-  const gold = d.items.filter((a) => a.progress >= 1).length; // platinum for ladders, 100 % for single-step ones
-  const unlocked = d.items.filter((a) => a.tier).length;
+  const counted = d.items.filter((a) => a.counted); // the Combat section is left out of the totals for now
+  const gold = counted.filter((a) => a.progress >= 1).length; // platinum for ladders, 100 % for single-step ones
+  const unlocked = counted.filter((a) => a.tier).length;
   const added = d.items.filter((a) => a.new);
   return (
     <>
@@ -822,6 +820,13 @@ export function AchievementRules({ open = false }: { open?: boolean }) {
           10% of the game, so trying it out for a moment does not count. <strong>"Use only"</strong> an item = it was equipped for at least 90% of
           the game in its slot, so a short switch is fine: in a 10-minute game up to 1 minute of something else is allowed.
         </li>
+        <li>
+          <strong>Highlighted cards</strong> are close to their next medal: at least a quarter of the way there, from yellow to green as you get closer.
+        </li>
+        <li>
+          <strong>Combat section.</strong> These use the game's own counters from the recorder's match reports, from 4 November 2026 on, apart from the
+          replay stats. You earn medals as usual, but their targets are provisional and they do not count toward average progress, totals, rankings or Medal Collector.
+        </li>
         <li>* Deaths are estimated from the recording.</li>
       </ul>
     </details>
@@ -852,7 +857,7 @@ export function AchievementsView({ userId }: { userId: string }) {
             {LEVELS.map((medal, i) => (
               <div className={`card t-${medal}`} key={medal} title={`Challenges where the ${medal} medal (or better) is earned`}>
                 <span className="label" style={{ color: "var(--tier)" }}>{medal}</span>
-                <strong>{data.items.filter((a) => a.levels && a.tier && LEVELS.indexOf(a.tier as (typeof LEVELS)[number]) >= i).length}</strong>
+                <strong>{data.items.filter((a) => a.counted && a.levels && a.tier && LEVELS.indexOf(a.tier as (typeof LEVELS)[number]) >= i).length}</strong>
               </div>
             ))}
           </div>

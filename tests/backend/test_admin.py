@@ -11,6 +11,7 @@ from sqlalchemy import select
 
 from backend import admin_actions as actions
 from backend.achievements import RULES
+from backend.combat_achievements import COMBAT_RULES
 from backend.api.achievements import REVEALED_IDS
 from backend.models import PlayerAlias
 
@@ -265,7 +266,7 @@ def test_settings_and_merges_survive_database_rebuild(tmp_path):
 def test_rarity_and_recent(client):
     act(client, actions.set_challenge_window, "2026-01-01", None)
     rules = client.get("/api/achievements").json()
-    assert len(rules) == len(RULES) and "unlocked_share" in rules[0]
+    assert len(rules) == len(RULES) + len(COMBAT_RULES) and "unlocked_share" in rules[0]
     recent = client.get("/api/achievements/recent").json()
     assert isinstance(recent, list)
     assert all({"date", "name", "achievement"} <= set(e) for e in recent)

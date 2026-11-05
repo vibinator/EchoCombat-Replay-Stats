@@ -610,6 +610,7 @@ export interface AchievementRule {
   period: "game" | "day" | "week" | "all";
   icon: string | null;
   estimated: boolean;
+  counted: boolean; // false: the Combat section, from the recorder's reports: earns medals, out of overall %, totals and Medal Collector
   new: boolean; // added in this app (80+), not on the original ECRanked site
   group: string | null; // theme of a new achievement
   unit?: string; // ladder targets are in this unit ("%", " m/s", " min"); empty = a count

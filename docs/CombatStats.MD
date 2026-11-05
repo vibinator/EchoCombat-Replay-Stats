@@ -1,12 +1,13 @@
 # Combat stats
 
-Last updated: 2026-11-04. Code: `app/backend/combat.py` (reader), `app/backend/api/combat.py` (endpoints),
+Last updated: 2026-11-05. Code: `app/backend/combat.py` (reader), `app/backend/api/combat.py` (endpoints),
 `app/frontend/src/components/CombatView.tsx` (player page section), `app/frontend/src/pages/CombatPage.tsx` (`/combat`,
 `/combat/:id`). Tests: `tests/backend/test_combat.py`.
 
 **Rule (user, 2026-11-04): the combat stats are completely separate from the replay data.** Own tables, own reader, own
 endpoints, own pages/sections. Nothing here reads or writes `replays`, `matches`, `players` or `match_players`, and the
 replay-derived stats never use these numbers. Numbers can differ between the two sources, and the site says so.
+**Two sources, never merged (user, 2026-11-05, D56):** achievements come from `E:\ECRanked\Replays` or from `E:\ECRanked\matches`. No stat or achievement combines the two. They only share the Achievements page. See "Achievements" below.
 
 ## Where the data comes from
 The ECRanked recorder PC writes plain JSON next to the replays (`E:\ECRanked`, shown as `Z:\ECRanked` on the PC that runs
@@ -57,6 +58,30 @@ Player profile: "Beta Data Collection" section (still beta). Replay match page, 
 Game counters: kills, deaths, assists, eliminations, damage, objective eliminations / damage / time, hill captures / defends,
 time played. Event-log: shots (and by weapon), kills / deaths by weapon, tac mod activations, heal bubbles, stuns given /
 received, self-kills. Derived: K/D, kills per minute, damage per minute, per-map splits, leaderboards.
+
+## Achievements
+The Combat section of the Achievements page (ids 164-178, `combat_achievements.py`) is built only from `combat_matches` and
+`combat_players`, plus `player_aliases` so merged accounts add up. It reuses the medal engine but keeps its own rule list,
+`COMBAT_RULES`, which is not in `RULES`, so replay-based overall %, totals, rankings and Medal Collector never include it. The
+`/api/players/{id}/achievements`, `/api/achievements` and `/api/achievements/recent` answers add its cards after the replay ones.
+
+A game counts when the report shows the player present for 4+ minutes and 3+ players per team, each there for at least half of the
+match. The challenge period applies to the report's start time. A report with no replay counts, and someone with reports but no
+replay still gets a page. Results are rebuilt when a report is read, a merge changes or the period changes; only players whose
+counted games changed are evaluated again.
+
+Targets are provisional and will be re-tuned as data comes in. All-time targets are estimates. Assists stay above kills at every medal
+(user, 2026-11-05; tested).
+
+Calibration data (`E:\ECRanked\matches`, 4 Nov 15:17 to 5 Nov 14:15): 90 matches, 83 of them 4+ minutes, 38 with 3+ players per team,
+551 player-games, 264 counted, 140 players, 92 with a counted game. All-time targets are estimates. Assists stay above kills at
+every medal (user, 2026-11-05; tested).
+
+Left out, from the review of the same reports:
+- **Eliminations:** always exactly kills + assists (551 of 551 rows), although FORMATS.md calls it a separate counter.
+- **Hill captures / defends:** 0 in all 90 reports, Dyson and Combustion included.
+- **Event-log numbers:** only 9 of 90 matches have a log, all 17:29-19:00 on 4 Nov, and 2 of those are incomplete. The logging is being fixed on the recorder side (user, 2026-11-05). Add per-weapon, shots, heal bubble and stun challenges once logging runs all the time; use only `events_complete` logs.
+- **Objective fields:** described as payload-only, but Dyson has the most objective time, so they probably cover Capture Point too (reports have no mode field to confirm it).
 
 ## API
 `GET /api/combat/summary`, `/stats`, `/players/{user_id}` (`period`, `map`), `/leaderboard` (`stat`, `period`, `map`,

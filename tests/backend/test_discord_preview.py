@@ -431,6 +431,7 @@ def test_console_exports_achievement_names_and_rules(tmp_path, discord):
     import io
 
     from backend.achievements import RULES
+    from backend.combat_achievements import COMBAT_RULES
 
     with app_client(settings(tmp_path)) as client:
         for url in ("/api/admin/console/achievements", "/api/admin/console/achievements.csv"):
@@ -440,7 +441,7 @@ def test_console_exports_achievement_names_and_rules(tmp_path, discord):
 
         login(client, MEMBER)
         items = client.get("/api/admin/console/achievements").json()
-        assert len(items) == len(RULES) and set(items[0]) == {"id", "name", "rule", "icon", "default_icon"}
+        assert len(items) == len(RULES) + len(COMBAT_RULES) and set(items[0]) == {"id", "name", "rule", "icon", "default_icon"}
         assert items[0]["name"] == RULES[0].name and items[0]["rule"] == RULES[0].description
         assert items[0]["icon"] == items[0]["default_icon"]
         estimated = next(r for r in RULES if r.estimated)

@@ -18,6 +18,22 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.05.1 — 16:03
+
+### New Combat challenges
+- **New Combat section** with 15 challenges from the game's own counters. In one game: Frag Out (kills), Wingbot (assists), Heavy Hitter (damage), Net Positive (kills minus deaths), Objective Threat (objective eliminations), On the Objective (objective time), Flawless (10+ kills, no deaths). In one day: Kill Spree, Busy Hands. All time: Body Count, Force Multiplier, Demolition Crew, Top Fragger, Triple Threat, Selfless.
+- **Assists need more than kills** at every medal.
+- **What counts:** games of 4+ minutes with 3+ players per team, judged from the recorder's match reports alone, so from 4 November 2026 on. They are completely separate from the replay stats and share only the Achievements page, so a report with no replay counts too.
+- **Provisional:** the targets come from about one day of reports and will be re-tuned as data comes in. These challenges earn medals but stay out of average progress, completed and medal totals, the achievements ranking and Medal Collector.
+
+### Test Drive challenges
+- **19 new challenges under In one game,** one per weapon, tac mod and ordnance: use it for at least 3 minutes in one game with 3+ players per team. Time is the item's share of the game x time played, so waiting to respawn with it equipped counts. These use replay data and count toward the totals, but not toward Medal Collector.
+
+### Showboat and close medals
+- **Showboat:** the old Showboat (emotes in any game) is gone. Victory Lap (emotes in a game your team wins) is now called Showboat; its targets and everyone's progress on it stay the same.
+- **Player achievements:** the separate "Close to a medal" row is gone. Cards in each section's list are highlighted instead once they are at least a quarter of the way to the next medal, from yellow to green as they get closer. Hover a card to see how far along it is.
+- **Do:** restart the backend and rebuild the website (run.bat). Every player is evaluated again once, because the rules changed.
+
 ## 2026.11.04.11 — 19:52
 
 ### Beta Data Collection: combat stats

@@ -5,12 +5,13 @@ import csv
 from io import StringIO
 
 from .achievements import RULES
+from .combat_achievements import COMBAT_RULES
 
 
 def name_and_rule() -> list[dict]:
     """Console export (D45): just the name and the rule to win it, the text on the website."""
     return [{"id": r.id, "name": r.name, "rule": r.description + (" (deaths are estimated)" if r.estimated else "")}
-            for r in RULES]
+            for r in RULES + COMBAT_RULES]
 
 
 def csv_bytes() -> bytes:

@@ -859,6 +859,18 @@ svg .crosshair {
   background: var(--panel);
 }
 
+/* Close to the next medal: a ring and a light wash, yellow to green as it nears the medal (--close-hue from AchievementsView) */
+.badge-card.close {
+  --close: hsl(var(--close-hue) var(--close-sat, 85%) var(--close-light, 52%));
+  box-shadow: inset 0 0 0 2px var(--close);
+  background: color-mix(in srgb, var(--close) 10%, var(--panel));
+}
+
+:root[data-theme="light"] .badge-card.close {
+  --close-sat: 90%;
+  --close-light: 38%; /* yellow at 52 % barely shows on white */
+}
+
 /* Not started: grey. Started without a tier yet: the plain glyph. A tier: the glyph in the tier colour. */
 .badge-card.locked .icon {
   opacity: 0.35;

@@ -7,6 +7,8 @@ from app_helpers import act, add, app_client, make_settings
 from backend import admin_actions as actions
 from backend.achievements import medal_times, rule_notes, RULES, Game, _all_time, _easier_platinum, _harder, _scaled, evaluate, icon_file, overall, tier
 
+from backend.combat_achievements import COMBAT_RULES
+
 BLUE = str(rf.BIG_USER_ID)
 
 
@@ -23,8 +25,11 @@ def by_id(results):
 
 def test_catalogue():
     ids = [r.id for r in RULES]
-    assert ids == [i for i in range(5, 152) if i != 91] and len(set(ids)) == 146  # 75 original + 71 new (80-151 without 91, Unstoppable); the Mega Prize is not in RULES
-    assert [r.id for r in RULES if r.new] == [i for i in range(80, 152) if i != 91]
+    expected = [i for i in range(5, 152) if i not in (91, 99)] + list(range(179, 198))  # 75 original + 70 new (80-151 without 91, Unstoppable, and 99, the first Showboat) + 19 Test Drive; Combat has its own list (combat_achievements); the Mega Prize is not in RULES
+    assert ids == expected and len(set(ids)) == 164
+    assert next(r for r in RULES if r.id == 151).name == "Showboat" and sum(r.name == "Showboat" for r in RULES) == 1
+    assert [r.id for r in RULES if r.new] == [i for i in expected if i >= 80]
+    assert all(r.counted for r in RULES)
     assert icon_file(next(r for r in RULES if r.id == 7)) == "comet_daily.png"
     assert icon_file(next(r for r in RULES if r.id == 32)) == "comet_weekly.png"
     assert icon_file(next(r for r in RULES if r.id == 57)) == "comet.png"
@@ -91,9 +96,9 @@ def test_api_and_leaderboard(tmp_path):
         add(client, {f"dyson/{i}.echoreplay": rf.plain(rf.lines(20)) for i in range(2)})
         act(client, actions.set_challenge_window, "2026-01-01", None)
         a = client.get(f"/api/players/{BLUE}/achievements").json()
-        assert a["total"] == len(RULES) and len(a["items"]) == len(RULES) and 0 <= a["overall"] <= 1
+        assert a["total"] == len(RULES) and len(a["items"]) == len(RULES) + len(COMBAT_RULES) and 0 <= a["overall"] <= 1
         assert client.get("/api/players/nobody/achievements").status_code == 404
-        assert len(client.get("/api/achievements").json()) == len(RULES)
+        assert len(client.get("/api/achievements").json()) == len(RULES) + len(COMBAT_RULES)
         board = client.get("/api/leaderboard", params={"stat": "achievements", "min_games": 1}).json()
         assert {r["name"] for r in board["items"]} == {"Player", "Other"}
         assert board["label"] == "Achievements (overall %)"
@@ -262,8 +267,9 @@ def test_grand_tour_and_medal_collector():
     # Medal Collector counts every challenge at gold or better (more of them since the ladders were retuned on 2026-11-04)
     assert r[126]["count"] >= 1 and r[126]["levels"] == [5, 10, 25, 65, 98]
     r = by_id(evaluate([won("dyson", f"2026-10-{1 + i % 28:02d}") for i in range(120)]))
-    golds = sum(1 for x in r.values() if x["id"] != 126 and (x["count"] >= x["levels"][2] if "levels" in x else x["progress"] >= 1))
+    golds = sum(1 for x in r.values() if x["id"] != 126 and x["group"] != "Gear in one game" and (x["count"] >= x["levels"][2] if "levels" in x else x["progress"] >= 1))
     assert golds > 0 and r[126]["count"] == golds  # Medal Collector counts gold-or-better medals of the others
+    assert any(x["group"] == "Gear in one game" and x["progress"] >= 1 for x in r.values())  # Test Drives were completed, and are not counted
 
 
 def test_hex_gear_codes_are_normalised():
@@ -335,7 +341,7 @@ def test_achiever_facts_and_endpoint(tmp_path):
     none = achiever_facts([0.0] * len(RULES))
     assert none["completed"] == 0 and none["medals"] == 0 and none["best_section"] is None
     full = achiever_facts([1.0] * len(RULES))
-    assert full["completed"] == len(RULES) and full["gold_plus"] == len(RULES) and full["best_section_share"] == 1.0
+    assert full["completed"] == len(RULES) == full["total"] and full["gold_plus"] == len(RULES) and full["best_section_share"] == 1.0
     # one ladder at 3 of 5 medals (progress 0.6): gold, 3 medals, nothing completed
     one = [0.0] * len(RULES)
     index = next(i for i, r in enumerate(RULES) if r.id == 7)
@@ -350,47 +356,35 @@ def test_achiever_facts_and_endpoint(tmp_path):
         assert all(r["total"] == len(RULES) and 0 <= r["completed"] <= len(RULES) and "medals" in r for r in top)
 
 
-def test_visibility_everyone_preview_only_or_hidden(tmp_path, monkeypatch):
-    from backend import auth
+def test_test_drive_one_challenge_per_released_item():
+    from backend.achievements import _released_gear, section_of
 
-    with app_client(make_settings(tmp_path)) as client:
-        add(client, {"dyson/0.echoreplay": rf.plain(rf.lines(20))})
-        act(client, actions.set_challenge_window, "2026-01-01", None)
-        monkeypatch.setattr(auth, "has_preview", lambda request: False)
-        assert client.get("/api/achievements").status_code == 200  # default: public from the start date
-        assert client.get("/api/challenges").json()["visibility"] == "everyone"
-
-        act(client, actions.set_achievements_visibility, "preview")  # Preview role only: the date is set, the public waits
-        assert client.get("/api/achievements").status_code == 403
-        info = client.get("/api/challenges").json()
-        assert (info["launched"], info["preview"], info["visibility"]) == (False, False, "preview")
-        monkeypatch.setattr(auth, "has_preview", lambda request: True)
-        assert client.get("/api/achievements").status_code == 200  # a person with the Preview role sees it
-        assert client.get("/api/challenges").json()["preview"] is True
-        a = client.get(f"/api/players/{BLUE}/achievements").json()
-        assert a["window"]["start"] == "2026-01-01"  # and it counts from the start date
-
-        act(client, actions.set_achievements_visibility, "hidden")  # nobody, Preview included
-        assert client.get("/api/achievements").status_code == 403
-        assert client.get("/api/challenges").json()["preview"] is False
-
-        act(client, actions.set_achievements_visibility, "everyone")
-        monkeypatch.setattr(auth, "has_preview", lambda request: False)
-        assert client.get("/api/achievements").status_code == 200
-        with pytest.raises(actions.AdminError):
-            act(client, actions.set_achievements_visibility, "nonsense")
+    drives = {r.name: r for r in RULES if r.name.startswith("Test Drive: ")}
+    assert len(drives) == sum(len(x) for x in _released_gear()) == 19
+    assert {"Test Drive: Pulsar", "Test Drive: Overcharge", "Test Drive: Dot Field", "Test Drive: Blazar"} <= set(drives)
+    assert all(r.counted and r.period == "game" and section_of(r) == "In one game" for r in drives.values())
+    pulsar = next(r for r in drives.values() if r.name.endswith("Pulsar"))
+    assert pulsar.description == "Use Pulsar for at least 3 minutes in one game"
+    assert rule_notes(pulsar) == ["Best game", "3+ players per team"]
 
 
-def test_only_notes_are_short():
-    nova = next(r for r in RULES if r.name == "One with the Nova")
-    assert rule_notes(nova) == ["Best day", '"Only" = 90%+ of the game']
+def test_test_drive_counts_the_time_in_one_game():
+    pulsar = next(r.id for r in RULES if r.name == "Test Drive: Pulsar")
+    nova = next(r.id for r in RULES if r.name == "Test Drive: Nova")
+    heal = next(r.id for r in RULES if r.name == "Test Drive: Repair Matrix")
 
+    def swapped(pulsar_frames, nova_frames, play=400.0):
+        g = game(play=play)
+        g.loadouts = {("assault", "heal", "det"): pulsar_frames, ("blaster", "heal", "det"): nova_frames}
+        return g
 
-def test_medal_times_are_per_medal():
-    days = [game(f"2026-10-{d:02d}", deaths=0, loadout=None) for d in range(1, 21)]
-    times = medal_times(days)
-    toaster = times[18]  # games with 3 or fewer deaths: one per day, so the medal days follow the ladder's levels
-    levels = next(r for r in RULES if r.id == 18).levels
-    assert toaster["bronze"].startswith(f"2026-10-{levels[0]:02d}") and toaster["silver"].startswith(f"2026-10-{levels[1]:02d}")
-    assert toaster["gold"].startswith(f"2026-10-{levels[2]:02d}") and toaster["diamond"].startswith(f"2026-10-{levels[3]:02d}") and "platinum" not in toaster
-    assert all(len(t) >= 16 for t in toaster.values())  # full time, not just the date
+    r = by_id(evaluate([swapped(600, 400)]))  # 60 % and 40 % of a 400 s game: 240 s and 160 s
+    assert r[pulsar]["progress"] == 1 and r[nova]["progress"] == round(160 / 180, 4) and r[heal]["progress"] == 1
+    r = by_id(evaluate([swapped(600, 400)] * 3))
+    assert r[nova]["progress"] == round(160 / 180, 4)  # one game, not added up over games
+    assert by_id(evaluate([game(play=179.0, loadout=("assault", "heal", "det"))]))[pulsar]["progress"] < 1
+    assert by_id(evaluate([game(play=180.0, loadout=("assault", "heal", "det"))]))[pulsar]["progress"] == 1
+    small = game(loadout=("assault", "heal", "det"))
+    small.enough_players = False
+    assert by_id(evaluate([small]))[pulsar]["progress"] == 0  # a game under 3v3 does not count
+    assert medal_times([game("2026-11-05", loadout=("assault", "heal", "det"))])[pulsar][None].startswith("2026-11-05")

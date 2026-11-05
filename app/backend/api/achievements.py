@@ -15,7 +15,7 @@ from datetime import date, timedelta
 from fastapi import APIRouter, Query, Request
 from sqlalchemy import func, select
 
-from .. import auth, icons
+from .. import auth, combat_achievements, icons
 from ..achievements import RULES, Game, evaluate, icon_file, in_window, medal_times, overall, rule_notes, unlock_dates, unlock_threshold
 from ..admin_actions import (WINDOW_KEYS, achievements_counting, achievements_launched, achievements_visibility,
                              challenge_window, previews_can_see)
@@ -170,24 +170,28 @@ def player_achievements(request: Request, user_id: str):
     with request.app.state.sessionmaker() as db:
         window = counted_window(db)  # part of the cache key: an admin period change shows at once
     result = cached(request, "achievements", (user_id, window), lambda: _player_achievements(request, user_id))
+    # the Combat cards come from the recorder's reports, apart from the replay answer and its totals (D56)
+    items = result["items"] + combat_achievements.player_items(request.app.state.sessionmaker, window, user_id)
     with request.app.state.sessionmaker() as db:
-        return result | {"items": icons.apply(db, result["items"])}  # icons chosen on the Console page (D43)
+        return result | {"items": icons.apply(db, items)}  # icons chosen on the Console page (D43)
 
 
 def _player_achievements(request: Request, user_id: str) -> dict:
     with request.app.state.sessionmaker() as db:
         player = db.scalar(select(Player).where(Player.user_id == user_id))
-        if player is None:
-            raise ApiError(404, "not_found", f"Player {user_id} not found")
         start, end = counted_window(db)
-        games = in_window(_games(db, [player.id]).get(player.id, []), start, end)
+        # someone can be in the combat reports without having a replay: their replay challenges are simply at 0
+        name = player.name if player else combat_achievements.player_name(request.app.state.sessionmaker, (start, end), user_id)
+        if name is None:
+            raise ApiError(404, "not_found", f"Player {user_id} not found")
+        games = in_window(_games(db, [player.id]).get(player.id, []), start, end) if player else []
     results = evaluate(games)
     unlocked = unlock_dates(games)
     for r in results:
         r["unlocked_at"] = unlocked.get(r["id"])
     return {
         "user_id": user_id,
-        "name": player.name,
+        "name": name,
         "window": {"start": start, "end": end},
         "games": len(games),
         "overall": overall(results),
@@ -434,13 +438,14 @@ def list_achievements(request: Request):
     for i, r in enumerate(RULES):
         values = [p[i] for p in eligible]
         out.append({"id": r.id, "name": r.name, "description": r.description, "rules": rule_notes(r), "period": r.period,
-                    "icon": icon_file(r), "estimated": r.estimated, "new": r.new, "group": r.group,
+                    "icon": icon_file(r), "estimated": r.estimated, "new": r.new, "group": r.group, "counted": r.counted,
                     "levels": list(r.levels) or None,  # ladder: targets for bronze ... platinum
                     "unit": r.unit,
                     "unlocked_share": round(sum(v >= unlock_threshold(r) for v in values) / len(values), 4) if values else None,
                     "completed_share": round(sum(v >= 1 for v in values) / len(values), 4) if values else None})
     with request.app.state.sessionmaker() as db:
-        return icons.apply(db, out)
+        window = counted_window(db)
+        return icons.apply(db, out + combat_achievements.catalogue(request.app.state.sessionmaker, window))
 
 
 @router.get("/api/achievements/recent")
@@ -448,4 +453,8 @@ def recent_unlocks(request: Request, limit: int = Query(20, ge=1, le=100)):
     """Latest 100 % completions by players active in the last 30 days of the archive."""
     require_launched(request)
     with request.app.state.sessionmaker() as db:
-        return icons.apply(db, (_ready_or_start(request) or {"recent": []})["recent"][:limit])
+        window = counted_window(db)
+        combat = combat_achievements.recent(request.app.state.sessionmaker, window)
+        replay = (_ready_or_start(request) or {"recent": []})["recent"]
+        merged = sorted(replay[:limit] + combat[:limit], key=lambda e: e["at"], reverse=True)
+        return icons.apply(db, merged[:limit])

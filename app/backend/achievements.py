@@ -108,6 +108,11 @@ class Game:
     def share(self, slot: str, code: str) -> float:
         return self._shares[slot].get(code, 0.0)
 
+    def seconds_used(self, slot: str, code: str) -> float:
+        """Time the item was equipped, by the game clock: its share of the game x time played. Loadout frames alone only cover
+        time on the map, about 60 % of play time (the wait to respawn is left out)."""
+        return self.share(slot, code) * self.play_time_s
+
     @cached_property
     def _used(self) -> dict[str, frozenset[str]]:
         return {slot: frozenset(c for c, v in shares.items() if c and v >= USED_SHARE) for slot, shares in self._shares.items()}
@@ -146,6 +151,7 @@ class Rule:
     unit: str = ""  # shown after each target ("%", " m/s", " min")
     meta: bool = False  # Medal Collector: counts the medals of the other rules
     prize: str = ""  # Mega Prize (in-game item) for completing it; shown on the site, handed out outside the app
+    counted: bool = True  # False: the Combat achievements (combat_achievements.py), not in RULES and out of every total
 
 
 # Tiered rules (user, 2026-10-31): almost every rule is a ladder. Order (user, 2026-10-31): bronze, silver, gold, diamond, platinum (platinum is the top medal).
@@ -431,6 +437,19 @@ def _pew_pew_proof(games):
     return min(1.0, len(games) / 25) * (1.0 if avg < limit else min(limit / avg, 0.99))
 
 
+TEST_DRIVE_S = 180.0
+ONE_GAME_GEAR = "Gear in one game"  # new challenges shown under the "In one game" period, not a theme of their own
+
+
+def _test_drive(slot: str, code: str):
+    """Share of TEST_DRIVE_S that the item was used in one game with 3+ players per team."""
+    def test_drive(games):
+        g = games[0]
+        return g.seconds_used(slot, code) / TEST_DRIVE_S if g.enough_players else 0.0
+    test_drive.enough_players = True  # shown as a rule note
+    return test_drive
+
+
 def _released_gear() -> tuple[list[str], list[str], list[str]]:
     """(weapons, tac mods, ordnances) in use, the most played first (archive hours, 2026-11-04): 8 x 5 x 6 = 240 loadouts."""
     return (["assault", "scout", "blaster", "rocket", "rifle", "magnum", "smg", "chain"],
@@ -694,8 +713,7 @@ def _build_rules() -> list[Rule]:
                 _v4(lambda gs: gs[0].block_s), (15, 30, 45, 48, 62), "game", " s", estimated=True, new=True, group="Payload"),  # seconds, eased 2026-11-04 (user): 15/30/45/62/81 s; was 0.5-3.9 min
         _ladder(98, "Freight Train", "Total time spent pushing the payload, in minutes", "payload",
                 _v4(lambda gs: sum(g.push_s for g in gs) / 60), (5, 12, 25, 35, 54), "all", " min", raise_all_time=False, estimated=True, new=True, group="Payload"),  # eased 2026-11-04 (user): 5/12/25/46/70 min; was 12/36/72/234/468, platinum 0.3 % of players
-        _ladder(99, "Showboat", "Use emotes in one game", None, lambda gs: gs[0].emotes, (12, 24, 40, 60, 100), "game",  # emotes are easy: x4 (user, 2026-11-03)
-                new=True, group="Emotes"),
+        # id 99 (the first Showboat, emotes in any game) was removed on 2026-11-05: id 151, emotes in a won game, took its name (user)
         _ladder(100, "Dance Floor Legend", "Use emotes (total across all games)", None, lambda gs: sum(g.emotes for g in gs), (40, 200, 800, 2000, 8000),  # x4 (user, 2026-11-03)
                 new=True, group="Emotes"),
     ]
@@ -743,7 +761,7 @@ def _build_rules() -> list[Rule]:
         _ladder(125, "Wall of Steel", "Total time spent blocking the payload", "payload", lambda gs: sum(g.block_s for g in gs) / 60, (2, 10, 30, 60, 120),
                 "all", " min", estimated=True, new=True, group="Payload"),
         # Medal Collector counts the other rules' medals; filled in by evaluate() (meta)
-        _ladder(126, "Medal Collector", "Earn gold or better on other challenges (each challenge counts once)", None, lambda gs: 0.0, MEDAL_LEVELS,
+        _ladder(126, "Medal Collector", "Earn gold or better on other challenges (each challenge counts once, Test Drives do not count)", None, lambda gs: 0.0, MEDAL_LEVELS,
                 new=True, group="Activity", meta=True),
     ]
     # Gear released on 2026-10-30 gets what the older gear has: "only X" in a week (127-130) and Overcharge in a day / week
@@ -805,11 +823,23 @@ def _build_rules() -> list[Rule]:
         _ladder(150, "Mime Troupe", "Use as many emotes as you can in one game without dying", None,
                 _v4(lambda gs: gs[0].emotes if gs[0].play_time_s >= FULL_GAME_S and gs[0].deaths == 0 else 0), (4, 8, 12, 16, 20), "game",  # x4 (user, 2026-11-03)
                 estimated=True, new=True, group="Emotes"),
-        _ladder(151, "Victory Lap", "Use as many emotes as you can in a game your team wins", None,
+        _ladder(151, "Showboat", "Use as many emotes as you can in a game your team wins", None,
                 _v4(lambda gs: gs[0].emotes if gs[0].won else 0), (12, 24, 40, 60, 100), "game", new=True, group="Emotes"),
     ]
     # "Nothing but <item>" (one game using only an item, ids 152-163) was removed on 2026-11-04: the daily "One with the <item>" ladders
     # test the same thing (user).
+
+    # One challenge per released item (user, 2026-11-05): use it for 3 minutes of one game, shown under "In one game". The most
+    # rarely used stay within reach, as one game with the item is enough; in the archive Overcharge has 4 players, Blazar 35.
+    icons = {code: icon for code, _, icon in WEAPONS + ORDNANCES + TACMODS} | GEAR_ICONS
+    weapons, tacmods, ordnances = _released_gear()
+    i = 179
+    for slot, table, codes in (("weapon", gear.WEAPONS, weapons), ("tacmod", gear.TACMODS, tacmods), ("ordnance", gear.ORDNANCES, ordnances)):
+        for code in codes:
+            label = gear.lookup(table, code).display_name
+            rules.append(Rule(i, f"Test Drive: {label}", f"Use {label} for at least {TEST_DRIVE_S / 60:g} minutes in one game", "game", icons.get(code),
+                              _test_drive(slot, code), new=True, group=ONE_GAME_GEAR))
+            i += 1
     return rules
 
 
@@ -839,9 +869,9 @@ def rule_notes(rule: Rule) -> list[str]:
     return [n for n in notes if n]
 
 
-def _tuned(rule: Rule) -> Rule:
-    """The rule with its TUNED_LEVELS (targets, text and scoring), if it has any."""
-    levels = TUNED_LEVELS.get(rule.id)
+def _tuned(rule: Rule, levels: tuple[float, ...] | None = None) -> Rule:
+    """The rule with the given targets or its TUNED_LEVELS (targets, text and scoring), if it has any."""
+    levels = levels or TUNED_LEVELS.get(rule.id)
     if levels is None:
         return rule
     what = rule.description.rsplit(" (", 1)[0]
@@ -922,11 +952,11 @@ def _reached_gold(entry: dict, rule: Rule) -> bool:
     return entry["count"] >= rule.levels[2] if rule.levels else entry["progress"] >= 1
 
 
-def evaluate(games: list[Game]) -> list[dict]:
+def evaluate(games: list, rules: list[Rule] = RULES) -> list[dict]:
     """Progress per rule: best period, capped at 1. Ladders also report the best count per period group."""
     groups = {p: _groups(games, p) for p in ("game", "day", "week", "week_all", "all")}
     entries: dict[int, dict] = {}
-    for rule in RULES:
+    for rule in rules:
         if rule.meta:
             continue
         n = None
@@ -938,23 +968,23 @@ def evaluate(games: list[Game]) -> list[dict]:
         progress = round(clamp(best), 4)
         entry = {
             "id": rule.id, "name": rule.name, "description": rule.description, "rules": rule_notes(rule), "period": rule.period,
-            "icon": icon_file(rule), "estimated": rule.estimated, "new": rule.new, "group": rule.group, "progress": progress, "tier": tier(progress),
+            "icon": icon_file(rule), "estimated": rule.estimated, "new": rule.new, "group": rule.group, "counted": rule.counted, "progress": progress, "tier": tier(progress),
         }
         if n is not None:  # the website shows "12 / 25 for diamond"
             entry |= {"tier": level_tier(n, rule.levels), "count": round(n, 2), "levels": list(rule.levels), "unit": rule.unit}
         if rule.id == LOADOUT_RULE_ID:
             entry["try_next"] = loadouts_to_try(games)  # "try these next": the website links each to its leaderboard
         entries[rule.id] = entry
-    for rule in RULES:
+    for rule in rules:
         if rule.meta:
-            n = sum(1 for r in RULES if not r.meta and _reached_gold(entries[r.id], r))
+            n = sum(1 for r in rules if not r.meta and r.group != ONE_GAME_GEAR and _reached_gold(entries[r.id], r))  # Test Drives are left out (user, 2026-11-05)
             progress = round(clamp(_levelled(lambda _: n, rule.levels)([])), 4)
             entries[rule.id] = {
                 "id": rule.id, "name": rule.name, "description": rule.description, "rules": rule_notes(rule), "period": rule.period, "icon": icon_file(rule),
-                "estimated": False, "new": rule.new, "group": rule.group, "progress": progress, "tier": level_tier(n, rule.levels),
+                "estimated": False, "new": rule.new, "group": rule.group, "counted": rule.counted, "progress": progress, "tier": level_tier(n, rule.levels),
                 "count": n, "levels": list(rule.levels), "unit": rule.unit,
             }
-    return [entries[rule.id] for rule in RULES]
+    return [entries[rule.id] for rule in rules]
 
 
 PERIOD_SECTIONS = {"game": "In one game", "day": "In one day", "week": "In any 7 days", "all": "All time"}
@@ -963,6 +993,8 @@ SECTION_MIN_RULES = 4  # a section needs this many challenges to be somebody's "
 
 def section_of(rule: Rule) -> str:
     """The section of the website a rule is shown in: its period (original rules) or its theme (new ones)."""
+    if rule.group == ONE_GAME_GEAR:
+        return PERIOD_SECTIONS[rule.period]
     if rule.new and not (rule.period == "week" and rule.group in ("Experimental gear", "Gear mastery")):  # 7-day gear rules: by period
         return rule.group or "More"
     return PERIOD_SECTIONS[rule.period]
@@ -1005,14 +1037,14 @@ def in_window(games: list[Game], start: str | None, end: str | None) -> list[Gam
             if (not start or g.started_at[:10] >= start) and (not end or g.started_at[:10] <= end)]
 
 
-def unlock_dates(games: list[Game]) -> dict[int, str]:
+def unlock_dates(games: list, rules: list[Rule] = RULES) -> dict[int, str]:
     """Date each rule first reached 100 % (ISO date). Game / day / week rules: the earliest group that
     reached it; all-time rules: the first game at which the running total reached it (averages: scanned in
     order, they can go down again; counts only grow, so a binary search finds it)."""
     ordered = sorted(games, key=lambda g: g.started_at)
     groups = {p: _groups(ordered, p) for p in ("game", "day", "week", "week_all")}
     out: dict[int, str] = {}
-    for rule in RULES:
+    for rule in rules:
         if rule.meta:
             continue
         if rule.period == "all":
@@ -1038,7 +1070,7 @@ def unlock_dates(games: list[Game]) -> dict[int, str]:
     return out
 
 
-def medal_times(games: list[Game]) -> dict[int, dict[str | None, str]]:
+def medal_times(games: list, rules: list[Rule] = RULES) -> dict[int, dict[str | None, str]]:
     """When each medal of each rule was first earned: {rule id: {medal: started_at of the game that completed it}}.
     A ladder has one entry per medal (bronze ... platinum); a single-step rule one entry under the key None (completed).
     Same rules as unlock_dates (a rolling week is complete at its last game, a day / game at its first), but for
@@ -1047,7 +1079,7 @@ def medal_times(games: list[Game]) -> dict[int, dict[str | None, str]]:
     groups = {p: _groups(ordered, p) for p in ("game", "day", "week", "week_all")}
     out: dict[int, dict[str | None, str]] = {}
     eps = 1e-9
-    for rule in RULES:
+    for rule in rules:
         if rule.meta or not ordered:
             continue
         n = len(rule.levels)
