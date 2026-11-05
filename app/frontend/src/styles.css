@@ -866,6 +866,16 @@ svg .crosshair {
   background: color-mix(in srgb, var(--close) 10%, var(--panel));
 }
 
+.badge-card .close-reason {
+  align-self: flex-start;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 1px 8px;
+  border-radius: 999px;
+  color: var(--close);
+  box-shadow: inset 0 0 0 1px var(--close);
+}
+
 :root[data-theme="light"] .badge-card.close {
   --close-sat: 90%;
   --close-light: 38%; /* yellow at 52 % barely shows on white */

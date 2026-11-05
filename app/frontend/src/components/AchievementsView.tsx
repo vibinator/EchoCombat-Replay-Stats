@@ -52,13 +52,14 @@ function status(a: AnyBadge): Filter | null {
   return a.progress >= 1 ? "done" : a.progress > 0 ? "open" : "new";
 }
 
-type SortBy = "default" | "closest" | "rarest" | "name";
+type SortBy = "default" | "closest" | "complete" | "rarest" | "name";
 type Shares = Map<number, number | null>;
 
 /** Order of the cards in a section. Default: a player's list is closest-to-the-next-medal first, a catalogue keeps the rule order. */
 function sortItems<T extends AnyBadge>(list: T[], by: SortBy, tracked: boolean, shares: Shares): T[] {
   const out = [...list];
   const closest = (x: T) => nextMedalFraction(x as unknown as Achievement) ?? 0;
+  if (by === "complete") return out.sort((x, y) => (y.progress ?? 0) - (x.progress ?? 0)); // overall progress over all tiers
   if (by === "name") return out.sort((x, y) => x.name.localeCompare(y.name));
   if (by === "rarest") return out.sort((x, y) => (shares.get(x.id) ?? 1) - (shares.get(y.id) ?? 1));
   if (by === "closest" || (by === "default" && tracked)) return out.sort((x, y) => closest(y) - closest(x));
@@ -153,6 +154,7 @@ export function GroupedBadges<T extends AnyBadge>({ items: all }: { items: T[] }
         <select aria-label="Sort" value={sort} onChange={(e) => setSort(e.target.value as SortBy)}>
           <option value="default">{tracked ? "Closest to next medal" : "Original order"}</option>
           {tracked && <option value="closest">Closest to next medal (all)</option>}
+          {tracked && <option value="complete">Closest to fully completed (all tiers)</option>}
           <option value="rarest">Rarest first</option>
           <option value="name">A to Z</option>
         </select>
@@ -428,7 +430,7 @@ function NotYetStarted({ items }: { items: Achievement[] }) {
   );
 }
 
-const CLOSE_FROM = 0.25; // a quarter of the way or more to the next medal counts as close
+const CLOSE_FROM = 0.5; // half or more of all tiers done counts as close to fully completed
 const CLOSE_HUE_FAR = 50; // yellow
 const CLOSE_HUE_NEAR = 130; // green
 
@@ -436,12 +438,12 @@ const CLOSE_HUE_NEAR = 130; // green
  *  it replaced the "Close to a medal" row). Null = not close, or a catalogue entry without progress. */
 function closeness(a: Parameters<typeof Badge>[0]["a"]): { hue: number; label: string } | null {
   if (a.progress === undefined || a.progress >= 1) return null;
-  const next = nextMedal(a as Achievement);
-  if (!next || next.fraction < CLOSE_FROM) return null;
-  const nearness = (next.fraction - CLOSE_FROM) / (1 - CLOSE_FROM);
+  // shaded by overall progress over all tiers (user, 2026-11-05): green = nearly fully completed
+  if (a.progress < CLOSE_FROM) return null;
+  const nearness = (a.progress - CLOSE_FROM) / (1 - CLOSE_FROM);
   return {
     hue: Math.round(CLOSE_HUE_FAR + nearness * (CLOSE_HUE_NEAR - CLOSE_HUE_FAR)),
-    label: `${Math.floor(next.fraction * 100)}% of the way to ${next.medal}`,
+    label: `${Math.floor(a.progress * 100)}% of the way to fully completed (all tiers)`,
   };
 }
 
@@ -506,6 +508,11 @@ export function Badge({ a }: { a: AchievementRule & Partial<Pick<Achievement, "p
               {a.unlocked_at && ` · completed ${a.unlocked_at}`}
             </span>
           </>
+        )}
+        {close && (
+          <span className="close-reason" title="Shaded yellow to green by how close this challenge is to being fully completed (every tier)">
+            Highlighted: {close.label}
+          </span>
         )}
         {!catalogue && a.try_next && a.try_next.length > 0 && a.progress! < 1 && (
           <span className="muted try-next">
