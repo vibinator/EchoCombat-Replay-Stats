@@ -858,6 +858,16 @@ export interface MegaPrizeReport {
     target: number;
     winners: { name: string; user_id: string; discord_id: string | null; count: number }[];
   }[];
+  arena_status: {
+    state: "off" | "outside_period" | "waiting" | "working" | "failing";
+    last_ok_at?: string | null;
+    last_counted_at?: string | null;
+    matches_now?: number;
+    players_now?: number;
+    counted_since_start?: number;
+    last_error?: string | null;
+    last_error_at?: string | null;
+  };
 }
 export const getMegaPrizeWinners = () => send<MegaPrizeReport>("/api/admin/console/mega-prizes");
 export const CONSOLE_MEGA_PRIZES_CSV = "/api/admin/console/mega-prizes.csv";

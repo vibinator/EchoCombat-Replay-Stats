@@ -124,7 +124,7 @@ def _games(db, player_ids: list[int] | None = None, fingerprints: dict[int, int]
         Match.frame_rate_hz, MatchPlayer.team, Match.winner, Match.attacking_team, Match.blue_rounds, Match.orange_rounds,
         MatchPlayer.payload_push_s, MatchPlayer.payload_block_s, MatchPlayer.emote_count,
         MatchPlayer.frames_stopped, MatchPlayer.frames_left_arm, MatchPlayer.frames_right_arm, Match.contested_s,
-        Match.blue_capture_s, Match.orange_capture_s,
+        Match.blue_capture_s, Match.orange_capture_s, MatchPlayer.frames_lone_wolf_near,
     ).join(Match, Match.id == MatchPlayer.match_id).where(counted(MatchPlayer.match_id))  # duplicates left out (D13)
     lo_query = select(MatchPlayerLoadout.match_id, MatchPlayerLoadout.player_id, MatchPlayerLoadout.weapon,
                       MatchPlayerLoadout.tacmod, MatchPlayerLoadout.ordnance, MatchPlayerLoadout.frames
@@ -150,7 +150,7 @@ def _games(db, player_ids: list[int] | None = None, fingerprints: dict[int, int]
     for row in db.execute(query):
         (pid, mid, started, map_, mode, private, play, deaths, bounds, mate, enemy, upside, speed, top, hz,
          team, winner, attacking, blue_rounds, orange_rounds, push, block, emotes, stopped, left, right, contested,
-         blue_cap, orange_cap) = row = tuple(row)
+         blue_cap, orange_cap, lone_wolf_near) = row = tuple(row)
         four = sizes.get((mid, "blue"), 0) >= 3 and sizes.get((mid, "orange"), 0) >= 3
         fp[pid] = (fp.get(pid, 0) + _stable_hash(row + (four,))) & FINGERPRINT_MASK
         games[pid].append(Game(
@@ -159,7 +159,7 @@ def _games(db, player_ids: list[int] | None = None, fingerprints: dict[int, int]
             frame_rate=hz, loadouts=loadouts.get((mid, pid), {}), team=team, winner=winner, attacking_team=attacking,
             rounds_lost=orange_rounds if team == "blue" else blue_rounds, push_s=push, block_s=block, emotes=emotes,
             stopped=stopped, left_arm=left, right_arm=right, contested_s=contested,
-            capture_s=blue_cap if team == "blue" else orange_cap, enough_players=four,
+            capture_s=blue_cap if team == "blue" else orange_cap, enough_players=four, lone_wolf_near=lone_wolf_near,
         ))
     return games
 

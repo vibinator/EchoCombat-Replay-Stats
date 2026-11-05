@@ -93,6 +93,7 @@ Index: `(status, source_mtime)` for newest-first claiming. Files removed from th
 | frames_stopped | INTEGER NOT NULL | speed < 1 m/s |
 | frames_upside_down | INTEGER NOT NULL | body.up.y < 0 |
 | frames_near_mate | INTEGER NOT NULL | dist² < 7 |
+| frames_lone_wolf_near | INTEGER | dist² < 12.25 (3.5 m); Lone Wolf only. Added in place, NULL until the replay is read again (D57) |
 | frames_near_enemy | INTEGER NOT NULL | dist² < 7 |
 | frames_left_arm | INTEGER NOT NULL | |
 | frames_right_arm | INTEGER NOT NULL | |

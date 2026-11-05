@@ -27,6 +27,36 @@ def tracker(tmp_path, snapshots, period=True):
     return Tracker(sm, SimpleNamespace(arena_poll_s=60.0), fetch=lambda: {"labels": next(it)}), sm
 
 
+def test_status_for_the_console(tmp_path):
+    six = list("abcdef")
+    t, _ = tracker(tmp_path, [[label("m1", six)]] * 6)
+    assert t.status(now=1000.0)["state"] == "off"  # not started
+    t.start()
+    try:
+        assert t.status(now=1000.0)["state"] == "waiting"
+        for i in range(6):
+            t.poll(now=1000.0 + 60 * i)
+        s = t.status(now=1300.0)
+        assert (s["state"], s["matches_now"], s["players_now"], s["counted_since_start"]) == ("working", 1, 6, 6)
+        assert s["last_ok_at"] and s["last_counted_at"] and s["last_error"] is None
+        assert t.status(now=1300.0 + 4 * 60)["state"] == "waiting"  # no answer for a while, no error recorded
+        t._last_error = (1500.0, "ConnectError: down")
+        s = t.status(now=1300.0 + 4 * 60)
+        assert (s["state"], s["last_error"]) == ("failing", "ConnectError: down")
+    finally:
+        t.stop()
+
+
+def test_status_outside_the_period(tmp_path):
+    t, _ = tracker(tmp_path, [], period=False)
+    t.start()
+    try:
+        t.poll(now=1000.0)  # no period set: the list is not asked for
+        assert t.status(now=1000.0)["state"] == "outside_period"
+    finally:
+        t.stop()
+
+
 def test_only_public_arena():
     assert is_public_arena(label("m", [])) and not is_public_arena(label("m", [], mode="echo_arena_private", lobby="private"))
     assert not is_public_arena(label("m", [], mode="social_2.0")) and not is_public_arena(label("m", [], lobby="private"))

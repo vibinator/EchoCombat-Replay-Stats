@@ -10,7 +10,7 @@ from .payload import FINAL_CHECKPOINT, PayloadAccumulator
 from .player import PlayerAccumulator
 from .results import EventRecord, MatchStats, PlayerStats
 
-STATS_VERSION = "9"  # 9: no deaths / respawns after the capture match is decided or the payload run is over. 8: the map's load-in spot (maps.LOAD_IN_SPOTS) is no longer a death, in-bounds time or track sample
+STATS_VERSION = "10"  # 10: frames_lone_wolf_near (3.5 m, Lone Wolf). 9: no deaths / respawns after the capture match is decided or the payload run is over. 8: the map's load-in spot (maps.LOAD_IN_SPOTS) is no longer a death, in-bounds time or track sample
 
 CAPTURE_ROUNDS_TO_WIN = 2  # best of three: the round that makes it 2 decides the match
 

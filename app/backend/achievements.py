@@ -29,6 +29,9 @@ GEAR_ICONS = {"rifle": "starburst", "magnum": "protostar", "smg": "quark", "chai
 ONLY_SHARE = 0.90  # "use only X": X is at least 90 % of the game's loadout time (was 95; user, 2026-11-04: room for mistakes)
 USED_SHARE = 0.10  # below 10 % of the game does not count as "used" (was 5 %, the old loadoutCutoff; user, 2026-11-04)
 FULL_GAME_S = 240.0  # was 180 (user, 2026-11-04); per-game rules ignore short appearances (A: avoids 0-death 10-second games)
+WEEK_MIN_IN_BOUNDS_S = 600.0  # 7-day averages (user, 2026-11-05): all 16 Wings of RAD_Wyvern platinum windows had under 5 minutes
+WEEK_MIN_DAYS = 3  # 7-day averages (user, 2026-11-05): "any 3 days within 7 days"
+MIN_IN_BOUNDS_S = 60.0  # Lone Wolf, Untouchable, Speed Demon, Can We Talk About This?, Statue, Full Team Salvo (user, 2026-11-05): 25 of 39 Lone Wolf platinum games since 1 Aug had less; 122 of 134 Untouchable wins had none at all
 LOADOUT_USED_S = 60.0  # "different loadouts": at least 1 min each (was 3 min; user, 2026-11-04: more achievable)
 SEASON_MIN_GAMES = 50  # all-time averages need 50 games (A)
 SPEED_MIN_GAMES = 25  # Cyberkinetic Enhancements: 50 left 76 % of the active players out (user, 2026-10-31)
@@ -71,6 +74,7 @@ class Game:
     right_arm: int = 0
     capture_s: float = 0.0  # capture point: time the player's team's progress was rising
     contested_s: float = 0.0
+    lone_wolf_near: int | None = 0  # in-bounds frames within 3.5 m of a teammate: Lone Wolf only (None: replay not read again yet, D57)
     enough_players: bool = True  # both teams had at least 3 players for at least half of the match (3v3, 3v4, 4v4, 5v5 ... all fine); one-game, win and Payload challenges need it (user, 2026-11-04)
 
     @property
@@ -263,7 +267,7 @@ TUNED_LEVELS: dict[int, tuple[float, ...]] = {
     16: (1, 3, 4, 5, 7),  # Wraith
     18: (2, 5, 8, 15, 23),  # My Other Chassis Is a Toaster
     21: (50, 61, 69, 74, 81),  # Full Team Salvo
-    22: (26, 34, 42, 51, 60),  # Can We Talk About This?
+    22: (25, 30, 35, 40, 50),  # Can We Talk About This? (user, 2026-11-05: with 1 minute in bounds, 56 / 34 / 18 / 10 / 4 % of regulars reach these; was 26/34/42/51/60)
     24: (15, 35, 52, 66, 78),  # I’m Bat Bot (eased 2026-11-04, user; was 19/43/61/78/89)
     30: (1, 4, 6, 9, 13),  # Pulse Check
     31: (1, 4, 6, 9, 13),  # Eat My Nova!
@@ -277,8 +281,8 @@ TUNED_LEVELS: dict[int, tuple[float, ...]] = {
     39: (1, 4, 6, 9, 13),  # X-Ray Vision Implant Upgrade
     40: (1, 4, 6, 9, 13),  # Check Out My Cool Screensaver
     41: (1, 4, 6, 9, 13),  # Ghost in the Shell
-    46: (32, 42, 49, 53, 58),  # Tech Support w/RAD_Natalie
-    47: (18, 24, 28, 33, 40),  # Hug Your Frenemy
+    46: (16, 20, 24, 26, 28),  # Tech Support w/RAD_Natalie (user, 2026-11-05: on 3 days with 10 minutes in bounds, 48 / 25 / 8 / 4 / 1 players since 1 Aug reach these; was 32/42/49/53/58)
+    47: (12, 14, 16, 18, 20),  # Hug Your Frenemy (user, 2026-11-05: on 3 days with 10 minutes in bounds, 34 / 17 / 4 / 2 / 2 players since 1 Aug reach these; was 18/24/28/33/40)
     49: (9.3, 22, 36, 47, 57),  # I’ɯ ꓭɐʇ ꓭoʇ
     55: (5, 11, 19, 29, 49),  # Pulsar Veteran
     56: (5, 11, 19, 29, 49),  # Nova Veteran
@@ -330,8 +334,10 @@ TUNED_LEVELS: dict[int, tuple[float, ...]] = {
     136: (1, 3, 4, 5, 7),  # Dot to Dot
     137: (1, 4, 6, 9, 13),  # Blazar Barrage
     138: (1, 4, 6, 9, 13),  # Dot Matrix
-    142: (45, 54, 61, 67, 73),  # Statue (eased 2026-11-04, user; was 59/67/73/79/85)
-    143: (94.6, 96.4, 98.2, 99.1, 100),  # Lone Wolf (a share of one game: it cannot pass 100; most players are above 95, so it is easy on purpose; user, 2026-11-04)
+    142: (54, 61, 67, 73, 80),  # Statue (user, 2026-11-05: with 1 minute in bounds, 68 / 42 / 25 / 12 / 6 % of regulars reach these; was 45/54/61/67/73, eased 2026-11-04 from 59/67/73/79/85)
+    143: (94.6, 96.4, 98.2, 99.1, 100),  # Lone Wolf (a share of one game: it cannot pass 100; set for 2.6 m on 2026-11-04, kept at 3.5 m + 1 minute in bounds on 2026-11-05: since 1 Aug 30 / 19 / 10 / 6 / 3 % of players reach them)
+    48: (2.75, 3, 3.25, 3.5, 3.75),  # The Wings of RAD_Wyvern (user, 2026-11-05: on 3 days with 10 minutes in bounds, 65 / 41 / 20 / 5 / 1 players since 1 Aug reach these; was 3.5/4/4.5/6.5/7.8)
+    145: (3.5, 4, 4.5, 5.25, 6),  # Speed Demon (user, 2026-11-05: with 1 minute in bounds nobody reached 7.2 / 9.1; about 7 % / 2.5 % of regulars reach these)
     148: (2, 6, 12, 22, 38),  # One-Trick Pony
 }
 
@@ -378,25 +384,34 @@ def _count(pred, need: int):
 
 class _AvgValue:
     """100 x sum(attr) / in-bounds frames over the games (percent), or sum(attr) / frames when scale is 1 (speed).
-    0 until min_games games (all-time averages ramp: 50+ games)."""
+    0 until min_games games (all-time averages ramp: 50+ games), until min_in_bounds_s seconds in bounds in total and
+    until min_days different days (7-day averages: one short game or one session cannot set the week)."""
 
-    def __init__(self, attr: str, scale: float = 100.0, min_games: int = 0):
+    def __init__(self, attr: str, scale: float = 100.0, min_games: int = 0, min_in_bounds_s: float = 0.0, min_days: int = 0):
         self.attr, self.scale, self.min_games = attr, scale, min_games
+        self.min_in_bounds_s, self.min_days = min_in_bounds_s, min_days
 
-    def _value(self, total: float, frames: int, n: int) -> float:
-        return round(self.scale * ratio(total, frames), 6) if n >= self.min_games else 0.0
+    def _value(self, total: float, frames: int, n: int, seconds: float, days: int) -> float:
+        if n < self.min_games or seconds < self.min_in_bounds_s or days < self.min_days:
+            return 0.0
+        return round(self.scale * ratio(total, frames), 6)
 
     def __call__(self, games) -> float:
-        return self._value(sum(getattr(g, self.attr) for g in games), sum(g.in_bounds for g in games), len(games))
+        return self._value(sum(getattr(g, self.attr) for g in games), sum(g.in_bounds for g in games), len(games),
+                           sum(ratio(g.in_bounds, g.frame_rate) for g in games),
+                           len({g.day for g in games}) if self.min_days else 0)
 
     def first_reached(self, ordered: list, need: float) -> int | None:
         """Index of the game at which the running average first reached `need` (it can drop again later, so the
         binary search used for counts does not apply)."""
-        total = frames = 0
+        total = frames = seconds = 0
+        days = set()
         for i, g in enumerate(ordered):
             total += getattr(g, self.attr)
             frames += g.in_bounds
-            if self._value(total, frames, i + 1) >= need:
+            seconds += ratio(g.in_bounds, g.frame_rate)
+            days.add(g.day)
+            if self._value(total, frames, i + 1, seconds, len(days)) >= need:
                 return i
         return None
 
@@ -560,9 +575,26 @@ def _v4(count):
     return only_enough
 
 
+def _on_the_map(g) -> bool:
+    return g.in_bounds > 0 and g.in_bounds >= MIN_IN_BOUNDS_S * g.frame_rate
+
+
 def _away_from_mates(games):
-    """% of the in-bounds time not near a teammate (4+ minute games only, see _full)."""
-    return 100.0 - _pct("near_mate")(games) if games[0].in_bounds else 0.0
+    """% of the in-bounds time more than 3.5 m from every teammate (4+ minute games only, see _full). Needs
+    MIN_IN_BOUNDS_S in bounds: a few seconds counted in bounds would otherwise reach 100 %. None = this replay has not
+    been read again since the column was added (D57): no value yet, so no false medal during the re-read."""
+    g = games[0]
+    return 100.0 - _pct("lone_wolf_near")(games) if g.lone_wolf_near is not None and _on_the_map(g) else 0.0
+
+
+def _untouchable(games):
+    g = games[0]
+    return 1.0 if g.won and g.deaths == 0 and _on_the_map(g) else 0.0
+
+
+def _if_on_the_map(value):
+    """Per-game rules: 0 unless the game has MIN_IN_BOUNDS_S in bounds."""
+    return lambda games: value(games) if _on_the_map(games[0]) else 0.0
 
 
 def _both_arms(games):
@@ -586,6 +618,10 @@ def _pct(attr: str) -> "_AvgValue":
     return _AvgValue(attr)
 
 
+def _week_average(attr: str, scale: float = 100.0) -> "_AvgValue":
+    return _AvgValue(attr, scale, min_in_bounds_s=WEEK_MIN_IN_BOUNDS_S, min_days=WEEK_MIN_DAYS)
+
+
 def _build_rules() -> list[Rule]:
     rules: list[Rule] = []
     # Daily (5-29): the most games in one calendar day
@@ -606,10 +642,10 @@ def _build_rules() -> list[Rule]:
                 lambda g: g.play_time_s >= FULL_GAME_S and g.deaths <= 3, (1, 4, 7, 16, 24), estimated=True),
         _tiered(19, "Point Captured", "Play Capture Point games in one day", "capture_point", _capture, (5, 7, 9, 12, 17), "day"),
         _tiered(20, "Checkpoint Reached", "Play Payload games in one day", "payload", _payload, (5, 7, 9, 12, 17), "day"),
-        _ladder(21, "Full Team Salvo", "Share of one game spent close to a teammate", "team_proximity",
-                _full(_pct("near_mate")), (45, 55, 65, 80, 92), "game", "%"),
-        _ladder(22, "Can We Talk About This?", "Share of one game spent close to an enemy", "enemy_proximity",
-                _full(_pct("near_enemy")), (10, 25, 40, 55, 75), "game", "%"),
+        _ladder(21, "Full Team Salvo", "Share of one game spent close to a teammate, with at least 1 minute in bounds", "team_proximity",
+                _full(_if_on_the_map(_pct("near_mate"))), (45, 55, 65, 80, 92), "game", "%"),
+        _ladder(22, "Can We Talk About This?", "Share of one game spent close to an enemy, with at least 1 minute in bounds", "enemy_proximity",
+                _full(_if_on_the_map(_pct("near_enemy"))), (10, 25, 40, 55, 75), "game", "%"),
         _ladder(23, "Super Ultra Hyper Turbo", "Reach a high top speed in one game", "speed",
                 lambda gs: gs[0].top_speed, (14, 17, 20, 20, 23), "game", " m/s"),
         _ladder(24, "I’m Bat Bot", "Share of one game spent upside down", "inverted",
@@ -638,10 +674,10 @@ def _build_rules() -> list[Rule]:
         Rule(43, "Pew Pew Proof", "Play 25+ games in any 7 days and average fewer than 5 deaths per game", "week", "deaths", _pew_pew_proof, estimated=True),
         _tiered(44, "I'd Rather Be on Kronos II", "Play Capture Point games in any 7 days", "capture_point", _capture, (10, 18, 25, 40, 50), "week"),
         _tiered(45, "Sakura's Dancing Flamingo", "Play Payload games in any 7 days", "payload", _payload, (10, 18, 25, 40, 50), "week"),
-        _ladder(46, "Tech Support w/RAD_Natalie", "Average share of your games spent close to a teammate, over any 7 days", "team_proximity", _pct("near_mate"), (22, 27, 32, 40, 55), "week", "%"),
-        _ladder(47, "Hug Your Frenemy", "Average share of your games spent close to an enemy, over any 7 days", "enemy_proximity", _pct("near_enemy"), (15, 20, 25, 35, 50), "week", "%"),
-        _ladder(48, "The Wings of RAD_Wyvern", "Your average speed over any 7 days", "speed", _AvgValue("speed_sum", 1.0), (3.5, 4, 4.5, 5, 6), "week", " m/s"),
-        _ladder(49, "I’ɯ ꓭɐʇ ꓭoʇ", "Average share of your games spent upside down, over any 7 days", "inverted", _pct("upside"), (5, 10, 15, 30, 50), "week", "%"),
+        _ladder(46, "Tech Support w/RAD_Natalie", "Average share of your games spent close to a teammate, over any 7 days, on at least 3 different days and with at least 10 minutes in bounds", "team_proximity", _week_average("near_mate"), (22, 27, 32, 40, 55), "week", "%"),
+        _ladder(47, "Hug Your Frenemy", "Average share of your games spent close to an enemy, over any 7 days, on at least 3 different days and with at least 10 minutes in bounds", "enemy_proximity", _week_average("near_enemy"), (15, 20, 25, 35, 50), "week", "%"),
+        _ladder(48, "The Wings of RAD_Wyvern", "Your average speed over any 7 days, on at least 3 different days and with at least 10 minutes in bounds", "speed", _week_average("speed_sum", 1.0), (3.5, 4, 4.5, 5, 6), "week", " m/s"),
+        _ladder(49, "I’ɯ ꓭɐʇ ꓭoʇ", "Average share of your games spent upside down, over any 7 days, on at least 3 different days and with at least 10 minutes in bounds", "inverted", _week_average("upside"), (5, 10, 15, 30, 50), "week", "%"),
     ]
     for rid, name, m in ((50, "Frame-Drop Hell", "dyson"), (51, "I've Got a Fever, and the Only Prescription Is Pew Pew Pew!", "combustion"),
                          (52, "Phoeniconaias minor", "fission"), (53, "Phoenicopterus ruber", "surge")):
@@ -796,20 +832,21 @@ def _build_rules() -> list[Rule]:
     # own capture time p90 3.2 / p99 4.1 min, up to 8 loadouts. Left / right arm is a handedness flag (0 or 100 % in
     # nearly every game), so there is no arm ladder, only "both arms". Glass Cannon (most deaths) was dropped by the user.
     rules += [
-        _tiered(139, "Untouchable", "Win a game without dying once", "deaths",
-                lambda g: g.enough_players and g.won and g.play_time_s >= FULL_GAME_S and g.deaths == 0, (1, 2, 3, 5, 8), estimated=True, new=True, group="Survival"),
+        # one medal, not a ladder (user, 2026-11-05): with 1 minute in bounds the most anyone has is 2 such wins
+        Rule(139, "Untouchable", "Win a game without dying once, with at least 1 minute in bounds", "game", "deaths",
+             _v4(_full(_untouchable)), estimated=True, new=True, group="Survival"),
         _ladder(140, "Marathon Bot", "Play one very long game (your longest game counts)", None, _v4(lambda gs: gs[0].play_time_s / 60),
                 (12, 15, 18, 21, 26), "game", " min", new=True, group="Activity"),
         _tiered(141, "Comeback Kid", "Win a Capture Point game after losing the first round (a 2-1 win)", "capture_point",
                 lambda g: g.enough_players and _capture(g) and g.won and g.rounds_lost == 1, (1, 5, 15, 40, 100), new=True, group="Capture Point"),
-        _ladder(142, "Statue", "Stand still (moving slower than 1 m/s) for part of one game", None,
-                _v4(_full(_pct("stopped"))), (50, 60, 70, 80, 90), "game", "%", new=True, group="Movement"),
-        _ladder(143, "Lone Wolf", "Stay far from your teammates (more than 2.6 m away) for most of one game",
+        _ladder(142, "Statue", "Stand still (moving slower than 1 m/s) for part of one game, with at least 1 minute in bounds", None,
+                _v4(_full(_if_on_the_map(_pct("stopped")))), (50, 60, 70, 80, 90), "game", "%", new=True, group="Movement"),
+        _ladder(143, "Lone Wolf", "Stay far from your teammates (more than 3.5 m away) for most of one game, with at least 1 minute in bounds",
                 "team_proximity", _v4(_full(_away_from_mates)), (93.2, 95.8, 97.5, 98.7, 99.6), "game", "%", new=True, group="Movement"),
         Rule(144, "Ambidextrous", "Play one game using both the left-arm and the right-arm setting, each for at least 40 % of the time", "game", None,
              _v4(_full(_both_arms)), new=True, group="Movement"),
-        _ladder(145, "Speed Demon", "Keep a high average speed through one whole game", "speed",
-                _v4(_full(_AvgValue("speed_sum", 1.0))), (3.5, 4, 4.5, 5.5, 7), "game", " m/s", new=True, group="Movement"),
+        _ladder(145, "Speed Demon", "Keep a high average speed through one whole game, with at least 1 minute in bounds", "speed",
+                _v4(_full(_if_on_the_map(_AvgValue("speed_sum", 1.0)))), (3.5, 4, 4.5, 5.5, 7), "game", " m/s", new=True, group="Movement"),
         _ladder(146, "Point Guard", "Spend time capturing the point in one Capture Point game (your team's capture progress is rising)",
                 "capture_point", _v4(lambda gs: gs[0].capture_s / 60 if _capture(gs[0]) else 0.0), (2, 3, 3.5, 4.2, 5), "game", " min",
                 new=True, group="Capture Point"),

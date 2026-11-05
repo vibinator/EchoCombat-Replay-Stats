@@ -110,6 +110,18 @@ def test_movement_and_bounds_stats(tmp_path):
     assert orange.top_speed == pytest.approx(5.0)
 
 
+def test_near_mate_counts_both_distances(tmp_path):
+    """Teammate 2 m away (frames 0-9), 3 m (10-19), exactly 3.5 m (20-29), 6 m (30-39): the 2.65 m stat is unchanged, Lone Wolf's is wider."""
+    frames = []
+    for i in range(40):
+        a, b = rf.player(), rf.player(42, "Mate", 1)
+        a["head"] = _pose((0.5, 0.0, 0.0))
+        b["head"] = _pose((0.5 + (2.0, 3.0, 3.5, 6.0)[i // 10], 0.0, 0.0))
+        frames.append(rf.frame(teams=[{"players": [a, b]}, {}, {}]))
+    blue = next(p for p in stats_for(tmp_path, rf.lines_from(frames)).players if p.user_id == "42")
+    assert (blue.frames_in_bounds, blue.frames_near_mate, blue.frames_lone_wolf_near) == (40, 10, 20)
+
+
 def test_timeline_events(tmp_path):
     events = stats_for(tmp_path, rf.lines_from(scripted_match())).events
     blue_id = str(rf.BIG_USER_ID)

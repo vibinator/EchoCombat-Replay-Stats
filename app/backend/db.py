@@ -33,6 +33,7 @@ def open_db(db_path: Path, cache_mb: int = 0) -> tuple[Engine, sessionmaker]:
 
     from . import models  # noqa: F401  registers tables on Base
 
+    _add_columns_in_place(engine)
     _rebuild_stale_tables(engine)
     Base.metadata.create_all(engine)
     _add_missing_columns(engine)
@@ -87,6 +88,25 @@ PRESERVED_TABLES = ("app_settings", "player_aliases", "repair_requests", "aggres
 
 # Combat stats (combat.py): a cache of the recorder's match reports, kept apart from the replay data. Children first.
 COMBAT_TABLES = ("combat_players", "combat_matches", "combat_files")
+
+
+# Derived columns added without the usual drop + rebuild (D57, an exception to D23): the site keeps its match stats while
+# a higher STATS_VERSION reads every replay again. Must be nullable: NULL = this replay has not been read again yet.
+IN_PLACE_COLUMNS = {"match_players": ("frames_lone_wolf_near",)}
+
+
+def _add_columns_in_place(engine: Engine) -> None:
+    inspector = inspect(engine)
+    for name, columns in IN_PLACE_COLUMNS.items():
+        if not inspector.has_table(name):
+            continue
+        have = {c["name"] for c in inspector.get_columns(name)}
+        table = Base.metadata.tables[name]
+        with engine.begin() as conn:
+            for column in columns:
+                if column not in have:
+                    kind = table.columns[column].type.compile(engine.dialect)
+                    conn.execute(text(f'ALTER TABLE "{name}" ADD COLUMN "{column}" {kind}'))
 
 
 def _stale(inspector, name: str) -> bool:

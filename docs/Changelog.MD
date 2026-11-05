@@ -18,6 +18,56 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.05.3 — 19:13
+
+### Lone Wolf harder
+- **Farther away:** you now have to stay more than 3.5 m from your teammates (was 2.6 m). The other "near a teammate" stats and challenges keep 2.6 m.
+- **Time on the map:** a game needs at least 1 minute counted in bounds. 25 of the 39 platinum games since 1 August had less. The targets stay 94.6 / 96.4 / 98.2 / 99.1 / 100 %.
+- **Who reaches them:** since 1 August about 30 / 19 / 10 / 6 / 3 % of players reach bronze / silver / gold / diamond / platinum (before: 56 / 39 / 25 / 17 / 13 %).
+- **Medals:** players may drop a medal or more until they earn it again under the new rule.
+
+### Untouchable is one medal and needs time on the map
+- A win without dying now needs at least 1 minute counted in bounds. 122 of the 134 wins that qualified before had none at all, so no death could be recorded. Holders drop from 85 to 9.
+- It is one medal now instead of a ladder: nobody has more than 2 such wins, so the old 8 and 13 targets could not be reached.
+
+### I'ɯ ꓭɐʇ ꓭoʇ: a real week
+- The 7 days now need games on any 3 different days and at least 10 minutes counted in bounds in total. The targets stay 9.3 / 22 / 36 / 47 / 57 %. Since 1 August 21 / 8 / 6 / 4 / 3 of 592 active players reach them.
+
+### Console: is the Arena counter working?
+- The *Mega Prize winners* panel now has an **Arena counter** line: working or failing, when the match list was last read, public matches and players on it, how many were counted since the last restart, and the last error.
+
+### Speed Demon: real games only, new top targets
+- A game now needs at least 1 minute counted in bounds. All 20 platinum games had less, all on Fission.
+- **Targets:** 3.5 / 4 / 4.5 / 5.25 / 6 m/s (was 3.5 / 4 / 4.5 / 7.2 / 9.1): with the limit nobody could reach the old platinum. About 88 players in the archive reach the new diamond and 25 the new platinum.
+
+### The Wings of RAD_Wyvern: a real week, new targets
+- The 7 days now need games on any 3 different days and at least 10 minutes counted in bounds in total. All 16 platinum windows had under 5 minutes, most of them one game.
+- **Targets:** 2.75 / 3 / 3.25 / 3.5 / 3.75 m/s (was 3.5 / 4 / 4.5 / 6.5 / 7.8). Since 1 August 65 / 41 / 20 / 5 / 1 of 592 active players reach them, and 42 players in the archive reach platinum.
+
+### Hug Your Frenemy: a real week, new targets
+- The 7 days now need games on any 3 different days and at least 10 minutes counted in bounds in total. 84 % of the windows that reached platinum had under 5 minutes.
+- **Targets:** 12 / 14 / 16 / 18 / 20 % (was 18 / 24 / 28 / 33 / 40). Since 1 August 34 / 17 / 4 / 2 / 2 of 592 active players reach them, and 40 players in the archive reach platinum.
+
+### Can We Talk About This?: real games only, new targets
+- A game now needs at least 1 minute counted in bounds. 76 % of the games at platinum level had less.
+- **Targets:** 25 / 30 / 35 / 40 / 50 % (was 26 / 34 / 42 / 51 / 60). About 56 / 34 / 18 / 10 / 4 % of regulars reach them, and 66 players in the archive reach platinum.
+
+### Tech Support w/RAD_Natalie: a real week, new targets
+- The 7 days now need games on any 3 different days and at least 10 minutes counted in bounds in total. 81 % of the windows that reached platinum had under 5 minutes.
+- **Targets:** 16 / 20 / 24 / 26 / 28 % (was 32 / 42 / 49 / 53 / 58). Since 1 August 48 / 25 / 8 / 4 / 1 of 592 active players reach them, and 163 players in the archive reach platinum.
+
+### Statue: real games only, harder
+- A game now needs at least 1 minute counted in bounds. 36 % of the games at platinum level had less.
+- **Targets:** 54 / 61 / 67 / 73 / 80 % (was 45 / 54 / 61 / 67 / 73). About 68 / 42 / 25 / 12 / 6 % of regulars reach them, and 63 players in the archive reach platinum.
+
+### Full Team Salvo: real games only
+- A game now needs at least 1 minute counted in bounds. 24 % of the games at platinum level had less. The targets stay 50 / 61 / 69 / 74 / 81 %.
+
+### After updating
+- **Do:** recreate the container, at a quiet time and with the remote worker on (update that PC first: it must have the same version). `STATS_VERSION` 10 reads every replay (~29.5k) again: this takes hours, and the "Processing N replays" counter shows how many are left.
+- **During the re-read:** match stats stay up. Lone Wolf has no value for a replay until it has been read again, so its medals fill in as the counter goes down; no medal is given by mistake. Other achievements change at once when the backend restarts.
+
+
 ## 2026.11.05.2 — 18:03
 
 ### Fixes from the full website test

@@ -14,6 +14,7 @@ from .results import EventRecord, PlayerStats
 
 LEFT_EARLY_S = 45.0  # last seen more than 45 s before the end (old "crashed")
 NEAR_DISTANCE_SQ = 7.0  # head distance² in m² (≈ 2.65 m)
+LONE_WOLF_DISTANCE_SQ = 12.25  # head distance² in m² (3.5 m): Lone Wolf only; every other "near" stat keeps NEAR_DISTANCE_SQ
 STOPPED_SPEED = 1.0  # m/s
 PING_PLACEHOLDER = 999  # API value when there is no reading; excluded from average ping
 TOP_SPEED_WINDOW_S = 1.0  # top speed = highest speed held for a full window
@@ -46,6 +47,7 @@ class PlayerAccumulator:
         self.frames_stopped = 0
         self.frames_upside_down = 0
         self.frames_near_mate = 0
+        self.frames_lone_wolf_near = 0
         self.frames_near_enemy = 0
         self.frames_left_arm = 0
         self.frames_right_arm = 0
@@ -113,12 +115,16 @@ class PlayerAccumulator:
             self.frames_left_arm += 1
 
         x, y, z = p.head_position  # head distance² written out: ~100k player frames x team size per match
+        closest = LONE_WOLF_DISTANCE_SQ
         for o in teammates:
             if o is not p:
                 ox, oy, oz = o.head_position
-                if (x - ox) ** 2 + (y - oy) ** 2 + (z - oz) ** 2 < NEAR_DISTANCE_SQ:
+                closest = min(closest, (x - ox) ** 2 + (y - oy) ** 2 + (z - oz) ** 2)
+                if closest < NEAR_DISTANCE_SQ:
                     self.frames_near_mate += 1
                     break
+        if closest < LONE_WOLF_DISTANCE_SQ:
+            self.frames_lone_wolf_near += 1
         for o in enemies:
             ox, oy, oz = o.head_position
             if (x - ox) ** 2 + (y - oy) ** 2 + (z - oz) ** 2 < NEAR_DISTANCE_SQ:
@@ -171,6 +177,7 @@ class PlayerAccumulator:
             frames_stopped=self.frames_stopped,
             frames_upside_down=self.frames_upside_down,
             frames_near_mate=self.frames_near_mate,
+            frames_lone_wolf_near=self.frames_lone_wolf_near,
             frames_near_enemy=self.frames_near_enemy,
             frames_left_arm=self.frames_left_arm,
             frames_right_arm=self.frames_right_arm,

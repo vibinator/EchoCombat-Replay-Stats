@@ -28,7 +28,12 @@ KEEP_COUNTED_S = 2 * 86400
 PRUNE_EVERY_S = 3600
 WINDOW_CHECK_S = 300  # the challenge period is looked up at most this often
 NON_PLAYER_TEAMS = {"spectator", "moderator"}  # on the match list's "team" field: watching, not playing, so never counted (user, 2026-11-04)
+STATUS_OK_POLLS = 3  # the Console says "working" when the list was read within this many polls
 log = logging.getLogger("uvicorn.error")
+
+
+def _stamp(t: float | None) -> str | None:
+    return datetime.fromtimestamp(t).isoformat(timespec="seconds") if t is not None else None
 
 
 def is_public_arena(label: dict) -> bool:
@@ -45,6 +50,12 @@ class Tracker:
         self._loaded = False
         self._pruned = 0.0
         self._window: tuple[float, bool] = (0.0, False)  # (checked at, inside the challenge period)
+        # for the Console's status line; in memory, costs no request. Unix times.
+        self._last_ok: float | None = None
+        self._last_error: tuple[float, str] | None = None
+        self._last_counted: float | None = None
+        self._counted_since_start = 0
+        self._matches_now = self._players_now = 0
         self._stop = threading.Event()
         self._thread = threading.Thread(target=self._run, name="arena-poll", daemon=True)
 
@@ -71,6 +82,7 @@ class Tracker:
                 wait = self.interval
             except Exception as e:  # network down, bad JSON...: ask less often until it works again
                 wait = min(max(wait, self.interval) * 2, MAX_BACKOFF_S)
+                self._last_error = (time.time(), f"{type(e).__name__}: {e}"[:200])
                 log.warning("arena poll failed (%s); next try in %d s", e, wait)
 
     def _in_period(self, now: float) -> bool:
@@ -130,7 +142,30 @@ class Tracker:
         prune = now - self._pruned >= PRUNE_EVERY_S
         if new or prune:
             self._save(new, now, prune)
+        self._last_ok = now
+        self._matches_now = sum(1 for label in data.get("labels") or [] if is_public_arena(label))
+        self._players_now = len(present)
+        if new:
+            self._last_counted = now
+            self._counted_since_start += len(new)
         return len(new)
+
+    def status(self, now: float | None = None) -> dict:
+        """The Console's status line. state: off, outside_period, waiting (no answer yet), working, failing."""
+        now = time.time() if now is None else now
+        recent = self._last_ok is not None and now - self._last_ok <= STATUS_OK_POLLS * self.interval
+        if self.interval <= 0 or not self._thread.is_alive():
+            state = "off"
+        elif not self._window[1]:
+            state = "outside_period" if self._window[0] else "waiting"
+        elif recent:
+            state = "working"
+        else:
+            state = "failing" if self._last_error else "waiting"
+        return {"state": state, "last_ok_at": _stamp(self._last_ok), "last_counted_at": _stamp(self._last_counted),
+                "matches_now": self._matches_now, "players_now": self._players_now, "counted_since_start": self._counted_since_start,
+                "last_error": self._last_error[1] if self._last_error else None,
+                "last_error_at": _stamp(self._last_error[0]) if self._last_error else None}
 
     def _purge(self, user_ids: set[str]) -> None:
         """Spectators and moderators keep no record (user, 2026-11-04): whoever is seen as one loses their counted matches."""

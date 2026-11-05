@@ -1,6 +1,6 @@
 import { Fragment, type ReactNode, useEffect, useState } from "react";
 import {
-  CONSOLE_ACHIEVEMENTS_CSV, CONSOLE_MEGA_PRIZES_CSV, forgetResponses, getMegaPrizeWinners, getConsoleAchievements, getConsoleLog, getConsoleOverview, getMe, getMergeSuggestions,
+  CONSOLE_ACHIEVEMENTS_CSV, CONSOLE_MEGA_PRIZES_CSV, forgetResponses, getMegaPrizeWinners, type MegaPrizeReport as MegaPrizeData, getConsoleAchievements, getConsoleLog, getConsoleOverview, getMe, getMergeSuggestions,
   getProcessingStatus, loginUrl, runConsole, searchConsolePlayers,
   type ConsoleLogEntry, type ConsoleOverview, type ConsolePlayer, type ProcessingStatus,
 } from "../api";
@@ -1023,6 +1023,27 @@ function MergeSuggestions({ version, onUse }: { version: number; onUse: (keep: s
   );
 }
 
+const ARENA_STATES: Record<MegaPrizeData["arena_status"]["state"], string> = {
+  off: "Off (not running on this server)",
+  outside_period: "Waiting: outside the challenge period, so the match list is not being read",
+  waiting: "Starting: no answer from the match list yet",
+  working: "Working",
+  failing: "Failing: the match list has not answered lately",
+};
+
+/** Is the Public Arena counter alive? Read from the server's memory: resets on a restart and costs no request. */
+function ArenaCounterStatus({ status: s }: { status: MegaPrizeData["arena_status"] }) {
+  return (
+    <p className="muted">
+      <strong>Arena counter:</strong> {ARENA_STATES[s.state]}
+      {s.last_ok_at && ` · list last read ${s.last_ok_at.replace("T", " ")} (${s.matches_now} public matches, ${s.players_now} players)`}
+      {s.state !== "off" && ` · ${s.counted_since_start ?? 0} player-matches counted since the last restart`}
+      {s.last_counted_at && `, the last at ${s.last_counted_at.replace("T", " ")}`}
+      {s.last_error && ` · last error ${s.last_error_at?.replace("T", " ")}: ${s.last_error}`}
+    </p>
+  );
+}
+
 /** Mega Prize winners report (prizes are given out by hand): who reached each target inside the challenge period. */
 function MegaPrizeReport() {
   const [run, setRun] = useState(0); // Refresh asks again
@@ -1057,6 +1078,7 @@ function MegaPrizeReport() {
         </a>
       </div>
       <Status loading={report.loading} error={report.error} />
+      {d && <ArenaCounterStatus status={d.arena_status} />}
       {d &&
         d.prizes.map((p) => (
           <div key={p.prize}>

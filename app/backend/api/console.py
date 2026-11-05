@@ -210,8 +210,9 @@ def achievements_csv(request: Request):
 def mega_prize_winners(request: Request):
     """Who has reached each Mega Prize target inside the challenge period (the prizes are given out by hand)."""
     require_console(request, "mega-prizes")
+    tracker = getattr(request.app.state, "arena", None)  # only started with auto_scan
     with request.app.state.sessionmaker() as db:
-        return mega_prizes.report(db)
+        return mega_prizes.report(db) | {"arena_status": tracker.status() if tracker else {"state": "off"}}
 
 
 @router.get("/mega-prizes.csv")

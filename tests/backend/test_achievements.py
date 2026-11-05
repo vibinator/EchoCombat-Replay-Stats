@@ -153,11 +153,15 @@ def test_average_unlock_date_is_when_first_reached():
 
 
 def test_teammate_proximity_targets():
-    """Tech Support: ladder 22 / 27 / 32 / 40 / 55 % over a week; Robot Wrecking Squad: 14 / 15.5 / 17 / 19.5 / 22.5 % all-time
-    over 50+ games."""
-    r = by_id(evaluate([game(mate=330)] * 5))
-    assert (r[46]["tier"], r[46]["count"]) == ("bronze", 33) and r[71]["count"] == 0  # 5 games: the all-time one needs 50
-    assert by_id(evaluate([game(mate=300)] * 5))[46]["tier"] is None
+    """Tech Support: ladder 16 / 20 / 24 / 26 / 28 % over a week on 3+ days with 10+ minutes in bounds (these games have 50 s each);
+    Robot Wrecking Squad: 14 / 15.5 / 17 / 19.5 / 22.5 % all-time over 50+ games."""
+    def over_days(mate, *per_day):
+        return [g for i, n in enumerate(per_day) for g in [game(f"2026-10-0{i + 1}", mate=mate)] * n]
+    r = by_id(evaluate(over_days(170, 4, 4, 4)))
+    assert (r[46]["tier"], r[46]["count"]) == ("bronze", 17) and r[71]["count"] == 0  # 12 games: the all-time one needs 50
+    assert by_id(evaluate(over_days(170, 4, 4, 3)))[46]["tier"] is None  # under 10 minutes in bounds
+    assert by_id(evaluate(over_days(150, 4, 4, 4)))[46]["tier"] is None
+    assert by_id(evaluate(over_days(170, 6, 6)))[46]["tier"] is None  # two days only
     assert by_id(evaluate([game(mate=140)] * 50))[71]["tier"] == "bronze"
     assert by_id(evaluate([game(mate=130)] * 50))[71]["tier"] is None
 
@@ -319,6 +323,102 @@ def test_one_game_challenges_need_enough_players():
     assert r[140]["count"] == 0  # Marathon Bot: fewer than 3 per team
     r = by_id(evaluate([Game(**long_game)]))
     assert r[140]["count"] == 20
+
+
+def test_lone_wolf_uses_its_own_distance():
+    base = game("2026-10-01", mate=0).__dict__
+    far_from_2_6m_only = Game(**{**base, "in_bounds": 2000, "lone_wolf_near": 400})  # always over 2.6 m, within 3.5 m for 20 %
+    assert by_id(evaluate([far_from_2_6m_only]))[143]["count"] == pytest.approx(80)
+    assert by_id(evaluate([Game(**{**base, "in_bounds": 1200})]))[143]["tier"] == "platinum"  # exactly 1 minute at 20 Hz
+    assert by_id(evaluate([Game(**{**base, "in_bounds": 1199})]))[143]["count"] == 0  # just under: a few seconds of play do not count
+    assert "3.5 m" in next(rule for rule in RULES if rule.id == 143).description
+
+
+def test_untouchable_is_one_medal_and_needs_a_minute_in_bounds():
+    base = {**game("2026-10-01", deaths=0).__dict__, "team": "blue", "winner": "blue"}
+    assert next(rule for rule in RULES if rule.id == 139).levels == ()  # one win is the whole challenge
+    assert by_id(evaluate([Game(**{**base, "in_bounds": 1200})]))[139]["progress"] == 1.0  # exactly 1 minute at 20 Hz
+    assert by_id(evaluate([Game(**{**base, "in_bounds": 1199})]))[139]["progress"] == 0
+    assert by_id(evaluate([Game(**{**base, "in_bounds": 0})]))[139]["progress"] == 0  # never on the map: could not die
+    assert by_id(evaluate([Game(**{**base, "in_bounds": 1200, "deaths": 1})]))[139]["progress"] == 0
+    assert by_id(evaluate([Game(**{**base, "in_bounds": 1200, "winner": "orange"})]))[139]["progress"] == 0
+
+
+def test_lone_wolf_has_no_value_before_the_replay_is_read_again():
+    base = game("2026-10-01", mate=0).__dict__
+    assert by_id(evaluate([Game(**{**base, "in_bounds": 2000, "lone_wolf_near": None})]))[143]["count"] == 0  # not a false 100 %
+
+
+def test_seven_day_upside_down_needs_three_days_and_ten_minutes_in_bounds():
+    assert next(rule for rule in RULES if rule.id == 49).levels == (9.3, 22, 36, 47, 57)
+    def flipped(day, frames=4000):
+        return Game(**{**game(day).__dict__, "upside": frames * 3 // 5, "in_bounds": frames})
+    assert by_id(evaluate([flipped("2026-10-01"), flipped("2026-10-02"), flipped("2026-10-03")]))[49]["tier"] == "platinum"
+    assert by_id(evaluate([flipped("2026-10-01"), flipped("2026-10-02"), flipped("2026-10-03", 3995)]))[49]["count"] == 0
+    assert by_id(evaluate([flipped("2026-10-01", 12000), flipped("2026-10-02", 12000)]))[49]["count"] == 0  # two days
+
+
+def test_speed_demon_needs_a_minute_in_bounds():
+    base = game("2026-10-01").__dict__
+    rule = next(rule for rule in RULES if rule.id == 145)
+    assert rule.levels == (3.5, 4, 4.5, 5.25, 6)
+    fast = {**base, "speed_sum": 6.0 * 1200}
+    assert by_id(evaluate([Game(**{**fast, "in_bounds": 1200})]))[145]["tier"] == "platinum"  # 6 m/s for exactly 1 minute at 20 Hz
+    assert by_id(evaluate([Game(**{**fast, "in_bounds": 1199})]))[145]["count"] == 0
+
+
+def test_seven_day_speed_needs_three_days_and_ten_minutes_in_bounds():
+    base = game("2026-10-01").__dict__  # 20 Hz, 4 m/s below
+    def fast(frames, day="2026-10-01"):
+        return Game(**{**base, "started_at": f"{day}T20:00:00.000", "in_bounds": frames, "speed_sum": 4.0 * frames})
+    assert next(rule for rule in RULES if rule.id == 48).levels == (2.75, 3, 3.25, 3.5, 3.75)
+    assert by_id(evaluate([fast(4000), fast(4000, "2026-10-03"), fast(4000, "2026-10-07")]))[48]["tier"] == "platinum"  # exactly 10 minutes, any 3 days of the 7
+    assert by_id(evaluate([fast(4000), fast(4000, "2026-10-03"), fast(3999, "2026-10-07")]))[48]["count"] == 0
+    assert by_id(evaluate([fast(24000)]))[48]["count"] == 0  # one long game
+    assert by_id(evaluate([fast(6000), fast(6000)]))[48]["count"] == 0  # several games on one day
+    assert by_id(evaluate([fast(6000), fast(6000, "2026-10-03")]))[48]["count"] == 0  # two days
+    assert by_id(evaluate([fast(4000), fast(4000, "2026-10-03"), fast(4000, "2026-10-20")]))[48]["count"] == 0  # not in the same 7 days
+
+
+def test_seven_day_enemy_share_needs_three_days_and_ten_minutes_in_bounds():
+    assert next(rule for rule in RULES if rule.id == 47).levels == (12, 14, 16, 18, 20)
+    def close(day, frames=4000):
+        return Game(**{**game(day).__dict__, "near_enemy": frames // 5, "in_bounds": frames})
+    assert by_id(evaluate([close("2026-10-01"), close("2026-10-02"), close("2026-10-03")]))[47]["tier"] == "platinum"  # 20 % for exactly 10 minutes at 20 Hz
+    assert by_id(evaluate([close("2026-10-01"), close("2026-10-02"), close("2026-10-03", 3995)]))[47]["count"] == 0
+    assert by_id(evaluate([close("2026-10-01", 12000), close("2026-10-02", 12000)]))[47]["count"] == 0  # two days
+
+
+def test_can_we_talk_needs_a_minute_in_bounds():
+    base = game("2026-10-01").__dict__
+    assert next(rule for rule in RULES if rule.id == 22).levels == (25, 30, 35, 40, 50)
+    close = {**base, "near_enemy": 600}
+    assert by_id(evaluate([Game(**{**close, "in_bounds": 1200})]))[22]["tier"] == "platinum"  # 50 % for exactly 1 minute at 20 Hz
+    assert by_id(evaluate([Game(**{**close, "in_bounds": 1199})]))[22]["count"] == 0
+
+
+def test_seven_day_teammate_share_needs_three_days_and_ten_minutes_in_bounds():
+    assert next(rule for rule in RULES if rule.id == 46).levels == (16, 20, 24, 26, 28)
+    def close(day, frames=4000):
+        return Game(**{**game(day).__dict__, "near_mate": frames * 7 // 25, "in_bounds": frames})
+    assert by_id(evaluate([close("2026-10-01"), close("2026-10-02"), close("2026-10-03")]))[46]["tier"] == "platinum"  # 28 % for exactly 10 minutes at 20 Hz
+    assert by_id(evaluate([close("2026-10-01"), close("2026-10-02"), close("2026-10-03", 3975)]))[46]["count"] == 0
+    assert by_id(evaluate([close("2026-10-01", 12000), close("2026-10-02", 12000)]))[46]["count"] == 0  # two days
+
+
+def test_statue_needs_a_minute_in_bounds():
+    base = game("2026-10-01").__dict__
+    assert next(rule for rule in RULES if rule.id == 142).levels == (54, 61, 67, 73, 80)
+    still = {**base, "stopped": 960}
+    assert by_id(evaluate([Game(**{**still, "in_bounds": 1200})]))[142]["tier"] == "platinum"  # 80 % for exactly 1 minute at 20 Hz
+    assert by_id(evaluate([Game(**{**still, "in_bounds": 1199})]))[142]["count"] == 0
+
+
+def test_full_team_salvo_needs_a_minute_in_bounds():
+    base = game("2026-10-01").__dict__
+    close = {**base, "near_mate": 972}  # 81 % of 1200
+    assert by_id(evaluate([Game(**{**close, "in_bounds": 1200})]))[21]["tier"] == "platinum"  # exactly 1 minute at 20 Hz
+    assert by_id(evaluate([Game(**{**close, "in_bounds": 1199})]))[21]["count"] == 0
 
 
 def test_all_gear_shares_one_ladder_per_kind():

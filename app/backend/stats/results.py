@@ -25,6 +25,7 @@ class PlayerStats:
     frames_stopped: int = 0
     frames_upside_down: int = 0
     frames_near_mate: int = 0
+    frames_lone_wolf_near: int = 0  # within 3.5 m of a teammate: Lone Wolf only
     frames_near_enemy: int = 0
     frames_left_arm: int = 0
     frames_right_arm: int = 0
