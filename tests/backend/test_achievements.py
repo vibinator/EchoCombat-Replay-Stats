@@ -238,7 +238,7 @@ def test_ladders_with_units_and_periods():
     assert (r[23]["tier"], r[23]["count"], r[23]["unit"]) == ("gold", 20.0, " m/s")  # 14 / 17 / 20 / 26 / 30
     assert "14 m/s bronze, 17 m/s silver" in next(x for x in RULES if x.id == 23).description
     r = by_id(evaluate([game(upside=600)]))
-    assert (r[24]["tier"], r[24]["count"]) == ("silver", 60.0)  # 60 % inverted in one 3+ min game: 15 / 30 / 55 / 80 / 92
+    assert (r[24]["tier"], r[24]["count"]) == ("gold", 60.0)  # 60 % inverted in one 3+ min game: 15 / 35 / 52 / 66 / 78 (TUNED_LEVELS)
     assert by_id(evaluate([game(upside=900, play=60.0)]))[24]["count"] == 0
 
 

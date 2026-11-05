@@ -161,12 +161,17 @@ function Layout() {
           <span className="account muted">
             {user.name} · <a href={LOGOUT_URL}>Log out</a>
           </span>
-        ) : (
-          me?.enabled && (
+        ) : me ? (
+          me.enabled && (
             <a className="button discord-login" href={loginUrl(location.pathname + location.search)}>
               Log in with Discord
             </a>
           )
+        ) : (
+          // holds the button's place until the server answers, so the header and page do not jump when it appears
+          <a className="button discord-login login-slot" aria-hidden="true">
+            Log in with Discord
+          </a>
         )}
       </header>
       <main>

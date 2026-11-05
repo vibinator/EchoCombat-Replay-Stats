@@ -22,7 +22,7 @@ export function PlayersPage() {
           <p className="muted">No players found{q && ` for "${q}"`}.</p>
         ) : (
           <TableWrap>
-            <table>
+            <table className="stack">
               <thead>
                 <tr>
                   <th>Name</th>
@@ -33,11 +33,11 @@ export function PlayersPage() {
               <tbody>
                 {result.data.items.map((p) => (
                   <tr key={p.user_id}>
-                    <td>
+                    <td data-label="Name">
                       <Link to={playerPath(p.user_id, p.name)}>{p.name}</Link>
                     </td>
-                    <td className="num">{int(p.games)}</td>
-                    <td>{dateTime(p.last_seen_at)}</td>
+                    <td data-label="Games" className="num">{int(p.games)}</td>
+                    <td data-label="Last seen">{dateTime(p.last_seen_at)}</td>
                   </tr>
                 ))}
               </tbody>

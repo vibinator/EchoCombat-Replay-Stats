@@ -259,8 +259,8 @@ export function MatchCombatSection({ sessionId }: { sessionId: string }) {
   return (
     <>
       <p className="muted footnote">
-        <span className="tag">beta</span> New data we are still collecting and testing, from a separate source than the replay
-        stats on this page, so numbers can differ. Only data collected from 4 November 2026 onwards.{" "}
+        From a separate source than the replay stats on this page, so numbers can differ. Only data collected from
+        4 November 2026 onwards.{" "}
         <Link to={`/combat/${data.session_id}`}>Open on its own page</Link>
       </p>
       <CombatMatchBody m={data} />

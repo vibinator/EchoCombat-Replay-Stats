@@ -1,7 +1,7 @@
 import { Link, useParams, useSearchParams } from "react-router";
-import { getCombatBoard, getCombatMatch, getCombatStats, getCombatSummary, listCombatMatches, type Period } from "../api";
+import { getCombatBoard, getCombatMatch, getCombatStats, getCombatSummary, listCombatMatches, type CombatBoardRow, type Period } from "../api";
 import { CombatMatchBody } from "../components/CombatView";
-import { Status, TableWrap } from "../components/common";
+import { NotFoundBox, Status, TableWrap, isNotFound } from "../components/common";
 import { Skeleton } from "../components/ui";
 import { MAPS, dateTime, duration, int, num, playerPath, title } from "../format";
 import { useApi } from "../useApi";
@@ -9,6 +9,15 @@ import { usePageTitle } from "../usePageTitle";
 
 const PERIODS: [Period, string][] = [["day", "Today"], ["week", "This week"], ["month", "This month"], ["all", "All time"]];
 const PAGE_SIZE = 25;
+// stat key, heading, value. The column of the chosen stat is left out: that stat already has the bold column.
+const COLUMNS: [string, string, (r: CombatBoardRow) => string][] = [
+  ["matches", "Matches", (r) => int(r.matches)],
+  ["kills", "Kills", (r) => int(r.kills)],
+  ["deaths", "Deaths", (r) => int(r.deaths)],
+  ["kd", "K/D", (r) => num(r.kd, 2)],
+  ["assists", "Assists", (r) => int(r.assists)],
+  ["damage", "Damage", (r) => int(r.damage)],
+];
 
 /** Combat stats: the game's own counters from the recorder's match reports. Separate from the replay-derived stats. */
 export function CombatPage() {
@@ -38,7 +47,7 @@ export function CombatPage() {
   return (
     <section>
       <h1>Combat stats</h1>
-      <p className="muted">
+      <p className="muted combat-intro">
         The game&apos;s own counters, collected from recorded matches
         {summary && summary.matches > 0 && ` (${int(summary.matches)} matches, ${int(summary.players)} players${summary.last_match_at ? `, latest ${dateTime(summary.last_match_at)}` : ""})`}.
         This is a separate source from the replay stats, so numbers can differ from the Leaderboard.
@@ -71,7 +80,7 @@ export function CombatPage() {
           </select>
         </label>
       </div>
-      {hint && <p className="muted footnote">{hint}</p>}
+      <p className="muted footnote combat-hint">{hint}</p>
       {board.loading && !board.data && <Skeleton lines={6} />}
       <Status loading={false} error={board.error} />
       {board.data && (board.data.items.length === 0 ? (
@@ -80,7 +89,10 @@ export function CombatPage() {
         <TableWrap>
           <table className="stack">
             <thead>
-              <tr><th className="num">#</th><th>Player</th><th className="num">{board.data.label}</th><th className="num">Matches</th><th className="num">Kills</th><th className="num">Deaths</th><th className="num">K/D</th><th className="num">Assists</th><th className="num">Damage</th></tr>
+              <tr>
+                <th className="num">#</th><th>Player</th><th className="num">{board.data.label}</th>
+                {COLUMNS.filter(([key]) => key !== board.data!.stat).map(([key, heading]) => <th key={key} className="num">{heading}</th>)}
+              </tr>
             </thead>
             <tbody>
               {board.data.items.map((r) => (
@@ -88,12 +100,9 @@ export function CombatPage() {
                   <td data-label="#" className="num rank">{r.rank}</td>
                   <td data-label="Player"><Link to={playerPath(r.user_id, r.name)}>{r.name}</Link></td>
                   <td data-label={board.data!.label} className="num"><strong>{Number.isInteger(r.value) ? int(r.value) : num(r.value, 2)}</strong></td>
-                  <td data-label="Matches" className="num">{r.matches}</td>
-                  <td data-label="Kills" className="num">{int(r.kills)}</td>
-                  <td data-label="Deaths" className="num">{int(r.deaths)}</td>
-                  <td data-label="K/D" className="num">{r.kd == null ? "–" : num(r.kd, 2)}</td>
-                  <td data-label="Assists" className="num">{int(r.assists)}</td>
-                  <td data-label="Damage" className="num">{int(r.damage)}</td>
+                  {COLUMNS.filter(([key]) => key !== board.data!.stat).map(([key, heading, value]) => (
+                    <td key={key} data-label={heading} className="num">{value(r)}</td>
+                  ))}
                 </tr>
               ))}
             </tbody>
@@ -142,9 +151,17 @@ export function CombatMatchPage() {
   usePageTitle(m ? `Combat stats · ${title(m.map)}` : "Combat match");
   return (
     <section>
-      <p><Link to="/combat">← Combat stats</Link></p>
       {match.loading && !m && <Skeleton lines={6} />}
-      <Status loading={false} error={match.error} />
+      {isNotFound(match.error) ? (
+        <NotFoundBox heading="Combat match not found" links={[["/combat", "Combat stats"], ["/", "Home"]]}>
+          This match has no combat report (yet), or the link is wrong.
+        </NotFoundBox>
+      ) : (
+        <>
+          <p><Link to="/combat">← Combat stats</Link></p>
+          <Status loading={false} error={match.error} />
+        </>
+      )}
       {m && (
         <>
           <h1>{title(m.map)} · {dateTime(m.started_at)}</h1>

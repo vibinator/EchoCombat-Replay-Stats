@@ -18,6 +18,20 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.05.2 — 18:03
+
+### Fixes from the full website test
+- **Pages no longer jump while loading.** The "Log in with Discord" button keeps its place from the start and now fits on the header's one line from 1280 px wide (below that the menu has its own row). The loading placeholders on player and match pages and the text on the Combat page no longer move the page either. Up to 1380 px wide the menu hides the "Coming soon" tag beside Achievements; the page itself still says it.
+- **Compare:** after picking one player the page now shows who you picked (with a × to remove them) and asks for one more, also when you arrive from a player page. Large numbers have thousands separators, and a player with no data shows "–" instead of "– m/s".
+- **Phones:** the Playback tab no longer scrolls sideways, an opened tab is scrolled into view in the tab strip, and the Players list shows games and last seen without scrolling sideways.
+- **Addresses that lead nowhere** (`/matches/abc`, an unknown player or combat match) show a clear "not found" message with links, instead of "Match #NaN" or "Request failed (422)".
+- **Combat table:** the chosen stat no longer appears in two columns.
+- **Matches:** the "Match type" filter is gone. The recorder skips private matches, so "Private" could only ever show 0.
+- **Match page:** the Combat tab no longer says "beta".
+- **Behind the scenes:** leaving the Playback or Heatmap tab no longer logs an error in the browser console.
+
+Nothing to do after updating; no re-read is needed.
+
 ## 2026.11.05.1 — 16:03
 
 ### New Combat challenges

@@ -9,7 +9,7 @@ import { useApi } from "../useApi";
 import { usePageTitle } from "../usePageTitle";
 
 const PAGE_SIZE = 24;
-const FILTERS = ["map", "mode", "from", "to", "player", "private", "min_players", "result", "player_name"] as const;
+const FILTERS = ["map", "mode", "from", "to", "player", "min_players", "result", "player_name"] as const;
 
 export function MatchesPage() {
   usePageTitle("Matches");
@@ -92,14 +92,6 @@ export function MatchesPage() {
             <option value="attack_win">Payload: attack won</option>
             <option value="defence_win">Payload: defence won</option>
             <option value="unknown">Winner unknown</option>
-          </select>
-        </label>
-        <label>
-          Match type
-          <select value={filters.private} onChange={(e) => set("private", e.target.value)}>
-            <option value="">All</option>
-            <option value="false">Public</option>
-            <option value="true">Private</option>
           </select>
         </label>
         <label>

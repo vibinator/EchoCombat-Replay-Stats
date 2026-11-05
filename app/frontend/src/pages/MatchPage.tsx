@@ -5,11 +5,11 @@ import {
   type GearUse, type HeatmapLayerMode, type MatchDetail, type MatchPlayer, type Team,
 } from "../api";
 import { MatchCombatSection } from "../components/CombatView";
-import { GearName, LoadoutText, Status, TableWrap } from "../components/common";
+import { GearName, LoadoutText, NotFoundBox, Status, TableWrap, isNotFound } from "../components/common";
 import { HEATMAP_CELL_M, HEATMAP_MODES, HeatmapView } from "../components/HeatmapView";
 import { PlaybackCompare, PlaybackView } from "../components/PlaybackView";
 import { TimelineView } from "../components/TimelineView";
-import { FitText, InfoTip, STAT_HELP, Skeleton } from "../components/ui";
+import { FitText, InfoTip, STAT_HELP, Skeleton, useActiveTabInView } from "../components/ui";
 import { dateTime, duration, int, modeLabel, num, pct, playerPath, teamLabel, title } from "../format";
 import { useApi } from "../useApi";
 import { usePageTitle } from "../usePageTitle";
@@ -217,7 +217,7 @@ function GearUseTable({ m }: { m: MatchDetail }) {
 type Tab = "players" | "combat" | "gear" | "timeline" | "heatmap" | "playback";
 const TABS: [Tab, string][] = [
   ["players", "Stats per player"],
-  ["combat", "Kills, damage, weapons (beta)"],
+  ["combat", "Kills, damage, weapons"],
   ["gear", "Weapons, ordnance, tac mods"],
   ["timeline", "Score and events over time"],
   ["heatmap", "Where everyone went"],
@@ -305,8 +305,20 @@ function PlaybackTab({ id }: { id: number }) {
   );
 }
 
+const MATCH_LINKS: [string, string][] = [["/matches", "All matches"], ["/", "Home"]];
+
 export function MatchPage() {
-  const id = Number(useParams().id);
+  const id = useParams().id ?? "";
+  // match numbers only: anything else (/matches/abc, a number too long to be one) cannot exist, so the server is not asked
+  return /^\d{1,15}$/.test(id) ? <MatchContent id={Number(id)} /> : <BadMatchAddress />;
+}
+
+function BadMatchAddress() {
+  usePageTitle("Match not found");
+  return <NotFoundBox heading="Match not found" links={MATCH_LINKS}>That is not a match number.</NotFoundBox>;
+}
+
+function MatchContent({ id }: { id: number }) {
   const match = useApi(() => getMatch(id), String(id));
   const m = match.data;
   usePageTitle(m ? `${title(m.map)} #${m.id}` : `Match #${id}`);
@@ -318,17 +330,18 @@ export function MatchPage() {
   const combat = useApi(() => (sessionId ? getCombatMatch(sessionId) : Promise.resolve(null)), `combat-match|${sessionId ?? ""}`);
   const hasCombat = !!combat.data;
   const tabs = TABS.filter(([t]) => (t !== "combat" || hasCombat) && (t !== "gear" || (!!m && hasGearData(m))));
+  const tabStrip = useActiveTabInView(`${tab}|${tabs.length}|${!!m}`);
 
   return (
     <section>
       {match.loading && <Skeleton cards={3} lines={4} />}
-      {match.error && !m && (
-        <div className="not-found">
-          <h1>Match #{id} not found</h1>
-          <p className="muted">{/not found|404/i.test(match.error) ? "This match is not in the archive (yet). It may still be waiting to be read, or the number is wrong." : match.error}</p>
-          <p className="links"><Link to="/matches">All matches</Link><Link to="/">Home</Link></p>
-        </div>
-      )}
+      {match.error && !m && (isNotFound(match.error) ? (
+        <NotFoundBox heading={`Match #${id} not found`} links={MATCH_LINKS}>
+          This match is not in the archive (yet). It may still be waiting to be read, or the number is wrong.
+        </NotFoundBox>
+      ) : (
+        <Status loading={false} error={match.error} />
+      ))}
       {m && (
         <>
           <div className="section-head">
@@ -371,7 +384,7 @@ export function MatchPage() {
           <Scoreboard m={m} />
           <Highlights m={m} />
 
-          <div className="tabs section-tabs" role="tablist" aria-label="Match views">
+          <div className="tabs section-tabs" role="tablist" aria-label="Match views" ref={tabStrip}>
             {tabs.map(([t, hint]) => (
               <button key={t} role="tab" aria-selected={tab === t} className={tab === t ? "tab active" : "tab"} onClick={() => setTab(t)}>
                 <span className="tab-label">{title(t)}</span>

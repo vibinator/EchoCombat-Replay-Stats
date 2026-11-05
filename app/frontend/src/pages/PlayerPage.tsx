@@ -8,10 +8,10 @@ import { AchievementsSummary } from "../components/AchievementsView";
 import { CombatSection } from "../components/CombatView";
 import { ShareBar, Sparkline, SplitBar, VsAverage } from "../components/bars";
 import { LineChart } from "../components/charts";
-import { GearName, MatchTable, Status, TableWrap, TeamBadge } from "../components/common";
+import { GearName, MatchTable, NotFoundBox, Status, TableWrap, TeamBadge, isNotFound } from "../components/common";
 import { HEATMAP_CELL_M, HEATMAP_MODES, HeatmapView } from "../components/HeatmapView";
 import { PlayerAvatar, PlayerBio, usePlayerBio } from "../components/PlayerBio";
-import { InfoTip, Skeleton } from "../components/ui";
+import { InfoTip, Skeleton, useActiveTabInView } from "../components/ui";
 import { MAPS, dateTime, hoursMinutes, int, nameSlug, num, pct, periodLabel, playerPath, title } from "../format";
 import { useApi } from "../useApi";
 import { usePageTitle } from "../usePageTitle";
@@ -407,6 +407,15 @@ const PLAYER_TABS: [PlayerTab, string, string][] = [
   ["heatmap", "Heatmap", "Where they spend the match"],
 ];
 
+function PlayerNotFound() {
+  usePageTitle("Player not found");
+  return (
+    <NotFoundBox heading="Player not found" links={[["/players", "All players"], ["/", "Home"]]}>
+      This player is not in the archive (yet), or the link is wrong.
+    </NotFoundBox>
+  );
+}
+
 export function PlayerPage() {
   const { userId = "", name: nameInUrl = "" } = useParams();
   const [params, setParams] = useSearchParams();
@@ -423,6 +432,7 @@ export function PlayerPage() {
   const hasCombat = !!combat.data?.matches && !!combat.data.stats;
   const tabs = PLAYER_TABS.filter(([t]) => (t !== "beta" || hasCombat) && (hasGames || t === "overview" || t === "achievements" || t === "beta"));
   const tab = tabs.some(([t]) => t === params.get("tab")) ? (params.get("tab") as PlayerTab) : "overview";
+  const tabStrip = useActiveTabInView(`${tab}|${tabs.length}|${!!p}`);
   const setTab = (t: PlayerTab) => {
     const next = new URLSearchParams(params);
     if (t === "overview") next.delete("tab");
@@ -447,7 +457,7 @@ export function PlayerPage() {
   return (
     <section>
       {profile.loading && !p && <Skeleton cards={8} lines={2} />}
-      <Status loading={false} error={profile.error} />
+      {isNotFound(profile.error) ? <PlayerNotFound /> : <Status loading={false} error={profile.error} />}
       {p && (
         <>
           <ProfileHeader p={p} />
@@ -493,7 +503,7 @@ export function PlayerPage() {
             </>
           )}
 
-          <div className="tabs section-tabs" role="tablist" aria-label="Player views">
+          <div className="tabs section-tabs" role="tablist" aria-label="Player views" ref={tabStrip}>
             {tabs.map(([t, label, hint]) => (
               <button key={t} role="tab" aria-selected={tab === t} className={tab === t ? "tab active" : "tab"} onClick={() => setTab(t)}>
                 <span className="tab-label">{label}</span>

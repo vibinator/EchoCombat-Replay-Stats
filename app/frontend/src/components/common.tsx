@@ -30,6 +30,23 @@ export function Status({ loading, error }: { loading: boolean; error: string | n
   return null;
 }
 
+/** The address points at nothing: unknown (404) or not even a valid id (422, the server's own message is not readable). */
+export function isNotFound(error: string | null): boolean {
+  return !!error && /not found|\((404|422)\)/i.test(error);
+}
+
+export function NotFoundBox({ heading, children, links }: { heading: string; children: ReactNode; links: [string, string][] }) {
+  return (
+    <div className="not-found">
+      <h1>{heading}</h1>
+      <p className="muted">{children}</p>
+      <p className="links">
+        {links.map(([to, label]) => <Link key={to} to={to}>{label}</Link>)}
+      </p>
+    </div>
+  );
+}
+
 export function TeamBadge({ team }: { team: Team | null }) {
   return team ? <span className={`team-badge ${team}`}>{teamLabel(team)}</span> : <span className="muted">–</span>;
 }

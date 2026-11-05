@@ -29,8 +29,12 @@ export function useFullscreen(ref: RefObject<HTMLElement | null>) {
     else setFake(true);
   }, [ref, fake]);
 
-  // leaving the page while full screen must not leave the browser in it
-  useEffect(() => () => { if (document.fullscreenElement === ref.current) void document.exitFullscreen(); }, [ref]);
+  // leaving the page while full screen must not leave the browser in it. The element is kept here because the ref is
+  // already empty by the time this cleans up: null === null (nothing full screen) made exitFullscreen() throw.
+  useEffect(() => {
+    const el = ref.current;
+    return () => { if (el && document.fullscreenElement === el) void document.exitFullscreen(); };
+  }, [ref]);
 
   return { full: on || fake, fakeClass: fake ? " pb3d-fake-full" : "", toggle };
 }

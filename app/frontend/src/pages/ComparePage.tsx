@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router";
-import { comparePlayers, getPlayerHeatmap3d, getPlayerHeatmapBy, searchPlayers, type Period, type PlayerStats } from "../api";
+import { comparePlayers, getPlayer, getPlayerHeatmap3d, getPlayerHeatmapBy, searchPlayers, type Period, type PlayerStats } from "../api";
 import { Status, TableWrap } from "../components/common";
 import { HEATMAP_CELL_M, HeatmapView } from "../components/HeatmapView";
 import { EmptyState, Skeleton, WhenVisible } from "../components/ui";
@@ -8,20 +8,23 @@ import { MAPS, duration, int, num, pct, playerPath, title } from "../format";
 import { useApi } from "../useApi";
 import { usePageTitle } from "../usePageTitle";
 
+/** A speed, or just "–" when the player has none in this period. */
+const speed = (value: number | null, digits?: number) => (value == null ? "–" : `${num(value, digits)} m/s`);
+
 const ROWS: [string, (s: PlayerStats) => string, (s: PlayerStats) => number | null, boolean, ((s: PlayerStats) => boolean)?][] = [
   // label, display, comparable value, higher is better
-  ["Games", (s) => String(s.games), (s) => s.games, true],
+  ["Games", (s) => int(s.games), (s) => s.games, true],
   [
     "Wins – losses",
-    (s) => `${s.wins} – ${s.losses}`,
+    (s) => `${int(s.wins)} – ${int(s.losses)}`,
     (s) => (s.wins != null && s.losses != null && s.wins + s.losses ? s.wins / (s.wins + s.losses) : null),
     true,
     (s) => s.wins != null, // hidden from players: left out of the answer
   ],
   ["Hours played", (s) => num(s.hours_played), (s) => s.hours_played, true],
   ["Deaths / game*", (s) => num(s.deaths_per_game_est, 2), (s) => s.deaths_per_game_est, false],
-  ["Average speed", (s) => `${num(s.avg_speed, 2)} m/s`, (s) => s.avg_speed, true],
-  ["Top speed", (s) => `${num(s.top_speed)} m/s`, (s) => s.top_speed, true],
+  ["Average speed", (s) => speed(s.avg_speed, 2), (s) => s.avg_speed, true],
+  ["Top speed", (s) => speed(s.top_speed), (s) => s.top_speed, true],
   ["Time idle", (s) => pct(s.pct_stopped), (s) => s.pct_stopped, false],
   ["Inverted", (s) => pct(s.pct_upside_down), (s) => s.pct_upside_down, true],
   ["Near a teammate", (s) => pct(s.pct_near_mate), (s) => s.pct_near_mate, true],
@@ -29,7 +32,7 @@ const ROWS: [string, (s: PlayerStats) => string, (s: PlayerStats) => number | nu
   ["Average ping", (s) => num(s.avg_ping, 0), (s) => s.avg_ping, false],
   ["Payload push*", (s) => duration(s.payload_push_s), (s) => s.payload_push_s, true],
   ["Payload block*", (s) => duration(s.payload_block_s), (s) => s.payload_block_s, true],
-  ["Emotes", (s) => String(s.emote_count), (s) => s.emote_count, true],
+  ["Emotes", (s) => int(s.emote_count), (s) => s.emote_count, true],
 ];
 
 function AddPlayer({ onAdd }: { onAdd: (id: string) => void }) {
@@ -63,6 +66,9 @@ export function ComparePage() {
   const period = (params.get("period") as Period) || "all";
   const map = params.get("map") ?? "dyson";
   const data = useApi(() => (ids.length >= 2 ? comparePlayers(ids, period) : Promise.resolve(null)), `${ids.join(",")}|${period}`);
+  // one player picked: no comparison to ask for yet, only their name to show that the pick worked
+  const onlyId = ids.length === 1 ? ids[0] : "";
+  const only = useApi(() => (onlyId ? getPlayer(onlyId, "all") : Promise.resolve(null)), onlyId);
 
   function setIds(next: string[]) {
     const p = new URLSearchParams(params);
@@ -94,7 +100,13 @@ export function ComparePage() {
         </label>
       </div>
 
-      {ids.length < 2 && <EmptyState title="Pick at least two players">Search above, or use "Compare" on a player page.</EmptyState>}
+      {ids.length === 0 && <EmptyState title="Pick at least two players">Search above, or use "Compare" on a player page.</EmptyState>}
+      {ids.length === 1 && (
+        <EmptyState title="Add one more player to compare">
+          {only.error ? "The player you picked was not found." : <>Picked: {only.data ? <Link to={playerPath(only.data.user_id, only.data.name)}>{only.data.name}</Link> : "…"}</>}{" "}
+          <button className="link danger" aria-label={`Remove ${only.data?.name ?? "this player"}`} onClick={() => setIds([])}>×</button>
+        </EmptyState>
+      )}
       {data.loading && <Skeleton lines={6} />}
       <Status loading={false} error={data.error} />
       {c && (

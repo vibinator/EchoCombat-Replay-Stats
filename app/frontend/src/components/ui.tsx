@@ -64,6 +64,21 @@ export function Skeleton({ lines = 3, cards = 0 }: { lines?: number; cards?: num
   );
 }
 
+/** For a tab strip that scrolls sideways on phones: brings the active tab into view (a link can open any tab). Moves
+ *  only the strip, never the page. `dep`: whatever changes which tab is active or which tabs exist. */
+export function useActiveTabInView(dep: string) {
+  const strip = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const box = strip.current;
+    const active = box?.querySelector<HTMLElement>(".tab.active");
+    if (!box || !active || box.scrollWidth <= box.clientWidth) return;
+    const outer = box.getBoundingClientRect();
+    const tab = active.getBoundingClientRect();
+    if (tab.left < outer.left || tab.right > outer.right) box.scrollLeft += tab.left - outer.left - (outer.width - tab.width) / 2;
+  }, [dep]);
+  return strip;
+}
+
 const FIT_MIN_PX = 10;
 
 /** One line, always: shrinks the font until the text fits its box (long player names in cards). Below

@@ -1098,6 +1098,9 @@ a.button.discord-login {
 a.button.discord-login:hover {
   background: #4752c4;
 }
+.login-slot {
+  visibility: hidden;
+}
 .account {
   font-size: 0.85rem;
   white-space: nowrap;
@@ -1316,6 +1319,9 @@ kbd {
   flex-direction: column;
   gap: 8px;
   margin: 12px 0;
+}
+section > .skeleton:first-child {
+  margin-top: 0; /* same top as the content it stands in for: the whole page moved when that arrived */
 }
 .skel-line,
 .skel-block {
@@ -1876,6 +1882,43 @@ td.best {
   .podium-step.place-1 { min-height: 120px; }
 }
 
+/* Laptop widths: tighter header, so the login button stays on the same line instead of adding a second row */
+@media (min-width: 761px) and (max-width: 1500px) {
+  .topbar {
+    column-gap: 12px;
+  }
+  nav {
+    gap: 12px;
+  }
+  .global-search {
+    flex-basis: 120px;
+    min-width: 120px;
+  }
+}
+@media (min-width: 761px) and (max-width: 1380px) {
+  nav .tag {
+    display: none; /* "Coming soon · 164": the page itself says it */
+  }
+}
+/* Too narrow for one line: the menu gets its own row, so what wraps does not depend on when the web font arrives */
+@media (min-width: 761px) and (max-width: 1279px) {
+  nav {
+    order: 10;
+    width: 100%;
+  }
+  .global-search {
+    margin-left: auto;
+  }
+}
+
+/* Combat page: room for the text that arrives after the page is drawn, so the filters stay put */
+.combat-intro {
+  min-height: 2.8em;
+}
+.combat-hint {
+  min-height: 1.4em;
+}
+
 /* New achievements: their own section, set apart from the original 75 */
 .new-challenges {
   margin-top: 32px;
@@ -2426,6 +2469,22 @@ td.best {
 .pb-mid strong {
   font-size: 1.3rem;
   font-variant-numeric: tabular-nums;
+}
+/* phones: the clock on its own row, the teams side by side under it (three columns pushed the page sideways) */
+@media (max-width: 640px) {
+  .pb-score {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 8px 12px;
+    padding: 8px 12px;
+  }
+  .pb-mid {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+  .pb-team {
+    flex-wrap: wrap;
+    gap: 4px 8px;
+  }
 }
 .pb-track {
   position: relative;
