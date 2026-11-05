@@ -147,6 +147,7 @@ def overview(request: Request):
     """Dashboard facts the Status page does not have: players, merges, failures, hidden stats, the challenge period
     and the latest console commands. Processing progress comes from /api/admin/status."""
     require_console(request, "overview", fresh=False)
+    tracker = getattr(request.app.state, "arena", None)  # only started with auto_scan
     with request.app.state.sessionmaker() as db:
         start, end = actions.challenge_window(db)
         hidden = actions.hidden_stats(db)
@@ -164,6 +165,7 @@ def overview(request: Request):
             "stat_groups": [{"key": g, "label": label, "hidden": g in hidden, "players": hidden_players[g]}
                             for g, label in actions.STAT_GROUPS.items()],
             "recent": [_log_row(r) for r in actions.command_log(db, 8)],
+            "arena_status": tracker.status() if tracker else {"state": "off"},  # from memory: no request, no wait
         }
 
 
@@ -210,9 +212,8 @@ def achievements_csv(request: Request):
 def mega_prize_winners(request: Request):
     """Who has reached each Mega Prize target inside the challenge period (the prizes are given out by hand)."""
     require_console(request, "mega-prizes")
-    tracker = getattr(request.app.state, "arena", None)  # only started with auto_scan
     with request.app.state.sessionmaker() as db:
-        return mega_prizes.report(db) | {"arena_status": tracker.status() if tracker else {"state": "off"}}
+        return mega_prizes.report(db)
 
 
 @router.get("/mega-prizes.csv")

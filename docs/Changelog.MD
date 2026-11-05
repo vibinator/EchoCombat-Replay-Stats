@@ -18,6 +18,54 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.05.4 — 20:33
+
+### Duplicate achievements removed
+- **Frequent Flyer:** it was the same as King/Queen of Pubs, since every recorded game is a pub.
+- **Starburst Beta Tester, Protostar Prototype, Quantum of Quark, Blazar of Glory, Now You See Me, Connect the Dots:** they counted the same games as the Starburst, Protostar, Quark, Blazar, Translocator and Dot Field Veterans.
+- The replay challenges go from 164 to 157. Nothing else changes, but "completed" and Medal Collector totals are out of the new number.
+
+### Three new Combat achievements
+- **Siege Breaker** (objective damage in one game), **Field Medic** (heal bubbles in one game) and **Shock Trooper** (stuns in one game), from the recorder's match reports only. Like the other Combat achievements they are provisional and stay out of the totals. Field Medic and Shock Trooper only count matches with a complete event log.
+
+### Impossible top medals fixed
+Nobody had ever reached these platinums. All targets now sit within what players have done:
+- **Roboticide** 6 / 8 / 9 / 11 / 14 %. **Cyberkinetic Enhancements** 2.6 / 2.8 / 3 / 3.2 / 3.5 m/s. **Point Guard** 2 / 3 / 3.5 / 4 / 4.5 min.
+- **Loadout Roulette** 2 / 3 / 4 / 5 / 6. **Mime Troupe** 2 / 4 / 6 / 8 / 10. **Showboat** 4 / 6 / 8 / 10 / 14. **Dance Floor Legend** 20 / 40 / 60 / 80 / 120.
+
+### Fixed
+- Medal text says "Play 1 game", not "Play 1 games".
+
+### Times are in your own timezone
+- **Every match, player and release time and date** now shows on your own clock. Hover a match time to see your timezone and the UK time.
+- **Fixed:** "Last match … ago" on the home page was hours out for anyone outside the UK.
+- **Days stay on one clock:** achievement days, challenge dates, "Today", "This week", charts and the match date filter use UK days, so everyone is counted the same. The footer and the achievement rules say so.
+
+### Console: tabs instead of a long menu
+- **Six tabs:** Dashboard, Players, Replays, Achievements, Audit log and Permissions. The 21-button menu is gone and Permissions is no longer stacked under everything.
+- **Status first, risky actions apart:** Replays opens on a short import progress panel with its actions right below (the long status page opens with "Show full status"). "Re-process every replay" sits alone in a red danger area.
+- **Fix a replay:** Re-process, Repair and Aggressive repair of one replay are now one form with a Strength choice.
+- **A refresh keeps your place:** the tab and command are in the address, so they can be linked to too. "Find a command" still finds everything, from any tab.
+- **Dashboard:** a new Arena counter card shows at once whether the counter is working (it was inside the slow winners report). The Achievements card says "Preview only" instead of "Coming soon" when that is the setting.
+- **Mega Prize winners** has its own button, away from the 179-row export, and only loads when you open it.
+- The commands, permissions and audit log work as before.
+
+### Map and mode challenges easier at the top
+The top medals were far above what anyone plays. Bronze and silver stay the same.
+
+**In one day**
+- **Bird of Prey, Constant Contesting, Techneium-99, Blast Furnace:** 3 / 4 / 5 / 7 / 9 games (was 3 / 4 / 6 / 10 / 13). Since 1 August 5 or 6 players reach platinum on each map (before: 0 or 1).
+- **Point Captured:** 5 / 7 / 9 / 12 / 16 (was 5 / 7 / 9 / 16 / 22). Since 1 August 6 players reach platinum (before: 3).
+- **Checkpoint Reached:** 5 / 7 / 9 / 12 / 16, the same as Point Captured (was 5 / 7 / 9 / 16 / 22). Since 1 August 5 players reach platinum (before: 1).
+- **Combat on Quest When?:** 9 / 13 / 18 / 24 / 30 (was 9 / 13 / 18 / 31 / 42). Since 1 August 6 players reach platinum (before: 1).
+
+**In any 7 days**
+- **Frame-Drop Hell, I've Got a Fever, Phoeniconaias minor, Phoenicopterus ruber:** 4 / 6 / 8 / 12 / 18 games (was 4 / 6 / 8 / 23 / 44). Since 1 August 4 to 6 players reach platinum on each map (before: none).
+- **I'd Rather Be on Kronos II, Sakura's Dancing Flamingo:** 10 / 18 / 25 / 33 / 40 (was 10 / 18 / 25 / 52 / 65). Since 1 August 4 players reach platinum on each (before: none).
+- **Who Do I Have to Pew Pew Pew to Get a Combat Update Around Here?:** 15 / 30 / 50 / 65 / 80 (was 15 / 30 / 60 / 130 / 195). Nobody had ever reached the old platinum; since 1 August 5 players reach the new one.
+
+- **Do:** restart the backend. No re-read is needed.
+
 ## 2026.11.05.3 — 19:13
 
 ### Lone Wolf harder

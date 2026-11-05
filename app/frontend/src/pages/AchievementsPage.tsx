@@ -3,7 +3,7 @@ import { Link, Navigate, useLocation, useParams, useSearchParams } from "react-r
 import { getAchievements, getAchievers, getRarity, getRecentUnlocks, searchPlayers } from "../api";
 import { AchievementRules, AchievementsView, ChallengeBanner, ComingSoon, GroupedBadges, JumpToNew, MegaPrizesSection, useAchievementsAccess } from "../components/AchievementsView";
 import { Status } from "../components/common";
-import { achievementsPath, int, medalRuleText, nameSlug, pct, playerPath } from "../format";
+import { achievementsPath, dateTime, int, medalRuleText, nameSlug, pct, playerPath } from "../format";
 import { useApi } from "../useApi";
 import { usePageTitle } from "../usePageTitle";
 
@@ -98,7 +98,7 @@ function RecentUnlocks() {
               <span className={`medal-chip ${e.medal ?? "gold"}`}>{e.medal ?? "completed"}</span> in <strong>{e.achievement}</strong>
             </span>
             <span className="desc">{medalRuleText(e.description, e.medal)}</span>
-            <span className="muted">{e.at.slice(0, 10)} {e.at.slice(11, 16)}</span>
+            <span className="muted">{dateTime(e.at)}</span>
           </li>
         ))}
       </ul>

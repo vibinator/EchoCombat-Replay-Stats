@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { getProcessingStatus, type ProcessingStatus } from "../api";
 import { BarChart } from "./charts";
-import { title } from "../format";
+import { dateTime, title } from "../format";
 import { useWhileVisible } from "../useApi";
 import { Status, TableWrap } from "./common";
 
@@ -216,9 +216,9 @@ function ProcessingView({ live: { data: d, error, at } }: { live: ReturnType<typ
         <BarChart
           title="Replays finished per minute, last hour"
           data={d.throughput.map((t) => ({
-            label: t.minute.slice(11),
+            label: dateTime(`${t.minute}Z`).slice(11), // the server's minutes are UTC
             value: t.replays,
-            tooltip: `${t.minute.slice(11)} UTC: ${t.replays} replays`,
+            tooltip: `${dateTime(`${t.minute}Z`).slice(11)}: ${t.replays} replays`,
           }))}
         />
       </div>

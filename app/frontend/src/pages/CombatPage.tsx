@@ -1,7 +1,7 @@
 import { Link, useParams, useSearchParams } from "react-router";
 import { getCombatBoard, getCombatMatch, getCombatStats, getCombatSummary, listCombatMatches, type CombatBoardRow, type Period } from "../api";
 import { CombatMatchBody } from "../components/CombatView";
-import { NotFoundBox, Status, TableWrap, isNotFound } from "../components/common";
+import { LocalTime, NotFoundBox, Status, TableWrap, isNotFound } from "../components/common";
 import { Skeleton } from "../components/ui";
 import { MAPS, dateTime, duration, int, num, playerPath, title } from "../format";
 import { useApi } from "../useApi";
@@ -128,7 +128,7 @@ export function CombatPage() {
             <tbody>
               {matches.data.items.map((m) => (
                 <tr key={m.session_id}>
-                  <td data-label="Played"><Link to={`/combat/${m.session_id}`}>{dateTime(m.started_at)}</Link></td>
+                  <td data-label="Played"><Link to={`/combat/${m.session_id}`}><LocalTime iso={m.started_at} /></Link></td>
                   <td data-label="Map">{title(m.map)}</td>
                   <td data-label="Players" className="num">{m.players}</td>
                   <td data-label="Kills" className="num">{int(m.kills)}</td>

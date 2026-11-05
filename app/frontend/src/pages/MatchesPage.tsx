@@ -103,11 +103,11 @@ export function MatchesPage() {
             ))}
           </select>
         </label>
-        <label>
+        <label title="UK date: the day a match started in UK time">
           From
           <input type="date" value={filters.from} onChange={(e) => set("from", e.target.value)} />
         </label>
-        <label>
+        <label title="UK date: the day a match started in UK time">
           To
           <input type="date" value={filters.to} onChange={(e) => set("to", e.target.value)} />
         </label>

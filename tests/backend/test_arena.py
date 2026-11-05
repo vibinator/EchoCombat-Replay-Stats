@@ -38,13 +38,20 @@ def test_status_for_the_console(tmp_path):
             t.poll(now=1000.0 + 60 * i)
         s = t.status(now=1300.0)
         assert (s["state"], s["matches_now"], s["players_now"], s["counted_since_start"]) == ("working", 1, 6, 6)
-        assert s["last_ok_at"] and s["last_counted_at"] and s["last_error"] is None
+        assert s["last_ok_at"].endswith("+00:00") and s["last_counted_at"].endswith("+00:00")  # with a zone: shown in the viewer's time
+        assert s["last_error"] is None
         assert t.status(now=1300.0 + 4 * 60)["state"] == "waiting"  # no answer for a while, no error recorded
         t._last_error = (1500.0, "ConnectError: down")
         s = t.status(now=1300.0 + 4 * 60)
         assert (s["state"], s["last_error"]) == ("failing", "ConnectError: down")
     finally:
         t.stop()
+
+
+def test_overview_has_the_arena_status_for_console_users_only(tmp_path):
+    settings = make_settings(tmp_path)
+    with app_client(settings) as client:
+        assert client.get("/api/admin/console/overview").status_code in (401, 403, 404)  # not a console user
 
 
 def test_status_outside_the_period(tmp_path):

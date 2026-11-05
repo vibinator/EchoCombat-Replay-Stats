@@ -5,8 +5,8 @@ import { BarChart, StackedBarChart } from "../components/charts";
 import { MatchCards } from "../components/MatchCards";
 import { PlayerSearch } from "../components/PlayerSearch";
 import { EmptyState, FitText, Skeleton } from "../components/ui";
-import { GearLabel, Status } from "../components/common";
-import { MAPS, dateTime, duration, int, modeLabel, num, pct, periodLabel, playerPath, scoreText, title } from "../format";
+import { GearLabel, LocalTime, Status } from "../components/common";
+import { MAPS, dateTime, duration, instant, int, modeLabel, num, pct, periodLabel, playerPath, scoreText, title } from "../format";
 import { useApi, useWhileVisible } from "../useApi";
 import { usePageTitle } from "../usePageTitle";
 
@@ -78,7 +78,7 @@ function PlayersSeenChart() {
               unit=" players"
               data={d.items.map((i) => ({
                 label: d.unit === "hour" ? i.bucket.slice(11, 13) + "h" : i.bucket.slice(5),
-                tooltip: d.unit === "hour" ? `${i.bucket.slice(0, 10)} ${i.bucket.slice(11)}:00` : i.bucket,
+                tooltip: `${d.unit === "hour" ? `${i.bucket.slice(0, 10)} ${i.bucket.slice(11)}:00` : i.bucket} (UK time)`,
                 value: i.players,
               }))}
             />
@@ -167,7 +167,7 @@ function LiveStream() {
 
 /** "3 min ago", "5 h ago", "2 days ago" */
 function since(iso: string, now: number): string {
-  const min = Math.max(0, (now - new Date(iso).getTime()) / 60000);
+  const min = Math.max(0, (now - instant(iso).getTime()) / 60000); // new Date() would read a match time as the viewer's own clock
   if (min < 60) return `${Math.round(min)} min ago`;
   if (min < 48 * 60) return `${Math.round(min / 60)} h ago`;
   return `${Math.round(min / 1440)} days ago`;
@@ -214,7 +214,7 @@ function LastMatchCard({ fromOverview }: { fromOverview: string | null }) {
       <div className="card">
         <span className="label">Last match</span>
         <strong>{last ? since(last, now) : "–"}</strong>
-        {last && <span className="muted">{dateTime(last)}</span>}
+        {last && <span className="muted"><LocalTime iso={last} /></span>}
       </div>
       {playing && (
         <div className="card live-card">

@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useState, useSyncExternalStore } from "react";
 import { BrowserRouter, Link, Navigate, NavLink, Route, Routes, useLocation } from "react-router";
 import { connection, getHealth, getMe, getProcessing, loginUrl, LOGOUT_URL } from "./api";
+import { dateTime, viewerZone } from "./format";
 import { GlobalSearch } from "./components/GlobalSearch";
 import { HomePage } from "./pages/HomePage";
 import { useAchievementsAccess } from "./components/AchievementsView";
@@ -103,9 +104,9 @@ const NAV = [
   ["/compare", "Compare"],
 ] as const;
 
-/** "2026-11-01T17:05" (release's local time, shown as written, no time zone shift) -> "1 Nov 2026, 17:05" */
+/** "2026-11-01T17:05" (UK time, bump_version.py) -> "1 Nov 2026, 17:05" on the viewer's clock */
 function released(iso: string): string {
-  const [date, time] = iso.split("T");
+  const [date, time] = dateTime(iso).split(" ");
   const [y, m, d] = date.split("-").map(Number);
   const month = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][m - 1];
   return `${d} ${month} ${y}, ${time}`;
@@ -200,7 +201,10 @@ function Layout() {
         </Suspense>
         </ErrorBoundary>
       </main>
-      <footer>{health && <span title={`Version ${health.build}`}>{health.version} · {released(health.released)}</span>}</footer>
+      <footer>
+        {health && <span title={`Version ${health.build}`}>{health.version} · {released(health.released)}</span>}
+        <div className="muted footer-time">Times are in your timezone ({viewerZone()}). "Today", "This week", charts and achievement days use UK time.</div>
+      </footer>
     </>
   );
 }

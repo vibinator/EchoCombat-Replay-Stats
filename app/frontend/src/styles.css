@@ -1960,49 +1960,83 @@ td.best {
   font-weight: 600;
 }
 
-/* Console page (D45): command menu on the left, form and results on the right; stacked on phones */
-.console-layout {
-  display: grid;
-  grid-template-columns: minmax(200px, 260px) minmax(0, 1fr);
-  gap: 24px;
-  align-items: start;
+/* Console page (D45, D58): tabs across the top; in a tab the status, then its actions, then the risky ones apart */
+.console-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px 16px;
+  margin-bottom: 16px;
 }
-.console-menu {
-  /* the global nav rule is a horizontal flex row (and hidden on phones); this menu is a vertical list */
-  display: block;
-  position: sticky;
-  top: 72px;
-}
-.console-menu h2 {
-  margin: 16px 0 6px;
-  color: var(--muted);
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-.console-menu > div:first-child h2 {
+.console-tabs {
+  flex: 1 1 480px;
+  min-width: 0;
   margin-top: 0;
 }
-.console-menu button {
-  display: block;
-  width: 100%;
-  margin-bottom: 4px;
-  padding: 7px 12px;
+.console-find {
+  position: relative;
+  flex: 0 1 260px;
+  min-width: 180px;
+}
+.console-found {
+  position: absolute;
+  z-index: 20;
+  top: 100%;
+  right: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 60vh;
+  margin-top: 4px;
+  overflow-y: auto;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 35%);
+}
+.console-found button {
+  padding: 7px 10px;
+  background: transparent;
   font-weight: 500;
   text-align: left;
 }
-.console-menu button.secondary {
-  background: transparent;
-}
-.console-menu button.secondary:hover {
+.console-found button:hover {
   background: var(--surface-2);
 }
-.console-menu button.active {
-  font-weight: 600;
+.console-found p {
+  margin: 0;
 }
 .console-main {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
   min-width: 0;
+}
+.console-main > .panel {
+  margin: 0;
+}
+.console-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.console-actions button {
+  padding: 7px 12px;
+  font-weight: 500;
+}
+.console-danger {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid color-mix(in srgb, var(--bad) 55%, transparent);
+}
+.console-danger h3,
+.console-danger p {
+  margin: 0;
+}
+.console-danger h3 {
+  color: var(--bad);
+}
+.console-danger button.secondary {
+  border: 1px solid var(--bad);
 }
 .console-form {
   display: flex;
@@ -2089,12 +2123,8 @@ td.best {
   white-space: pre;
 }
 @media (max-width: 720px) {
-  .console-layout {
-    grid-template-columns: 1fr;
-    gap: 12px;
-  }
-  .console-menu {
-    position: static;
+  .console-find {
+    flex: 1 1 100%;
   }
 }
 
@@ -2874,7 +2904,6 @@ button.small {
 .console-filter {
   width: 100%;
   box-sizing: border-box;
-  margin-bottom: 8px;
 }
 .console-view {
   display: flex;

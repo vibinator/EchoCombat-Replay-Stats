@@ -9,7 +9,7 @@ when a match is counted, a failed request backs off (x2, up to 5 minutes), and t
 import logging
 import threading
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 
 import httpx
 from sqlalchemy import delete, select
@@ -33,7 +33,8 @@ log = logging.getLogger("uvicorn.error")
 
 
 def _stamp(t: float | None) -> str | None:
-    return datetime.fromtimestamp(t).isoformat(timespec="seconds") if t is not None else None
+    """With its zone: the Console shows it in the viewer's own time."""
+    return datetime.fromtimestamp(t, timezone.utc).isoformat(timespec="seconds") if t is not None else None
 
 
 def is_public_arena(label: dict) -> bool:

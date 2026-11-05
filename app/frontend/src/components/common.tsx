@@ -1,7 +1,7 @@
 import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Link } from "react-router";
 import { rateLimit, type GearItem, type Loadout, type MatchSummary, type Team } from "../api";
-import { dateTime, duration, modeLabel, scoreText, teamLabel, title } from "../format";
+import { dateTime, duration, modeLabel, scoreText, teamLabel, title, ukDateTime, viewerZone } from "../format";
 
 /** Seconds until the rate limit lifts (0 when it is not active); ticks once a second while counting down. */
 function useRateLimitCountdown(): number {
@@ -14,6 +14,11 @@ function useRateLimitCountdown(): number {
     return () => clearInterval(id);
   }, [until]);
   return Math.max(0, Math.ceil((until - now) / 1000));
+}
+
+/** A match time on the viewer's own clock; the tooltip names their timezone and gives the UK time days are counted on (D59). */
+export function LocalTime({ iso }: { iso: string }) {
+  return <span title={`Your time (${viewerZone()}). UK time: ${ukDateTime(iso)}`}>{dateTime(iso)}</span>;
 }
 
 export function Status({ loading, error }: { loading: boolean; error: string | null }) {
@@ -151,7 +156,7 @@ export function MatchTable({ matches, extra }: { matches: MatchSummary[]; extra?
                 <Link to={`/matches/${m.id}`}>#{m.id}</Link>
               </td>
               <td>
-                <Link to={`/matches/${m.id}`}>{dateTime(m.started_at)}</Link>
+                <Link to={`/matches/${m.id}`}><LocalTime iso={m.started_at} /></Link>
               </td>
               <td>{title(m.map)}</td>
               <td>{modeLabel(m.mode)}</td>

@@ -24,7 +24,7 @@ def results(games):
 
 def test_kept_apart_from_the_replay_rules():
     ids = {r.id for r in RULES_HERE}
-    assert ids == set(range(164, 179)) and not ids & {r.id for r in RULES}
+    assert ids == set(range(164, 179)) | {198, 199, 200} and not ids & {r.id for r in RULES}
     assert all(r.group == "Combat" and r.new and not r.counted for r in RULES_HERE)
     # the module cannot read a replay table: it imports only the combat ones
     tree = ast.parse(Path(ca.__file__).read_text(encoding="utf-8"))
@@ -80,6 +80,34 @@ FULL = [("1", "blue", 400.0, 9, 2), ("2", "blue", 400.0, 3, 11), ("3", "blue", 4
         ("4", "orange", 400.0, 12, 0), ("5", "orange", 400.0, 0, 0), ("6", "orange", 400.0, 0, 0)]
 
 
+def test_objective_damage_heals_and_stuns(tmp_path):
+    """Siege Breaker reads every report; Field Medic and Shock Trooper only a complete event log, whose counts can be trusted."""
+    from backend.db import open_db
+
+    engine, sessions = open_db(tmp_path / "t.db", 0)
+    def report(session, has_events, complete):
+        with sessions() as db:
+            _report(db, session, players=FULL)
+            db.flush()
+            m = db.query(CombatMatch).filter_by(session_id=session).one()
+            m.has_events, m.events_complete = has_events, complete
+            p = db.query(CombatPlayer).filter_by(match_id=m.id, user_id="1").one()
+            p.objective_damage, p.heal_bubbles, p.stuns_given = 950.0, 6, 3
+            db.commit()
+    report("complete", True, True)
+    with sessions() as db:
+        g = ca.load_games(db, {})[0]["1"][0]
+    assert (g.objective_damage, g.heal_bubbles, g.stuns_given) == (950.0, 6, 3)
+    r = results([g])
+    assert (r[198]["tier"], r[199]["tier"], r[200]["tier"]) == ("silver", "gold", "gold")
+    report("cut short", True, False)
+    report("no log", False, None)
+    with sessions() as db:
+        later = ca.load_games(db, {})[0]["1"][1:]
+    assert [(x.objective_damage, x.heal_bubbles, x.stuns_given) for x in later] == [(950.0, 0, 0), (950.0, 0, 0)]
+    engine.dispose()
+
+
 def _body(client, url):
     response = client.get(url)
     assert response.status_code == 200, response.text
@@ -108,7 +136,7 @@ def test_reports_alone_count_on_the_same_page(tmp_path):
             return answer, {r["id"]: r for r in answer["items"]}
 
         answer, one = page("1")  # a player the replays never saw has a page
-        assert answer["name"] == "name1" and answer["games"] == 0 and answer["total"] == len(RULES) and len(answer["items"]) == len(RULES) + 15
+        assert answer["name"] == "name1" and answer["games"] == 0 and answer["total"] == len(RULES) and len(answer["items"]) == len(RULES) + len(RULES_HERE)
         assert one[173]["count"] == 18  # 2 counted matches: the 3v2 and the 100 s one do not count
         _, two = page("2")
         assert two[173]["count"] == 14  # 3 + 3 + (3 + 5 from the merged id)

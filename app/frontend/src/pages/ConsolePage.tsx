@@ -1,13 +1,14 @@
 import { Fragment, type ReactNode, useEffect, useState } from "react";
+import { useSearchParams } from "react-router";
 import {
-  CONSOLE_ACHIEVEMENTS_CSV, CONSOLE_MEGA_PRIZES_CSV, forgetResponses, getMegaPrizeWinners, type MegaPrizeReport as MegaPrizeData, getConsoleAchievements, getConsoleLog, getConsoleOverview, getMe, getMergeSuggestions,
+  type ArenaStatus, CONSOLE_ACHIEVEMENTS_CSV, CONSOLE_MEGA_PRIZES_CSV, forgetResponses, getMegaPrizeWinners, getConsoleAchievements, getConsoleLog, getConsoleOverview, getMe, getMergeSuggestions,
   getProcessingStatus, loginUrl, runConsole, searchConsolePlayers,
   type ConsoleLogEntry, type ConsoleOverview, type ConsolePlayer, type ProcessingStatus,
 } from "../api";
 import { SplitBar } from "../components/bars";
 import { PlayerSuggest } from "../components/PlayerSuggest";
 import { ProcessingPanel } from "../components/ProcessingPanel";
-import { duration, int, num, pct, playerPath } from "../format";
+import { dateTime, duration, int, num, pct, playerPath } from "../format";
 import { Status, TableWrap } from "../components/common";
 import { EmptyState } from "../components/ui";
 import { Permissions } from "./PermissionsPage";
@@ -31,7 +32,9 @@ interface Command {
   /** asked before running, like the console's "[y/N]" */
   confirm?: (values: Record<string, string>) => string | null;
   /** a page of its own instead of a command form */
-  view?: "achievements" | "dashboard" | "players" | "hidden-stats" | "log" | "processing";
+  view?: "achievements" | "winners" | "dashboard" | "players" | "hidden-stats" | "log" | "processing" | "permissions";
+  /** big or hard to undo: shown apart, in the tab's danger area */
+  danger?: boolean;
 }
 
 const lines = (text = "") =>
@@ -48,6 +51,7 @@ const GROUPS: { title: string; commands: Command[] }[] = [
       { name: "dashboard", label: "Dashboard", help: "", view: "dashboard" },
       { name: "log", label: "Audit log", help: "", view: "log" },
       { name: "hidden-stats", label: "Hide stats from players", help: "", view: "hidden-stats" },
+      { name: "permissions", label: "Permissions", help: "", view: "permissions" },
     ],
   },
   {
@@ -133,12 +137,33 @@ const GROUPS: { title: string; commands: Command[] }[] = [
         label: "Re-process every replay",
         help: "Scan the folder, then read the whole archive again. This takes hours; current results stay on the website until each replay is replaced.",
         confirm: () => "Re-process EVERY replay? This takes several hours.",
+        danger: true,
       },
     ],
   },
   {
     title: "Repair",
     commands: [
+      {
+        name: "fix-replay", // the form of reprocess, repair and repair-aggressive: Strength picks which one runs (see submit)
+        label: "Fix a replay",
+        help:
+          "Read one replay again. Normal is enough after an update. Repair keeps every part of a damaged or incomplete replay that can be read. " +
+          "Aggressive is for broken replay data that repair could not fix: it rebuilds wiped zip headers and takes damaged parts from the zip's second copy of the frames. Nothing is guessed.",
+        fields: [
+          { key: "replay", label: "Replay", hint: "Replay id or part of its file path" },
+          {
+            key: "strength",
+            label: "Strength",
+            kind: "select",
+            options: [
+              ["", "Normal: read it again"],
+              ["repair", "Repair: keep what can be read"],
+              ["repair-aggressive", "Aggressive: rebuild broken data"],
+            ],
+          },
+        ],
+      },
       {
         name: "reprocess",
         label: "Re-process a replay",
@@ -198,6 +223,7 @@ const GROUPS: { title: string; commands: Command[] }[] = [
         help: "Every achievement and challenge with the rule to win it, as shown on the website.",
         view: "achievements",
       },
+      { name: "mega-prizes", label: "Mega Prize winners", help: "", view: "winners" },
       {
         name: "challenge",
         label: "Launch date and challenge period",
@@ -246,6 +272,25 @@ const GROUPS: { title: string; commands: Command[] }[] = [
 ];
 
 const ALL_COMMANDS = GROUPS.flatMap((g) => g.commands);
+const commandNamed = (name: string) => ALL_COMMANDS.find((c) => c.name === name)!;
+
+/** The Console's tabs. `names`: its commands as buttons, first = what the tab opens with. `opens` false: the tab opens on its
+ * status panel, with no action chosen (user, 2026-11-05: status first, then actions, the risky ones apart). */
+const TABS: { id: string; label: string; names: string[]; opens?: false }[] = [
+  { id: "dashboard", label: "Dashboard", names: ["dashboard"] },
+  { id: "players", label: "Players", names: ["players", "merge", "merges", "unmerge", "discord-check"] },
+  {
+    id: "replays",
+    label: "Replays",
+    opens: false,
+    names: ["remote", "process-missing", "fix-replay", "repair-failed", "repair-aggressive-failed", "cannot-repair", "hidden", "reprocess-all"],
+  },
+  // starts on the dates: the winners report reads the whole archive, which takes up to half a minute during a re-read
+  { id: "achievements", label: "Achievements", names: ["challenge", "mega-prizes", "hidden-stats", "export-achievements"] },
+  { id: "log", label: "Audit log", names: ["log"] },
+  { id: "permissions", label: "Permissions", names: ["permissions"] },
+];
+
 /** The menu label of a command, for the audit log; commands run from a view (hide-stats) get a name of their own. */
 const COMMAND_LABELS: Record<string, string> = {
   ...Object.fromEntries(ALL_COMMANDS.map((c) => [c.name, c.label])),
@@ -320,16 +365,15 @@ export function ConsolePage() {
         </EmptyState>
       </section>
     );
-  return (
-    <>
-      <Console />
-      <Permissions />
-    </>
-  );
+  return <Console />;
 }
 
 function Console() {
-  const [selected, setSelected] = useState<Command>(GROUPS[0].commands[0]);
+  // in the address (?tab=replays&cmd=fix-replay): a refresh keeps the place, and it can be linked to
+  const [params, setParams] = useSearchParams();
+  const tab = TABS.find((t) => t.id === params.get("tab")) ?? TABS[0];
+  const cmd = params.get("cmd");
+  const selected: Command | null = cmd && tab.names.includes(cmd) ? commandNamed(cmd) : tab.opens === false ? null : commandNamed(tab.names[0]);
   const [values, setValues] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [results, setResults] = useState<Result[]>([]);
@@ -353,24 +397,36 @@ function Console() {
     }
   }
 
+  function openTab(id: string) {
+    setParams(id === TABS[0].id ? {} : { tab: id });
+    setValues({});
+  }
+
   function open(name: string, preset: Record<string, string> = {}) {
-    const command = ALL_COMMANDS.find((c) => c.name === name);
-    if (!command) return;
-    setSelected(command);
+    const target = TABS.find((t) => t.names.includes(name));
+    if (!target) return;
+    setParams(target.id === TABS[0].id ? {} : { tab: target.id, cmd: name });
     setValues(preset);
+    setFilter("");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   async function submit() {
+    if (!selected) return;
     const question = selected.confirm?.(values);
     if (question && !window.confirm(question)) return;
+    if (selected.name === "fix-replay") {
+      const name = values.strength || "reprocess"; // three commands on the server, one form here
+      await execute(name, COMMAND_LABELS[name], toArgs((selected.fields ?? []).filter((f) => f.key !== "strength"), values));
+      return;
+    }
     await execute(selected.name, selected.label, toArgs(selected.fields ?? [], values));
   }
 
   // The launch date, end date and "Visible to" are saved on the server (they survive closing the Console and restarts): the form
   // shows what is saved instead of opening empty (user, 2026-11-04). Reloaded after every command, so it never shows old values.
   useEffect(() => {
-    if (selected.name !== "challenge") return;
+    if (selected?.name !== "challenge") return;
     let live = true;
     getConsoleOverview().then((o) => {
       if (live) setValues({ start: o.challenge.start ?? "", end: o.challenge.end ?? "", visible: o.challenge.visibility });
@@ -382,10 +438,23 @@ function Console() {
 
   const api: ConsoleApi = { run: execute, open, version: results.length };
   const term = filter.trim().toLowerCase();
-  const groups = GROUPS.map((g) => ({
-    ...g,
-    commands: g.commands.filter((c) => !term || `${g.title} ${c.label} ${c.help}`.toLowerCase().includes(term)),
-  })).filter((g) => g.commands.length > 0);
+  const found = term
+    ? TABS.flatMap((t) => t.names.map((name) => ({ tab: t, command: commandNamed(name) }))).filter(({ tab: t, command: c }) =>
+        `${t.label} ${c.label} ${c.help}`.toLowerCase().includes(term),
+      )
+    : [];
+  const commands = tab.names.map(commandNamed);
+  const actionButton = (c: Command) => (
+    <button
+      key={c.name}
+      type="button"
+      className={c === selected ? "active" : "secondary"}
+      aria-current={c === selected}
+      onClick={() => open(c.name)}
+    >
+      {c.label}
+    </button>
+  );
 
   return (
     <section>
@@ -395,8 +464,15 @@ function Console() {
           Commands run on the server and apply straight away. Every command is written to the audit log with your Discord name.
         </p>
       </div>
-      <div className="console-layout">
-        <nav className="console-menu" aria-label="Console">
+      <div className="console-bar">
+        <div className="tabs section-tabs console-tabs" role="tablist" aria-label="Console">
+          {TABS.map((t) => (
+            <button key={t.id} type="button" role="tab" aria-selected={t === tab} className={t === tab ? "tab active" : "tab"} onClick={() => openTab(t.id)}>
+              <span className="tab-label">{t.label}</span>
+            </button>
+          ))}
+        </div>
+        <div className="console-find">
           <input
             type="search"
             className="console-filter"
@@ -405,25 +481,27 @@ function Console() {
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
           />
-          {groups.map((g) => (
-            <div key={g.title}>
-              <h2>{g.title}</h2>
-              {g.commands.map((c) => (
-                <button
-                  key={c.name}
-                  className={c === selected ? "active" : "secondary"}
-                  aria-current={c === selected}
-                  onClick={() => open(c.name)}
-                >
-                  {c.label}
+          {term && (
+            <div className="panel console-found">
+              {found.map(({ tab: t, command: c }) => (
+                <button key={c.name} type="button" className="secondary" onClick={() => open(c.name)}>
+                  <span className="muted">{t.label} ›</span> {c.label}
                 </button>
               ))}
+              {found.length === 0 && <p className="muted">No command matches.</p>}
             </div>
-          ))}
-          {groups.length === 0 && <p className="muted">No command matches.</p>}
-        </nav>
-        <div className="console-main">
-          {selected.view === "dashboard" ? (
+          )}
+        </div>
+      </div>
+      <div className="console-main">
+        {tab.id === "replays" && <ReplaysStatus />}
+        {commands.length > 1 && (
+          <div className="console-actions" aria-label="Actions">
+            {commands.filter((c) => !c.danger).map(actionButton)}
+          </div>
+        )}
+        {selected &&
+          (selected.view === "dashboard" ? (
             <Dashboard api={api} />
           ) : selected.view === "players" ? (
             <PlayerTools api={api} />
@@ -432,10 +510,11 @@ function Console() {
           ) : selected.view === "log" ? (
             <AuditLog api={api} />
           ) : selected.view === "achievements" ? (
-            <>
-              <AchievementExport />
-              <MegaPrizeReport />
-            </>
+            <AchievementExport />
+          ) : selected.view === "winners" ? (
+            <MegaPrizeReport />
+          ) : selected.view === "permissions" ? (
+            <Permissions />
           ) : selected.view === "processing" ? (
             <ProcessingPanel />
           ) : (
@@ -490,28 +569,34 @@ function Console() {
                 </button>
               </div>
             </form>
-          )}
-          {selected.name === "merge" && (
-            <MergeSuggestions
-              version={results.length}
-              onUse={(keep, others) => {
-                setValues({ main: keep, others: others.join("\n") });
-                window.scrollTo({ top: 0, behavior: "smooth" });
-              }}
-            />
-          )}
-          {results.length > 0 && (
-            <div className="section-head">
-              <h2>Results</h2>
-              <button className="secondary" onClick={() => setResults([])}>
-                Clear
-              </button>
-            </div>
-          )}
-          {results.map((r) => (
-            <OutputPanel key={r.id} label={r.label} ok={r.ok} at={r.at} output={r.output} />
           ))}
-        </div>
+        {selected?.name === "merge" && (
+          <MergeSuggestions
+            version={results.length}
+            onUse={(keep, others) => {
+              setValues({ main: keep, others: others.join("\n") });
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }}
+          />
+        )}
+        {commands.some((c) => c.danger) && (
+          <div className="panel console-danger">
+            <h3>Danger area</h3>
+            <p className="muted">These take hours or touch every replay. Each one asks you to confirm before it runs.</p>
+            <div className="console-actions">{commands.filter((c) => c.danger).map(actionButton)}</div>
+          </div>
+        )}
+        {results.length > 0 && (
+          <div className="section-head">
+            <h2>Results</h2>
+            <button className="secondary" onClick={() => setResults([])}>
+              Clear
+            </button>
+          </div>
+        )}
+        {results.map((r) => (
+          <OutputPanel key={r.id} label={r.label} ok={r.ok} at={r.at} output={r.output} />
+        ))}
       </div>
     </section>
   );
@@ -547,6 +632,68 @@ const when = (iso: string) => new Date(iso).toLocaleString();
 
 // --- Dashboard ----------------------------------------------------------------------------------
 
+/** The import in one panel: how far, how fast, how long. */
+function ImportProgress({ status }: { status: ProcessingStatus }) {
+  const c = status.counts;
+  const total = c.queued + c.processing + c.done + c.failed;
+  const finished = c.done + c.failed;
+  const waiting = c.queued + c.processing;
+  return (
+    <div className="panel dash-progress">
+      <div className="dash-progress-head">
+        <strong>Import {total ? pct(finished / total) : "–"}</strong>
+        <span className="muted">
+          {int(finished)} of {int(total)} replays
+          {status.redo > 0 && ` · ${int(status.redo)} being redone after an update`}
+        </span>
+      </div>
+      <SplitBar
+        percentages={false}
+        parts={[
+          { label: "Done", value: c.done, color: "var(--ok)", detail: int(c.done) },
+          { label: "Failed", value: c.failed, color: "var(--bad)", detail: int(c.failed) },
+          { label: "Processing", value: c.processing, color: "var(--chart-1)", detail: int(c.processing) },
+          { label: "Queued", value: c.queued, color: "var(--line)", detail: int(c.queued) },
+        ]}
+      />
+      <span className="muted">
+        {waiting
+          ? `${num(status.rate_per_min, 1)} replays/min · ${status.eta_min != null ? `about ${duration(status.eta_min * 60)} left` : "estimating time left"} · ${status.busy}/${status.workers} workers busy`
+          : `Nothing waiting · ${status.workers} workers idle`}
+      </span>
+    </div>
+  );
+}
+
+/** Top of the Replays tab: short, so the actions stay in view; the long status page opens on request. */
+function ReplaysStatus() {
+  const [status, setStatus] = useState<ProcessingStatus | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [full, setFull] = useState(false);
+  useWhileVisible(
+    () =>
+      getProcessingStatus().then(
+        (s) => {
+          setStatus(s);
+          setError(null);
+        },
+        (e: Error) => setError(e.message),
+      ),
+    10_000,
+  );
+  return (
+    <>
+      {status ? <ImportProgress status={status} /> : <Status loading={!error} error={error} />}
+      <div>
+        <button type="button" className="secondary small" aria-expanded={full} onClick={() => setFull((v) => !v)}>
+          {full ? "Hide full status" : "Show full status"}
+        </button>
+      </div>
+      {full && <ProcessingPanel />}
+    </>
+  );
+}
+
 /** Live: processing progress (the Status page's answer) and the console's own facts, every 10 s while visible. */
 function Dashboard({ api }: { api: ConsoleApi }) {
   const [status, setStatus] = useState<ProcessingStatus | null>(null);
@@ -571,9 +718,6 @@ function Dashboard({ api }: { api: ConsoleApi }) {
 
   if (!status || !overview) return <Status loading={!error} error={error} />;
   const c = status.counts;
-  const total = c.queued + c.processing + c.done + c.failed;
-  const finished = c.done + c.failed;
-  const waiting = c.queued + c.processing;
   const winLoss = overview.stat_groups.find((g) => g.key === "win_loss");
   const scan = status.scan;
 
@@ -584,29 +728,7 @@ function Dashboard({ api }: { api: ConsoleApi }) {
         <span className="muted">{error ? `Could not refresh: ${error}` : at && `Updated ${at.toLocaleTimeString()} · every 10 s`}</span>
       </div>
 
-      <div className="panel dash-progress">
-        <div className="dash-progress-head">
-          <strong>Import {total ? pct(finished / total) : "–"}</strong>
-          <span className="muted">
-            {int(finished)} of {int(total)} replays
-            {status.redo > 0 && ` · ${int(status.redo)} being redone after an update`}
-          </span>
-        </div>
-        <SplitBar
-          percentages={false}
-          parts={[
-            { label: "Done", value: c.done, color: "var(--ok)", detail: int(c.done) },
-            { label: "Failed", value: c.failed, color: "var(--bad)", detail: int(c.failed) },
-            { label: "Processing", value: c.processing, color: "var(--chart-1)", detail: int(c.processing) },
-            { label: "Queued", value: c.queued, color: "var(--line)", detail: int(c.queued) },
-          ]}
-        />
-        <span className="muted">
-          {waiting
-            ? `${num(status.rate_per_min, 1)} replays/min · ${status.eta_min != null ? `about ${duration(status.eta_min * 60)} left` : "estimating time left"} · ${status.busy}/${status.workers} workers busy`
-            : `Nothing waiting · ${status.workers} workers idle`}
-        </span>
-      </div>
+      <ImportProgress status={status} />
 
       <div className="cards dash-cards">
         <DashCard label="Replay folder" value={scan.reachable === false ? "Unreachable" : scan.scanning ? "Scanning…" : "Reachable"} bad={scan.reachable === false}>
@@ -628,10 +750,14 @@ function Dashboard({ api }: { api: ConsoleApi }) {
           {int(overview.merges)} merges
           <button type="button" className="secondary small" onClick={() => api.open("players")}>Player tools</button>
         </DashCard>
-        <DashCard label="Achievements" value={overview.challenge.launched ? "Live" : "Coming soon"}>
+        <DashCard
+          label="Achievements"
+          value={overview.challenge.launched ? "Live" : overview.challenge.visibility === "hidden" ? "Hidden" : overview.challenge.visibility === "preview" ? "Preview only" : "Coming soon"}
+        >
           {overview.challenge.start ? `From ${overview.challenge.start}${overview.challenge.end ? ` to ${overview.challenge.end}` : ""}` : "No launch date set"}
           <button type="button" className="secondary small" onClick={() => api.open("challenge")}>Change</button>
         </DashCard>
+        <ArenaCard status={overview.arena_status} />
         {winLoss && (
           <DashCard label="Win-loss stats" value={winLoss.hidden ? "Hidden" : "Shown"}>
             {winLoss.players.length > 0 ? `Hidden for ${winLoss.players.length} player(s)` : "No player hidden one by one"}
@@ -662,6 +788,31 @@ function Dashboard({ api }: { api: ConsoleApi }) {
       </div>
       <LogTable rows={overview.recent} compact />
     </div>
+  );
+}
+
+const ARENA_STATES: Record<ArenaStatus["state"], [value: string, detail: string]> = {
+  off: ["Off", "Not running on this server"],
+  outside_period: ["Waiting", "Outside the challenge period: the match list is not being read"],
+  waiting: ["Starting", "No answer from the match list yet"],
+  working: ["Working", ""],
+  failing: ["Failing", "The match list has not answered lately"],
+};
+
+const clock = (iso?: string | null) => (iso ? new Date(iso).toLocaleTimeString() : "");
+
+/** Is the Public Arena counter alive? From the server's memory, so it needs no wait and no request to the match list. */
+function ArenaCard({ status: s }: { status: ArenaStatus }) {
+  const [value, detail] = ARENA_STATES[s.state];
+  return (
+    <DashCard label="Arena counter" value={value} bad={s.state === "failing"}>
+      {detail}
+      {detail && s.last_ok_at && " · "}
+      {s.last_ok_at && `Read ${clock(s.last_ok_at)}: ${int(s.matches_now ?? 0)} public matches, ${int(s.players_now ?? 0)} players`}
+      {s.state !== "off" && ` · ${int(s.counted_since_start ?? 0)} counted since the restart`}
+      {s.last_counted_at && `, the last at ${clock(s.last_counted_at)}`}
+      {s.last_error && <span className="error-text"> · Last error {clock(s.last_error_at)}: {s.last_error}</span>}
+    </DashCard>
   );
 }
 
@@ -712,7 +863,7 @@ function PlayerTools({ api }: { api: ConsoleApi }) {
               {p.merged_into && <span className="tag">merged into {p.merged_into.name}</span>}
             </header>
             <span className="muted">
-              {int(p.games)} games · seen {p.first_seen_at.slice(0, 10)} – {p.last_seen_at.slice(0, 10)}
+              {int(p.games)} games · seen {dateTime(p.first_seen_at).slice(0, 10)} – {dateTime(p.last_seen_at).slice(0, 10)}
               {p.merged_ids.length > 0 && ` · has ${p.merged_ids.length} merged record(s): ${p.merged_ids.map((m) => m.name).join(", ")}`}
             </span>
             <div className="player-actions">
@@ -1009,7 +1160,7 @@ function MergeSuggestions({ version, onUse }: { version: number; onUse: (keep: s
                         {p.games.toLocaleString()}
                       </td>
                       <td data-label="Seen">
-                        {p.first_seen_at.slice(0, 10)} – {p.last_seen_at.slice(0, 10)}
+                        {dateTime(p.first_seen_at).slice(0, 10)} – {dateTime(p.last_seen_at).slice(0, 10)}
                       </td>
                     </tr>
                   ))}
@@ -1020,27 +1171,6 @@ function MergeSuggestions({ version, onUse }: { version: number; onUse: (keep: s
         );
       })}
     </div>
-  );
-}
-
-const ARENA_STATES: Record<MegaPrizeData["arena_status"]["state"], string> = {
-  off: "Off (not running on this server)",
-  outside_period: "Waiting: outside the challenge period, so the match list is not being read",
-  waiting: "Starting: no answer from the match list yet",
-  working: "Working",
-  failing: "Failing: the match list has not answered lately",
-};
-
-/** Is the Public Arena counter alive? Read from the server's memory: resets on a restart and costs no request. */
-function ArenaCounterStatus({ status: s }: { status: MegaPrizeData["arena_status"] }) {
-  return (
-    <p className="muted">
-      <strong>Arena counter:</strong> {ARENA_STATES[s.state]}
-      {s.last_ok_at && ` · list last read ${s.last_ok_at.replace("T", " ")} (${s.matches_now} public matches, ${s.players_now} players)`}
-      {s.state !== "off" && ` · ${s.counted_since_start ?? 0} player-matches counted since the last restart`}
-      {s.last_counted_at && `, the last at ${s.last_counted_at.replace("T", " ")}`}
-      {s.last_error && ` · last error ${s.last_error_at?.replace("T", " ")}: ${s.last_error}`}
-    </p>
   );
 }
 
@@ -1078,7 +1208,6 @@ function MegaPrizeReport() {
         </a>
       </div>
       <Status loading={report.loading} error={report.error} />
-      {d && <ArenaCounterStatus status={d.arena_status} />}
       {d &&
         d.prizes.map((p) => (
           <div key={p.prize}>

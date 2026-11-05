@@ -60,7 +60,7 @@ time played. Event-log: shots (and by weapon), kills / deaths by weapon, tac mod
 received, self-kills. Derived: K/D, kills per minute, damage per minute, per-map splits, leaderboards.
 
 ## Achievements
-The Combat section of the Achievements page (ids 164-178, `combat_achievements.py`) is built only from `combat_matches` and
+The Combat section of the Achievements page (ids 164-178 and 198-200, `combat_achievements.py`) is built only from `combat_matches` and
 `combat_players`, plus `player_aliases` so merged accounts add up. It reuses the medal engine but keeps its own rule list,
 `COMBAT_RULES`, which is not in `RULES`, so replay-based overall %, totals, rankings and Medal Collector never include it. The
 `/api/players/{id}/achievements`, `/api/achievements` and `/api/achievements/recent` answers add its cards after the replay ones.
@@ -80,7 +80,7 @@ every medal (user, 2026-11-05; tested).
 Left out, from the review of the same reports:
 - **Eliminations:** always exactly kills + assists (551 of 551 rows), although FORMATS.md calls it a separate counter.
 - **Hill captures / defends:** 0 in all 90 reports, Dyson and Combustion included.
-- **Event-log numbers:** only 9 of 90 matches have a log, all 17:29-19:00 on 4 Nov, and 2 of those are incomplete. The logging is being fixed on the recorder side (user, 2026-11-05). Add per-weapon, shots, heal bubble and stun challenges once logging runs all the time; use only `events_complete` logs.
+- **Event-log numbers:** logging has run since 5 Nov 18:15. Field Medic (heal bubbles) and Shock Trooper (stuns given) use `events_complete` logs only; on 5 Nov that was 9 matches and 30 players, so re-tune them first. Shots are left out on purpose: a shots challenge rewards spraying. Per-weapon challenges can follow once there is more data.
 - **Objective fields:** described as payload-only, but Dyson has the most objective time, so they probably cover Capture Point too (reports have no mode field to confirm it).
 
 ## API

@@ -54,9 +54,47 @@ export function hoursMinutes(seconds: number | null | undefined): string {
   return `${Math.floor(m / 60).toLocaleString("en-GB")} h ${m % 60} m`;
 }
 
-// Match times are the recorder's local time with no zone (ReplayData Q6): show as-is.
+const UK_CLOCK = new Intl.DateTimeFormat("en-GB", {
+  timeZone: "Europe/London", hourCycle: "h23", year: "numeric", month: "numeric", day: "numeric", hour: "numeric", minute: "numeric", second: "numeric",
+});
+
+/** How far UK time is ahead of UTC at this moment, in ms: 0 in winter, one hour in summer. */
+function ukOffset(ms: number): number {
+  const p = Object.fromEntries(UK_CLOCK.formatToParts(ms).map((x) => [x.type, Number(x.value)]));
+  return Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second) - Math.floor(ms / 1000) * 1000;
+}
+
+/** The moment an API time stands for. Match times have no zone: they are on the recorder's clock, UK time (measured 2026-11-05 from
+ * the replay files, 2021-2026, D59). Other times carry their zone. The hour repeated when UK clocks go back reads as the second one. */
+export function instant(iso: string): Date {
+  if (/(Z|[+-]\d\d:\d\d)$/.test(iso)) return new Date(iso);
+  const m = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?/.exec(iso);
+  if (!m) return new Date(iso);
+  const wall = Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +(m[6] ?? 0));
+  return new Date(wall - ukOffset(wall - ukOffset(wall)));
+}
+
+const two = (n: number) => String(n).padStart(2, "0");
+
+/** "YYYY-MM-DD HH:MM" on the viewer's own clock. A plain date or month has no time to convert and stays as it is. */
 export function dateTime(iso: string): string {
-  return iso.slice(0, 16).replace("T", " ");
+  if (!/[T ]\d{2}:\d{2}/.test(iso)) return iso;
+  const d = instant(iso);
+  if (Number.isNaN(d.getTime())) return iso.slice(0, 16).replace("T", " ");
+  return `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())} ${two(d.getHours())}:${two(d.getMinutes())}`;
+}
+
+/** The same moment in UK time, the clock days are counted on: for tooltips. */
+export function ukDateTime(iso: string): string {
+  const d = instant(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const p = Object.fromEntries(UK_CLOCK.formatToParts(d).map((x) => [x.type, x.value]));
+  return `${p.year}-${p.month.padStart(2, "0")}-${p.day.padStart(2, "0")} ${p.hour.padStart(2, "0")}:${p.minute.padStart(2, "0")}`;
+}
+
+/** The viewer's timezone name, e.g. "America/New_York". */
+export function viewerZone(): string {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone || "your timezone";
 }
 
 const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September",
@@ -108,6 +146,9 @@ export function medalRuleText(description: string, medal: string | null): string
   const m = description.match(new RegExp(`\\((?:[^()]*, )?([\\d.]+)([^,()]*?) ${medal}\\b[^()]*\\)\\s*$`));
   if (!m) return base;
   const [, n, unit] = m;
-  if (!unit.trim() && /^Play (?:[A-Z][\w ]*? )?games\b/.test(base)) return base.replace(/^Play /, `Play ${n} `);
+  if (!unit.trim() && /^Play (?:[A-Z][\w ]*? )?games\b/.test(base)) {
+    const text = base.replace(/^Play /, `Play ${n} `);
+    return n === "1" ? text.replace(/\bgames\b/, "game") : text;
+  }
   return `${base} (${n}${unit} for ${medal})`;
 }

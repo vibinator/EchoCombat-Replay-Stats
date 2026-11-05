@@ -19,10 +19,10 @@ const PERMISSIONS: { key: Permission; title: string; gives: string }[] = [
 
 /** Old /permissions address: the panel now lives on the Console page, which does the access check. */
 export function PermissionsPage() {
-  return <Navigate to="/console#permissions" replace />;
+  return <Navigate to="/console?tab=permissions" replace />;
 }
 
-/** The permissions panel, shown under the Console (console users only; the server checks every change). */
+/** The permissions panel, a tab of the Console (console users only; the server checks every change). */
 export function Permissions() {
   const [state, setState] = useState<PermissionState | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -31,10 +31,6 @@ export function Permissions() {
   useEffect(() => {
     getPermissions().then(setState, (e: Error) => setError(e.message));
   }, []);
-  useEffect(() => {
-    if (state && window.location.hash === "#permissions") document.getElementById("permissions")?.scrollIntoView(); // opened from the old /permissions address
-  }, [state]);
-
   async function change(c: Parameters<typeof changePermission>[0]): Promise<boolean> {
     setBusy(true);
     setError(null);

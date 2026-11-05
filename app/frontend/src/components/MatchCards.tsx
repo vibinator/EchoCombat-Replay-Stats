@@ -1,8 +1,8 @@
 import { Link } from "react-router";
 import { getMatchThumbnails, type MatchSummary } from "../api";
-import { dateTime, duration, modeLabel, scoreText, title } from "../format";
+import { duration, modeLabel, scoreText, title } from "../format";
 import { useApi } from "../useApi";
-import { TeamBadge } from "./common";
+import { LocalTime, TeamBadge } from "./common";
 import { EmptyState } from "./ui";
 
 /** Team heat of every listed match, fetched in one request; empty until it arrives (or if it fails). */
@@ -46,7 +46,7 @@ export function MatchCards({ matches, compact = false }: { matches: MatchSummary
               <TeamBadge team={m.winner} />
             </div>
             <span className="muted">
-              {dateTime(m.started_at)} · {duration(m.duration_s)}
+              <LocalTime iso={m.started_at} /> · {duration(m.duration_s)}
               {m.player_count != null && ` · ${m.player_count} players`}
             </span>
             {m.players && m.players.length > 0 && (

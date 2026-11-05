@@ -1,8 +1,8 @@
 import { Link, useSearchParams } from "react-router";
 import { searchPlayers } from "../api";
-import { Status, TableWrap } from "../components/common";
+import { LocalTime, Status, TableWrap } from "../components/common";
 import { PlayerSearch } from "../components/PlayerSearch";
-import { dateTime, int, playerPath } from "../format";
+import { int, playerPath } from "../format";
 import { useApi } from "../useApi";
 import { usePageTitle } from "../usePageTitle";
 
@@ -37,7 +37,7 @@ export function PlayersPage() {
                       <Link to={playerPath(p.user_id, p.name)}>{p.name}</Link>
                     </td>
                     <td data-label="Games" className="num">{int(p.games)}</td>
-                    <td data-label="Last seen">{dateTime(p.last_seen_at)}</td>
+                    <td data-label="Last seen"><LocalTime iso={p.last_seen_at} /></td>
                   </tr>
                 ))}
               </tbody>

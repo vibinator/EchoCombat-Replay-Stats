@@ -828,6 +828,9 @@ export function AchievementRules({ open = false }: { open?: boolean }) {
           the game in its slot, so a short switch is fine: in a 10-minute game up to 1 minute of something else is allowed.
         </li>
         <li>
+          <strong>Days are UK days</strong>, midnight to midnight UK time, so everyone is counted on the same clock. That covers "in one day", "any 7 days" and the challenge dates. Match times on the site are shown in your own timezone.
+        </li>
+        <li>
           <strong>Highlighted cards</strong> are close to their next medal: at least a quarter of the way there, from yellow to green as you get closer.
         </li>
         <li>

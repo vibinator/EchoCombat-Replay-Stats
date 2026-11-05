@@ -266,9 +266,16 @@ TUNED_LEVELS: dict[int, tuple[float, ...]] = {
     15: (1, 3, 4, 5, 7),  # n00b Protector 9000
     16: (1, 3, 4, 5, 7),  # Wraith
     18: (2, 5, 8, 15, 23),  # My Other Chassis Is a Toaster
+    19: (5, 7, 9, 12, 16),  # Point Captured (user, 2026-11-05: 109 / 64 / 31 / 17 / 6 players since 1 Aug; was 5/7/9/16/22)
+    20: (5, 7, 9, 12, 16),  # Checkpoint Reached (user, 2026-11-05: same as Point Captured; 94 / 61 / 35 / 18 / 5 players since 1 Aug; was 5/7/9/16/22)
     21: (50, 61, 69, 74, 81),  # Full Team Salvo
     22: (25, 30, 35, 40, 50),  # Can We Talk About This? (user, 2026-11-05: with 1 minute in bounds, 56 / 34 / 18 / 10 / 4 % of regulars reach these; was 26/34/42/51/60)
     24: (15, 35, 52, 66, 78),  # I’m Bat Bot (eased 2026-11-04, user; was 19/43/61/78/89)
+    25: (3, 4, 5, 7, 9),  # Constant Contesting (user, 2026-11-05: the four map ladders stay equal; 5 or 6 players since 1 Aug reach platinum on each; was 3/4/6/10/13)
+    26: (3, 4, 5, 7, 9),  # Blast Furnace
+    27: (3, 4, 5, 7, 9),  # Techneium-99
+    28: (3, 4, 5, 7, 9),  # Bird of Prey
+    29: (9, 13, 18, 24, 30),  # Combat on Quest When? (user, 2026-11-05: 102 / 59 / 31 / 12 / 6 players since 1 Aug; was 9/13/18/31/42)
     30: (1, 4, 6, 9, 13),  # Pulse Check
     31: (1, 4, 6, 9, 13),  # Eat My Nova!
     32: (1, 4, 6, 9, 13),  # Silicon Assassin
@@ -281,9 +288,16 @@ TUNED_LEVELS: dict[int, tuple[float, ...]] = {
     39: (1, 4, 6, 9, 13),  # X-Ray Vision Implant Upgrade
     40: (1, 4, 6, 9, 13),  # Check Out My Cool Screensaver
     41: (1, 4, 6, 9, 13),  # Ghost in the Shell
+    44: (10, 18, 25, 33, 40),  # I'd Rather Be on Kronos II (user, 2026-11-05: 70 / 21 / 13 / 6 / 4 players since 1 Aug; was 10/18/25/52/65)
+    45: (10, 18, 25, 33, 40),  # Sakura's Dancing Flamingo (user, 2026-11-05: 69 / 22 / 13 / 6 / 4 players since 1 Aug; was 10/18/25/52/65)
     46: (16, 20, 24, 26, 28),  # Tech Support w/RAD_Natalie (user, 2026-11-05: on 3 days with 10 minutes in bounds, 48 / 25 / 8 / 4 / 1 players since 1 Aug reach these; was 32/42/49/53/58)
     47: (12, 14, 16, 18, 20),  # Hug Your Frenemy (user, 2026-11-05: on 3 days with 10 minutes in bounds, 34 / 17 / 4 / 2 / 2 players since 1 Aug reach these; was 18/24/28/33/40)
     49: (9.3, 22, 36, 47, 57),  # I’ɯ ꓭɐʇ ꓭoʇ
+    50: (4, 6, 8, 12, 18),  # Frame-Drop Hell (user, 2026-11-05: the four map ladders stay equal; 4 to 6 players since 1 Aug reach platinum on each; was 4/6/8/23/44)
+    51: (4, 6, 8, 12, 18),  # I've Got a Fever, and the Only Prescription Is Pew Pew Pew!
+    52: (4, 6, 8, 12, 18),  # Phoeniconaias minor
+    53: (4, 6, 8, 12, 18),  # Phoenicopterus ruber
+    54: (15, 30, 50, 65, 80),  # Who Do I Have to Pew Pew Pew to Get a Combat Update Around Here? (user, 2026-11-05: 99 / 27 / 11 / 6 / 5 players since 1 Aug; was 15/30/60/130/195, which nobody ever reached)
     55: (5, 11, 19, 29, 49),  # Pulsar Veteran
     56: (5, 11, 19, 29, 49),  # Nova Veteran
     57: (5, 11, 19, 29, 49),  # Comet Veteran
@@ -299,6 +313,8 @@ TUNED_LEVELS: dict[int, tuple[float, ...]] = {
     68: (205, 440, 810, 1460, 2470),  # Pixel Party!
     69: (14, 30, 54, 95, 165),  # King of the Hill
     70: (14, 29, 51, 90, 155),  # Feed the Flamingo
+    72: (6, 8, 9, 11, 14),  # Roboticide (user, 2026-11-05: nobody had reached 19.5, best since 1 Aug 14.3; was 6/8/10/16.2/19.5)
+    73: (2.6, 2.8, 3.0, 3.2, 3.5),  # Cyberkinetic Enhancements (user, 2026-11-05: nobody had reached 4.5, best since 1 Aug 3.6; was 2.6/2.8/3/4.2/4.5)
     75: (8, 16, 27, 50, 80),  # Brute Force Attack
     76: (7, 15, 26, 49, 80),  # Molten Mechanical Mayhem
     77: (7, 15, 26, 45, 80),  # George and I Go Way Back
@@ -308,6 +324,7 @@ TUNED_LEVELS: dict[int, tuple[float, ...]] = {
     96: (112, 160, 182, 198, 207),  # Pedal to the Metal
     97: (22, 44, 60, 73, 84),  # Immovable Object
     98: (3.3, 8.6, 15, 25, 46),  # Freight Train
+    100: (20, 40, 60, 80, 120),  # Dance Floor Legend (user, 2026-11-05: nobody had reached 12480, 5th best since 1 Aug 116; was 48/240/960/3120/12480)
     101: (1, 3, 4, 5, 7),  # Starburst Stream
     102: (1, 3, 4, 5, 7),  # Protostar Power Trip
     103: (1, 3, 4, 5, 7),  # Quark Storm
@@ -317,7 +334,6 @@ TUNED_LEVELS: dict[int, tuple[float, ...]] = {
     107: (5, 11, 19, 29, 49),  # Quark Veteran
     108: (5, 11, 19, 29, 49),  # Translocator Veteran
     112: (5, 11, 19, 29, 49),  # Overclocked
-    113: (28, 60, 105, 190, 320),  # Frequent Flyer
     114: (10, 19, 31, 47, 75),  # Regular
     115: (6, 11, 16, 23, 32),  # Loyal Bot
     117: (3.5, 7.7, 14, 26, 43),  # Time Well Wasted
@@ -338,7 +354,11 @@ TUNED_LEVELS: dict[int, tuple[float, ...]] = {
     143: (94.6, 96.4, 98.2, 99.1, 100),  # Lone Wolf (a share of one game: it cannot pass 100; set for 2.6 m on 2026-11-04, kept at 3.5 m + 1 minute in bounds on 2026-11-05: since 1 Aug 30 / 19 / 10 / 6 / 3 % of players reach them)
     48: (2.75, 3, 3.25, 3.5, 3.75),  # The Wings of RAD_Wyvern (user, 2026-11-05: on 3 days with 10 minutes in bounds, 65 / 41 / 20 / 5 / 1 players since 1 Aug reach these; was 3.5/4/4.5/6.5/7.8)
     145: (3.5, 4, 4.5, 5.25, 6),  # Speed Demon (user, 2026-11-05: with 1 minute in bounds nobody reached 7.2 / 9.1; about 7 % / 2.5 % of regulars reach these)
+    146: (2, 3, 3.5, 4, 4.5),  # Point Guard (user, 2026-11-05: nobody had reached 6.5, best since 1 Aug 5; was 2/3/3.5/5.5/6.5)
     148: (2, 6, 12, 22, 38),  # One-Trick Pony
+    149: (2, 3, 4, 5, 6),  # Loadout Roulette (user, 2026-11-05: nobody had reached 10, best since 1 Aug 6; was 4/5/6/9/10)
+    150: (2, 4, 6, 8, 10),  # Mime Troupe (user, 2026-11-05: nobody had reached 26, best since 1 Aug 11; was 4/8/12/21/26)
+    151: (4, 6, 8, 10, 14),  # Showboat (user, 2026-11-05: nobody had reached 130, best since 1 Aug 15; was 12/24/40/78/130)
 }
 
 
@@ -711,20 +731,9 @@ def _build_rules() -> list[Rule]:
         rules.append(_tiered(rid, name, f"Play games on {m.title()}", m, lambda g, m=m: g.map == m, (5, 10, 25, 75, 150)))
     rules.append(_tiered(79, "King/Queen of Pubs", "Play Combat pubs", "pubs", _pub, (25, 75, 150, 250, 400)))
 
-    # New (80+): data the old site never used.
-    starts = {"rifle": ("Starburst Beta Tester", (1, 5, 25, 50, 100)), "magnum": ("Protostar Prototype", (1, 5, 25, 50, 100)),
-              "smg": ("Quantum of Quark", (1, 5, 25, 50, 100)), "chain": ("Blazar of Glory", (1, 5, 25, 50, 100))}
-    i = 80
-    for code, label in UNRELEASED_WEAPONS:
-        name, levels = starts[code]
-        rules.append(_ladder(i, name, f"Play games using {label} (experimental weapon)", GEAR_ICONS[code], _games_using("weapon", code), levels,
-                             new=True, group="Experimental gear"))
-        i += 1
+    # New (80+): data the old site never used. Ids 80-85 and 113 were removed on 2026-11-05 as duplicates (user): 80-85 counted the
+    # same games as the experimental gear Veterans, 113 the same as King/Queen of Pubs (id 79).
     rules += [
-        _ladder(84, "Now You See Me", "Play games using Translocator (experimental ordnance)", "translocator", _games_using("ordnance", "loc"), (1, 5, 25, 50, 100),
-                new=True, group="Experimental gear"),
-        _ladder(85, "Connect the Dots", "Play games using Dot Field (experimental ordnance)", None, _games_using("ordnance", "dot"), (1, 5, 25, 50, 100),
-                new=True, group="Experimental gear"),
         Rule(86, "Forbidden Arsenal", "Use all 4 experimental weapons: Starburst, Protostar, Quark and Blazar", "all", "loadout",
              _all_used("weapon", {c for c, _ in UNRELEASED_WEAPONS}), new=True, group="Experimental gear"),
         Rule(87, "Jack of All Trades", "Use all 4 weapons (Pulsar, Nova, Comet and Meteor) in one game", "game", "loadout",
@@ -778,7 +787,6 @@ def _build_rules() -> list[Rule]:
 
     # New challenges from the 2026-10-31 review (113+). Targets chosen from the archive (docs/Achievement-Tiers-Proposal.MD).
     rules += [
-        _ladder(113, "Frequent Flyer", "Total games played", None, len, (10, 50, 150, 300, 500), new=True, group="Activity"),
         _ladder(114, "Regular", "Number of different days you played", None, lambda gs: len({g.day for g in gs}), (5, 15, 30, 60, 100), new=True, group="Activity"),
         _ladder(115, "Loyal Bot", "Number of different weeks you played", None, lambda gs: len({g.week for g in gs}), (3, 6, 9, 12, 15), new=True, group="Activity"),
         _ladder(116, "Daily Grind", "Days in a row with at least one game played", None, _day_streak, (3, 5, 7, 14, 30), new=True, group="Activity"),

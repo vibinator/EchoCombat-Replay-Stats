@@ -5,12 +5,12 @@ import {
   type GearUse, type HeatmapLayerMode, type MatchDetail, type MatchPlayer, type Team,
 } from "../api";
 import { MatchCombatSection } from "../components/CombatView";
-import { GearName, LoadoutText, NotFoundBox, Status, TableWrap, isNotFound } from "../components/common";
+import { GearName, LoadoutText, LocalTime, NotFoundBox, Status, TableWrap, isNotFound } from "../components/common";
 import { HEATMAP_CELL_M, HEATMAP_MODES, HeatmapView } from "../components/HeatmapView";
 import { PlaybackCompare, PlaybackView } from "../components/PlaybackView";
 import { TimelineView } from "../components/TimelineView";
 import { FitText, InfoTip, STAT_HELP, Skeleton, useActiveTabInView } from "../components/ui";
-import { dateTime, duration, int, modeLabel, num, pct, playerPath, teamLabel, title } from "../format";
+import { duration, int, modeLabel, num, pct, playerPath, teamLabel, title } from "../format";
 import { useApi } from "../useApi";
 import { usePageTitle } from "../usePageTitle";
 
@@ -350,7 +350,7 @@ function MatchContent({ id }: { id: number }) {
             </h1>
           </div>
           <p className="muted">
-            {dateTime(m.started_at)} · {duration(m.duration_s)} · {m.player_count} players · contested {duration(m.contested_s)}
+            <LocalTime iso={m.started_at} /> · {duration(m.duration_s)} · {m.player_count} players · contested {duration(m.contested_s)}
             {m.private_match && " · private"}
             {m.recorded_by && <> · recorded by {m.recorded_by}</>}
           </p>

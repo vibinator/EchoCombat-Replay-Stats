@@ -7,8 +7,9 @@ match), the same limits as the replay rules. The challenge period applies too. M
 
 Targets are PROVISIONAL (user, 2026-11-05: "we will work on this as more data comes in"). One-game and one-day targets come from
 about one day of reports (4-5 Nov 2026), near what the top 40 / 20 / 12 / 7.5 / 5 % reached, rounded up as bests rise over time;
-all-time targets are estimates from that pace. Assists are always above kills. Left out: eliminations (always kills + assists),
-hill captures (always 0) and the event-log numbers (rarely logged). See docs/CombatStats.MD."""
+all-time targets are estimates from that pace. Assists are always above kills. Left out: eliminations (always kills + assists) and
+hill captures (always 0). Heal bubbles and stuns come from complete event logs only, which matches have had since 5 Nov 2026 18:15:
+those targets rest on 9 matches. See docs/CombatStats.MD."""
 
 import threading
 from collections import Counter, defaultdict
@@ -41,6 +42,9 @@ class CombatGame:
     objective_eliminations: int
     objective_time: float
     top_fragger: bool  # the most kills of anyone in the match (a tie counts for everyone in it)
+    objective_damage: float = 0.0
+    heal_bubbles: int = 0  # 0 when the match has no complete event log
+    stuns_given: int = 0  # same
 
     @cached_property
     def day(self) -> date:
@@ -81,22 +85,30 @@ COMBAT_RULES: list[Rule] = [
           lambda g: min(g.kills, g.assists, g.objective_eliminations) >= 5, (3, 10, 25, 50, 90), "all"),
     _rule(178, "Selfless", "Games with at least 8 assists and at least twice as many assists as kills", "team_proximity",
           lambda g: g.assists >= 8 and g.assists >= 2 * g.kills, (1, 5, 12, 25, 45), "all"),
+    _rule(198, "Siege Breaker", "Deal objective damage in one game", None, lambda g: g.objective_damage, (500, 900, 1300, 1700, 2000), "game"),
+    _rule(199, "Field Medic", "Use heal bubbles in one game", None, lambda g: g.heal_bubbles, (2, 4, 6, 7, 9), "game"),
+    _rule(200, "Shock Trooper", "Stun enemies in one game", None, lambda g: g.stuns_given, (1, 2, 3, 4, 5), "game"),
 ]
 
 
 def load_games(db, aliases: dict[str, str]) -> tuple[dict[str, list[CombatGame]], dict[str, str]]:
     """(main user id -> counted games, oldest first; main user id -> latest name). Reads the combat tables only."""
     rows = db.execute(
-        select(CombatMatch.id, CombatMatch.started_at, CombatMatch.duration_s, CombatPlayer.user_id, CombatPlayer.name, CombatPlayer.team,
+        select(CombatMatch.id, CombatMatch.started_at, CombatMatch.duration_s, CombatMatch.has_events, CombatMatch.events_complete,
+               CombatPlayer.user_id, CombatPlayer.name, CombatPlayer.team,
                CombatPlayer.present_s, CombatPlayer.kills, CombatPlayer.assists, CombatPlayer.deaths, CombatPlayer.damage,
-               CombatPlayer.objective_eliminations, CombatPlayer.objective_time)
+               CombatPlayer.objective_eliminations, CombatPlayer.objective_time, CombatPlayer.objective_damage,
+               CombatPlayer.heal_bubbles, CombatPlayer.stuns_given)
         .join(CombatMatch, CombatMatch.id == CombatPlayer.match_id)
         .order_by(CombatMatch.started_at, CombatMatch.id))
     games: dict[str, list[CombatGame]] = defaultdict(list)
     names: dict[str, str] = {}
     for _, match in groupby(rows, key=lambda r: r[0]):
-        merged: dict[str, list] = {}  # main id -> [team, present, kills, assists, deaths, damage, objective eliminations, objective time]
-        for _, started, duration, user_id, name, team, present, *numbers in match:
+        # main id -> [team, present, kills, assists, deaths, damage, objective eliminations, objective time, objective damage, heal bubbles, stuns]
+        merged: dict[str, list] = {}
+        for _, started, duration, has_events, complete, user_id, name, team, present, *numbers, heals, stuns in match:
+            logged = has_events and complete is True  # an incomplete log counts too little: left out, as FORMATS.md advises
+            numbers = [*numbers, (heals or 0) if logged else 0, (stuns or 0) if logged else 0]
             main = aliases.get(user_id, user_id)
             names[main] = name
             have = merged.get(main)
@@ -107,7 +119,8 @@ def load_games(db, aliases: dict[str, str]) -> tuple[dict[str, list[CombatGame]]
         most = max(m[2] for m in merged.values())
         for main, m in merged.items():
             if m[1] >= FULL_GAME_S:
-                games[main].append(CombatGame(started, *m[2:], top_fragger=m[2] > 0 and m[2] == most))
+                games[main].append(CombatGame(started, *m[2:8], top_fragger=m[2] > 0 and m[2] == most,
+                                              objective_damage=m[8], heal_bubbles=m[9], stuns_given=m[10]))
     return games, names
 
 

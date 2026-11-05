@@ -1,8 +1,8 @@
 import { Link } from "react-router";
 import { getCombatMatch, getCombatPlayer, type CombatEvents, type CombatMatchDetail, type CombatMatchPlayer, type CombatWeapon, type Period } from "../api";
-import { TableWrap, TeamBadge } from "./common";
+import { LocalTime, TableWrap, TeamBadge } from "./common";
 import { InfoTip } from "./ui";
-import { dateTime, duration, hoursMinutes, int, num, playerPath, title } from "../format";
+import { duration, hoursMinutes, int, num, playerPath, title } from "../format";
 import { useApi } from "../useApi";
 
 /** One labelled number in the card grid. */
@@ -150,7 +150,7 @@ export function CombatSection({ userId, period, map }: { userId: string; period:
               <tbody>
                 {data.recent.map((m) => (
                   <tr key={m.session_id}>
-                    <td data-label="Played"><Link to={`/combat/${m.session_id}`}>{dateTime(m.started_at)}</Link></td>
+                    <td data-label="Played"><Link to={`/combat/${m.session_id}`}><LocalTime iso={m.started_at} /></Link></td>
                     <td data-label="Map">{title(m.map)}</td>
                     <td data-label="Team"><TeamBadge team={m.team} /></td>
                     <td data-label="K" className="num">{m.kills}</td>
