@@ -70,18 +70,11 @@ export function CombatSection({ userId, period, map }: { userId: string; period:
   const e = data.events;
   return (
     <>
-      <h2>
-        Beta Data Collection <span className="tag">beta</span>
-      </h2>
-      <p className="muted footnote">
-        New data we are still collecting and testing. It comes from a separate source than the stats above, is not part of the
-        replay stats or the achievements, and may change as more matches are recorded. Only data collected from 4 November 2026
-        onwards.
-      </p>
-      <h3>Combat stats</h3>
+      <h2>Combat stats</h2>
       <p className="muted footnote">
         The game&apos;s own counters from {int(data.matches)} recorded match{data.matches === 1 ? "" : "es"} ({hoursMinutes(s.present_s)} played).
-        Numbers can differ from the replay stats above. <Link to="/combat">All combat stats</Link>
+        From a separate source than the replay stats above, so numbers can differ. Only data collected from 4 November 2026
+        onwards. <Link to="/combat">All combat stats</Link>
       </p>
       <div className="cards">
         <Stat label="Matches" value={int(data.matches)} />

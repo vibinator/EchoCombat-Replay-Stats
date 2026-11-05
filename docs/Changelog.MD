@@ -27,7 +27,7 @@ Working record of what changed in each release, newest first.
 - **Addresses that lead nowhere** (`/matches/abc`, an unknown player or combat match) show a clear "not found" message with links, instead of "Match #NaN" or "Request failed (422)".
 - **Combat table:** the chosen stat no longer appears in two columns.
 - **Matches:** the "Match type" filter is gone. The recorder skips private matches, so "Private" could only ever show 0.
-- **Match page:** the Combat tab no longer says "beta".
+- **Combat stats are no longer labelled "beta".** On a player page the "Beta Data Collection" tab is now "Combat" (old `?tab=beta` links still open it), and the match page's Combat tab drops the label too.
 - **Behind the scenes:** leaving the Playback or Heatmap tab no longer logs an error in the browser console.
 
 Nothing to do after updating; no re-read is needed.

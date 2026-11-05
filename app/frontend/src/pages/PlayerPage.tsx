@@ -396,10 +396,10 @@ function PlayerHeatmap({ userId, period, maps }: { userId: string; period: Perio
   );
 }
 
-type PlayerTab = "overview" | "beta" | "achievements" | "gear" | "trends" | "companions" | "heatmap";
+type PlayerTab = "overview" | "combat" | "achievements" | "gear" | "trends" | "companions" | "heatmap";
 const PLAYER_TABS: [PlayerTab, string, string][] = [
   ["overview", "Overview", "Recent matches"],
-  ["beta", "Beta Data Collection", "Combat stats (beta)"],
+  ["combat", "Combat", "Kills, damage, weapons"],
   ["achievements", "Achievements", "Medals and progress"],
   ["gear", "Loadouts & gear use", "What they play with"],
   ["trends", "Trends", "How they change over time"],
@@ -427,11 +427,12 @@ export function PlayerPage() {
   const months = useApi(() => getTrends(userId, "month"), `${userId}|month`);
 
   const hasGames = (p?.stats.games ?? 0) > 0;
-  // the beta tab only exists when there is combat data for this player (the same cached request the tab itself makes)
+  // the combat tab only exists when there is combat data for this player (the same cached request the tab itself makes)
   const combat = useApi(() => getCombatPlayer(userId, period, map || undefined), `combat|${userId}|${period}|${map}`);
   const hasCombat = !!combat.data?.matches && !!combat.data.stats;
-  const tabs = PLAYER_TABS.filter(([t]) => (t !== "beta" || hasCombat) && (hasGames || t === "overview" || t === "achievements" || t === "beta"));
-  const tab = tabs.some(([t]) => t === params.get("tab")) ? (params.get("tab") as PlayerTab) : "overview";
+  const tabs = PLAYER_TABS.filter(([t]) => (t !== "combat" || hasCombat) && (hasGames || t === "overview" || t === "achievements" || t === "combat"));
+  const asked = params.get("tab") === "beta" ? "combat" : params.get("tab"); // ?tab=beta: older links to this tab
+  const tab = tabs.some(([t]) => t === asked) ? (asked as PlayerTab) : "overview";
   const tabStrip = useActiveTabInView(`${tab}|${tabs.length}|${!!p}`);
   const setTab = (t: PlayerTab) => {
     const next = new URLSearchParams(params);
@@ -534,7 +535,7 @@ export function PlayerPage() {
             </>
           )}
 
-          {tab === "beta" && <CombatSection userId={p.user_id} period={period} map={map} />}
+          {tab === "combat" && <CombatSection userId={p.user_id} period={period} map={map} />}
 
           {/* achievements do not follow the period filter */}
           {tab === "achievements" && <AchievementsSummary userId={p.user_id} />}

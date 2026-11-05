@@ -51,8 +51,8 @@ listed in `db.COMBAT_TABLES`: a column change drops and re-reads only these, nev
 - `weapon_value` in shot events is unconfirmed by the recorder's docs: not used.
 
 ## Where it shows
-Player profile: "Beta Data Collection" section (still beta). Replay match page, Players tab, right under the players:
-"Combat stats" for that match (not beta, only when a report exists). `/combat` and `/combat/:id` as standalone pages.
+Player profile: "Combat" tab (only when the player has reports). Replay match page: "Combat" tab for that match (only when
+a report exists). Neither is labelled beta (user, 2026-11-05). `/combat` and `/combat/:id` as standalone pages.
 
 ## Stats on the site
 Game counters: kills, deaths, assists, eliminations, damage, objective eliminations / damage / time, hill captures / defends,
