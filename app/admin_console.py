@@ -12,6 +12,7 @@ rule and the affected replays are re-processed from the original files, so it ca
     admin.bat merges
     admin.bat unmerge <merged id> [--yes]
     admin.bat challenge [--start YYYY-MM-DD] [--end YYYY-MM-DD] [--clear]
+    admin.bat mega-period [--start YYYY-MM-DD] [--end YYYY-MM-DD] [--clear]   the Mega Prizes' own dates
     admin.bat preview-roles [--server] [--add <role id>] [--remove <role id>]   Discord roles: achievements early
     admin.bat admin-roles [--server] [--add <role id>] [--remove <role id>]     Discord roles: admins (Status page)
     admin.bat admin-users [--add <user id>] [--remove <user id>]   Discord users that are admins (no role needed)
@@ -245,6 +246,24 @@ def cmd_challenge(sessions, start: str | None, end: str | None, clear: bool, vis
         print(f"Website: \"Coming soon\" until {current[0]}; from that day they go live and count matches from it.")
     else:
         print("Website: \"Coming soon\". Set a start date to launch achievements and challenges.")
+
+
+def cmd_mega_period(sessions, start: str | None, end: str | None, clear: bool) -> None:
+    """The Mega Prizes' own Start-End dates, apart from the achievements' (user, 2026-11-05). start / end: None = keep,
+    "" = no limit. Without a start date of their own the prizes follow the challenge period."""
+    with sessions() as db:
+        current = actions.mega_window_own(db)
+        if clear or start is not None or end is not None:
+            new = (None, None) if clear else (current[0] if start is None else start, current[1] if end is None else end)
+            current = actions.set_mega_window(db, *new)
+            print("Saved. The Mega Prize winners and the Arena counter use the new dates straight away.")
+        challenge = actions.challenge_window(db)
+    if current[0]:
+        print(f"Mega Prize period: {current[0]} -> {current[1] or 'open-ended'}")
+    else:
+        print(f"Mega Prize period: none of its own, it follows the challenge period "
+              f"({challenge[0] or 'no start date'} -> {challenge[1] or 'open-ended'})")
+    print(f"Flamingo Challenge period (achievements): {challenge[0] or 'no start date'} -> {challenge[1] or 'open-ended'}")
 
 
 def _server_roles(settings: Settings) -> list[dict] | None:
@@ -801,7 +820,7 @@ def interactive(sessions, settings: Settings) -> None:
 # --- entry point ------------------------------------------------------------------------------
 
 # subcommands that change something: written to the audit log (Console page) with the Windows / container user
-LOGGED = {"merge", "unmerge", "challenge", "preview-roles", "admin-roles", "admin-users", "hide-stats", "repair-failed",
+LOGGED = {"merge", "unmerge", "challenge", "mega-period", "preview-roles", "admin-roles", "admin-users", "hide-stats", "repair-failed",
           "cannot-repair", "hidden", "reprocess", "repair", "scan", "reprocess-all", "repair-aggressive",
           "repair-aggressive-failed", "remote", "process-missing"}
 
@@ -845,6 +864,8 @@ def main_command(sessions, settings: Settings, args) -> None:
             cmd_unmerge(sessions, args.alias, args.yes)
         case "challenge":
             cmd_challenge(sessions, args.start, args.end, args.clear, args.visible)
+        case "mega-period":
+            cmd_mega_period(sessions, args.start, args.end, args.clear)
         case "preview-roles" | "admin-roles":
             cmd_discord_roles(sessions, settings, args.command.removesuffix("-roles"), args.add, args.remove, args.server)
         case "admin-users":
@@ -892,6 +913,10 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--start", help="YYYY-MM-DD, or '' for no limit")
     p.add_argument("--end", help="YYYY-MM-DD, or '' for no limit")
     p.add_argument("--clear", action="store_true", help="remove both dates")
+    p = sub.add_parser("mega-period", help="show or set the Mega Prize Start-End dates (apart from the achievements' dates)")
+    p.add_argument("--start", help="YYYY-MM-DD, or '' to follow the challenge period")
+    p.add_argument("--end", help="YYYY-MM-DD, or '' for no limit")
+    p.add_argument("--clear", action="store_true", help="remove both dates: the prizes follow the challenge period again")
     for kind, help_ in (("preview", "Discord roles that see achievements before the launch date"),
                         ("admin", "Discord roles that are admins (Status page)")):
         p = sub.add_parser(f"{kind}-roles", help=help_)

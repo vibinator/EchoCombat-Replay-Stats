@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 import httpx
 from sqlalchemy import delete, select
 
-from .admin_actions import challenge_window
+from .admin_actions import mega_window
 from .models import ArenaCounted, ArenaPlayer
 
 URL = "https://g.echovrce.com/status/matches"
@@ -87,11 +87,11 @@ class Tracker:
                 log.warning("arena poll failed (%s); next try in %d s", e, wait)
 
     def _in_period(self, now: float) -> bool:
-        """Counting starts at the set challenge period (user, 2026-11-04): nothing before its start date or after its end.
+        """Counting starts at the Mega Prize period (user, 2026-11-05; before that the challenge period, 2026-11-04): nothing before its start date or after its end.
         No start date set = nothing counts yet (unlike Combat, there is no archive to count from)."""
         if now - self._window[0] >= WINDOW_CHECK_S or self._window[0] == 0.0:
             with self.sessionmaker() as db:
-                start, end = challenge_window(db)
+                start, end = mega_window(db)
             today = datetime.fromtimestamp(now).date().isoformat()
             self._window = (now, bool(start) and start <= today and (not end or today <= end))
         return self._window[1]

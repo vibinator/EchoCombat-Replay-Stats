@@ -18,6 +18,7 @@ REPAIRABLE = ("corrupt", "incomplete", "internal", "crashed")  # not: unsupporte
 # Aggressive repair (D36b) only for broken replay data, after repair mode failed: not "internal" (a bug in the app)
 AGGRESSIVE_REPAIRABLE = ("corrupt", "incomplete", "crashed")
 WINDOW_KEYS = ("challenge_start", "challenge_end")
+MEGA_WINDOW_KEYS = ("mega_start", "mega_end")  # the Mega Prizes' own period (user, 2026-11-05)
 # Discord ids, comma-separated, per permission (D41, D42, D45; Permissions page, user 2026-10-30): "<permission>" =
 # role ids, "<permission>_user" = people's user ids. preview = achievements before the launch, admin = the Admin
 # tab, console = the Console and Permissions pages. ECHOVR_DISCORD_PREVIEW_ROLES (YAML) adds fixed console ids.
@@ -250,6 +251,19 @@ def challenge_window(db: Session) -> tuple[str | None, str | None]:
     return values.get("challenge_start"), values.get("challenge_end")
 
 
+def mega_window_own(db: Session) -> tuple[str | None, str | None]:
+    """The Mega Prize dates as saved; (None, None) = none set, the prizes follow the achievement period."""
+    values = dict(db.execute(select(AppSetting.key, AppSetting.value).where(AppSetting.key.in_(MEGA_WINDOW_KEYS))).all())
+    return values.get("mega_start"), values.get("mega_end")
+
+
+def mega_window(db: Session) -> tuple[str | None, str | None]:
+    """The period that counts for the Mega Prizes (user, 2026-11-05): their own start / end, set apart from the achievements'.
+    With no start date of their own they follow the achievement period, so nothing changes until the dates are set."""
+    own = mega_window_own(db)
+    return own if own[0] else challenge_window(db)
+
+
 def discord_roles(db: Session, kind: str) -> list[str]:
     """Discord role ids set in the admin console for `kind` ("preview" / "admin")."""
     value = db.scalar(select(AppSetting.value).where(AppSetting.key == ROLE_KEYS[kind]))
@@ -345,6 +359,24 @@ def set_challenge_window(db: Session, start: str | None, end: str | None) -> tup
     if start and end and start > end:
         raise AdminError("Start date must be on or before the end date")
     for key, value in zip(WINDOW_KEYS, (start or None, end or None)):
+        db.merge(AppSetting(key=key, value=value, updated_at=utcnow()))
+    db.commit()
+    return start or None, end or None
+
+
+def set_mega_window(db: Session, start: str | None, end: str | None) -> tuple[str | None, str | None]:
+    """The Mega Prize period: only matches inside it count towards the prizes. No start date = follow the achievement period."""
+    for value in (start, end):
+        if value:
+            try:
+                date.fromisoformat(value)
+            except ValueError:
+                raise AdminError(f"'{value}' is not a date (YYYY-MM-DD)") from None
+    if start and end and start > end:
+        raise AdminError("Start date must be on or before the end date")
+    if end and not start:
+        raise AdminError("Set a start date for the Mega Prizes too, or clear the end date")
+    for key, value in zip(MEGA_WINDOW_KEYS, (start or None, end or None)):
         db.merge(AppSetting(key=key, value=value, updated_at=utcnow()))
     db.commit()
     return start or None, end or None

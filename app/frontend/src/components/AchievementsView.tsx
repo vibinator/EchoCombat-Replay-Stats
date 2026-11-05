@@ -187,7 +187,9 @@ export function MegaPrizesSection() {
 
 type PrizeRow = SearchResult["results"][number];
 
-const winnersText = (n: number) => (n === 0 ? "Nobody has won it yet." : `${n} ${n === 1 ? "player has" : "players have"} won it.`);
+/** Every player who reaches the target wins the prize: there can be many winners (user, 2026-11-05). */
+const winnersText = (n: number, target: number) =>
+  `${n === 0 ? "No winners yet" : `${n} ${n === 1 ? "winner" : "winners"} so far`}: everyone who reaches ${target} wins the prize.`;
 
 /** One player's progress inside a prize card: name, a bar and the count. */
 function PlayerBar({ r, target }: { r: { name: string; user_id: string; matches: number }; target: number }) {
@@ -225,7 +227,7 @@ function MegaPrizes() {
   }, [q]);
   if (!arena) return null; // no Preview role (403) or still loading: the section stays hidden
   const combat = arena.combat[0];
-  const combatTarget = combat?.levels?.[combat.levels.length - 1] ?? 750;
+  const combatTarget = combat?.levels?.[combat.levels.length - 1] ?? 1000;
   const byKind = (kind: PrizeRow["kind"]) => (found?.results ?? []).filter((r) => r.kind === kind).sort((x, y) => y.matches - x.matches);
   const searching = found !== null;
   return (
@@ -233,19 +235,27 @@ function MegaPrizes() {
       <h2>
         Mega Prizes <span className="tag">draft</span>
       </h2>
-      <RecordingWindow what="Mega Prizes" />
+      {arena.period.start && (
+        <div className={`rec-window${arena.period.active ? "" : " ended"}`} role="note">
+          <span className="rec-dates">
+            {arena.period.start} → {arena.period.end ?? "open-ended"}
+          </span>
+          <span className="muted">Only matches played inside this period count for Mega Prizes.</span>
+        </div>
+      )}
       <div className="mega-search">
         <input type="search" placeholder="Search a player for their Mega Prize progress" aria-label="Search a player" value={q} onChange={(e) => setQ(e.target.value)} />
         {error && <p className="error">{error}</p>}
       </div>
       <div className="mega-cards">
         <article className="mega-card">
-          <PrizeImage name="biomass.jpg" alt="Delta Squad BioMass Chassis" />
+          <PrizeImage name="biomass.jpg" alt="Delta-13 from Lone Echo 2" />
           <div className="mega-body">
             <strong>Play {combatTarget} Echo Combat Matches</strong>
-            <span className="tag mega-prize">Mega Prize: {combat?.prize ?? "Delta Squad BioMass Chassis"}</span>
+            <span className="tag mega-prize">Mega Prize: {combat?.prize ?? "Delta-13 from Lone Echo 2"}</span>
+            {arena.period.active && <span className="live-text" title="Matches are being recorded right now">Recording live data</span>}
             <span className="muted">Only counts games of 4+ minutes with at least 3v3.</span>
-            <span className="muted">{winnersText(arena.winners_combat)}</span>
+            <span className="muted">{winnersText(arena.winners_combat, combatTarget)}</span>
             {searching ? (byKind("combat").length > 0 ? (
               <ul className="mega-results">{byKind("combat").map((r) => <PlayerBar key={r.user_id} r={r} target={combatTarget} />)}</ul>
             ) : (
@@ -253,7 +263,7 @@ function MegaPrizes() {
             )) : (
               arena.closest_combat.length > 0 && (
                 <>
-                  <span className="muted">Closest to the prize</span>
+                  <span className="muted">Closest to winning (not there yet)</span>
                   <ul className="mega-results">{arena.closest_combat.map((r) => <PlayerBar key={r.user_id} r={r} target={combatTarget} />)}</ul>
                 </>
               )
@@ -264,10 +274,11 @@ function MegaPrizes() {
           <PrizeImage name="jack.jpg" alt="Jack, Lone Echo" />
           <div className="mega-body">
             <strong>Play {arena.target} Public Arena Matches</strong>
-            <span className="tag mega-prize">Mega Prize: OG High Quality Jack Model</span>
+            <span className="tag mega-prize">Mega Prize: Jack Series 11 from Lone Echo 1/2</span>
+            {arena.period.active && <span className="live-text" title="Matches are being recorded right now">Recording live data</span>}
             <span className="muted">Only counts public matches of 4+ minutes with at least 3v3 (or 6+ players).</span>
             <span className="muted">Arena history only starts on 2026-11-04, so totals are lower than Combat.</span>
-            <span className="muted">{winnersText(arena.winners_arena)}</span>
+            <span className="muted">{winnersText(arena.winners_arena, arena.target)}</span>
             {searching ? (
               byKind("arena").length > 0 ? (
                 <ul className="mega-results">{byKind("arena").map((r) => <PlayerBar key={r.user_id} r={r} target={arena.target} />)}</ul>
@@ -278,7 +289,7 @@ function MegaPrizes() {
               <>
                 {arena.closest_arena.length > 0 && (
                   <>
-                    <span className="muted">Closest to the prize</span>
+                    <span className="muted">Closest to winning (not there yet)</span>
                     <ul className="mega-results">{arena.closest_arena.map((p) => <PlayerBar key={p.user_id} r={p} target={arena.target} />)}</ul>
                   </>
                 )}

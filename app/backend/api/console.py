@@ -64,6 +64,7 @@ COMMANDS = {  # name as in admin.bat -> (sessions, settings, args) -> None
     "merges": lambda s, st, a: console.cmd_merges(s),
     "unmerge": lambda s, st, a: console.cmd_unmerge(s, _required(a.alias, "the merged id"), yes=True),
     "challenge": lambda s, st, a: console.cmd_challenge(s, a.start, a.end, a.clear, a.visible or None),
+    "mega-period": lambda s, st, a: console.cmd_mega_period(s, a.start, a.end, a.clear),
     "status": lambda s, st, a: console.cmd_status(s),
     "repair-failed": lambda s, st, a: console.cmd_repair_failed(s, yes=True),
     "cannot-repair": lambda s, st, a: console.cmd_cannot_repair(s, a.hide, yes=True),
@@ -150,6 +151,7 @@ def overview(request: Request):
     tracker = getattr(request.app.state, "arena", None)  # only started with auto_scan
     with request.app.state.sessionmaker() as db:
         start, end = actions.challenge_window(db)
+        mega_start, mega_end = actions.mega_window_own(db)
         hidden = actions.hidden_stats(db)
         hidden_players = {g: [{"user_id": u, "name": console.name_of(db, u)} for u in actions.hidden_players(db, g)]
                           for g in actions.STAT_GROUPS}
@@ -162,6 +164,7 @@ def overview(request: Request):
             "hidden_replays": db.scalar(select(func.count()).select_from(Replay).where(hidden_failure())),
             "challenge": {"start": start, "end": end, "launched": actions.achievements_launched(db),
                           "visibility": actions.achievements_visibility(db)},
+            "mega_period": {"start": mega_start, "end": mega_end},  # none set = the prizes follow the challenge period
             "stat_groups": [{"key": g, "label": label, "hidden": g in hidden, "players": hidden_players[g]}
                             for g, label in actions.STAT_GROUPS.items()],
             "recent": [_log_row(r) for r in actions.command_log(db, 8)],
@@ -210,7 +213,7 @@ def achievements_csv(request: Request):
 
 @router.get("/mega-prizes")
 def mega_prize_winners(request: Request):
-    """Who has reached each Mega Prize target inside the challenge period (the prizes are given out by hand)."""
+    """Who has reached each Mega Prize target inside the Mega Prize period (the prizes are given out by hand)."""
     require_console(request, "mega-prizes")
     with request.app.state.sessionmaker() as db:
         return mega_prizes.report(db)

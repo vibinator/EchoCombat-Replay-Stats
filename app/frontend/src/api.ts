@@ -921,6 +921,8 @@ export interface ConsoleOverview {
   aggressive_repairable: number;
   hidden_replays: number;
   challenge: { start: string | null; end: string | null; launched: boolean; visibility: "everyone" | "preview" | "hidden" };
+  /** The Mega Prizes' own dates; null / null = none set, they follow the challenge period */
+  mega_period: { start: string | null; end: string | null };
   stat_groups: { key: string; label: string; hidden: boolean; players: { user_id: string; name: string }[] }[];
   recent: ConsoleLogEntry[];
 }
@@ -1180,6 +1182,8 @@ export interface ArenaProgress {
   winners_arena: number;
   closest_combat: { user_id: string; name: string; matches: number }[]; // top 2 not yet at the target
   closest_arena: { user_id: string; name: string; matches: number }[];
+  /** the Mega Prize period (its own dates, or the challenge period); active = running today */
+  period: { start: string | null; end: string | null; active: boolean };
 }
 export const getArenaProgress = () => send<ArenaProgress>("/api/arena/progress");
 

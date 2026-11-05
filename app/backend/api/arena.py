@@ -1,5 +1,6 @@
 """Mega Prizes tab data (Preview role only; Arena counting is separate from Combat, see arena.py)."""
 
+from datetime import date
 from pathlib import Path
 
 from fastapi import APIRouter, Query, Request
@@ -8,14 +9,14 @@ from sqlalchemy import func, select
 
 from .. import auth
 from ..achievements import FULL_GAME_S, MEGA_COMBAT, icon_file, mega_combat_games
-from ..admin_actions import challenge_window
+from ..admin_actions import mega_window
 from ..duplicates import counted
 from ..errors import ApiError
 from ..models import ArenaPlayer, Match, MatchPlayer, Player
 from .achievements import _games
 
 router = APIRouter(prefix="/api/arena", tags=["arena"])
-TARGET = 750  # Mega Prize: OG High Quality Jack Model
+TARGET = 1000  # Mega Prize: Jack Series 11 from Lone Echo 1/2
 SEARCH_LIMIT = 10
 CLOSEST = 2  # players shown as "closest to the prize"
 IMAGES = {"jack.jpg": "image/jpeg", "biomass.jpg": "image/jpeg"}  # exact names only: nothing from the visitor reaches a path
@@ -48,10 +49,14 @@ def progress(request: Request, limit: int = Query(10, ge=1, le=100)):
         near_combat = _closest_combat(db, combat_target)
         won_arena = db.scalar(select(func.count()).select_from(ArenaPlayer).where(ArenaPlayer.matches >= TARGET)) or 0
         won_combat = _combat_winners(db, combat_target)
+        period = mega_window(db)
     r = MEGA_COMBAT  # kept out of RULES, so no public list or ranking has it
     combat = [{"id": r.id, "name": r.name, "description": r.description, "period": r.period, "icon": icon_file(r), "estimated": False,
                "new": r.new, "group": r.group, "levels": list(r.levels), "unit": r.unit, "prize": r.prize}]
+    today = date.today().isoformat()
     return {"target": TARGET, "min_minutes": 4, "combat": combat,
+            # the Mega Prize period (its own dates, or the challenge period): the cards show a live dot while it is running
+            "period": {"start": period[0], "end": period[1], "active": bool(period[0]) and period[0] <= today and (not period[1] or today <= period[1])},
             "players": [{"user_id": r.user_id, "name": r.display_name or r.username, "matches": r.matches,
                          "completed": r.matches >= TARGET} for r in rows],
             # the two players nearest to the prize who have not reached it yet (user, 2026-11-04)
@@ -79,7 +84,7 @@ def _combat_counts(db, start: str, end: str | None):
 
 def _closest_combat(db, target: int) -> list[dict]:
     """The CLOSEST players below the Combat target."""
-    start, end = challenge_window(db)
+    start, end = mega_window(db)
     if not start:
         return []
     q = _combat_counts(db, start, end).having(func.count() < target).order_by(func.count().desc()).limit(CLOSEST)
@@ -88,7 +93,7 @@ def _closest_combat(db, target: int) -> list[dict]:
 
 def _combat_winners(db, target: int) -> int:
     """How many players reached the Combat target inside the challenge period."""
-    start, end = challenge_window(db)
+    start, end = mega_window(db)
     if not start:
         return 0
     sub = _combat_counts(db, start, end).having(func.count() >= target).subquery()
@@ -105,7 +110,7 @@ def search(request: Request, q: str = Query("", max_length=60)):
         return {"target": TARGET, "results": []}
     like = f"%{term}%"
     with request.app.state.sessionmaker() as db:
-        start, end = challenge_window(db)
+        start, end = mega_window(db)
         players = db.scalars(select(Player).where(func.lower(Player.name).like(like))
                              .order_by(Player.last_seen_at.desc()).limit(SEARCH_LIMIT)).all()
         games = _games(db, [p.id for p in players]) if players and start else {}

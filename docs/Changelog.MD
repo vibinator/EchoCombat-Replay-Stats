@@ -18,6 +18,24 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.05.5 — 21:35
+
+### Mega Prizes (user, 2026-11-05)
+- **Own Start-End dates:** Console, Achievements tab, "Mega Prize period" (`admin.bat mega-period`). Only Combat and Public Arena matches inside them count towards the prizes; the achievements keep their own launch date and challenge period. With no start date of its own the Mega Prize period follows the challenge period, so nothing changes until you set one. The Mega Prizes tab shows these dates, and the Console dashboard has a Mega Prizes card.
+- **1000 matches** for both prizes (was 750). Echo Combat Veteran medals: 33 / 133 / 333 / 600 / 1000 (was 25 / 100 / 250 / 450 / 750).
+- **Renamed:** Delta-13 from Lone Echo 2 (was Delta Squad BioMass Chassis) and Jack Series 11 from Lone Echo 1/2 (was OG High Quality Jack Model).
+- **Wording:** "No winners yet / N winners so far: everyone who reaches 1000 wins the prize." and "Closest to winning (not there yet)", so it is clear there can be many winners.
+- **Live dot:** both prize cards show a pulsing green "Recording live data" while the Mega Prize period is running.
+
+### Pew Pew Proof is a ladder, Gearhead is easier (user, 2026-11-05)
+- **Pew Pew Proof:** now 4 / 6 / 10 / 15 / 25 games in a row (4+ minutes, 3+ players per team) that average fewer than 5 deaths per game, within any 7 days and on at least 3 different days (was one step: 25+ games in a week). Of the 843 players with 20+ counted games, 20 / 15 / 8.5 / 3.8 / 1.3 % reach these; the old single step was reached by 14 players in the whole archive.
+- **Gearhead:** 5 / 10 / 15 / 20 / 25 games in a row on one loadout (was 4 / 8 / 15 / 39 / 65; platinum was reached by 0.5 % of those players, now about 5 %: 41 / 19 / 11 / 7 / 5 %). Only games of 4+ minutes with 3+ players per team count, a short game neither extends nor breaks a run, and a game with no loadout data is skipped. A game with no single main loadout still ends the run.
+
+### "Only X in any 7 days" gear challenges need 3 different days from gold
+- **All 19 weekly gear challenges** (Pulse Check, Eat My Nova!, Throws Better Than an Arena Disc ... Ghost in the Shell, the new-gear ones and Charged Up, Blazar Barrage, Dot Matrix): bronze and silver (1 and 4 games) count as before. Gold, diamond and platinum (6 / 9 / 13 games) need those games on at least 3 different days inside the same 7 days, so one evening can no longer fill the week. Without the 3 days the count stops at silver.
+- On the full archive this lowers 1,418 of 5,005 gold-or-better medals (832 players), mostly gold to silver. Medals are computed on request, so nothing needs migrating.
+- The card note reads "Gold+: 3+ different days". The other 7-day challenges are unchanged (the four map ladders would lose about 3-5 % of their gold-or-better; left as is).
+
 ## 2026.11.05.4 — 20:33
 
 ### Duplicate achievements removed

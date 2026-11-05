@@ -5,7 +5,7 @@ import pytest
 import replay_factory as rf
 from app_helpers import act, add, app_client
 from sqlalchemy import select
-from test_discord_preview import BLUE, DB_MEMBER, DB_ROLE, MEMBER, NO_ROLE, discord, login, settings  # noqa: F401  (fixtures)
+from test_discord_preview import BLUE, CONSOLE, DB_MEMBER, DB_ROLE, MEMBER, NO_ROLE, discord, login, settings  # noqa: F401  (fixtures)
 
 from backend import admin_actions as actions
 from backend import mega_prizes
@@ -13,12 +13,12 @@ from backend.models import ArenaPlayer
 
 PRIZE_URLS = ["/api/arena/progress", "/api/arena/search?q=zed", "/api/arena/image/jack.jpg", "/api/arena/image/biomass.jpg"]
 CONSOLE_URLS = ["/api/admin/console/mega-prizes", "/api/admin/console/mega-prizes.csv"]
-WORDS = ("Echo Combat Veteran", "Mega Prize", "BioMass", "Jack Model", "OG High Quality")
+WORDS = ("Echo Combat Veteran", "Mega Prize", "BioMass", "Jack Model", "OG High Quality", "Delta-13", "Jack Series 11")
 
 
 def seed(client):
     with client.app.state.sessionmaker() as db:
-        db.add(ArenaPlayer(user_id="n1", username="zed", display_name="Zed", discord_id="99", matches=800, last_match_at="x"))
+        db.add(ArenaPlayer(user_id="n1", username="zed", display_name="Zed", discord_id="99", matches=1100, last_match_at="x"))
         db.commit()
 
 
@@ -52,7 +52,7 @@ def test_preview_role_sees_the_prizes_but_not_the_winners_report(tmp_path, disco
             assert r.status_code == 200, url
             assert r.headers["cache-control"] == "private, no-store" and r.headers["cloudflare-cdn-cache-control"] == "no-store", url
         found = client.get("/api/arena/search?q=zed").json()["results"]
-        assert found == [{"kind": "arena", "name": "Zed", "user_id": "n1", "matches": 800}]  # no Discord id in the answer
+        assert found == [{"kind": "arena", "name": "Zed", "user_id": "n1", "matches": 1100}]  # no Discord id in the answer
         assert "discord" not in client.get("/api/arena/progress").text.lower()
         for url in CONSOLE_URLS:  # Console only: it lists Discord ids
             assert client.get(url).status_code == 403, url
@@ -120,3 +120,31 @@ def test_prize_pictures_load_with_the_scraper_guard_on(tmp_path, discord):
         for name in ("jack.jpg", "biomass.jpg"):
             r = client.get(f"/api/arena/image/{name}", headers=browser | {"x-echovr": "1"})
             assert r.status_code == 200 and r.headers["content-type"] == "image/jpeg" and r.content[:2] == b"\xff\xd8", name
+
+
+def test_mega_prizes_have_their_own_period(tmp_path, discord):
+    """The Mega Prize Start-End dates are set apart from the achievements' (user, 2026-11-05); without their own they follow them."""
+    with app_client(settings(tmp_path)) as client:
+        seed(client)
+        login(client, MEMBER)
+        act(client, actions.set_challenge_window, "2000-01-01", "2000-12-31")
+        report = lambda: client.get("/api/admin/console/mega-prizes").json()["period"]
+        overview = lambda: client.get("/api/admin/console/overview").json()
+        assert report() == {"start": "2000-01-01", "end": "2000-12-31"}  # none of its own: follows the challenge period
+        assert overview()["mega_period"] == {"start": None, "end": None}
+        act(client, actions.set_mega_window, "2026-11-05", None)
+        assert report() == {"start": "2026-11-05", "end": None}
+        assert overview()["mega_period"] == {"start": "2026-11-05", "end": None}
+        assert overview()["challenge"]["start"] == "2000-01-01"  # the achievements' dates are untouched
+        act(client, actions.set_challenge_window, "2026-01-01", None)
+        assert report() == {"start": "2026-11-05", "end": None}  # and the other way round
+        with pytest.raises(actions.AdminError, match="on or before"):
+            act(client, actions.set_mega_window, "2026-11-02", "2026-11-01")
+        with pytest.raises(actions.AdminError, match="start date"):
+            act(client, actions.set_mega_window, None, "2026-12-01")
+        with pytest.raises(actions.AdminError, match="not a date"):
+            act(client, actions.set_mega_window, "soon", None)
+        r = client.post("/api/admin/console/mega-period", json={"clear": True}, headers=CONSOLE)
+        assert r.status_code == 200 and report() == {"start": "2026-01-01", "end": None}  # back to following the challenge period
+        r = client.post("/api/admin/console/mega-period", json={"start": "2026-11-10", "end": "2026-12-10"}, headers=CONSOLE)
+        assert "2026-11-10" in r.json()["output"] and "2026-12-10" in r.json()["output"] and report() == {"start": "2026-11-10", "end": "2026-12-10"}

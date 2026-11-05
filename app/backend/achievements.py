@@ -40,6 +40,7 @@ SPEED_MIN_GAMES = 25  # Cyberkinetic Enhancements: 50 left 76 % of the active pl
 GEAR_VETERAN = (6, 17, 55, 170, 400)  # games using it
 GEAR_DAY = (3, 6, 9, 13, 17)  # "only X" games in one day (finals 3 / 5 / 8 / 16 / 20; eased 2026-11-03 from the 1-3 Nov games)
 GEAR_WEEK = (6, 12, 18, 35, 55)  # "only X" games in any 7 days
+WEEK_GEAR_FREE = 4  # "only X" in 7 days: up to silver (4 games) needs no spread; gold and up needs WEEK_MIN_DAYS different days (user, 2026-11-05)
 TIERS = [(1.0, "gold"), (0.75, "silver"), (0.5, "bronze"), (0.25, "white")]
 
 
@@ -288,6 +289,8 @@ TUNED_LEVELS: dict[int, tuple[float, ...]] = {
     39: (1, 4, 6, 9, 13),  # X-Ray Vision Implant Upgrade
     40: (1, 4, 6, 9, 13),  # Check Out My Cool Screensaver
     41: (1, 4, 6, 9, 13),  # Ghost in the Shell
+    42: (5, 10, 15, 20, 25),  # Gearhead (user, 2026-11-05: 4+ min games with 3+ players per team; 41 / 19 / 11 / 7 / 5 % of the 843 regulars with 20+ such games reach these; was 4/8/15/39/65, platinum 0.5 %)
+    43: (4, 6, 10, 15, 25),  # Pew Pew Proof (user, 2026-11-05: games in a row averaging under 5 deaths, on 3+ days; 20 / 15 / 8.5 / 3.8 / 1.3 % of the same regulars reach these; 25 was the old single step)
     44: (10, 18, 25, 33, 40),  # I'd Rather Be on Kronos II (user, 2026-11-05: 70 / 21 / 13 / 6 / 4 players since 1 Aug; was 10/18/25/52/65)
     45: (10, 18, 25, 33, 40),  # Sakura's Dancing Flamingo (user, 2026-11-05: 69 / 22 / 13 / 6 / 4 players since 1 Aug; was 10/18/25/52/65)
     46: (16, 20, 24, 26, 28),  # Tech Support w/RAD_Natalie (user, 2026-11-05: on 3 days with 10 minutes in bounds, 48 / 25 / 8 / 4 / 1 players since 1 Aug reach these; was 32/42/49/53/58)
@@ -445,10 +448,14 @@ def _full(value):
 
 
 def _gearhead_run(games):
-    """Longest run of consecutive games on one single loadout."""
+    """Longest run of consecutive games on one single loadout. Only games of 4+ minutes with 3+ players per team count (a
+    short appearance neither extends nor breaks a run), and a game with no loadout data is skipped; a game with no single
+    main loadout (90 %) ends the run (user, 2026-11-05)."""
     best = run = 0
     prev = None
     for g in sorted(games, key=lambda g: g.started_at):
+        if g.play_time_s < FULL_GAME_S or not g.enough_players or not g.loadouts:
+            continue
         key = g.main_loadout()
         run = run + 1 if key is not None and key == prev else (1 if key else 0)
         prev = key
@@ -456,20 +463,30 @@ def _gearhead_run(games):
     return best
 
 
+_gearhead_run.min_length = _gearhead_run.enough_players = True  # shown as rule notes
+
+
 PEW_PEW_MIN_S = FULL_GAME_S  # recordings shorter than this are ignored (4 min = half an average game; revisit, user 2026-11-04)
 PEW_PEW_MAX_DEATHS = 5  # was 3 in the original text; raised by the user (2026-10-30)
 
 
 def _pew_pew_proof(games):
-    """Average fewer than PEW_PEW_MAX_DEATHS deaths per game over any 7 days with at least 25 games. Exactly the
-    limit is not fewer: partial progress stays below 100 % until the average is under it. Recordings shorter than
-    PEW_PEW_MIN_S are ignored: a spectator bot that joins late only sees the tail of a game, with few deaths."""
-    games = [g for g in games if g.play_time_s >= PEW_PEW_MIN_S]
-    if not games:
-        return 0.0
-    avg = sum(g.deaths for g in games) / len(games)
-    limit = PEW_PEW_MAX_DEATHS
-    return min(1.0, len(games) / 25) * (1.0 if avg < limit else min(limit / avg, 0.99))
+    """Most games in a row (4+ minutes, 3+ players per team) that average fewer than PEW_PEW_MAX_DEATHS deaths per game, on
+    at least WEEK_MIN_DAYS different days. Exactly the limit is not fewer. Recordings shorter than PEW_PEW_MIN_S are
+    ignored: a spectator bot that joins late only sees the tail of a game, with few deaths. Every 7-day window starting at a
+    game is checked (all_windows): a later window is not a part of an earlier one for this count."""
+    best = deaths = 0
+    days: set = set()
+    for n, g in enumerate(sorted((g for g in games if g.play_time_s >= PEW_PEW_MIN_S and g.enough_players),
+                                 key=lambda g: g.started_at), 1):
+        deaths += g.deaths
+        days.add(g.day)
+        if deaths / n < PEW_PEW_MAX_DEATHS and len(days) >= WEEK_MIN_DAYS:
+            best = n
+    return best
+
+
+_pew_pew_proof.min_length = _pew_pew_proof.enough_players = _pew_pew_proof.all_windows = True
 
 
 TEST_DRIVE_S = 180.0
@@ -539,10 +556,15 @@ def _games_using(slot: str, code: str):
     return lambda games: sum(1 for g in games if code in g._used[slot])
 
 
-def _only_games(slot: str, code: str):
+def _only_games(slot: str, code: str, min_days: int = 0):
+    """Games with only this item. `min_days` (7-day rules): the count stops at WEEK_GEAR_FREE (silver) unless these games
+    fall on that many different days, so one evening cannot fill the week but bronze and silver stay as easy as before (user,
+    2026-11-05). Adding games never lowers it, so maximal windows are enough."""
     def only_games(games):
-        return sum(1 for g in games if code in g._only[slot])
+        hits = [g for g in games if code in g._only[slot]]
+        return len(hits) if len({g.day for g in hits}) >= min_days else min(len(hits), WEEK_GEAR_FREE)
     only_games.use_only = True  # shown as a rule note
+    only_games.min_days = min_days
     return only_games
 
 
@@ -686,12 +708,13 @@ def _build_rules() -> list[Rule]:
     i = 30
     for slot, items in (("weapon", WEAPONS), ("ordnance", ORDNANCES), ("tacmod", TACMODS)):
         for code, label, icon in items:
-            rules.append(_ladder(i, names[code], f"Play games using only {label} in any 7 days", icon,
-                                 _only_games(slot, code), GEAR_WEEK, "week"))
+            rules.append(_ladder(i, names[code], f"Play games using only {label} in any 7 days, gold and up on at least {WEEK_MIN_DAYS} different days", icon,
+                                 _only_games(slot, code, WEEK_MIN_DAYS), GEAR_WEEK, "week"))
             i += 1
     rules += [
         _ladder(42, "Gearhead", "Play games in a row with the same single loadout, within any 7 days", "loadout", _gearhead_run, (4, 8, 15, 30, 50), "week"),
-        Rule(43, "Pew Pew Proof", "Play 25+ games in any 7 days and average fewer than 5 deaths per game", "week", "deaths", _pew_pew_proof, estimated=True),
+        _ladder(43, "Pew Pew Proof", f"Play games in a row, within any 7 days and on at least {WEEK_MIN_DAYS} different days, that average fewer than {PEW_PEW_MAX_DEATHS} deaths per game",
+                "deaths", _pew_pew_proof, (6, 12, 25, 40, 60), "week", estimated=True),
         _tiered(44, "I'd Rather Be on Kronos II", "Play Capture Point games in any 7 days", "capture_point", _capture, (10, 18, 25, 40, 50), "week"),
         _tiered(45, "Sakura's Dancing Flamingo", "Play Payload games in any 7 days", "payload", _payload, (10, 18, 25, 40, 50), "week"),
         _ladder(46, "Tech Support w/RAD_Natalie", "Average share of your games spent close to a teammate, over any 7 days, on at least 3 different days and with at least 10 minutes in bounds", "team_proximity", _week_average("near_mate"), (22, 27, 32, 40, 55), "week", "%"),
@@ -813,13 +836,13 @@ def _build_rules() -> list[Rule]:
     weekly = (("weapon", "rifle", "Starburst", "Star Power"), ("weapon", "magnum", "Protostar", "Protostar Powerhouse"),
               ("weapon", "smg", "Quark", "Quark Quake"), ("ordnance", "loc", "Translocator", "Blink and You'll Miss It"))
     for i, (slot, code, label, name) in enumerate(weekly, 127):
-        rules.append(_ladder(i, name, f"Play games using only {label} in any 7 days", GEAR_ICONS[code],
-                             _only_games(slot, code), GEAR_WEEK, "week", new=True, group="Experimental gear"))
+        rules.append(_ladder(i, name, f"Play games using only {label} in any 7 days, gold and up on at least {WEEK_MIN_DAYS} different days", GEAR_ICONS[code],
+                             _only_games(slot, code, WEEK_MIN_DAYS), GEAR_WEEK, "week", new=True, group="Experimental gear"))
     rules += [
         _ladder(131, "Full Charge", "Play games using only Overcharge in one day", None,
                 _only_games("tacmod", "buff"), GEAR_DAY, "day", new=True, group="Experimental gear"),
-        _ladder(132, "Charged Up", "Play games using only Overcharge in any 7 days", None,
-                _only_games("tacmod", "buff"), GEAR_WEEK, "week", new=True, group="Experimental gear"),
+        _ladder(132, "Charged Up", f"Play games using only Overcharge in any 7 days, gold and up on at least {WEEK_MIN_DAYS} different days", None,
+                _only_games("tacmod", "buff", WEEK_MIN_DAYS), GEAR_WEEK, "week", new=True, group="Experimental gear"),
         # Blazar and Dot Field were released too (user, 2026-10-31): the same set as the other new gear
         _ladder(133, "Blazar Veteran", "Play games using Blazar", "blazar", _games_using("weapon", "chain"), GEAR_VETERAN,
                 new=True, group="Experimental gear"),
@@ -829,10 +852,10 @@ def _build_rules() -> list[Rule]:
                 _only_games("weapon", "chain"), GEAR_DAY, "day", new=True, group="Experimental gear"),
         _ladder(136, "Dot to Dot", "Play games using only Dot Field in one day", None,
                 _only_games("ordnance", "dot"), GEAR_DAY, "day", new=True, group="Experimental gear"),
-        _ladder(137, "Blazar Barrage", "Play games using only Blazar in any 7 days", "blazar",
-                _only_games("weapon", "chain"), GEAR_WEEK, "week", new=True, group="Experimental gear"),
-        _ladder(138, "Dot Matrix", "Play games using only Dot Field in any 7 days", None,
-                _only_games("ordnance", "dot"), GEAR_WEEK, "week", new=True, group="Experimental gear"),
+        _ladder(137, "Blazar Barrage", f"Play games using only Blazar in any 7 days, gold and up on at least {WEEK_MIN_DAYS} different days", "blazar",
+                _only_games("weapon", "chain", WEEK_MIN_DAYS), GEAR_WEEK, "week", new=True, group="Experimental gear"),
+        _ladder(138, "Dot Matrix", f"Play games using only Dot Field in any 7 days, gold and up on at least {WEEK_MIN_DAYS} different days", None,
+                _only_games("ordnance", "dot", WEEK_MIN_DAYS), GEAR_WEEK, "week", new=True, group="Experimental gear"),
     ]
 
     # In one game (user, 2026-11-03); 4v4 games only. Targets from the archive's per-game distributions (4+ minute games):
@@ -888,7 +911,7 @@ def _build_rules() -> list[Rule]:
     return rules
 
 
-_NOTE_MIN_IDS = {18, 43, 139, 150}  # rules that check the length in their own function
+_NOTE_MIN_IDS = {18, 139, 150}  # rules that check the length in their own function
 _NOTE_4V4_IDS = {95, 119, 120, 121, 139, 141, 148, 92, 93, 94}  # rules whose test is a lambda that checks enough_players itself
 _NOTE_ONLY_IDS = {42, 148}
 
@@ -909,6 +932,8 @@ def rule_notes(rule: Rule) -> list[str]:
         notes.append("3+ players per team")
     if getattr(fn, "use_only", False) or rule.id in _NOTE_ONLY_IDS:
         notes.append(f"\"Only\" = {ONLY_SHARE:.0%}+ of the game")
+    if getattr(fn, "min_days", 0) and rule.period == "week":
+        notes.append(f"Gold+: {fn.min_days}+ different days")
     if rule.id == 67:
         notes.append(f"{LOADOUT_USED_S / 60:g}+ min per loadout")
     return [n for n in notes if n]
@@ -928,9 +953,10 @@ RULES = [_tuned(r) for r in _build_rules()]
 
 # Mega Prize (user, 2026-11-04): NOT in RULES on purpose. RULES feeds every public list, ranking, medal feed and total; the
 # prize is Preview-only and only served by api/arena.py and the Console report (mega_prizes.py). Written targets are
-# /HARDER_TOP so that platinum = 750 and diamond = 450 matches.
-MEGA_COMBAT = _ladder(0, "Echo Combat Veteran", "Play Echo Combat matches", None, len, (25, 100, 250, 346, 577),
-                      raise_all_time=False, new=True, group="Activity", prize="Delta Squad BioMass Chassis")
+# set directly (user, 2026-11-05: 1000 matches, was 750): platinum = 1000, diamond = 600 (was 450).
+MEGA_COMBAT = _tuned(_ladder(0, "Echo Combat Veteran", "Play Echo Combat matches", None, len, (25, 100, 250, 346, 577),
+                             raise_all_time=False, new=True, group="Activity", prize="Delta-13 from Lone Echo 2"),
+                     (33, 133, 333, 600, 1000))
 
 
 def icon_file(rule: Rule) -> str | None:
@@ -969,7 +995,7 @@ def _rolling_weeks(games: list[Game], maximal: bool) -> list[list[Game]]:
 
 def _monotone(rule: "Rule") -> bool:
     """True when adding games to a group can never lower the rule's value (so only maximal windows need checking)."""
-    return bool(rule.levels) and not isinstance(rule.count, _AvgValue)
+    return bool(rule.levels) and not isinstance(rule.count, _AvgValue) and not getattr(rule.count, "all_windows", False)
 
 
 def _week_key(rule: "Rule") -> str:

@@ -127,21 +127,34 @@ def test_coming_soon_until_the_start_date(tmp_path):
 def test_logic_follows_the_text():
     """Every condition is in the description (user, 2026-10-30)."""
     text = {r.id: r.description for r in RULES}
-    assert "25+ games" in text[73] and "25+ games" in text[43]
+    assert "25+ games" in text[73] and "fewer than 5 deaths" in text[43]
     # the counting rules are listed per achievement, not repeated in the description
     notes = {r.id: rule_notes(r) for r in RULES}
-    assert "4+ min games" in notes[18] and "4+ min games" in notes[21]
+    assert "4+ min games" in notes[18] and "4+ min games" in notes[21] and "4+ min games" in notes[43] and "4+ min games" in notes[42]
     assert "Best game" in notes[21] and "Best 7 days" in notes[43]
     assert "3+ players per team" in notes[139] and "3+ players per team" not in notes[23]
     assert not any("4+ minutes" in d or "best game" in d for d in text.values())
     # 4+ minutes: a short game does not count, even with 0 deaths
     assert by_id(evaluate([game(deaths=0, play=60.0)]))[18]["progress"] == 0
     assert by_id(evaluate([game(deaths=3)]))[18]["count"] == 1
-    # Pew Pew Proof: "fewer than 5" -> an average of exactly 5 is not enough
+    # Pew Pew Proof: "fewer than 5" -> an average of exactly 5 is not enough, and it needs 3 different days
     week = [game(f"2026-10-{d:02d}", deaths=5) for d in (26, 27, 28) for _ in range(9)]
-    assert by_id(evaluate(week))[43]["progress"] < 1
+    assert by_id(evaluate(week))[43]["count"] == 0
     week[0] = game("2026-10-26", deaths=4)
-    assert by_id(evaluate(week))[43]["progress"] == 1.0
+    assert by_id(evaluate(week))[43]["count"] == 27 and by_id(evaluate(week))[43]["tier"] == "platinum"
+    one_evening = [game("2026-10-26", deaths=0)] * 30
+    assert by_id(evaluate(one_evening))[43]["count"] == 0  # all on one day
+    assert by_id(evaluate([game("2026-10-26", deaths=0, play=60.0)] * 30))[43]["count"] == 0  # short games do not count
+
+
+def test_gearhead_counts_long_full_games_only():
+    from backend.achievements import _gearhead_run
+
+    a, b = ("scout", "heal", "det"), ("assault", "stun", "rocket")
+    run = [game(f"2026-10-2{i}", loadout=a) for i in range(1, 5)]
+    assert _gearhead_run(run) == 4
+    assert _gearhead_run(run[:2] + [game("2026-10-23", loadout=b)] + run[2:]) == 2  # another loadout ends the run
+    assert _gearhead_run(run[:2] + [game("2026-10-23", loadout=b, play=60.0)] + run[2:]) == 4  # a short game is ignored
 
 
 def test_average_unlock_date_is_when_first_reached():
@@ -231,10 +244,10 @@ def test_tiered_achievements():
         assert r["progress"] == pytest.approx(progress, abs=1e-4), n
     rule = next(r for r in RULES if r.id == 93)
     assert "1 bronze, 6 silver, 12 gold, 39 diamond, 156 platinum" in rule.description
-    assert unlock_threshold(rule) == 0.2 and unlock_threshold(next(r for r in RULES if r.id == 43)) == 0.25
+    assert unlock_threshold(rule) == 0.2 and unlock_threshold(next(r for r in RULES if r.id == 69)) == 0.2
     delivery = next(r for r in RULES if r.id == 94)
     assert "Deliver the payload to the end" in delivery.description and delivery.levels == (1, 6, 12, 39, 94)
-    assert "count" not in by_id(evaluate(sweeps(1)))[43]  # single-step rules unchanged
+    assert "count" not in by_id(evaluate(sweeps(1)))[87]  # single-step rules unchanged
 
 
 def test_ladders_with_units_and_periods():
@@ -447,6 +460,19 @@ def test_seven_day_map_and_mode_targets():
     assert by_id(evaluate(days * 2 + days[:5]))[53]["tier"] == "diamond"  # 17
     spread = [game("2026-10-01", map_="surge")] * 9 + [game("2026-10-20", map_="surge")] * 9
     assert by_id(evaluate(spread))[53]["tier"] == "gold"  # 18 games, but only 9 in any 7 days
+
+
+def test_seven_day_gear_needs_three_days_from_gold():
+    assert next(r for r in RULES if r.id == 34).levels == (1, 4, 6, 9, 13)
+    one_evening = [game("2026-10-01")] * 13  # 13 Detonator-only games, all on one day
+    assert by_id(evaluate(one_evening))[34]["tier"] == "silver"  # capped at 4: bronze and silver need no spread
+    two_days = [game("2026-10-01")] * 7 + [game("2026-10-02")] * 6
+    assert by_id(evaluate(two_days))[34]["tier"] == "silver"
+    three_days = [game("2026-10-01")] * 7 + [game("2026-10-02")] * 5 + [game("2026-10-07")]  # 3 days, all inside 7 days
+    assert by_id(evaluate(three_days))[34]["tier"] == "platinum"
+    too_wide = [game("2026-10-01")] * 7 + [game("2026-10-02")] * 5 + [game("2026-10-09")]  # the 3rd day is outside the window
+    assert by_id(evaluate(too_wide))[34]["tier"] == "silver"
+    assert "Gold+: 3+ different days" in rule_notes(next(r for r in RULES if r.id == 34))
 
 
 def test_all_gear_shares_one_ladder_per_kind():

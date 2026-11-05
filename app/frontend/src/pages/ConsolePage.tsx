@@ -225,6 +225,33 @@ const GROUPS: { title: string; commands: Command[] }[] = [
       },
       { name: "mega-prizes", label: "Mega Prize winners", help: "", view: "winners" },
       {
+        name: "mega-period",
+        label: "Mega Prize period",
+        help:
+          "The Start and End dates for the Mega Prizes, apart from the achievements' dates above. Only Echo Combat matches and Public Arena matches inside them count towards a prize. " +
+          "With no start date of its own the Mega Prize period follows the launch date and challenge period, so nothing changes until you set one. " +
+          "Leave everything empty to see the current setting; an empty date is kept as it is.",
+        fields: [
+          { key: "start", label: "Start", kind: "date" },
+          { key: "start_today", label: "Start today", kind: "check" },
+          { key: "end", label: "End (optional)", kind: "date" },
+          { key: "end_today", label: "End today", kind: "check" },
+          { key: "clear", label: "Remove both dates (follow the challenge period)", kind: "check" },
+        ],
+        confirm: (v) =>
+          v.clear
+            ? "Remove the Mega Prize dates? The prizes follow the challenge period again."
+            : v.start_today
+              ? `Start the Mega Prize period today (${todayIso()})? Matches before today stop counting for the prizes.`
+              : v.start
+                ? `Set the Mega Prize start date to ${v.start}? Matches before it stop counting for the prizes.`
+                : v.end_today
+                  ? `End the Mega Prize period today (${todayIso()})?`
+                  : v.end
+                    ? `Set the Mega Prize end date to ${v.end}?`
+                    : null,
+      },
+      {
         name: "challenge",
         label: "Launch date and challenge period",
         help:
@@ -286,7 +313,7 @@ const TABS: { id: string; label: string; names: string[]; opens?: false }[] = [
     names: ["remote", "process-missing", "fix-replay", "repair-failed", "repair-aggressive-failed", "cannot-repair", "hidden", "reprocess-all"],
   },
   // starts on the dates: the winners report reads the whole archive, which takes up to half a minute during a re-read
-  { id: "achievements", label: "Achievements", names: ["challenge", "mega-prizes", "hidden-stats", "export-achievements"] },
+  { id: "achievements", label: "Achievements", names: ["challenge", "mega-period", "mega-prizes", "hidden-stats", "export-achievements"] },
   { id: "log", label: "Audit log", names: ["log"] },
   { id: "permissions", label: "Permissions", names: ["permissions"] },
 ];
@@ -426,10 +453,13 @@ function Console() {
   // The launch date, end date and "Visible to" are saved on the server (they survive closing the Console and restarts): the form
   // shows what is saved instead of opening empty (user, 2026-11-04). Reloaded after every command, so it never shows old values.
   useEffect(() => {
-    if (selected?.name !== "challenge") return;
+    if (selected?.name !== "challenge" && selected?.name !== "mega-period") return;
+    const mega = selected.name === "mega-period";
     let live = true;
     getConsoleOverview().then((o) => {
-      if (live) setValues({ start: o.challenge.start ?? "", end: o.challenge.end ?? "", visible: o.challenge.visibility });
+      if (!live) return;
+      if (mega) setValues({ start: o.mega_period.start ?? "", end: o.mega_period.end ?? "" });
+      else setValues({ start: o.challenge.start ?? "", end: o.challenge.end ?? "", visible: o.challenge.visibility });
     }, () => undefined);
     return () => {
       live = false;
@@ -757,6 +787,14 @@ function Dashboard({ api }: { api: ConsoleApi }) {
           {overview.challenge.start ? `From ${overview.challenge.start}${overview.challenge.end ? ` to ${overview.challenge.end}` : ""}` : "No launch date set"}
           <button type="button" className="secondary small" onClick={() => api.open("challenge")}>Change</button>
         </DashCard>
+        <DashCard label="Mega Prizes" value={overview.mega_period.start ? "Own dates" : "Follows challenge"}>
+          {overview.mega_period.start
+            ? `From ${overview.mega_period.start}${overview.mega_period.end ? ` to ${overview.mega_period.end}` : ""}`
+            : overview.challenge.start
+              ? `From ${overview.challenge.start}${overview.challenge.end ? ` to ${overview.challenge.end}` : ""}`
+              : "No start date set"}
+          <button type="button" className="secondary small" onClick={() => api.open("mega-period")}>Change</button>
+        </DashCard>
         <ArenaCard status={overview.arena_status} />
         {winLoss && (
           <DashCard label="Win-loss stats" value={winLoss.hidden ? "Hidden" : "Shown"}>
@@ -793,7 +831,7 @@ function Dashboard({ api }: { api: ConsoleApi }) {
 
 const ARENA_STATES: Record<ArenaStatus["state"], [value: string, detail: string]> = {
   off: ["Off", "Not running on this server"],
-  outside_period: ["Waiting", "Outside the challenge period: the match list is not being read"],
+  outside_period: ["Waiting", "Outside the Mega Prize period: the match list is not being read"],
   waiting: ["Starting", "No answer from the match list yet"],
   working: ["Working", ""],
   failing: ["Failing", "The match list has not answered lately"],
@@ -1174,7 +1212,7 @@ function MergeSuggestions({ version, onUse }: { version: number; onUse: (keep: s
   );
 }
 
-/** Mega Prize winners report (prizes are given out by hand): who reached each target inside the challenge period. */
+/** Mega Prize winners report (prizes are given out by hand): who reached each target inside the Mega Prize period. */
 function MegaPrizeReport() {
   const [run, setRun] = useState(0); // Refresh asks again
   const report = useApi(getMegaPrizeWinners, `console-mega-prizes-${run}`);
@@ -1192,7 +1230,7 @@ function MegaPrizeReport() {
     <div className="panel console-form">
       <h2>Mega Prize winners</h2>
       <p className="muted">
-        Everyone who has reached a Mega Prize target inside the challenge period
+        Everyone who has reached a Mega Prize target inside the Mega Prize period
         {d ? ` (${d.period.start ?? "no start date set"} to ${d.period.end ?? "open-ended"})` : ""}. Combat counts the replay files; Public Arena counts
         matches of 4+ minutes from the live match list.
       </p>

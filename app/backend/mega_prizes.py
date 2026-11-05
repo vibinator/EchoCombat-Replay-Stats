@@ -1,7 +1,7 @@
 """Mega Prize winners report for the Console (user, 2026-11-04): the prizes are handed out by hand, so this lists who has
-reached the target inside the set challenge period. Echo Combat: 750 games of 4+ minutes from the replay files (Delta Squad BioMass
-Chassis). Public Arena: 750 matches of 4+ minutes counted from the live Nakama match list (arena.py; OG High Quality
-Jack Model)."""
+reached the target inside the set challenge period. Echo Combat: 1000 games of 4+ minutes from the replay files (Delta-13 from Lone Echo 2).
+Public Arena: 1000 matches of 4+ minutes counted from the live Nakama match list (arena.py; Jack Series 11 from
+Lone Echo 1/2). Counted inside the Mega Prize period (its own Start-End dates, apart from the achievements')."""
 
 import csv
 from io import StringIO
@@ -9,16 +9,16 @@ from io import StringIO
 from sqlalchemy import select
 
 from .achievements import MEGA_COMBAT, mega_combat_games
-from .admin_actions import challenge_window
+from .admin_actions import mega_window
 from .api.achievements import _games
 from .api.arena import TARGET as ARENA_TARGET
 from .models import ArenaPlayer, Player, PlayerProfile
 
-ARENA_PRIZE = "OG High Quality Jack Model"
+ARENA_PRIZE = "Jack Series 11 from Lone Echo 1/2"
 
 
 def report(db) -> dict:
-    start, end = challenge_window(db)
+    start, end = mega_window(db)
     combat_rule = MEGA_COMBAT
     target = int(combat_rule.levels[-1])
     combat: list[dict] = []
@@ -34,8 +34,8 @@ def report(db) -> dict:
         arena = [{"name": r.display_name or r.username, "user_id": r.user_id, "discord_id": r.discord_id, "count": r.matches}
                  for r in db.scalars(select(ArenaPlayer).where(ArenaPlayer.matches >= ARENA_TARGET).order_by(ArenaPlayer.matches.desc()))]
     return {"period": {"start": start, "end": end},
-            "prizes": [{"prize": combat_rule.prize, "challenge": "Play 750 Echo Combat Matches", "target": target, "winners": combat},
-                       {"prize": ARENA_PRIZE, "challenge": "Play 750 Public Arena Matches", "target": ARENA_TARGET, "winners": arena}]}
+            "prizes": [{"prize": combat_rule.prize, "challenge": f"Play {target} Echo Combat Matches", "target": target, "winners": combat},
+                       {"prize": ARENA_PRIZE, "challenge": f"Play {ARENA_TARGET} Public Arena Matches", "target": ARENA_TARGET, "winners": arena}]}
 
 
 def _cell(value) -> str:
