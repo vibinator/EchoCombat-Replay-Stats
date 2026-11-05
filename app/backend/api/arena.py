@@ -1,6 +1,6 @@
 """Mega Prizes tab data (Preview role only; Arena counting is separate from Combat, see arena.py)."""
 
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
 from fastapi import APIRouter, Query, Request
@@ -8,12 +8,10 @@ from fastapi.responses import FileResponse
 from sqlalchemy import func, select
 
 from .. import auth
-from ..achievements import FULL_GAME_S, MEGA_COMBAT, icon_file, mega_combat_games
+from ..achievements import MEGA_COMBAT, icon_file
 from ..admin_actions import mega_window
-from ..duplicates import counted
 from ..errors import ApiError
-from ..models import ArenaPlayer, Match, MatchPlayer, Player
-from .achievements import _games
+from ..models import ArenaPlayer, NakamaCombatCounted, NakamaCombatPlayer
 
 router = APIRouter(prefix="/api/arena", tags=["arena"])
 TARGET = 1000  # Mega Prize: Jack Series 11 from Lone Echo 1/2
@@ -65,45 +63,42 @@ def progress(request: Request, limit: int = Query(10, ge=1, le=100)):
             "closest_arena": [{"user_id": a.user_id, "name": a.display_name or a.username, "matches": a.matches} for a in near_arena]}
 
 
-def _combat_counts(db, start: str, end: str | None):
-    """Per player: games of 4+ minutes inside the challenge period, counted in SQL (same rule as mega_combat_games)
-    so no game list is loaded."""
-    day = func.substr(Match.started_at, 1, 10)
-    # 3v3 or bigger: matches where each team has 3+ players present for half of the match (same rule as Game.enough_players)
-    team_n = (select(MatchPlayer.match_id, MatchPlayer.team, func.count().label("c"))
-              .join(Match, Match.id == MatchPlayer.match_id)
-              .where(MatchPlayer.play_time_s >= 0.5 * Match.duration_s, MatchPlayer.team.in_(("blue", "orange")))
-              .group_by(MatchPlayer.match_id, MatchPlayer.team).having(func.count() >= 3).subquery())
-    big = select(team_n.c.match_id).group_by(team_n.c.match_id).having(func.count() == 2)
-    query = (select(Player.user_id, Player.name, func.count().label("n"))
-             .select_from(MatchPlayer).join(Match, Match.id == MatchPlayer.match_id).join(Player, Player.id == MatchPlayer.player_id)
-             .where(counted(MatchPlayer.match_id), MatchPlayer.play_time_s >= FULL_GAME_S, day >= start,
-                    MatchPlayer.match_id.in_(big)))
-    return (query.where(day <= end) if end else query).group_by(Player.id)
+def combat_totals(db, start: str | None, end: str | None) -> list[dict]:
+    """Echo Combat matches per player for the Mega Prize (user, 2026-11-05): counted from the Nakama match list only, like
+    Arena. The replay files are not part of it (the prizes launch later, so no history is merged). Counted inside the Mega
+    Prize period, most matches first."""
+    if not start:
+        return []
+    lo = datetime.fromisoformat(start).timestamp()
+    hi = datetime.fromisoformat(end).timestamp() + 86400 if end else None
+    n = func.count().label("n")
+    q = (select(NakamaCombatCounted.user_id, NakamaCombatPlayer.display_name, NakamaCombatPlayer.username,
+                NakamaCombatPlayer.discord_id, n)
+         .join(NakamaCombatPlayer, NakamaCombatPlayer.user_id == NakamaCombatCounted.user_id)
+         .where(NakamaCombatCounted.counted_at >= lo).group_by(NakamaCombatCounted.user_id).order_by(n.desc()))
+    if hi:
+        q = q.where(NakamaCombatCounted.counted_at < hi)
+    return [{"name": display or username, "user_id": user_id, "discord_id": discord_id, "count": count}
+            for user_id, display, username, discord_id, count in db.execute(q)]
 
 
 def _closest_combat(db, target: int) -> list[dict]:
     """The CLOSEST players below the Combat target."""
     start, end = mega_window(db)
-    if not start:
-        return []
-    q = _combat_counts(db, start, end).having(func.count() < target).order_by(func.count().desc()).limit(CLOSEST)
-    return [{"user_id": u, "name": n, "matches": c} for u, n, c in db.execute(q).all()]
+    below = [w for w in combat_totals(db, start, end) if w["count"] < target][:CLOSEST]
+    return [{"user_id": w["user_id"], "name": w["name"], "matches": w["count"]} for w in below]
 
 
 def _combat_winners(db, target: int) -> int:
     """How many players reached the Combat target inside the challenge period."""
     start, end = mega_window(db)
-    if not start:
-        return 0
-    sub = _combat_counts(db, start, end).having(func.count() >= target).subquery()
-    return db.scalar(select(func.count()).select_from(sub)) or 0
+    return sum(1 for w in combat_totals(db, start, end) if w["count"] >= target)
 
 
 @router.get("/search")
 def search(request: Request, q: str = Query("", max_length=60)):
     """Players by name with their progress toward a prize, from the set challenge period on (no start date set = 0).
-    Combat: games in the replay files. Arena: public matches of 4+ minutes from the live match list."""
+    Combat and Arena: public matches of 4+ minutes from the live match list. Arena: public matches of 4+ minutes from the live match list."""
     _require_preview(request)
     term = q.strip().lower().replace("%", "").replace("_", "")
     if len(term) < 2:
@@ -111,13 +106,10 @@ def search(request: Request, q: str = Query("", max_length=60)):
     like = f"%{term}%"
     with request.app.state.sessionmaker() as db:
         start, end = mega_window(db)
-        players = db.scalars(select(Player).where(func.lower(Player.name).like(like))
-                             .order_by(Player.last_seen_at.desc()).limit(SEARCH_LIMIT)).all()
-        games = _games(db, [p.id for p in players]) if players and start else {}
+        combat = [w for w in combat_totals(db, start, end) if term in (w["name"] or "").lower()][:SEARCH_LIMIT]
         arena = db.scalars(select(ArenaPlayer).where(func.lower(ArenaPlayer.username).like(like)
                                                      | func.lower(func.coalesce(ArenaPlayer.display_name, "")).like(like))
                            .order_by(ArenaPlayer.matches.desc()).limit(SEARCH_LIMIT)).all()
-    results = [{"kind": "combat", "name": p.name, "user_id": p.user_id,
-                "matches": mega_combat_games(games.get(p.id, []), start, end) if start else 0} for p in players]
+    results = [{"kind": "combat", "name": w["name"], "user_id": w["user_id"], "matches": w["count"]} for w in combat]
     results += [{"kind": "arena", "name": a.display_name or a.username, "user_id": a.user_id, "matches": a.matches} for a in arena]
     return {"target": TARGET, "results": results}

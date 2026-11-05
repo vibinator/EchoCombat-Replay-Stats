@@ -79,6 +79,24 @@ const GROUPS: { title: string; commands: Command[] }[] = [
         help: "Every merge, newest first.",
       },
       {
+        name: "link-profile",
+        label: "Link a player to a Discord account",
+        help: "When a player cannot be verified automatically: that Discord account can then log in and edit the bio on the player's page. Relinking moves the link.",
+        fields: [
+          { key: "player", label: "Player", kind: "player", hint: "Start typing a name or id" },
+          { key: "discord_id", label: "Discord user id", hint: "In Discord: right-click the person > Copy User ID" },
+        ],
+        confirm: (v) => `Link ${v.player} to Discord account ${v.discord_id}?`,
+      },
+      {
+        name: "unlink-profile",
+        label: "Remove a Discord link",
+        help: "The bio goes with the link.",
+        fields: [{ key: "player", label: "Player or Discord id", hint: "A name, player id or Discord id" }],
+        confirm: (v) => `Remove the Discord link of ${v.player}?`,
+      },
+      { name: "profile-links", label: "Discord link report", help: "How many players are linked to a Discord account, and how." },
+      {
         name: "unmerge",
         label: "Undo a merge",
         help: "Make a merged record a separate player again.",

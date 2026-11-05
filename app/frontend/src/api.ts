@@ -1162,11 +1162,23 @@ export interface PlayerBioProfile {
   show_avatar: boolean;
   avatar_url: string | null;
   editable: boolean;
+  /** the Echo account linked to this player, seen on the live match list (no Discord id) */
+  account?: { name: string; last_seen: string } | null;
 }
 export const BIO_MAX = 500;
 export const getPlayerBio = (userId: string) => send<PlayerBioProfile>(`/api/profiles/${encodeURIComponent(userId)}`);
 export const savePlayerBio = (userId: string, edit: { bio: string | null; show_avatar: boolean }) =>
   send<PlayerBioProfile>(`/api/profiles/${encodeURIComponent(userId)}`, {
+    method: "POST",
+    headers: { ...ADMIN_WRITE, "Content-Type": "application/json" },
+    body: JSON.stringify(edit),
+  });
+
+/** The logged-in visitor's own profile; known = their Discord account has been seen playing. */
+export type MyProfile = PlayerBioProfile & { name: string; known: boolean; user_id: string | null };
+export const getMyProfile = () => send<MyProfile>("/api/profiles/me");
+export const saveMyProfile = (edit: { bio: string | null; show_avatar: boolean }) =>
+  send<MyProfile>("/api/profiles/me", {
     method: "POST",
     headers: { ...ADMIN_WRITE, "Content-Type": "application/json" },
     body: JSON.stringify(edit),

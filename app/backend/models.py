@@ -171,6 +171,36 @@ class PlayerProfile(Base):
     updated_at: Mapped[str]
 
 
+class DiscordProfile(Base):
+    """Bio and avatar choice of a Discord account that has no bot-linked player (user, 2026-11-05): the Discord id comes
+    from the Nakama match list, so anyone who plays can log in with Discord and edit their profile. When the account is
+    also linked to a replay player (PlayerProfile) that row holds the bio instead. Kept across rebuilds."""
+
+    __tablename__ = "discord_profiles"
+
+    discord_id: Mapped[str] = mapped_column(primary_key=True)
+    bio: Mapped[str | None]
+    show_avatar: Mapped[bool] = mapped_column(default=True)
+    updated_at: Mapped[str]
+
+
+class NakamaAccount(Base):
+    """Every account seen on the Nakama match list, at every poll, whatever the lobby (user, 2026-11-05): Nakama user id,
+    Discord id and names, and the replay player it is linked to. A recent replay player's id IS the Discord id, so the link
+    is exact; an admin link (PlayerProfile) counts too. Kept across rebuilds: it cannot be recomputed."""
+
+    __tablename__ = "nakama_accounts"
+
+    user_id: Mapped[str] = mapped_column(primary_key=True)  # Nakama user id
+    discord_id: Mapped[str | None] = mapped_column(index=True)
+    username: Mapped[str]
+    display_name: Mapped[str | None]
+    first_seen_at: Mapped[str]
+    last_seen_at: Mapped[str]
+    replay_user_id: Mapped[str | None] = mapped_column(index=True)  # the linked replay player, when there is one
+    link: Mapped[str | None]  # how: "player_id" (replay id is the Discord id), "profile" (bot / admin link)
+
+
 class PlayerAlias(Base):
     """Admin player merge (D34): `alias_user_id` is the same person as `main_user_id`. Kept across rebuilds."""
 
@@ -257,6 +287,36 @@ class ArenaCounted(Base):
     match_id: Mapped[str] = mapped_column(primary_key=True)
     user_id: Mapped[str] = mapped_column(primary_key=True)
     counted_at: Mapped[float] = mapped_column(index=True)  # epoch s
+
+
+class NakamaCombatPlayer(Base):
+    """Echo Combat matches per player for the Mega Prize, counted from the live Nakama match list like ArenaPlayer
+    (user, 2026-11-05). Counted from Nakama only; the replay files are not merged in. Kept across rebuilds: it cannot be recomputed."""
+
+    __tablename__ = "nakama_combat_players"
+
+    user_id: Mapped[str] = mapped_column(primary_key=True)  # Nakama user id
+    username: Mapped[str]
+    display_name: Mapped[str | None]
+    discord_id: Mapped[str | None] = mapped_column(index=True)
+    matches: Mapped[int] = mapped_column(default=0, index=True)
+    last_match_at: Mapped[str]
+
+
+class NakamaCombatCounted(Base):
+    """A (Nakama match, player) already counted for Combat, so a restart or a rejoin never counts it twice. Never pruned:
+    it is the Combat history."""
+
+    __tablename__ = "nakama_combat_counted"
+
+    match_id: Mapped[str] = mapped_column(primary_key=True)  # "<session uuid>.<node>"
+    user_id: Mapped[str] = mapped_column(primary_key=True)
+    counted_at: Mapped[float] = mapped_column(index=True)  # epoch s
+    # audit trail for a disputed win: what the list showed when the match was counted
+    present_s: Mapped[float | None]  # seconds this player was seen in the match
+    blue: Mapped[int | None]  # players on each team (not spectators) at that poll
+    orange: Mapped[int | None]
+    spectators: Mapped[int | None]
 
 
 class CombatFile(Base):

@@ -18,7 +18,7 @@ from sqlalchemy import delete, func, select
 
 from .. import auth, discord_names
 from ..errors import ApiError
-from ..models import Player, PlayerAlias, PlayerProfile
+from ..models import ArenaPlayer, DiscordProfile, NakamaAccount, NakamaCombatPlayer, Player, PlayerAlias, PlayerProfile
 
 router = APIRouter(prefix="/api/profiles", tags=["profiles"])
 bot_router = APIRouter(prefix="/api/bot", tags=["bot"])
@@ -70,6 +70,13 @@ def _name_match_avatar(request: Request, db, user_id: str) -> str | None:
     return url
 
 
+def _account(db, user_id: str) -> dict | None:
+    """The Echo (Nakama) account linked to this replay player, collected from the match list (arena.py): its name and when it
+    was last seen playing. No Discord id: it is not shown to visitors."""
+    acc = db.scalar(select(NakamaAccount).where(NakamaAccount.replay_user_id == user_id).order_by(NakamaAccount.last_seen_at.desc()))
+    return None if acc is None else {"name": acc.display_name or acc.username, "last_seen": acc.last_seen_at}
+
+
 def _public(request: Request, profile: PlayerProfile | None, viewer: dict | None, name_avatar: str | None = None) -> dict:
     settings = request.app.state.settings
     if profile is None:
@@ -86,6 +93,27 @@ def _public(request: Request, profile: PlayerProfile | None, viewer: dict | None
 
 # --- website --------------------------------------------------------------------------------
 
+@router.get("/me")
+def my_profile(request: Request):
+    """The logged-in visitor's own profile (from the Discord login only; nothing about anyone else is asked for)."""
+    viewer = auth.viewer(request)
+    if not viewer:
+        raise ApiError(401, "login_required", "Log in with Discord to see your profile")
+    with request.app.state.sessionmaker() as db:
+        if not _known_discord(db, viewer["id"]):  # never seen on the match list: nothing to show yet
+            return {"linked": False, "bio": None, "show_avatar": True, "avatar_url": None, "editable": False, "user_id": None,
+                    "name": viewer["name"], "known": False}
+        return _discord_public(request, db, viewer["id"], viewer) | {"name": viewer["name"], "known": True}
+
+
+@router.post("/me")
+def edit_my_profile(request: Request, edit: "ProfileEdit"):
+    viewer = auth.viewer(request)
+    if not viewer:
+        raise ApiError(401, "login_required", "Log in with Discord to edit your profile")
+    return edit_discord_profile(request, viewer["id"], edit) | {"name": viewer["name"], "known": True}
+
+
 @router.get("/{user_id}")
 def get_profile(request: Request, user_id: str):
     """Bio and picture of a player, and whether the visitor may edit them (their own linked player)."""
@@ -93,7 +121,74 @@ def get_profile(request: Request, user_id: str):
     with request.app.state.sessionmaker() as db:
         main = _main_id(db, user_id)
         profile = db.get(PlayerProfile, main)
-        return _public(request, profile, viewer, None if profile else _name_match_avatar(request, db, main))
+        account = _account(db, main)
+        if profile is None and auth.is_discord_id(main) and db.scalar(select(Player.id).where(Player.user_id == main)):
+            # recent replays carry the Discord id as the player id: the Discord-keyed profile is this player's profile
+            if db.get(DiscordProfile, main) is not None or (viewer and viewer["id"] == main) or account is not None:
+                return _discord_public(request, db, main, viewer) | {"account": account}
+        return _public(request, profile, viewer, None if profile else _name_match_avatar(request, db, main)) | {"account": account}
+
+
+# --- by Discord id (people who play but are not linked to a replay player, user 2026-11-05) --------------
+
+def _known_discord(db, discord_id: str) -> bool:
+    """Only Discord ids this site has seen (Nakama match list, bot link, a saved profile): it is not a lookup for any account."""
+    return any(db.scalar(select(col).where(col == discord_id).limit(1)) is not None
+               for col in (NakamaAccount.discord_id, ArenaPlayer.discord_id, NakamaCombatPlayer.discord_id, PlayerProfile.discord_id, DiscordProfile.discord_id, Player.user_id))
+
+
+def _own_account(db, discord_id: str) -> dict | None:
+    acc = db.scalar(select(NakamaAccount).where(NakamaAccount.discord_id == discord_id).order_by(NakamaAccount.last_seen_at.desc()))
+    return None if acc is None else {"name": acc.display_name or acc.username, "last_seen": acc.last_seen_at}
+
+
+def _discord_public(request: Request, db, discord_id: str, viewer: dict | None) -> dict:
+    linked = db.scalar(select(PlayerProfile).where(PlayerProfile.discord_id == discord_id))
+    row = linked or db.get(DiscordProfile, discord_id)  # a bot-linked player's profile is the one profile of that account
+    show = row.show_avatar if row is not None else True
+    return {"linked": True, "bio": row.bio if row is not None else None, "show_avatar": show,
+            "avatar_url": auth.avatar_url(request.app.state.settings, discord_id) if show else None,
+            "editable": bool(viewer and hmac.compare_digest(viewer["id"], discord_id)),
+            # the replay player page, when there is one: bot-linked, or a recent replay player whose id IS the Discord id
+            "user_id": linked.user_id if linked is not None else (discord_id if db.scalar(select(Player.id).where(Player.user_id == discord_id)) else None),
+            "account": _own_account(db, discord_id)}
+
+
+@router.get("/discord/{discord_id}")
+def get_discord_profile(request: Request, discord_id: str):
+    viewer = auth.viewer(request)
+    if not auth.is_discord_id(discord_id):
+        raise ApiError(400, "bad_discord_id", "Not a Discord user id")
+    with request.app.state.sessionmaker() as db:
+        if not _known_discord(db, discord_id):
+            raise ApiError(404, "unknown_profile", "No profile")
+        return _discord_public(request, db, discord_id, viewer)
+
+
+@router.post("/discord/{discord_id}")
+def edit_discord_profile(request: Request, discord_id: str, edit: "ProfileEdit"):
+    """Only the bio and the avatar choice, only by that Discord account itself (logged in with Discord)."""
+    viewer = auth.viewer(request)
+    if not viewer:
+        raise ApiError(401, "login_required", "Log in with Discord to edit your profile")
+    if not auth.is_discord_id(discord_id) or not hmac.compare_digest(viewer["id"], discord_id):
+        raise ApiError(403, "not_your_profile", "You can only edit your own profile")
+    if edit.bio is not None and len(edit.bio) > BIO_MAX * 4:
+        raise ApiError(400, "bio_too_long", f"The bio can be at most {BIO_MAX} characters")
+    with request.app.state.sessionmaker() as db:
+        if not _known_discord(db, discord_id):
+            raise ApiError(404, "unknown_profile", "Play a match first: your Discord account is not known here yet")
+        row = db.scalar(select(PlayerProfile).where(PlayerProfile.discord_id == discord_id)) or db.get(DiscordProfile, discord_id)
+        if row is None:
+            row = DiscordProfile(discord_id=discord_id, bio=None, show_avatar=True, updated_at=_now())
+            db.add(row)
+        row.bio = clean_bio(edit.bio)
+        row.show_avatar = edit.show_avatar
+        row.updated_at = _now()
+        db.commit()
+        if row.show_avatar:
+            auth.avatar_url(request.app.state.settings, discord_id, fresh=True)
+        return _discord_public(request, db, discord_id, viewer)
 
 
 class ProfileEdit(BaseModel):
@@ -110,7 +205,10 @@ def edit_profile(request: Request, user_id: str, edit: ProfileEdit):
     if edit.bio is not None and len(edit.bio) > BIO_MAX * 4:
         raise ApiError(400, "bio_too_long", f"The bio can be at most {BIO_MAX} characters")
     with request.app.state.sessionmaker() as db:
-        profile = db.get(PlayerProfile, _main_id(db, user_id))
+        main = _main_id(db, user_id)
+        profile = db.get(PlayerProfile, main)
+        if profile is None and auth.is_discord_id(main) and hmac.compare_digest(main, viewer["id"]):
+            return edit_discord_profile(request, main, edit)  # the replay id is the viewer's own Discord id
         if profile is None or not hmac.compare_digest(profile.discord_id, viewer["id"]):
             raise ApiError(403, "not_your_profile", "Only the Discord account linked to this player can edit it")
         profile.bio = clean_bio(edit.bio)
@@ -119,7 +217,7 @@ def edit_profile(request: Request, user_id: str, edit: ProfileEdit):
         db.commit()
         if profile.show_avatar:
             auth.avatar_url(request.app.state.settings, profile.discord_id, fresh=True)  # a new avatar shows at once
-        return _public(request, profile, viewer)
+        return _public(request, profile, viewer) | {"account": _account(db, profile.user_id)}
 
 
 # --- Discord bot ----------------------------------------------------------------------------

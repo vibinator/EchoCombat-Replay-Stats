@@ -55,11 +55,15 @@ def test_overview_has_the_arena_status_for_console_users_only(tmp_path):
 
 
 def test_status_outside_the_period(tmp_path):
-    t, _ = tracker(tmp_path, [], period=False)
+    from backend.models import ArenaPlayer as _AP, NakamaAccount
+    t, sm = tracker(tmp_path, [[label("m1", list("abcdef"))]], period=False)
     t.start()
     try:
-        t.poll(now=1000.0)  # no period set: the list is not asked for
+        assert t.poll(now=1000.0) == 0  # no period set: nothing is counted, but the accounts on the list are collected
         assert t.status(now=1000.0)["state"] == "outside_period"
+        with sm() as db:
+            assert db.scalar(select(NakamaAccount.username).where(NakamaAccount.user_id == "a")) == "a"
+            assert db.scalar(select(_AP.user_id)) is None
     finally:
         t.stop()
 
@@ -103,7 +107,7 @@ def test_short_stays_and_other_modes_do_not_count(tmp_path):
 
 
 def test_nothing_counts_before_the_challenge_period(tmp_path):
-    t, sm = tracker(tmp_path, [[label("m1", ["a"])]] * 6, period=False)
+    t, sm = tracker(tmp_path, [[label("m1", ["a"])]] * 7, period=False)
     assert [t.poll(now=1000.0 + 60 * i) for i in range(6)] == [0] * 6
     with sm() as db:
         actions.set_challenge_window(db, "2999-01-01", None)  # starts in the future: still nothing
@@ -193,3 +197,72 @@ def test_small_matches_do_not_count_until_big_enough(tmp_path):
     for i, p in enumerate(big["players"]):
         p["team"] = "blue" if i < 3 else "orange"  # 3v3
     t, _ = tracker(tmp_path / "x" if False else tmp_path, [[big]] * steps)
+
+
+def combat_label(match_id, users):
+    return {"id": match_id, "mode": "echo_combat", "lobby_type": "public",
+            "players": [{"user_id": u, "username": u, "display_name": u.upper(), "discord_id": "d" + u,
+                         "team": "blue" if i % 2 else "orange"} for i, u in enumerate(users)]}
+
+
+def test_combat_counted_from_the_list_once_per_match_and_kept(tmp_path):
+    from backend.models import NakamaCombatCounted, NakamaCombatPlayer
+    six = list("abcdef")
+    t, sm = tracker(tmp_path, [[combat_label("S1.node", six), label("m1", six)]] * 7)
+    for i in range(6):
+        t.poll(now=1000.0 + 60 * i)
+    with sm() as db:
+        assert db.scalar(select(NakamaCombatPlayer.matches).where(NakamaCombatPlayer.user_id == "a")) == 1
+        assert db.scalar(select(ArenaPlayer.matches).where(ArenaPlayer.user_id == "a")) == 1  # Arena separate
+    t._pruned = 0.0
+    t.combat.pruned = 0.0
+    t.poll(now=1000.0 + 3 * 86400)  # far later: Arena rows are pruned, Combat history stays
+    with sm() as db:
+        assert db.scalar(select(NakamaCombatCounted.match_id).where(NakamaCombatCounted.user_id == "a")) == "S1.node"
+
+
+def test_combat_totals_from_nakama_only(tmp_path):
+    from backend.api.arena import combat_totals
+    from backend.models import NakamaCombatCounted, NakamaCombatPlayer
+    _, sm = open_db(tmp_path / "t.db", 0)
+    with sm() as db:
+        db.add(NakamaCombatPlayer(user_id="u1", username="x", display_name="X", discord_id=None, matches=2, last_match_at="t"))
+        db.add_all([NakamaCombatCounted(match_id=m, user_id="u1", counted_at=2e9) for m in ("S1.n", "S2.n")])
+        db.commit()
+        assert combat_totals(db, None, None) == []  # no period: nothing counts
+        assert [(w["name"], w["count"]) for w in combat_totals(db, "2000-01-01", None)] == [("X", 2)]
+        assert combat_totals(db, "2000-01-01", "2000-01-02") == []  # counted after the period
+
+
+def test_combat_audit_columns(tmp_path):
+    from backend.models import NakamaCombatCounted
+    six = list("abcdef")
+    t, sm = tracker(tmp_path, [[combat_label("S1.node", six)]] * 6)
+    for i in range(6):
+        t.poll(now=2e9 + 60 * i)
+    with sm() as db:
+        row = db.scalars(select(NakamaCombatCounted).where(NakamaCombatCounted.user_id == "a")).one()
+        assert (row.blue, row.orange, row.spectators) == (3, 3, 0) and row.present_s >= MIN_PRESENT_S
+
+
+def test_accounts_are_collected_and_linked_every_poll(tmp_path):
+    from backend.models import NakamaAccount, Player, PlayerProfile
+    d_recent, d_bot = "1346263035425325078", "1033759231184224368"
+    def lab(uid, discord):
+        return {"id": "m1", "mode": "social_2.0", "lobby_type": "public",
+                "players": [{"user_id": uid, "username": uid, "display_name": uid.upper(), "discord_id": discord, "team": "blue"}]}
+    snaps = [[lab("n1", d_recent), lab("n2", d_bot), lab("n3", None)]] * 3
+    t, sm = tracker(tmp_path, snaps)
+    with sm() as db:
+        db.add(Player(user_id=d_recent, name="Recent", first_seen_at="t", last_seen_at="t"))  # replay id IS the Discord id
+        db.add(Player(user_id="oculus-1", name="Old", first_seen_at="t", last_seen_at="t"))
+        db.add(PlayerProfile(user_id="oculus-1", discord_id=d_bot, bio=None, show_avatar=True, linked_at="t", updated_at="t"))  # bot / admin
+        db.commit()
+    t.poll(now=2e9)
+    with sm() as db:
+        rows = {a.user_id: (a.replay_user_id, a.link) for a in db.scalars(select(NakamaAccount))}
+        assert rows == {"n1": (d_recent, "player_id"), "n2": ("oculus-1", "profile"), "n3": (None, None)}
+        db.scalar(select(NakamaAccount).where(NakamaAccount.user_id == "n3")).discord_id = None
+        db.commit()
+    t.poll(now=2e9 + 10)  # unchanged: nothing is written again before ACCOUNT_REFRESH_S
+    assert t.accounts_seen == 3

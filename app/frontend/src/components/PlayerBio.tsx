@@ -41,10 +41,13 @@ export function PlayerBio({
   userId,
   profile,
   onSaved,
+  save: saveFn,
 }: {
-  userId: string;
+  userId?: string;
   profile: PlayerBioProfile | null;
   onSaved: (p: PlayerBioProfile) => void;
+  /** another way to save (the logged-in owner's own profile page) */
+  save?: (edit: { bio: string | null; show_avatar: boolean }) => Promise<PlayerBioProfile>;
 }) {
   const [editing, setEditing] = useState(false);
   const [bio, setBio] = useState("");
@@ -65,12 +68,8 @@ export function PlayerBio({
     setBusy(true);
     setError(null);
     try {
-      onSaved(
-        await savePlayerBio(userId, {
-          bio: bio.trim() || null,
-          show_avatar: showAvatar,
-        }),
-      );
+      const edit = { bio: bio.trim() || null, show_avatar: showAvatar };
+      onSaved(await (saveFn ? saveFn(edit) : savePlayerBio(userId!, edit)));
       setEditing(false);
     } catch (e) {
       setError((e as Error).message);
@@ -122,6 +121,11 @@ export function PlayerBio({
 
   return (
     <div className="player-bio">
+      {profile.account && (
+        <p className="muted" title="Seen on the live Echo match list">
+          Linked account: {profile.account.name} · last seen {profile.account.last_seen.slice(0, 10)}
+        </p>
+      )}
       {profile.bio ? (
         <p>{profile.bio}</p>
       ) : (

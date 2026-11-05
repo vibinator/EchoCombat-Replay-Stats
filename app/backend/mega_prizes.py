@@ -1,5 +1,5 @@
 """Mega Prize winners report for the Console (user, 2026-11-04): the prizes are handed out by hand, so this lists who has
-reached the target inside the set challenge period. Echo Combat: 1000 games of 4+ minutes from the replay files (Delta-13 from Lone Echo 2).
+reached the target inside the set challenge period. Echo Combat: 1000 matches of 4+ minutes counted from the live Nakama match list like Arena, not from the replay files (Delta-13 from Lone Echo 2).
 Public Arena: 1000 matches of 4+ minutes counted from the live Nakama match list (arena.py; Jack Series 11 from
 Lone Echo 1/2). Counted inside the Mega Prize period (its own Start-End dates, apart from the achievements')."""
 
@@ -8,11 +8,10 @@ from io import StringIO
 
 from sqlalchemy import select
 
-from .achievements import MEGA_COMBAT, mega_combat_games
+from .achievements import MEGA_COMBAT
 from .admin_actions import mega_window
-from .api.achievements import _games
-from .api.arena import TARGET as ARENA_TARGET
-from .models import ArenaPlayer, Player, PlayerProfile
+from .api.arena import TARGET as ARENA_TARGET, combat_totals
+from .models import ArenaPlayer
 
 ARENA_PRIZE = "Jack Series 11 from Lone Echo 1/2"
 
@@ -24,13 +23,7 @@ def report(db) -> dict:
     combat: list[dict] = []
     arena: list[dict] = []
     if start:  # no start date set = no period yet, nobody has won anything
-        games = _games(db)
-        discord = dict(db.execute(select(PlayerProfile.user_id, PlayerProfile.discord_id)).all())
-        for p in db.scalars(select(Player)):
-            n = mega_combat_games(games.get(p.id, []), start, end)
-            if n >= target:
-                combat.append({"name": p.name, "user_id": p.user_id, "discord_id": discord.get(p.user_id), "count": n})
-        combat.sort(key=lambda w: -w["count"])
+        combat = [w for w in combat_totals(db, start, end) if w["count"] >= target]
         arena = [{"name": r.display_name or r.username, "user_id": r.user_id, "discord_id": r.discord_id, "count": r.matches}
                  for r in db.scalars(select(ArenaPlayer).where(ArenaPlayer.matches >= ARENA_TARGET).order_by(ArenaPlayer.matches.desc()))]
     return {"period": {"start": start, "end": end},

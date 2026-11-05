@@ -15,6 +15,7 @@ const CombatPage = lazy(() => import("./pages/CombatPage").then((m) => ({ defaul
 const CombatMatchPage = lazy(() => import("./pages/CombatPage").then((m) => ({ default: m.CombatMatchPage })));
 const ComparePage = lazy(() => import("./pages/ComparePage").then((m) => ({ default: m.ComparePage })));
 const ConsolePage = lazy(() => import("./pages/ConsolePage").then((m) => ({ default: m.ConsolePage })));
+const ProfilePage = lazy(() => import("./pages/ProfilePage").then((m) => ({ default: m.ProfilePage })));
 const LeaderboardPage = lazy(() => import("./pages/LeaderboardPage").then((m) => ({ default: m.LeaderboardPage })));
 const MatchPage = lazy(() => import("./pages/MatchPage").then((m) => ({ default: m.MatchPage })));
 const MatchesPage = lazy(() => import("./pages/MatchesPage").then((m) => ({ default: m.MatchesPage })));
@@ -137,6 +138,7 @@ function Layout() {
         <nav id="main-nav" className={menuOpen ? "open" : ""}>
           {[
             ...NAV,
+            ...(user ? ([["/profile", "My profile"]] as const) : []),
             ...(user?.console
               ? ([
                   ["/console", "Console"],
@@ -193,6 +195,7 @@ function Layout() {
           <Route path="/achievements/:userId" element={<AchievementsPage />} />
           <Route path="/achievements/:name/:userId" element={<AchievementsPage />} />
           <Route path="/mega-prizes" element={<Navigate to="/achievements" replace />} />
+          <Route path="/profile" element={<ProfilePage />} />
           <Route path="/console" element={<ConsolePage />} />
           <Route path="/permissions" element={<PermissionsPage />} />
           <Route path="/status" element={<Navigate to="/console" replace />} />

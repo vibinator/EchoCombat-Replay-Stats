@@ -103,3 +103,26 @@ def test_rescan_and_reprocess_everything(client, sessions, capsys):
     client.app.state.worker.wait_idle()
     assert client.get("/api/import").json()["counts"]["done"] == 3
     assert client.get("/api/matches").json()["total"] == before
+
+
+def test_admin_links_a_player_to_a_discord_account_and_reports(tmp_path, capsys):
+    from backend.db import open_db
+    from backend.models import Player, PlayerProfile
+    import admin_console as console
+    _, sm = open_db(tmp_path / "t.db", 0)
+    d1, d2 = "1346263035425325078", "1033759231184224368"
+    with sm() as db:
+        db.add_all([Player(user_id=d1, name="Recent", first_seen_at="t", last_seen_at="2099-01-01"),
+                    Player(user_id="oculus-1", name="Old", first_seen_at="t", last_seen_at="2099-01-01")])
+        db.commit()
+    with pytest.raises(console.ConsoleError):
+        console.cmd_link_profile(sm, "Old", "12", yes=True)  # not a Discord id
+    console.cmd_link_profile(sm, "oculus-1", d2, yes=True)
+    r = console.cmd_profile_links(sm)
+    assert (r["players"], r["linked_by_bot_or_admin"], r["player_id_is_discord_id"], r["players_unlinked"]) == (2, 1, 1, 0)
+    console.cmd_link_profile(sm, "Recent", d2, yes=True)  # one player per Discord account: the link moves
+    with sm() as db:
+        assert db.scalar(select(PlayerProfile.user_id)) == d1
+    console.cmd_unlink_profile(sm, d2, yes=True)
+    with sm() as db:
+        assert db.scalar(select(PlayerProfile.user_id)) is None

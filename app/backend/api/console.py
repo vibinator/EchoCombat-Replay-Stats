@@ -44,6 +44,7 @@ class Args(BaseModel):
     unhide_all: bool = False
     replay: str = ""
     user_id: str = ""
+    discord_id: str = ""
     hide_win_loss: bool = False
     show_win_loss: bool = False
     player: str = ""
@@ -62,6 +63,9 @@ COMMANDS = {  # name as in admin.bat -> (sessions, settings, args) -> None
     "merge": lambda s, st, a: console.cmd_merge(s, _required(a.main, "the player to keep"),
                                                 [o.strip() for o in a.others if o.strip()], yes=True, interactive=False),
     "merges": lambda s, st, a: console.cmd_merges(s),
+    "link-profile": lambda s, st, a: console.cmd_link_profile(s, _required(a.player, "the player"), _required(a.discord_id, "a Discord user id"), yes=True),
+    "unlink-profile": lambda s, st, a: console.cmd_unlink_profile(s, _required(a.player or a.discord_id, "a player or Discord id"), yes=True),
+    "profile-links": lambda s, st, a: console.cmd_profile_links(s),
     "unmerge": lambda s, st, a: console.cmd_unmerge(s, _required(a.alias, "the merged id"), yes=True),
     "challenge": lambda s, st, a: console.cmd_challenge(s, a.start, a.end, a.clear, a.visible or None),
     "mega-period": lambda s, st, a: console.cmd_mega_period(s, a.start, a.end, a.clear),

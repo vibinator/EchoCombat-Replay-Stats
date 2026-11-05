@@ -10,6 +10,9 @@ rule and the affected replays are re-processed from the original files, so it ca
     admin.bat find <name or id>
     admin.bat merge <main> <other> [<other> ...] [--yes]
     admin.bat merges
+    admin.bat link-profile <player> <discord id> [--yes]   link a player to a Discord account by hand (bio, login, avatar)
+    admin.bat unlink-profile <player or discord id> [--yes]
+    admin.bat profile-links          how many players are linked to a Discord account, and how
     admin.bat unmerge <merged id> [--yes]
     admin.bat challenge [--start YYYY-MM-DD] [--end YYYY-MM-DD] [--clear]
     admin.bat mega-period [--start YYYY-MM-DD] [--end YYYY-MM-DD] [--clear]   the Mega Prizes' own dates
@@ -47,7 +50,8 @@ from backend import aliases, auth, remote  # noqa: E402
 from backend.admin_actions import AGGRESSIVE_REPAIRABLE, REPAIRABLE, AdminError, hidden_failure, unrepairable  # noqa: E402
 from backend.config import Settings  # noqa: E402
 from backend.version import APP_VERSION  # noqa: E402
-from backend.models import HiddenReplay, Match, MatchPlayer, Player, PlayerAlias, Replay  # noqa: E402
+from backend.models import (ArenaPlayer, DiscordProfile, HiddenReplay, Match, MatchPlayer, NakamaCombatPlayer, Player,  # noqa: E402
+                            NakamaAccount, PlayerAlias, PlayerProfile, Replay)
 
 REASONS = {  # error codes -> why repair cannot help
     "unsupported": "not an Echo Combat replay", "unreadable": "file could not be read (network / locked)",
@@ -217,6 +221,97 @@ def cmd_unmerge(sessions, alias_term: str, yes: bool) -> None:
             return
         replay_ids = actions.unmerge_player(db, row.alias_user_id)
     print(f"Undone. {len(replay_ids)} replays queued for re-processing. {when_applied()}")
+
+
+def cmd_link_profile(sessions, player_term: str, discord_id: str, yes: bool) -> None:
+    """Link a player to a Discord account by hand, when the bot link or the Discord id as player id does not exist. Same effect
+    as the bot's link: one player per Discord account, relinking moves it (user, 2026-11-05)."""
+    discord_id = discord_id.strip()
+    if not auth.is_discord_id(discord_id):
+        raise ConsoleError(f"'{discord_id}' is not a Discord user id (17-20 digits: right-click the person > Copy User ID)")
+    with sessions() as db:
+        player = resolve(db, player_term, interactive=False)
+        alias = db.get(PlayerAlias, player.user_id)
+        main_id = alias.main_user_id if alias else player.user_id
+        old = db.scalar(select(PlayerProfile).where(PlayerProfile.discord_id == discord_id))
+        existing = db.get(PlayerProfile, main_id)
+        if existing is not None and existing.discord_id == discord_id:
+            print(f"{name_of(db, main_id)} is already linked to that Discord account.")
+            return
+        print(f"Link {name_of(db, main_id)} (id {main_id}) to Discord account {discord_id}."
+              + (f" It is now linked to {name_of(db, old.user_id)}: that link is removed." if old else "")
+              + (" The player's current link is replaced." if existing else ""))
+        if not confirm("Link them?", yes):
+            print("Nothing changed.")
+            return
+        if old is not None:
+            db.delete(old)
+        if existing is not None and existing is not old:
+            db.delete(existing)
+        db.flush()
+        now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        db.add(PlayerProfile(user_id=main_id, discord_id=discord_id, bio=None, show_avatar=True, linked_at=now, updated_at=now))
+        db.commit()
+    print("Linked. That Discord account can now edit the bio on the player's page.")
+
+
+def cmd_unlink_profile(sessions, term: str, yes: bool) -> None:
+    with sessions() as db:
+        if auth.is_discord_id(term.strip()):
+            row = db.scalar(select(PlayerProfile).where(PlayerProfile.discord_id == term.strip()))
+        else:
+            player = resolve(db, term, interactive=False)
+            alias = db.get(PlayerAlias, player.user_id)
+            row = db.get(PlayerProfile, alias.main_user_id if alias else player.user_id)
+        if row is None:
+            raise ConsoleError(f"No link found for '{term}'")
+        print(f"Remove the link between {name_of(db, row.user_id)} and Discord account {row.discord_id}? Its bio goes with it.")
+        if not confirm("Unlink?", yes):
+            print("Nothing changed.")
+            return
+        db.delete(row)
+        db.commit()
+    print("Unlinked.")
+
+
+def profile_link_report(db: Session) -> dict:
+    """How many people reach a Discord account, by which route. A replay player is linked by: the bot or an admin
+    (PlayerProfile), or a player id that IS a Discord id (recent replays, 17-20 digits). Nakama players always have one."""
+    rows = db.execute(select(Player.user_id, Player.last_seen_at)).all()
+    linked_ids = set(db.scalars(select(PlayerProfile.user_id)))
+    cutoff = (date.today() - timedelta(days=730)).isoformat()
+    by_bot = sum(1 for u, _ in rows if u in linked_ids)
+    by_id = sum(1 for u, _ in rows if u not in linked_ids and auth.is_discord_id(u))
+    recent = [(u, seen) for u, seen in rows if seen >= cutoff]
+    recent_linked = sum(1 for u, _ in recent if u in linked_ids or auth.is_discord_id(u))
+    nakama = {d for d in (*db.scalars(select(ArenaPlayer.discord_id)), *db.scalars(select(NakamaCombatPlayer.discord_id)),
+                          *db.scalars(select(NakamaAccount.discord_id))) if d}
+    accounts = db.scalar(select(func.count()).select_from(NakamaAccount)) or 0
+    accounts_linked = db.scalar(select(func.count()).select_from(NakamaAccount).where(NakamaAccount.replay_user_id.is_not(None))) or 0
+    accounts_no_discord = db.scalar(select(func.count()).select_from(NakamaAccount).where(NakamaAccount.discord_id.is_(None))) or 0
+    with_bio = (db.scalar(select(func.count()).select_from(PlayerProfile).where(PlayerProfile.bio.is_not(None))) or 0) \
+        + (db.scalar(select(func.count()).select_from(DiscordProfile).where(DiscordProfile.bio.is_not(None))) or 0)
+    return {"players": len(rows), "linked_by_bot_or_admin": by_bot, "player_id_is_discord_id": by_id,
+            "players_linked": by_bot + by_id, "players_unlinked": len(rows) - by_bot - by_id,
+            "recent_players_2y": len(recent), "recent_players_2y_linked": recent_linked,
+            "nakama_players_with_discord_id": len(nakama), "profiles_with_bio": with_bio,
+            "nakama_accounts": accounts, "nakama_accounts_linked": accounts_linked, "nakama_accounts_without_discord": accounts_no_discord}
+
+
+def cmd_profile_links(sessions) -> dict:
+    with sessions() as db:
+        r = profile_link_report(db)
+    pct = lambda a, b: f"{100 * a / b:.1f} %" if b else "-"  # noqa: E731
+    print(f"Replay players: {r['players']}")
+    print(f"  linked to Discord: {r['players_linked']} ({pct(r['players_linked'], r['players'])})"
+          f" = {r['linked_by_bot_or_admin']} by the bot / an admin + {r['player_id_is_discord_id']} whose player id is a Discord id")
+    print(f"  not linked: {r['players_unlinked']}")
+    print(f"  seen in the last 2 years: {r['recent_players_2y']}, linked: {r['recent_players_2y_linked']} "
+          f"({pct(r['recent_players_2y_linked'], r['recent_players_2y'])})")
+    print(f"Nakama accounts collected: {r['nakama_accounts']}, linked to a replay player: {r['nakama_accounts_linked']} "
+          f"({pct(r['nakama_accounts_linked'], r['nakama_accounts'])}), without a Discord id: {r['nakama_accounts_without_discord']}")
+    print(f"Nakama players with a Discord id: {r['nakama_players_with_discord_id']}; profiles with a bio: {r['profiles_with_bio']}")
+    return r
 
 
 def cmd_challenge(sessions, start: str | None, end: str | None, clear: bool, visible: str | None = None) -> None:
@@ -820,7 +915,7 @@ def interactive(sessions, settings: Settings) -> None:
 # --- entry point ------------------------------------------------------------------------------
 
 # subcommands that change something: written to the audit log (Console page) with the Windows / container user
-LOGGED = {"merge", "unmerge", "challenge", "mega-period", "preview-roles", "admin-roles", "admin-users", "hide-stats", "repair-failed",
+LOGGED = {"merge", "unmerge", "link-profile", "unlink-profile", "challenge", "mega-period", "preview-roles", "admin-roles", "admin-users", "hide-stats", "repair-failed",
           "cannot-repair", "hidden", "reprocess", "repair", "scan", "reprocess-all", "repair-aggressive",
           "repair-aggressive-failed", "remote", "process-missing"}
 
@@ -862,6 +957,10 @@ def main_command(sessions, settings: Settings, args) -> None:
             cmd_merge(sessions, args.main, args.others, args.yes, interactive=sys.stdin.isatty())
         case "unmerge":
             cmd_unmerge(sessions, args.alias, args.yes)
+        case "link-profile":
+            cmd_link_profile(sessions, args.player, args.discord_id, args.yes)
+        case "unlink-profile":
+            cmd_unlink_profile(sessions, args.term, args.yes)
         case "challenge":
             cmd_challenge(sessions, args.start, args.end, args.clear, args.visible)
         case "mega-period":
@@ -908,6 +1007,14 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("unmerge", help="undo a merge")
     p.add_argument("alias", help="the merged id (see 'merges')")
     p.add_argument("--yes", action="store_true")
+    p = sub.add_parser("link-profile", help="link a player to a Discord account by hand")
+    p.add_argument("player", help="player name or id")
+    p.add_argument("discord_id", help="Discord user id")
+    p.add_argument("--yes", action="store_true")
+    p = sub.add_parser("unlink-profile", help="remove a player's Discord link")
+    p.add_argument("term", help="player name/id or Discord id")
+    p.add_argument("--yes", action="store_true")
+    sub.add_parser("profile-links", help="how many players are linked to a Discord account")
     p = sub.add_parser("challenge", help="show or set the Flamingo Challenge period and who can see achievements")
     p.add_argument("--visible", choices=("everyone", "preview", "hidden"), help="who sees achievements: everyone (from the start date), only people with the Preview role, or nobody")
     p.add_argument("--start", help="YYYY-MM-DD, or '' for no limit")
@@ -969,6 +1076,8 @@ def main(argv: list[str] | None = None) -> int:
                 cmd_find(sessions, args.term)
             case "merges":
                 cmd_merges(sessions)
+            case "profile-links":
+                cmd_profile_links(sessions)
             case "discord-check":
                 cmd_discord_check(sessions, settings, args.user_id)
             case "status":
