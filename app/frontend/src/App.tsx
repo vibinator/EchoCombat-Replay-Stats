@@ -200,7 +200,7 @@ function Layout() {
           <Route path="/achievements/:userId" element={<AchievementsPage />} />
           <Route path="/achievements/:name/:userId" element={<AchievementsPage />} />
           <Route path="/mega-prizes" element={<Navigate to="/achievements" replace />} />
-          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/profile"element={<ProfilePage />} />
           <Route path="/console" element={<ConsolePage />} />
           <Route path="/permissions" element={<PermissionsPage />} />
           <Route path="/status" element={<Navigate to="/console" replace />} />

@@ -18,6 +18,17 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.06.16 — 18:48
+- The payload-blocking achievement "Wall of Steel" is now called "Immovable Object" (same id, tiers and progress).
+
+## 2026.11.06.15 — 16:47
+
+- **Known issues button removed again:** the "Known issues" button and page added earlier in this release are gone; nothing else changed.
+
+## 2026.11.06.14 — 16:11
+
+- **Achievements page:** fixed the stripe of card edges showing under the "Top players" and "Recent medals" cards, and evened out the line spacing of the name / medal chip / challenge text in the medal cards.
+
 ## 2026.11.06.13 — 16:03
 
 - **Both Hands, easier rule:** now "Switch your arm setting between games: in any 7 days, play this many games with your left arm AND this many with your right arm", with targets like "3 games each". The standing-still check is gone; a game still needs 4+ minutes, 1+ minute in bounds, 3+ players per team and 90 %+ of it on that arm.

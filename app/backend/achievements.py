@@ -847,7 +847,7 @@ def _build_rules() -> list[Rule]:
                 (1, 5, 15, 50, 100), new=True, group="Gear mastery"),
         _ladder(124, "Loadout Scholar", "Play games with your least-used item (of all 12 weapons, ordnances and tac mods)", None, _least_used_equipable,
                 (1, 5, 15, 50, 100), new=True, group="Gear mastery"),
-        _ladder(125, "Wall of Steel", "Total time spent blocking the payload", "payload", lambda gs: sum(g.block_s for g in gs) / 60, (2, 10, 30, 60, 120),
+        _ladder(125, "Immovable Object", "Total time spent blocking the payload", "payload", lambda gs: sum(g.block_s for g in gs) / 60, (2, 10, 30, 60, 120),
                 "all", " min", estimated=True, new=True, group="Payload"),
         # Medal Collector counts the other rules' medals; filled in by evaluate() (meta)
         _ladder(126, "Medal Collector", "Earn gold or better on other challenges (each challenge counts once, Test Drives do not count)", None, lambda gs: 0.0, MEDAL_LEVELS,

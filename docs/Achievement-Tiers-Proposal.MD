@@ -122,7 +122,7 @@ Same base and format as above.
 | Grand Tour | Wins on each of the 4 maps (the lowest of the four counts) | 1 / 5 / 15 / 50 / 150 | 38.1 / 11.2 / 5.3 / 2.2 / 1.0 % |
 | Weapons Master | Games with the least-used of the 4 weapons | 1 / 5 / 15 / 50 / 150 | 77.9 / 32.1 / 10.2 / 3.6 / 0.9 % |
 | Loadout Scholar | Games with the least-used of the 12 equipables | 1 / 5 / 15 / 50 / 100 | 42.1 / 10.5 / 3.4 / 1.0 / 0.6 % |
-| Wall of Steel | Payload block time in total | 2 / 10 / 30 / 60 / 120 min | 22.4 / 4.8 / 1.5 / 0.7 / 0.1 % |
+| Immovable Object | Payload block time in total | 2 / 10 / 30 / 60 / 120 min | 22.4 / 4.8 / 1.5 / 0.7 / 0.1 % |
 | Winning Habit *(optional)* | Win rate with 50+ games | 40 / 45 / 50 / 55 / 60 % | 16.0 / 11.3 / 7.6 / 3.9 / 1.9 % (win rate depends on teammates and on who plays together; I would skip it) |
 | **Medal Collector** (meta) | Gold-or-better medals held across all other challenges | to be set after the ladders exist (needs the final list to size) | n/a yet |
 
@@ -174,5 +174,5 @@ Left single-step: Pew Pew Proof (43), Jack of All Trades, Ordnance Sampler, Tac 
 Ordnance Overload, Forbidden Arsenal.
 
 New challenges approved: Frequent Flyer, Regular, Loyal Bot, Daily Grind, Time Well Wasted, Overtime, Hot Day, Point Taker,
-Cargo Hauler, Grand Tour, Weapons Master, Loadout Scholar, Wall of Steel, Medal Collector (sized after implementation).
+Cargo Hauler, Grand Tour, Weapons Master, Loadout Scholar, Immovable Object, Medal Collector (sized after implementation).
 Not added: Winning Habit (win rate).
