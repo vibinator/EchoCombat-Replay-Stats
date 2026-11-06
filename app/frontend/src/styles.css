@@ -1764,6 +1764,20 @@ td.best {
   scroll-snap-align: start;
   font-size: 0.85rem;
 }
+.recent-unlocks .recent-glyph {
+  grid-area: icon;
+  width: 28px;
+  height: 28px;
+  background: var(--tier-fill, var(--tier, var(--text)));
+  -webkit-mask: no-repeat center / contain;
+  mask: no-repeat center / contain;
+}
+.recent-unlocks .recent-glyph.t-bronze { --tier: var(--tier-bronze); }
+.recent-unlocks .recent-glyph.t-silver { --tier: var(--tier-silver); }
+.recent-unlocks .recent-glyph.t-gold { --tier: var(--tier-gold); }
+.recent-unlocks .recent-glyph.t-diamond { --tier: var(--tier-diamond); }
+.recent-unlocks .recent-glyph.t-platinum { --tier: var(--tier-platinum); }
+.recent-unlocks .recent-glyph.t-crown { --tier: var(--tier-crown); }
 .recent-unlocks img {
   grid-area: icon;
   width: 28px;

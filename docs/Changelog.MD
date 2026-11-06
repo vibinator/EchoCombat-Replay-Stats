@@ -18,6 +18,14 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.06.6 — 12:47
+
+- **Achievement icons without a player:** in the catalogue (no progress shown) every icon is now one neutral colour instead of its original art colours (red hands, white skulls ...); with a player they still take the colour of the tier reached. Uploaded icons keep their own colours.
+
+## 2026.11.06.5 — 12:42
+
+- **Recent medals:** each medal's icon now takes the colour of the tier earned (bronze, gold, platinum, crown gold-to-pink), like the badge cards, instead of plain white. Uploaded icons keep their own colours.
+
 ## 2026.11.06.4 — 12:38
 
 - **Mega Prizes:** the pane is shorter (smaller photos, tighter spacing, photos beside the text on wide screens) and the "Search a player" box is removed from both prize cards; each shows its top list.

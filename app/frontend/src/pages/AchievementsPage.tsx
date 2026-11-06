@@ -85,6 +85,13 @@ function TopPlayers() {
   );
 }
 
+/** The medal's icon in the colour of the tier earned (like the badge cards); uploaded art keeps its own colours. */
+function RecentIcon({ icon, medal }: { icon: string | null; medal: string | null }) {
+  const src = `/achievements/${icon ?? "happy_cubesat.png"}`;
+  if (icon?.startsWith("custom/")) return <img src={src} alt="" />;
+  return <span className={`recent-glyph t-${medal ?? "crown"}`} style={{ WebkitMaskImage: `url(${src})`, maskImage: `url(${src})` }} aria-hidden="true" />;
+}
+
 function RecentUnlocks() {
   const recent = useRanking(getRecentUnlocks, "recent");
   const avatars = useAvatars(recent.data?.map((e) => e.user_id) ?? []);
@@ -95,7 +102,7 @@ function RecentUnlocks() {
       <ul className="recent-unlocks" tabIndex={0} aria-label="Recent medals, scroll sideways">
         {recent.data.map((e, i) => (
           <li key={`${e.user_id}-${e.id}-${i}`}>
-            <img src={`/achievements/${e.icon ?? "happy_cubesat.png"}`} alt="" />
+            <RecentIcon icon={e.icon} medal={e.medal} />
             <span>
               <span className="who"><Avatar name={e.name} url={avatars[e.user_id]} size={20} /><Link to={achievementsPath(e.user_id, e.name)}>{e.name}</Link></span> earned{" "}
               <span className={`medal-chip ${e.medal ?? "gold"}`}>{e.medal ?? "completed"}</span> in <strong>{e.achievement}</strong>
