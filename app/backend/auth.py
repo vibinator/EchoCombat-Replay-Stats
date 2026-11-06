@@ -86,12 +86,30 @@ def user_name(settings: Settings, user_id: str) -> str:
 
 
 AVATAR_CHECK_S = 3600  # a changed Discord avatar shows within an hour (or at once when the player saves their profile)
+AVATAR_MAX_PER_MIN = 20  # at most this many /users/{id} requests per minute for all visitors together (Discord allows far more)
 _avatars: dict[str, tuple[float, str | None]] = {}  # discord user id -> (valid until, avatar hash or None)
+_avatar_lock = threading.Lock()
+_avatar_calls: list[float] = []  # monotonic times of the requests made in the last minute
+_avatar_blocked_until = 0.0  # Discord said 429: no request before this
+
+
+def _avatar_budget(now: float) -> bool:
+    """True (and counted) when another Discord request is allowed: not blocked by a 429 and under AVATAR_MAX_PER_MIN."""
+    with _avatar_lock:
+        if now < _avatar_blocked_until:
+            return False
+        _avatar_calls[:] = [t for t in _avatar_calls if now - t < 60]
+        if len(_avatar_calls) >= AVATAR_MAX_PER_MIN:
+            return False
+        _avatar_calls.append(now)
+        return True
 
 
 def avatar_url(settings: Settings, user_id: str, fresh: bool = False) -> str | None:
     """Discord avatar of a user (asked via the bot, remembered AVATAR_CHECK_S), Discord's default one when they have
-    none, or None when Discord cannot be asked."""
+    none, or None when Discord cannot be asked. Requests are budgeted (AVATAR_MAX_PER_MIN, and a 429 is obeyed): over
+    the budget the last known picture is kept and asked again later."""
+    global _avatar_blocked_until
     if not is_discord_id(user_id):
         return None
     now = time.monotonic()
@@ -99,15 +117,26 @@ def avatar_url(settings: Settings, user_id: str, fresh: bool = False) -> str | N
     if not hit or hit[0] <= now or fresh:
         if not settings.discord_bot_token:
             return None
-        try:
-            r = _bot_get(settings, f"/users/{user_id}")
-            r.raise_for_status()
-            hit = (now + AVATAR_CHECK_S, r.json().get("avatar"))
-        except (httpx.HTTPError, ValueError) as e:
-            log.warning("Discord avatar of %s failed: %s", user_id, e)
-            if not hit:
-                return None
-            hit = (now + ROLE_RETRY_S, hit[1])
+        if _avatar_budget(now):
+            try:
+                r = _bot_get(settings, f"/users/{user_id}")
+                if r.status_code == 429:
+                    try:
+                        wait = float(r.headers.get("Retry-After") or r.json().get("retry_after") or 60)
+                    except (ValueError, TypeError):
+                        wait = 60.0
+                    with _avatar_lock:
+                        _avatar_blocked_until = now + min(max(wait, 1.0), 600.0)
+                    raise httpx.HTTPError("rate limited")
+                r.raise_for_status()
+                hit = (now + AVATAR_CHECK_S, r.json().get("avatar"))
+            except (httpx.HTTPError, ValueError) as e:
+                log.warning("Discord avatar of %s failed: %s", user_id, e)
+                hit = (now + ROLE_RETRY_S, hit[1]) if hit else None
+        elif hit:
+            hit = (now + ROLE_RETRY_S, hit[1])  # over budget: keep the old picture, look again soon
+        if hit is None:
+            return None
         _avatars[user_id] = hit
     avatar = hit[1]
     if avatar and avatar.replace("a_", "", 1).isalnum():

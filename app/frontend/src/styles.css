@@ -1198,11 +1198,16 @@ kbd {
   display: grid;
   grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
   gap: 12px;
-  align-items: start;
+  align-items: stretch;
+}
+.live-latest-col {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
 }
 .live-latest-matches {
   position: relative;
-  align-self: stretch;
+  flex: 1 1 0; /* the rest of the column under its heading: as tall as the video */
 }
 .live-latest-matches > .match-cards {
   position: absolute;
@@ -1215,6 +1220,9 @@ kbd {
 @media (max-width: 900px) {
   .live-latest {
     grid-template-columns: minmax(0, 1fr); /* never wider than the screen (rows have one-line text) */
+  }
+  .live-latest-matches {
+    flex: none;
   }
   .live-latest-matches > .match-cards {
     position: static;

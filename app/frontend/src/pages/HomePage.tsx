@@ -269,20 +269,28 @@ export function HomePage() {
                 <RecentlyPlayedCard latest={o.latest[0]} />
               </div>
 
-              <div className="section-head">
-                <h2>Latest matches</h2>
-                <span>
-                  <a href={`https://www.twitch.tv/${TWITCH_CHANNEL}`} target="_blank" rel="noopener noreferrer">Live on Twitch</a>
-                  {" · "}
-                  <Link to="/matches">All matches</Link>
-                </span>
-              </div>
               {/* live video left, the newest matches right (compact, scrolls within the video's height); stacked on
-                  narrow screens */}
+                  narrow screens. Each column has its own heading. */}
               <div className="live-latest">
-                <LiveStream />
-                <div className="live-latest-matches">
-                  <MatchCards matches={o.latest} compact />
+                <div className="live-latest-col">
+                  <div className="section-head">
+                    <h2>Live on Twitch</h2>
+                    <span>
+                      <a href={`https://www.twitch.tv/${TWITCH_CHANNEL}`} target="_blank" rel="noopener noreferrer">Open on Twitch</a>
+                    </span>
+                  </div>
+                  <LiveStream />
+                </div>
+                <div className="live-latest-col">
+                  <div className="section-head">
+                    <h2>Latest matches</h2>
+                    <span>
+                      <Link to="/matches">All matches</Link>
+                    </span>
+                  </div>
+                  <div className="live-latest-matches">
+                    <MatchCards matches={o.latest} compact />
+                  </div>
                 </div>
               </div>
 

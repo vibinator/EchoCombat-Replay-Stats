@@ -38,9 +38,8 @@ type AnyBadge = Parameters<typeof Badge>[0]["a"];
 
 /** Which section (tab) a challenge sits in: its period, or the theme section of a new one. */
 export function sectionId(a: { new: boolean; group: string | null; period: string }): string {
-  // Three pages (user, 2026-11-06): Day, Week, Cumulative. The single-game challenges are folded into Day (a chip there shows just them);
-  // the theme is a filter inside the page, see themeOf.
-  return `p-${a.period === "game" ? "day" : a.period}`;
+  // Four pages (user, 2026-11-06): In one Game, Day, Week, Cumulative; the theme is a filter inside the page, see themeOf.
+  return `p-${a.period}`;
 }
 
 /** Theme chip of a challenge inside its period page (user, 2026-11-06: themes are filters now, not tabs). */
@@ -49,11 +48,10 @@ export function themeOf(a: { new: boolean; group: string | null; period: string 
   return a.new ? "Other new" : "Original";
 }
 
-/** The three pages (user, 2026-11-06): day, week, cumulative (= all time). */
-const PAGE_LABELS: Record<string, string> = { day: "Day", week: "Week", all: "Cumulative" };
-const PAGES = GROUPS.filter(([period]) => period !== "game");
+/** The four pages (user, 2026-11-06): in one game, day, week, cumulative (= all time). */
+const PAGE_LABELS: Record<string, string> = { game: "In one Game", day: "Day", week: "Week", all: "Cumulative" };
+const PAGES = GROUPS;
 const NEW_CHIP = "__new";
-const GAME_CHIP = "__game"; // Day page: only the single-game challenges
 
 type Filter = "done" | "open" | "new";
 const FILTERS: [Filter, string][] = [["open", "In progress"], ["new", "Not started"], ["done", "Completed"]];
@@ -142,9 +140,8 @@ export function GroupedBadges<T extends AnyBadge>({ items: all }: { items: T[] }
   const themes = new Map<string, number>();
   for (const a of active?.items ?? []) themes.set(themeOf(a), (themes.get(themeOf(a)) ?? 0) + 1);
   const newCount = (active?.items ?? []).filter((a) => a.new).length;
-  const gameCount = (active?.items ?? []).filter((a) => a.period === "game").length;
-  const chip = theme === NEW_CHIP ? (newCount ? NEW_CHIP : "") : theme === GAME_CHIP ? (gameCount ? GAME_CHIP : "") : themes.has(theme) ? theme : "";
-  const pageItems = !active ? [] : chip === NEW_CHIP ? active.items.filter((a) => a.new) : chip === GAME_CHIP ? active.items.filter((a) => a.period === "game") : chip ? active.items.filter((a) => themeOf(a) === chip) : active.items;
+  const chip = theme === NEW_CHIP ? (newCount ? NEW_CHIP : "") : themes.has(theme) ? theme : "";
+  const pageItems = !active ? [] : chip === NEW_CHIP ? active.items.filter((a) => a.new) : chip ? active.items.filter((a) => themeOf(a) === chip) : active.items;
   const themeHint = (name: string) => NEW_GROUPS.find(([n]) => n === name)?.[1] ?? (name === "Original" ? "Challenges from the original ECRanked site" : "");
   function pick(id: string) {
     const next = new URLSearchParams(params);
@@ -186,10 +183,9 @@ export function GroupedBadges<T extends AnyBadge>({ items: all }: { items: T[] }
               </button>
             ))}
           </div>
-          {(themes.size > 1 || newCount > 0 || gameCount > 0) && (
+          {(themes.size > 1 || newCount > 0) && (
             <div className="theme-chips" role="group" aria-label="Theme">
               <button className={chip === "" ? "chip active" : "chip"} onClick={() => setTheme("")}>All {active.items.length}</button>
-              {gameCount > 0 && <button className={chip === GAME_CHIP ? "chip active" : "chip"} title="Challenges about one single game (your best game counts)" onClick={() => setTheme(GAME_CHIP)}>One game {gameCount}</button>}
               {newCount > 0 && <button className={chip === NEW_CHIP ? "chip active" : "chip"} title="Not on the original ECRanked site" onClick={() => setTheme(NEW_CHIP)}>New {newCount}</button>}
               {[...themes].map(([name, n]) => (
                 <button key={name} className={chip === name ? "chip active" : "chip"} title={themeHint(name)} onClick={() => setTheme(name)}>{name} {n}</button>

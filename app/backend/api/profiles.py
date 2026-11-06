@@ -70,6 +70,20 @@ def _name_match_avatar(request: Request, db, user_id: str) -> str | None:
     return url
 
 
+def _seen_avatar(request: Request, db, user_id: str) -> str | None:
+    """Same picture as the list pages (api/avatars.py): the Discord account seen with this player on the match list,
+    respecting that account's own show_avatar choice. Fresh from Discord (budgeted, cached), else the member list."""
+    acc = db.scalar(select(NakamaAccount).where(NakamaAccount.replay_user_id == user_id, NakamaAccount.discord_id.is_not(None))
+                    .order_by(NakamaAccount.last_seen_at.desc()))
+    if acc is None:
+        return None
+    row = db.get(DiscordProfile, acc.discord_id)
+    if row is not None and not row.show_avatar:
+        return None
+    settings = request.app.state.settings
+    return discord_names.avatar_for_id(settings, acc.discord_id, 256) or auth.avatar_url(settings, acc.discord_id)
+
+
 def _account(db, user_id: str) -> dict | None:
     """The Echo (Nakama) account linked to this replay player, collected from the match list (arena.py): its name and when it
     was last seen playing. No Discord id: it is not shown to visitors."""
@@ -126,7 +140,10 @@ def get_profile(request: Request, user_id: str):
             # recent replays carry the Discord id as the player id: the Discord-keyed profile is this player's profile
             if db.get(DiscordProfile, main) is not None or (viewer and viewer["id"] == main) or account is not None:
                 return _discord_public(request, db, main, viewer) | {"account": account}
-        return _public(request, profile, viewer, None if profile else _name_match_avatar(request, db, main)) | {"account": account}
+        name_avatar = None
+        if profile is None:
+            name_avatar = _seen_avatar(request, db, main) or _name_match_avatar(request, db, main)
+        return _public(request, profile, viewer, name_avatar) | {"account": account}
 
 
 # --- by Discord id (people who play but are not linked to a replay player, user 2026-11-05) --------------
