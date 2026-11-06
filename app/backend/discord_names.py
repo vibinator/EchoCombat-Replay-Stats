@@ -116,6 +116,18 @@ def match(settings: Settings, name: str) -> tuple[str, str] | None:
     return uid, f"https://cdn.discordapp.com/avatars/{uid}/{avatar}.png?size=256"
 
 
+def by_name(settings: Settings, names: list[str]) -> dict[str, tuple[str, str]]:
+    """normalised name -> (discord id, avatar hash) for those of the names that belong to exactly one member (lists: one lock)."""
+    refresh_soon(settings)
+    with _lock:
+        return {n: _by_name[n] for n in (normalise(x) for x in names) if n in _by_name}
+
+
+def loaded() -> bool:
+    with _lock:
+        return _next_refresh > 0 and bool(_by_id or _by_name)
+
+
 def avatar_for_id(settings: Settings, discord_id: str, size: int = 64) -> str | None:
     """Discord CDN URL of this member's own picture, from the member list (None: not a member, no picture, or not read yet)."""
     refresh_soon(settings)

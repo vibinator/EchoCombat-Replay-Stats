@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
-import { LEVELS, getMegaVisible, getAchievements, getArenaProgress, getChallenges, searchMegaPrizes, type MegaPrizeSearch as SearchResult, getMe, getRarity, loginUrl, type Achievement, type AchievementPeek, type AchievementRarity, type AchievementRule } from "../api";
+import { LEVELS, getMegaVisible, getAchievements, getArenaProgress, getChallenges, getMe, getRarity, loginUrl, type Achievement, type AchievementPeek, type AchievementRarity, type AchievementRule } from "../api";
 import { achievementsPath, pct, ruleText } from "../format";
 import { useApi } from "../useApi";
 import { Status } from "./common";
@@ -207,8 +207,6 @@ export function MegaPrizesSection() {
   return visible ? <MegaPrizes /> : null; // who sees it is set in the Console ("Visible to"); the server checks it too
 }
 
-type PrizeRow = SearchResult["results"][number];
-
 /** Every player who reaches the target wins the prize: there can be many winners (user, 2026-11-05). */
 const winnersText = (n: number, target: number) =>
   `${n === 0 ? "No winners yet" : `${n} ${n === 1 ? "winner" : "winners"} so far`}: everyone who reaches ${target} wins the prize.`;
@@ -240,34 +238,11 @@ function PlayerBar({ r, target }: { r: { name: string; user_id: string; matches:
   );
 }
 
-/** A player search of its own for one prize card (user, 2026-11-06: no shared search box at the top any more). */
-function useMegaSearch(kind: PrizeRow["kind"]) {
-  const [q, setQ] = useState("");
-  const [found, setFound] = useState<PrizeRow[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  useEffect(() => {
-    const term = q.trim();
-    if (term.length < 2) {
-      setFound(null);
-      return;
-    }
-    let live = true;
-    const t = setTimeout(() => searchMegaPrizes(term).then((r: SearchResult) => live && (setFound(r.results.filter((x) => x.kind === kind).sort((x, y) => y.matches - x.matches)), setError(null)), (e: Error) => live && setError(e.message)), 300);
-    return () => {
-      live = false;
-      clearTimeout(t);
-    };
-  }, [q, kind]);
-  return { q, setQ, found, error };
-}
-
 /** The two prize cards, each with its own player search: the players found show inside that card with their progress bar.
  *  Public Arena is counted from the live match list, separately from Combat. */
 function MegaPrizes() {
   const result = useApi(getArenaProgress, "arena-progress");
   const arena = result.data;
-  const combatSearch = useMegaSearch("combat");
-  const arenaSearch = useMegaSearch("arena");
   if (!arena) return null; // no Preview role (403) or still loading: the section stays hidden
   const combat = arena.combat[0];
   const combatTarget = combat?.levels?.[combat.levels.length - 1] ?? 1000;
@@ -293,18 +268,11 @@ function MegaPrizes() {
             {arena.period.active && <span className="live-text" title="Matches are being recorded right now">Recording live data</span>}
             <span className="muted">Only counts games of 4+ minutes with at least 3v3. Matches from the replay files before the live count started are included, linked by Discord ID.</span>
             <span className="muted">{winnersText(arena.winners_combat, combatTarget)}</span>
-            <PrizeSearch s={combatSearch} />
-            {combatSearch.found !== null ? (combatSearch.found.length > 0 ? (
-              <ul className="mega-results scroll">{combatSearch.found.map((r) => <PlayerBar key={r.user_id} r={r} target={combatTarget} />)}</ul>
-            ) : (
-              <span className="muted">Nobody found.</span>
-            )) : (
-              arena.top_combat.length > 0 && (
-                <>
-                  <span className="muted">Top {arena.top_combat.length} (▲▼ = places gained or lost in the last 24 h)</span>
-                  <ul className="mega-results scroll">{arena.top_combat.map((r) => <PlayerBar key={r.user_id} r={r} target={combatTarget} />)}</ul>
-                </>
-              )
+            {arena.top_combat.length > 0 && (
+              <>
+                <span className="muted">Top {arena.top_combat.length} (▲▼ = places gained or lost in the last 24 h)</span>
+                <ul className="mega-results scroll">{arena.top_combat.map((r) => <PlayerBar key={r.user_id} r={r} target={combatTarget} />)}</ul>
+              </>
             )}
           </div>
         </article>
@@ -317,36 +285,15 @@ function MegaPrizes() {
             <span className="muted">Only counts public matches of 4+ minutes with at least 3v3 (or 6+ players).</span>
             <span className="muted">Arena history only starts on 2026-11-04, so totals are lower than Combat.</span>
             <span className="muted">{winnersText(arena.winners_arena, arena.target)}</span>
-            <PrizeSearch s={arenaSearch} />
-            {arenaSearch.found !== null ? (
-              arenaSearch.found.length > 0 ? (
-                <ul className="mega-results scroll">{arenaSearch.found.map((r) => <PlayerBar key={r.user_id} r={r} target={arena.target} />)}</ul>
-              ) : (
-                <span className="muted">Nobody found.</span>
-              )
-            ) : (
+            {arena.top_arena.length > 0 && (
               <>
-                {arena.top_arena.length > 0 && (
-                  <>
-                    <span className="muted">Top {arena.top_arena.length} (▲▼ = places gained or lost in the last 24 h)</span>
-                    <ul className="mega-results scroll">{arena.top_arena.map((p) => <PlayerBar key={p.user_id} r={p} target={arena.target} />)}</ul>
-                  </>
-                )}
+                <span className="muted">Top {arena.top_arena.length} (▲▼ = places gained or lost in the last 24 h)</span>
+                <ul className="mega-results scroll">{arena.top_arena.map((p) => <PlayerBar key={p.user_id} r={p} target={arena.target} />)}</ul>
               </>
-
             )}
           </div>
         </article>
       </div>
-    </div>
-  );
-}
-
-function PrizeSearch({ s }: { s: ReturnType<typeof useMegaSearch> }) {
-  return (
-    <div className="mega-search">
-      <input type="search" placeholder="Search a player" aria-label="Search a player for this prize" value={s.q} onChange={(e) => s.setQ(e.target.value)} />
-      {s.error && <p className="error">{s.error}</p>}
     </div>
   );
 }
@@ -865,6 +812,7 @@ function stableHash(text: string): number {
 
 const GOALS = 3; // shown on the player page
 const EASE_BAND = 0.25; // challenges this close in difficulty count as equally easy, and are told apart by the random order
+const AFFINITY_PULL = 0.5; // how much of a medal level a favourite theme is worth
 const GOALS_PER_THEME = 2; // so the three are not all about one thing
 
 /** The player's personal goals (user, 2026-11-06): random, but always the EASIEST next medals for that player, so they start
@@ -873,6 +821,13 @@ const GOALS_PER_THEME = 2; // so the three are not all about one thing
  *  another one. The pick is a hash of player + challenge + medal level, not stored anywhere: stable while nothing is completed,
  *  different for every player, nothing to save (the site computes everything on request). */
 function pickGoals(userId: string, items: Achievement[]): { a: Achievement; fraction: number }[] {
+  // Play style (user, 2026-11-06): the themes the player is already busy with (Payload, Capture Point, gear, movement ...) count as
+  // easier, so the goals fit what they actually play. A theme's affinity = its challenges with progress, as a share of the player's
+  // most active theme (0..1); it takes up to AFFINITY_PULL off a goal's "ease", so a bronze in an unused theme still beats a gold.
+  const active = new Map<string, number>();
+  for (const a of items) if (a.progress > 0) active.set(a.group ?? a.period, (active.get(a.group ?? a.period) ?? 0) + a.progress);
+  const most = Math.max(0, ...active.values());
+  const affinity = (a: Achievement) => (most ? (active.get(a.group ?? a.period) ?? 0) / most : 0);
   const easy = items
     .filter((a) => a.counted && !a.prize && a.progress < 1 && a.levels && a.levels.length > 0 && a.count != null)
     .flatMap((a) => {
@@ -882,7 +837,7 @@ function pickGoals(userId: string, items: Achievement[]): { a: Achievement; frac
       if (idx < 0) return [];
       const prev = idx ? levels[idx - 1] : 0;
       const fraction = Math.max(0, Math.min(1, (count - prev) / (levels[idx] - prev)));
-      const ease = idx + (1 - fraction) * 0.9; // lower = easier; any bronze beats any gold
+      const ease = idx + (1 - fraction) * 0.9 - AFFINITY_PULL * affinity(a); // lower = easier; a bronze still beats a gold, unless it is in their style
       return [{ a, idx, fraction, band: Math.floor(ease / EASE_BAND), roll: stableHash(`${userId}:${a.id}:${idx}`) }];
     })
     .sort((x, y) => x.band - y.band || x.roll - y.roll); // easiest band first, in a random order inside the band
@@ -931,7 +886,7 @@ function StripBody({ userId, onOpen }: { userId: string; onOpen: () => void }) {
       </div>
       {next.length > 0 && (
         <>
-          <p className="muted strip-goals" title="Picked for this player from their easiest next medals, at random. Reach one and it is replaced by another; they slowly get harder as you complete them.">
+          <p className="muted strip-goals" title="Picked for this player from their easiest next medals, leaning towards what they already play (modes, gear, movement ...). Reach one and it is replaced by another; they slowly get harder as you complete them.">
             Your goals
           </p>
           <div className="ach-strip-next" aria-label="Your goals">

@@ -18,11 +18,18 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.06.4 — 12:38
+
+- **Mega Prizes:** the pane is shorter (smaller photos, tighter spacing, photos beside the text on wide screens) and the "Search a player" box is removed from both prize cards; each shows its top list.
+- Also includes everything listed under 2026.11.06.3 just below.
+
 ## 2026.11.06.3 — 12:25
 
 - **Achievements:** "In one Game" is a tab of its own again (In one Game, Day, Week, Cumulative); the "One game" chip inside Day is gone.
 - **Player pictures:** a player's page now shows the Discord picture of the account seen with them on the match list (as the list pages already did), not only bot-linked or exact-name matches.
 - **Discord limits:** fresh picture lookups are capped at 20 per minute for all visitors together, a 429 from Discord pauses them for its Retry-After time, and the last known picture is kept meanwhile.
+- **Player goals:** the goals on a player's page now lean towards what that player already plays (modes, gear, movement ...): themes they are busy with count as easier, so the three goals fit their style.
+- **Pictures on lists:** Players, Leaderboard, Combat and Achievements lists now also match players to Discord members by exact name (as the player page does) and ask Discord for members missing from the server list, within the request budget; a thin answer is kept for 20 s instead of 5 min while the member list is still loading.
 - **Home:** "Live on Twitch" now heads the video and "Latest matches" (with "All matches") heads the list beside it.
 
 ## 2026.11.06.2 — 12:15
