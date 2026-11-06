@@ -4,6 +4,7 @@ import { getGear, getLeaderboard, getLeaderboardStats, type LeaderboardRow, type
 import { ShareBar } from "../components/bars";
 import { Status, TableWrap } from "../components/common";
 import { EmptyState, FitText, Skeleton } from "../components/ui";
+import { Avatar, useAvatars } from "../components/Avatar";
 import { MAPS, duration, int, num, pct, playerPath, title } from "../format";
 import { useApi } from "../useApi";
 import { usePageTitle } from "../usePageTitle";
@@ -68,6 +69,8 @@ function ReplayBoard() {
       }),
     params.toString(),
   );
+
+  const avatars = useAvatars(board.data?.items.map((r) => r.user_id) ?? []);
 
   function set(key: string, value: string) {
     const next = new URLSearchParams(params);
@@ -178,6 +181,7 @@ function ReplayBoard() {
                   return (
                     <Link key={r.user_id} to={playerPath(r.user_id, r.name)} className={`podium-step place-${r.rank}`}>
                       <span className="podium-rank">{r.rank}</span>
+                      <Avatar name={r.name} url={avatars[r.user_id]} size={44} />
                       <strong><FitText title={r.name}>{r.name}</FitText></strong>
                       <span>
                         {sort
@@ -212,7 +216,7 @@ function ReplayBoard() {
                         {r.rank} <RankChange r={r} />
                       </td>
                       <td data-label="Player">
-                        <Link to={playerPath(r.user_id, r.name)}>{r.name}</Link>
+                        <span className="who"><Avatar name={r.name} url={avatars[r.user_id]} /><Link to={playerPath(r.user_id, r.name)}>{r.name}</Link></span>
                       </td>
                       {columns.map(([key, label]) => {
                         const v = r[key] as number | null;

@@ -1,4 +1,4 @@
-import { Fragment, type ReactNode, useEffect, useState } from "react";
+import { Fragment, type ReactNode, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router";
 import {
   type ArenaStatus, CONSOLE_ACHIEVEMENTS_CSV, CONSOLE_MEGA_PRIZES_CSV, forgetResponses, getMegaPrizeWinners, getConsoleAchievements, getConsoleLog, getConsoleOverview, getMe, getMergeSuggestions,
@@ -248,6 +248,7 @@ const GROUPS: { title: string; commands: Command[] }[] = [
         help:
           "The Start and End dates for the Mega Prizes, apart from the achievements' dates above. Only Echo Combat matches and Public Arena matches inside them count towards a prize. " +
           "With no start date of its own the Mega Prize period follows the launch date and challenge period, so nothing changes until you set one. " +
+          "“Visible to” decides who sees the Mega Prizes: only people with the Preview role (how it started), everyone once the start date has come, or nobody. " +
           "Leave everything empty to see the current setting; an empty date is kept as it is.",
         fields: [
           { key: "start", label: "Start", kind: "date" },
@@ -255,9 +256,26 @@ const GROUPS: { title: string; commands: Command[] }[] = [
           { key: "end", label: "End (optional)", kind: "date" },
           { key: "end_today", label: "End today", kind: "check" },
           { key: "clear", label: "Remove both dates (follow the challenge period)", kind: "check" },
+          {
+            key: "visible",
+            label: "Visible to",
+            kind: "select",
+            options: [
+              ["", "Keep as it is"],
+              ["everyone", "Everyone, from the start date on"],
+              ["preview", "Only people with the Preview role"],
+              ["hidden", "Nobody (hide it, Preview included)"],
+            ],
+          },
         ],
         confirm: (v) =>
-          v.clear
+          v.visible === "hidden"
+            ? "Hide the Mega Prizes from everyone, people with the Preview role included?"
+            : v.visible === "everyone"
+              ? "Show the Mega Prizes to everyone from the Mega Prize start date on?"
+              : v.visible === "preview"
+                ? "Show the Mega Prizes only to people with the Preview role?"
+                : v.clear
             ? "Remove the Mega Prize dates? The prizes follow the challenge period again."
             : v.start_today
               ? `Start the Mega Prize period today (${todayIso()})? Matches before today stop counting for the prizes.`
@@ -423,7 +441,11 @@ function Console() {
   const [busy, setBusy] = useState(false);
   const [results, setResults] = useState<Result[]>([]);
   const [filter, setFilter] = useState("");
-  const set = (key: string, value: string) => setValues((v) => ({ ...v, [key]: value }));
+  const touched = useRef(new Set<string>()); // fields typed or picked since the form was opened / last saved
+  const set = (key: string, value: string) => {
+    touched.current.add(key);
+    setValues((v) => ({ ...v, [key]: value }));
+  };
 
   async function execute(command: string, label: string, args: Record<string, unknown>): Promise<boolean> {
     setBusy(true);
@@ -469,15 +491,29 @@ function Console() {
   }
 
   // The launch date, end date and "Visible to" are saved on the server (they survive closing the Console and restarts): the form
-  // shows what is saved instead of opening empty (user, 2026-11-04). Reloaded after every command, so it never shows old values.
+  // shows what is saved instead of opening empty (user, 2026-11-04). It is read when the form opens and again after a command that
+  // WORKED. What the person has typed or picked is never overwritten by a late answer (the server can be slow), and a refused save
+  // keeps their input so they can correct it (user, 2026-11-06: the dates kept resetting to dd/mm/yyyy).
+  const ran = useRef(results.length);
   useEffect(() => {
+    const afterCommand = results.length !== ran.current;
+    ran.current = results.length;
+    if (!afterCommand) touched.current = new Set(); // a different form
     if (selected?.name !== "challenge" && selected?.name !== "mega-period") return;
+    if (afterCommand && !results[0]?.ok) return; // refused: keep what was typed
     const mega = selected.name === "mega-period";
+    const reset = afterCommand; // after a successful save the form shows exactly what the server now holds
+    if (reset) touched.current = new Set();
     let live = true;
     getConsoleOverview().then((o) => {
       if (!live) return;
-      if (mega) setValues({ start: o.mega_period.start ?? "", end: o.mega_period.end ?? "" });
-      else setValues({ start: o.challenge.start ?? "", end: o.challenge.end ?? "", visible: o.challenge.visibility });
+      const saved: Record<string, string> = mega
+        ? { start: o.mega_period.start ?? "", end: o.mega_period.end ?? "", visible: o.mega_period.visibility }
+        : { start: o.challenge.start ?? "", end: o.challenge.end ?? "", visible: o.challenge.visibility };
+      setValues((v) => {
+        const mine = Object.fromEntries(Object.entries(v).filter(([k]) => touched.current.has(k)));
+        return { ...saved, ...mine };
+      });
     }, () => undefined);
     return () => {
       live = false;

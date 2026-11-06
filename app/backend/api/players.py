@@ -50,7 +50,20 @@ def _search_players(request: Request, q: str, limit: int, offset: int) -> dict:
         # page first (index on last_seen_at), then count games for those rows only
         rows = db.execute(select(Player, games_of(Player.id)).where(*where)
                           .order_by(Player.last_seen_at.desc()).limit(limit).offset(offset)).all()
-    items = [{"user_id": p.user_id, "name": p.name, "games": n, "last_seen_at": p.last_seen_at} for p, n in rows]
+    ids = [p.id for p, _ in rows]
+    hours: dict[int, float] = {}
+    maps: dict[int, dict[str, int]] = {}
+    if ids:
+        with request.app.state.sessionmaker() as db:
+            for pid, secs in db.execute(select(MatchPlayer.player_id, func.sum(MatchPlayer.play_time_s))
+                                        .where(MatchPlayer.player_id.in_(ids), counted(MatchPlayer.match_id)).group_by(MatchPlayer.player_id)):
+                hours[pid] = round((secs or 0) / 3600, 1)
+            for pid, map_, n in db.execute(select(MatchPlayer.player_id, Match.map, func.count()).join(Match, Match.id == MatchPlayer.match_id)
+                                           .where(MatchPlayer.player_id.in_(ids), counted(MatchPlayer.match_id))
+                                           .group_by(MatchPlayer.player_id, Match.map)):
+                maps.setdefault(pid, {})[map_] = n
+    items = [{"user_id": p.user_id, "name": p.name, "games": n, "last_seen_at": p.last_seen_at, "hours_played": hours.get(p.id, 0.0),
+              "favourite_map": max(maps[p.id], key=maps[p.id].get) if maps.get(p.id) else None} for p, n in rows]
     return {"items": items, "total": total}
 
 

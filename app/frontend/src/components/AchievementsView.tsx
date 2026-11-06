@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
-import { LEVELS, getAchievements, getArenaProgress, getChallenges, searchMegaPrizes, type MegaPrizeSearch as SearchResult, getMe, getRarity, loginUrl, type Achievement, type AchievementPeek, type AchievementRarity, type AchievementRule } from "../api";
+import { LEVELS, getMegaVisible, getAchievements, getArenaProgress, getChallenges, searchMegaPrizes, type MegaPrizeSearch as SearchResult, getMe, getRarity, loginUrl, type Achievement, type AchievementPeek, type AchievementRarity, type AchievementRule } from "../api";
 import { achievementsPath, pct, ruleText } from "../format";
 import { useApi } from "../useApi";
 import { Status } from "./common";
@@ -207,8 +207,8 @@ export function GroupedBadges<T extends AnyBadge>({ items: all }: { items: T[] }
 /** The Mega Prizes section of the Achievements page: only for the Preview role (the server checks it too, so nobody else
  * even asks for the data). */
 export function MegaPrizesSection() {
-  const me = useApi(getMe, "me").data?.user;
-  return me?.preview || me?.console ? <MegaPrizes /> : null;
+  const visible = useApi(getMegaVisible, "mega-visible").data?.visible;
+  return visible ? <MegaPrizes /> : null; // who sees it is set in the Console ("Visible to"); the server checks it too
 }
 
 type PrizeRow = SearchResult["results"][number];
@@ -355,32 +355,74 @@ function PrizeSearch({ s }: { s: ReturnType<typeof useMegaSearch> }) {
   );
 }
 
-/** Front and back of a prize, side by side and zoomed in (user, 2026-11-06). The window shows part of the pictures: drag them (mouse
- *  or finger) or scroll the wheel to move up and down; both move together. Arrow keys work when it is focused. */
+/** Front and back of a prize, side by side (user, 2026-11-06). Both fit the window at first; the + / − buttons zoom (up to 6x), dragging
+ *  (mouse or finger) moves the pictures in any direction, Reset puts them back. No mouse wheel, so scrolling the page never moves them.
+ *  With the window focused, the arrow keys move and + / − zoom. */
+const PHOTO_MAX_ZOOM = 6;
+
 function PrizePhotos({ prefix, alt }: { prefix: string; alt: string }) {
-  const drag = useRef<{ y: number; top: number } | null>(null);
+  const box = useRef<HTMLDivElement>(null);
+  const drag = useRef<{ x: number; y: number; from: [number, number] } | null>(null);
+  const [zoom, setZoom] = useState(1);
+  const [pos, setPos] = useState<[number, number]>([0, 0]);
+
+  /** keep the pictures inside the window: at 1x they cannot move, zoomed they can travel half of the extra size */
+  function clamp(p: [number, number], z: number): [number, number] {
+    const w = box.current?.clientWidth ?? 0;
+    const h = box.current?.clientHeight ?? 0;
+    const mx = (w * (z - 1)) / 2;
+    const my = (h * (z - 1)) / 2;
+    return [Math.max(-mx, Math.min(mx, p[0])), Math.max(-my, Math.min(my, p[1]))];
+  }
+  function zoomTo(z: number) {
+    const next = Math.min(PHOTO_MAX_ZOOM, Math.max(1, z));
+    setZoom(next);
+    setPos((p) => (next === 1 ? [0, 0] : clamp(p, next)));
+  }
+  const move = (dx: number, dy: number) => setPos((p) => clamp([p[0] + dx, p[1] + dy], zoom));
+
   return (
-    <div className="mega-photos" tabIndex={0} role="group" aria-label={`${alt}: drag or scroll to move up and down`}
-      title="Drag or scroll to move up and down"
-      onPointerDown={(e) => {
-        drag.current = { y: e.clientY, top: e.currentTarget.scrollTop };
-        e.currentTarget.setPointerCapture(e.pointerId);
-        e.currentTarget.classList.add("dragging");
-      }}
-      onPointerMove={(e) => {
-        if (drag.current) e.currentTarget.scrollTop = drag.current.top - (e.clientY - drag.current.y);
-      }}
-      onPointerUp={(e) => {
-        drag.current = null;
-        e.currentTarget.classList.remove("dragging");
-      }}
-      onPointerCancel={(e) => {
-        drag.current = null;
-        e.currentTarget.classList.remove("dragging");
-      }}>
-      <div className="mega-photos-row">
-        <PrizeImage name={`${prefix}_front.png`} alt={`${alt}, front`} />
-        <PrizeImage name={`${prefix}_back.png`} alt={`${alt}, back`} />
+    <div className="mega-photos-wrap">
+      <div ref={box} className={`mega-photos${zoom > 1 ? " zoomed" : ""}`} tabIndex={0} role="group"
+        aria-label={`${alt}: front and back. Use the plus and minus buttons to zoom, drag to move`}
+        onKeyDown={(e) => {
+          const step = 40;
+          if (e.key === "+" || e.key === "=") zoomTo(zoom * 1.5);
+          else if (e.key === "-") zoomTo(zoom / 1.5);
+          else if (e.key === "0") zoomTo(1);
+          else if (e.key === "ArrowLeft") move(step, 0);
+          else if (e.key === "ArrowRight") move(-step, 0);
+          else if (e.key === "ArrowUp") move(0, step);
+          else if (e.key === "ArrowDown") move(0, -step);
+          else return;
+          e.preventDefault();
+        }}
+        onPointerDown={(e) => {
+          if (zoom <= 1) return;
+          drag.current = { x: e.clientX, y: e.clientY, from: pos };
+          e.currentTarget.setPointerCapture(e.pointerId);
+          e.currentTarget.classList.add("dragging");
+        }}
+        onPointerMove={(e) => {
+          if (drag.current) setPos(clamp([drag.current.from[0] + e.clientX - drag.current.x, drag.current.from[1] + e.clientY - drag.current.y], zoom));
+        }}
+        onPointerUp={(e) => {
+          drag.current = null;
+          e.currentTarget.classList.remove("dragging");
+        }}
+        onPointerCancel={(e) => {
+          drag.current = null;
+          e.currentTarget.classList.remove("dragging");
+        }}>
+        <div className="mega-photos-row" style={{ transform: `translate(${pos[0]}px, ${pos[1]}px) scale(${zoom})` }}>
+          <PrizeImage name={`${prefix}_front.png`} alt={`${alt}, front`} />
+          <PrizeImage name={`${prefix}_back.png`} alt={`${alt}, back`} />
+        </div>
+      </div>
+      <div className="mega-zoom" role="group" aria-label="Zoom the pictures">
+        <button type="button" className="secondary" onClick={() => zoomTo(zoom * 1.5)} disabled={zoom >= PHOTO_MAX_ZOOM} aria-label="Zoom in">+</button>
+        <button type="button" className="secondary" onClick={() => zoomTo(zoom / 1.5)} disabled={zoom <= 1} aria-label="Zoom out">−</button>
+        <button type="button" className="secondary" onClick={() => zoomTo(1)} disabled={zoom === 1}>Reset</button>
       </div>
     </div>
   );
@@ -549,7 +591,7 @@ export function Badge({ a, compact = false }: { a: AchievementRule & Partial<Pic
   // The glyph takes the colour of the tier reached; grey = not started, plain = started, no tier yet (user,
   // 2026-11-02). Built-in art is one colour on transparent, so it is used as a mask; uploads keep their own colours.
   const state = catalogue ? "" : tier ? " tinted" : a.progress! > 0 ? " tinted started" : " not-started";
-  const tinted = state.includes("tinted") && a.icon != null && !a.icon.startsWith("custom/");
+  const tinted = state.includes("tinted") && !a.icon?.startsWith("custom/"); // the generic cubesat (no icon of its own) is a silhouette too: it takes the tier colour like the rest (user, 2026-11-06)
   const close = closeness(a);
   return (
     <div className={`badge-card${compact ? " compact" : ""}${tier || catalogue ? "" : " locked"}${tier ? ` t-${tier}` : ""}${tinted ? state : state.replace(" tinted", "")}${close ? " close" : ""}`}
@@ -815,41 +857,96 @@ export function AchievementsStrip({ userId, onOpen }: { userId: string; onOpen: 
   return <StripBody userId={userId} onOpen={onOpen} />;
 }
 
+/** Same number for the same text in every browser (FNV-1a, 0..1): a player's goals never change by themselves. */
+function stableHash(text: string): number {
+  let h = 2166136261;
+  for (const c of text) {
+    h ^= c.codePointAt(0)!;
+    h = Math.imul(h, 16777619);
+  }
+  return (h >>> 0) / 4294967296;
+}
+
+const GOALS = 3; // shown on the player page
+const EASE_BAND = 0.25; // challenges this close in difficulty count as equally easy, and are told apart by the random order
+const GOALS_PER_THEME = 2; // so the three are not all about one thing
+
+/** The player's personal goals (user, 2026-11-06): random, but always the EASIEST next medals for that player, so they start
+ *  small and get harder as the player completes them. "Easy" = the lowest medal level being worked on (bronze before gold ...), then
+ *  the most of it already done. A goal is a challenge's NEXT medal: reaching it changes the challenge's level, so it gives way to
+ *  another one. The pick is a hash of player + challenge + medal level, not stored anywhere: stable while nothing is completed,
+ *  different for every player, nothing to save (the site computes everything on request). */
+function pickGoals(userId: string, items: Achievement[]): { a: Achievement; fraction: number }[] {
+  const easy = items
+    .filter((a) => a.counted && !a.prize && a.progress < 1 && a.levels && a.levels.length > 0 && a.count != null)
+    .flatMap((a) => {
+      const levels = a.levels!;
+      const count = a.count!;
+      const idx = levels.findIndex((need) => count < need); // the medal being worked on, 0 = bronze
+      if (idx < 0) return [];
+      const prev = idx ? levels[idx - 1] : 0;
+      const fraction = Math.max(0, Math.min(1, (count - prev) / (levels[idx] - prev)));
+      const ease = idx + (1 - fraction) * 0.9; // lower = easier; any bronze beats any gold
+      return [{ a, idx, fraction, band: Math.floor(ease / EASE_BAND), roll: stableHash(`${userId}:${a.id}:${idx}`) }];
+    })
+    .sort((x, y) => x.band - y.band || x.roll - y.roll); // easiest band first, in a random order inside the band
+  const picked: typeof easy = [];
+  const perTheme = new Map<string, number>();
+  for (const c of easy) {
+    const theme = c.a.group ?? c.a.period;
+    if ((perTheme.get(theme) ?? 0) >= GOALS_PER_THEME) continue;
+    perTheme.set(theme, (perTheme.get(theme) ?? 0) + 1);
+    picked.push(c);
+    if (picked.length === GOALS) break;
+  }
+  for (const c of easy) if (picked.length < GOALS && !picked.includes(c)) picked.push(c); // few themes left: fill up anyway
+  return picked.map(({ a, fraction }) => ({ a, fraction }));
+}
+
 function StripBody({ userId, onOpen }: { userId: string; onOpen: () => void }) {
   const d = useApi(() => getAchievements(userId), userId).data;
   if (!d) return null;
   const counted = d.items.filter((a) => a.counted && !a.prize);
   const crowns = counted.filter((a) => a.progress >= 1).length;
-  const medals = LEVELS.map((m) => [m, counted.filter((a) => a.levels && a.tier === m).length] as const);
-  const next = counted
-    .filter((a) => a.progress < 1 && a.levels && a.count != null)
-    .map((a) => [a, nextMedal(a)] as const)
-    .filter((x): x is readonly [Achievement, { fraction: number; medal: string }] => x[1] !== null)
-    .sort((x, y) => y[1].fraction - x[1].fraction)
-    .slice(0, 3);
+  // one coloured segment per medal level, highest first: every crown has its own share of the bar (user, 2026-11-06)
+  const segments = ([["crown", crowns], ...(["platinum", "gold", "bronze"] as const).map((m) => [m, counted.filter((a) => a.progress < 1 && a.levels && a.tier === m).length] as const)] as const)
+    .filter(([, n]) => n > 0);
+  const next = pickGoals(userId, counted);
   return (
     <section className="ach-strip" aria-label="Achievements">
+      <div className="ach-strip-top">
       <button className="ach-strip-head" onClick={onOpen} title="Open the Achievements tab">
         <strong>Achievements</strong>
-        <div className="bar" style={{ "--sec": `var(--tier-${sectionMedal(d.overall) ?? "bar-default"})` } as React.CSSProperties} role="progressbar" aria-label="Average progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(d.overall * 100)}>
-          <div style={{ width: `${d.overall * 100}%` }} />
+        <div className="strip-bar" role="img" aria-label={`${crowns} crowns, ${segments.map(([m, n]) => `${n} ${m}`).join(", ")} out of ${counted.length} challenges`}>
+          {segments.map(([m, n]) => (
+            <i key={m} className={`t-${m}`} style={{ width: `${(n / counted.length) * 100}%` }} title={`${n} challenge${n === 1 ? "" : "s"} at ${m}${m === "crown" ? " (completed)" : " as the best medal"}`} />
+          ))}
         </div>
         <span className="muted">{pct(d.overall)} · {crowns} / {counted.length} crowns</span>
         <span className="strip-medals">
-          {medals.map(([m, n]) => (
+          {[...segments].reverse().map(([m, n]) => (
             <span key={m} className={`t-${m}`} title={`Challenges where ${m} is the best medal`}><i />{n}</span>
           ))}
         </span>
       </button>
+      <Link className="button ach-all" to={achievementsPath(d.user_id, d.name)}>
+        All achievements →
+      </Link>
+      </div>
       {next.length > 0 && (
-        <div className="ach-strip-next" aria-label="Closest to the next medal">
-          {next.map(([a, nm]) => (
-            <div key={a.id} className="strip-next">
-              <Tile a={a} />
-              <span className="muted">{levelText(a.count ?? 0, a.levels ?? [], a.unit)} · {pct(nm.fraction)}</span>
-            </div>
-          ))}
-        </div>
+        <>
+          <p className="muted strip-goals" title="Picked for this player from their easiest next medals, at random. Reach one and it is replaced by another; they slowly get harder as you complete them.">
+            Your goals
+          </p>
+          <div className="ach-strip-next" aria-label="Your goals">
+            {next.map(({ a, fraction }) => (
+              <div key={a.id} className="strip-next">
+                <Tile a={a} />
+                <span className="muted">{levelText(a.count ?? 0, a.levels ?? [], a.unit)} ({pct(fraction)} of the way)</span>
+              </div>
+            ))}
+          </div>
+        </>
       )}
     </section>
   );

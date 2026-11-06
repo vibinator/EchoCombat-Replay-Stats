@@ -364,7 +364,12 @@ export interface PlayerListItem {
   name: string;
   games: number;
   last_seen_at: string;
+  hours_played?: number;
+  favourite_map?: string | null;
 }
+
+/** Discord pictures of the players in a list: player id -> picture URL, only for players that have a visible one. */
+export const getAvatars = (ids: string[]) => request<Record<string, string>>(`/api/avatars?ids=${encodeURIComponent(ids.join(","))}`);
 
 export type Period = "day" | "week" | "month" | "all";
 
@@ -922,7 +927,7 @@ export interface ConsoleOverview {
   hidden_replays: number;
   challenge: { start: string | null; end: string | null; launched: boolean; visibility: "everyone" | "preview" | "hidden" };
   /** The Mega Prizes' own dates; null / null = none set, they follow the challenge period */
-  mega_period: { start: string | null; end: string | null };
+  mega_period: { start: string | null; end: string | null; visibility: "everyone" | "preview" | "hidden" };
   stat_groups: { key: string; label: string; hidden: boolean; players: { user_id: string; name: string }[] }[];
   recent: ConsoleLogEntry[];
 }
@@ -1210,6 +1215,8 @@ export interface ArenaProgress {
   period: { start: string | null; end: string | null; active: boolean };
 }
 export const getArenaProgress = () => send<ArenaProgress>("/api/arena/progress");
+/** May this visitor see the Mega Prizes (Console: "Visible to" of the Mega Prize period)? Per visitor, so its own small answer. */
+export const getMegaVisible = () => send<{ visible: boolean }>("/api/arena/visible");
 
 /** Search a player by name: their progress toward each Mega Prize (from the challenge period on). */
 export interface MegaPrizeSearch {

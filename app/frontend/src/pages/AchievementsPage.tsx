@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { Link, Navigate, useLocation, useParams, useSearchParams } from "react-router";
 import { getAchievements, getAchievers, getRarity, getRecentUnlocks, searchPlayers } from "../api";
 import { AchievementRules, AchievementsView, ChallengeBanner, ComingSoon, GroupedBadges, JumpToNew, MegaPrizesSection, useAchievementsAccess } from "../components/AchievementsView";
+import { Avatar, useAvatars } from "../components/Avatar";
 import { Status } from "../components/common";
 import { achievementsPath, dateTime, int, medalRuleText, nameSlug, pct, playerPath } from "../format";
 import { useApi } from "../useApi";
@@ -57,6 +58,7 @@ function useRanking<T extends unknown[]>(load: () => Promise<T>, key: string) {
 
 function TopPlayers() {
   const top = useRanking(() => getAchievers(10), "top");
+  const avatars = useAvatars(top.data?.map((p) => p.user_id) ?? []);
   if (!top.data || top.data.length === 0) return null;
   return (
     <>
@@ -68,7 +70,7 @@ function TopPlayers() {
         {top.data.map((p) => (
           <li key={p.user_id}>
             <span className="rank">#{p.rank}</span>
-            <Link to={achievementsPath(p.user_id, p.name)} className="name">{p.name}</Link>
+            <span className="who"><Avatar name={p.name} url={avatars[p.user_id]} size={32} /><Link to={achievementsPath(p.user_id, p.name)} className="name">{p.name}</Link></span>
             <strong className="big">
               {int(p.completed)} <span className="muted">/ {int(p.total)} completed</span>
             </strong>
@@ -85,6 +87,7 @@ function TopPlayers() {
 
 function RecentUnlocks() {
   const recent = useRanking(getRecentUnlocks, "recent");
+  const avatars = useAvatars(recent.data?.map((e) => e.user_id) ?? []);
   if (!recent.data || recent.data.length === 0) return null;
   return (
     <>
@@ -94,7 +97,7 @@ function RecentUnlocks() {
           <li key={`${e.user_id}-${e.id}-${i}`}>
             <img src={`/achievements/${e.icon ?? "happy_cubesat.png"}`} alt="" />
             <span>
-              <Link to={achievementsPath(e.user_id, e.name)}>{e.name}</Link> earned{" "}
+              <span className="who"><Avatar name={e.name} url={avatars[e.user_id]} size={20} /><Link to={achievementsPath(e.user_id, e.name)}>{e.name}</Link></span> earned{" "}
               <span className={`medal-chip ${e.medal ?? "gold"}`}>{e.medal ?? "completed"}</span> in <strong>{e.achievement}</strong>
             </span>
             <span className="desc">{medalRuleText(e.description, e.medal)}</span>

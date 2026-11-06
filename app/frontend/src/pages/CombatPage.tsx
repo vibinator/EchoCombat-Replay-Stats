@@ -3,6 +3,7 @@ import { getCombatBoard, getCombatMatch, getCombatStats, getCombatSummary, listC
 import { CombatMatchBody } from "../components/CombatView";
 import { LocalTime, NotFoundBox, Status, TableWrap, isNotFound } from "../components/common";
 import { Skeleton } from "../components/ui";
+import { Avatar, useAvatars } from "../components/Avatar";
 import { MAPS, dateTime, duration, int, num, playerPath, title } from "../format";
 import { useApi } from "../useApi";
 import { usePageTitle } from "../usePageTitle";
@@ -33,6 +34,7 @@ export function CombatBoard() {
   const stats = useApi(getCombatStats, "combat-stats");
   const board = useApi(() => getCombatBoard({ stat, period, map: map || undefined, min_games: minGames, offset, limit: PAGE_SIZE }), `combat-board|${params.toString()}`);
   const matches = useApi(() => listCombatMatches(15), "combat-matches");
+  const avatars = useAvatars(board.data?.items.map((r) => r.user_id) ?? []);
 
   function set(key: string, value: string) {
     const next = new URLSearchParams(params);
@@ -97,7 +99,7 @@ export function CombatBoard() {
               {board.data.items.map((r) => (
                 <tr key={r.user_id}>
                   <td data-label="#" className="num rank">{r.rank}</td>
-                  <td data-label="Player"><Link to={playerPath(r.user_id, r.name)}>{r.name}</Link></td>
+                  <td data-label="Player"><span className="who"><Avatar name={r.name} url={avatars[r.user_id]} /><Link to={playerPath(r.user_id, r.name)}>{r.name}</Link></span></td>
                   <td data-label={board.data!.label} className="num"><strong>{Number.isInteger(r.value) ? int(r.value) : num(r.value, 2)}</strong></td>
                   {COLUMNS.filter(([key]) => key !== board.data!.stat).map(([key, heading, value]) => (
                     <td key={key} data-label={heading} className="num">{value(r)}</td>

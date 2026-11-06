@@ -29,6 +29,7 @@ PAGE = 1000  # Discord's maximum per request
 
 _lock = threading.Lock()
 _by_name: dict[str, tuple[str, str]] = {}  # normalised name -> (discord id, avatar hash) for 1:1 names only
+_by_id: dict[str, str] = {}  # discord id -> avatar hash, every member with their own picture (list pages: no request per row)
 _next_refresh = 0.0
 _loading = False
 
@@ -73,11 +74,15 @@ def names_of(members: list[dict]) -> dict[str, tuple[str, str]]:
 
 
 def _refresh(settings: Settings) -> None:
-    global _by_name, _next_refresh, _loading
+    global _by_name, _by_id, _next_refresh, _loading
     try:
-        by_name = names_of(_read_members(settings))
+        members = _read_members(settings)
+        by_name = names_of(members)
+        by_id = {str((m.get("user") or {}).get("id")): (m.get("user") or {}).get("avatar") for m in members
+                 if auth.is_discord_id(str((m.get("user") or {}).get("id") or "")) and not (m.get("user") or {}).get("bot")}
+        by_id = {uid: a for uid, a in by_id.items() if a and a.replace("a_", "", 1).isalnum()}
         with _lock:
-            _by_name, _next_refresh = by_name, time.monotonic() + REFRESH_S
+            _by_name, _by_id, _next_refresh = by_name, by_id, time.monotonic() + REFRESH_S
         log.info("Discord members read: %d names usable for player pictures", len(by_name))
     except (httpx.HTTPError, ValueError, KeyError, TypeError) as e:
         log.warning("Discord member list not read (player pictures by name): %s", e)
@@ -111,8 +116,16 @@ def match(settings: Settings, name: str) -> tuple[str, str] | None:
     return uid, f"https://cdn.discordapp.com/avatars/{uid}/{avatar}.png?size=256"
 
 
+def avatar_for_id(settings: Settings, discord_id: str, size: int = 64) -> str | None:
+    """Discord CDN URL of this member's own picture, from the member list (None: not a member, no picture, or not read yet)."""
+    refresh_soon(settings)
+    with _lock:
+        avatar = _by_id.get(discord_id)
+    return f"https://cdn.discordapp.com/avatars/{discord_id}/{avatar}.png?size={size}" if avatar else None
+
+
 def clear() -> None:
     """Tests: forget the member list."""
-    global _by_name, _next_refresh, _loading
+    global _by_name, _by_id, _next_refresh, _loading
     with _lock:
-        _by_name, _next_refresh, _loading = {}, 0.0, False
+        _by_name, _by_id, _next_refresh, _loading = {}, {}, 0.0, False

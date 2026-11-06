@@ -3929,9 +3929,10 @@ button.small {
   color: inherit; font: inherit; font-size: 0.85rem; cursor: pointer;
 }
 .chip.active { background: var(--panel); border-color: var(--blue); }
-.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin-top: 8px; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; margin-top: 8px; }
+@media (max-width: 560px) { .tiles { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); } } /* phones: two per row */
 .tile { position: relative; outline-offset: 2px; cursor: pointer; }
-.tile > .badge-card.compact { flex-direction: column; text-align: center; height: 100%; gap: 6px; padding: 10px 8px; }
+.tile .badge-card.compact { flex-direction: column; text-align: center; height: 100%; gap: 6px; padding: 10px 8px; }
 .tile .badge-card.compact .badge-text { align-items: center; width: 100%; }
 .tile .badge-card.compact .badge-text > *:not(strong):not(.tier-steps):not(.rule-text):not(.tile-pct) { display: none; }
 .tile .badge-card.compact .rule-text { font-size: 0.75rem; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
@@ -3963,19 +3964,23 @@ button.small {
 .strip-next { display: flex; flex-direction: column; gap: 4px; }
 .strip-next > .muted { font-size: 0.78rem; text-align: center; }
 
-/* Mega Prizes: front and back side by side, zoomed in; the window scrolls up and down (wheel, drag, arrow keys) */
+/* Mega Prizes: front and back side by side, both fitted to the window; + / - zoom, drag to move (no mouse wheel) */
+.mega-photos-wrap { position: relative; margin: 0.75rem 0.75rem 0; }
 .mega-photos {
-  height: 16rem; margin: 0.75rem 0.75rem 0; overflow-y: auto; overflow-x: hidden; cursor: grab; touch-action: pan-y;
-  scrollbar-width: none; border-radius: 6px; outline-offset: 2px;
+  height: 18rem; overflow: hidden; border-radius: 6px; background: var(--panel-2, rgba(255, 255, 255, 0.04));
+  touch-action: pan-y; outline-offset: 2px;
 }
-.mega-photos::-webkit-scrollbar { display: none; }
+.mega-photos.zoomed { cursor: grab; touch-action: none; }
 .mega-photos.dragging { cursor: grabbing; user-select: none; }
-.mega-photos-row { display: flex; justify-content: center; margin: 0 -10%; }
+.mega-photos-row { display: flex; justify-content: center; height: 100%; transform-origin: center; transition: transform 0.12s; }
+.mega-photos.dragging .mega-photos-row { transition: none; }
 .mega-card .mega-photos img, .mega-photos .mega-img-placeholder {
-  width: 58%; max-width: none; height: auto; flex: 0 0 58%; margin: 0; aspect-ratio: auto; object-fit: contain;
+  height: 100%; width: auto; max-width: 50%; margin: 0; aspect-ratio: auto; object-fit: contain; flex: 0 1 auto;
   background: none; border-radius: 0; pointer-events: none; -webkit-user-drag: none;
 }
-.mega-photos .mega-img-placeholder { aspect-ratio: 8 / 15; background: var(--panel-2, rgba(255, 255, 255, 0.06)); }
+.mega-photos .mega-img-placeholder { width: 9rem; aspect-ratio: 8 / 15; background: var(--panel-2, rgba(255, 255, 255, 0.06)); }
+.mega-zoom { position: absolute; right: 6px; bottom: 6px; display: flex; gap: 4px; }
+.mega-zoom button { min-width: 28px; height: 28px; padding: 0 8px; opacity: 0.9; }
 
 /* Mega Prizes: the search sits inside each card now */
 .mega-body .mega-search { width: 100%; max-width: none; margin: 0.25rem 0; }
@@ -4012,3 +4017,26 @@ button.small {
 .mega-who { display: flex; align-items: center; min-width: 0; }
 .mega-who .mega-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mega-who .move { flex: none; }
+
+/* names break between words, not in the middle of them (only a word longer than the tile is broken) */
+.tile .badge-card.compact .badge-text strong { overflow-wrap: break-word; word-break: normal; hyphens: auto; }
+@media (max-width: 560px) { .tile .badge-card.compact .badge-text strong { -webkit-line-clamp: 4; } } /* the 62-letter name fits on two-per-row phones */
+
+/* Discord pictures beside player names (user, 2026-11-06) */
+.who { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.avatar { width: var(--avatar, 24px); height: var(--avatar, 24px); border-radius: 50%; object-fit: cover; flex: none; background: var(--panel-2, rgba(255, 255, 255, 0.08)); }
+.avatar.placeholder { display: inline-flex; align-items: center; justify-content: center; font-size: calc(var(--avatar, 24px) * 0.45); font-weight: 700; color: var(--muted, #9aa0a6); border: 1px solid var(--line); }
+.podium-step .avatar { margin: 0 auto 4px; }
+
+/* player strip: the bar is split by best medal, crowns first in the crown colour, then platinum, gold and bronze (user, 2026-11-06) */
+.strip-bar { display: flex; flex: 1 1 140px; min-width: 100px; max-width: 320px; height: 0.7rem; border-radius: 999px; overflow: hidden; background: var(--panel-2, rgba(255, 255, 255, 0.08)); }
+.strip-bar i { display: block; height: 100%; background: var(--tier-fill, var(--tier)); min-width: 2px; }
+.strip-bar i + i { box-shadow: -1px 0 0 var(--panel); }
+.strip-medals i { background: var(--tier-fill, var(--tier)); }
+
+.strip-goals { margin: 10px 0 0; font-size: 0.8rem; }
+
+/* the player strip: an obvious way to all of this player's achievements */
+.ach-strip-top { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.ach-strip-top .ach-strip-head { flex: 1 1 360px; width: auto; }
+.ach-all { flex: none; margin-left: auto; font-weight: 700; white-space: nowrap; }

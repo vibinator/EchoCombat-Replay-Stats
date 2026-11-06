@@ -10,7 +10,7 @@ from sqlalchemy import func, select
 
 from .. import auth
 from ..achievements import FULL_GAME_S, MEGA_COMBAT, icon_file
-from ..admin_actions import mega_window
+from ..admin_actions import mega_visible, mega_window
 from ..duplicates import counted
 from ..errors import ApiError
 from ..models import (ArenaCounted, ArenaPlayer, Match, MatchPlayer, NakamaAccount, NakamaCombatCounted,
@@ -25,8 +25,19 @@ IMAGE_DIR = Path(__file__).resolve().parent.parent / "private_assets"
 
 
 def _require_preview(request: Request) -> None:
-    if not auth.has_preview(request):
+    """Who may see the Mega Prizes is set in the Console (\"Visible to\", user, 2026-11-06): Preview role only by default."""
+    with request.app.state.sessionmaker() as db:
+        allowed = mega_visible(db, auth.has_preview(request))
+    if not allowed:
         raise ApiError(403, "no_access", "You do not have access")
+
+
+@router.get("/visible")
+def visible(request: Request):
+    """May this visitor see the Mega Prizes? (Console "Visible to".) Its own small answer under /api/arena, which is never shared,
+    so /api/challenges stays the same for everyone and can be kept at the edge."""
+    with request.app.state.sessionmaker() as db:
+        return {"visible": mega_visible(db, auth.has_preview(request))}
 
 
 @router.get("/image/{name}")

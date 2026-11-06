@@ -3,7 +3,6 @@ import { Link } from "react-router";
 import { getActivity, getLastMatch, getLive, getOverview, getPlayersSeen, type GearShare, type MatchSummary, type PlayersSeen } from "../api";
 import { BarChart, StackedBarChart } from "../components/charts";
 import { MatchCards } from "../components/MatchCards";
-import { PlayerSearch } from "../components/PlayerSearch";
 import { EmptyState, FitText, Skeleton } from "../components/ui";
 import { GearLabel, LocalTime, Status } from "../components/common";
 import { MAPS, dateTime, duration, instant, int, modeLabel, num, pct, periodLabel, playerPath, scoreText, title } from "../format";
@@ -250,7 +249,6 @@ export function HomePage() {
           <a href="https://discord.gg/echo-vr-lounge" target="_blank" rel="noopener noreferrer">Discord</a> and/or at{" "}
           <a href="https://echovrce.com" target="_blank" rel="noopener noreferrer">echovrce.com</a>.
         </p>
-        <PlayerSearch large />
       </div>
 
       {!o && !overview.error && <Skeleton cards={6} lines={0} />}

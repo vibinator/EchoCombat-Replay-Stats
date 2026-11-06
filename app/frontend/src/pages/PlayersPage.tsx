@@ -1,8 +1,9 @@
 import { Link, useSearchParams } from "react-router";
 import { searchPlayers } from "../api";
 import { LocalTime, Status, TableWrap } from "../components/common";
+import { Avatar, useAvatars } from "../components/Avatar";
 import { PlayerSearch } from "../components/PlayerSearch";
-import { int, playerPath } from "../format";
+import { int, num, playerPath, title } from "../format";
 import { useApi } from "../useApi";
 import { usePageTitle } from "../usePageTitle";
 
@@ -11,6 +12,7 @@ export function PlayersPage() {
   const [params] = useSearchParams();
   const q = params.get("q") ?? "";
   const result = useApi(() => searchPlayers(q), q);
+  const avatars = useAvatars(result.data?.items.map((p) => p.user_id) ?? []);
 
   return (
     <section>
@@ -27,6 +29,8 @@ export function PlayersPage() {
                 <tr>
                   <th>Name</th>
                   <th className="num">Games</th>
+                  <th className="num">Hours played</th>
+                  <th>Favourite map</th>
                   <th>Last seen</th>
                 </tr>
               </thead>
@@ -34,9 +38,11 @@ export function PlayersPage() {
                 {result.data.items.map((p) => (
                   <tr key={p.user_id}>
                     <td data-label="Name">
-                      <Link to={playerPath(p.user_id, p.name)}>{p.name}</Link>
+                      <span className="who"><Avatar name={p.name} url={avatars[p.user_id]} /><Link to={playerPath(p.user_id, p.name)}>{p.name}</Link></span>
                     </td>
                     <td data-label="Games" className="num">{int(p.games)}</td>
+                    <td data-label="Hours played" className="num">{p.hours_played != null ? num(p.hours_played, 1) : "–"}</td>
+                    <td data-label="Favourite map">{p.favourite_map ? title(p.favourite_map) : "–"}</td>
                     <td data-label="Last seen"><LocalTime iso={p.last_seen_at} /></td>
                   </tr>
                 ))}

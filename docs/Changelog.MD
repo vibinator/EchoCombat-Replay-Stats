@@ -52,8 +52,24 @@ Working record of what changed in each release, newest first.
 - **Heatmap:** softer colours (no neon cyan), teams are mixed where they overlap instead of one hiding the other, zoom up to 24x with the
   + / − buttons (drag to pan), and zoomed lines are smoothed.
 
+### Added later the same day (user, 2026-11-06)
+- **Your goals (player page):** three personal goals above the stats, picked at random but always from that player's EASIEST next medals,
+  so they start small and get harder as the player completes them. Reaching a medal replaces its goal with another. Nothing is stored:
+  the pick is a hash of player + challenge + medal level, so it is stable until something is completed and different for every player.
+  A big "All achievements" button leads to the full list. The strip's bar is split by best medal (crowns first, in the crown colour).
+- **Discord pictures** beside names on Players, Leaderboard (both boards and the podium) and Achievements (top players, recent medals).
+  They come from the Discord server's member list the site already reads, so a list page makes no Discord request per row; a player who
+  switches their picture off in their profile disappears at once (the lookup is its own request, never part of the cached lists). Players
+  without one get a letter. **Players list** also shows hours played and favourite map (no win / loss figures: those can be hidden).
+- **Console:** the Mega Prize period has **Visible to** (Preview role only is the default, as before; everyone from the start date;
+  nobody). The launch / challenge / Mega Prize forms no longer lose what you typed: a slow answer from the server could overwrite it, and
+  a refused save wiped the form.
+- **Achievements page:** tiles are wider (names fit on every screen), every medalled icon takes its medal colour (the 28 challenges with
+  no icon of their own were left white), the Mega Prize pictures fit the window with + / − buttons and drag in any direction.
+- **Home:** the big player search is gone (the one in the menu stays). The Day tab now holds the single-game challenges behind a "One game" chip.
+
 ### Tested (2026-11-06)
-- 409 backend tests, all 60 GET routes against a snapshot of the real database (no errors, none over 3 s), and about 85 browser checks.
+- 414 backend tests, all 60 GET routes against a snapshot of the real database (no errors, none over 3 s), and about 90 browser checks.
 - **Known flaky test:** `test_remote.py::test_damaged_track_files_are_left_out_not_saved` failed once in five full runs and passes alone;
   it looks timing-related. Ignore it unless it fails again.
 - Not tested: a real Discord login, real Mega Prize data, and a real phone.

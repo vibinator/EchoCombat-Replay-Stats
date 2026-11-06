@@ -343,7 +343,7 @@ def cmd_challenge(sessions, start: str | None, end: str | None, clear: bool, vis
         print("Website: \"Coming soon\". Set a start date to launch achievements and challenges.")
 
 
-def cmd_mega_period(sessions, start: str | None, end: str | None, clear: bool) -> None:
+def cmd_mega_period(sessions, start: str | None, end: str | None, clear: bool, visible: str | None = None) -> None:
     """The Mega Prizes' own Start-End dates, apart from the achievements' (user, 2026-11-05). start / end: None = keep,
     "" = no limit. Without a start date of their own the prizes follow the challenge period."""
     with sessions() as db:
@@ -352,12 +352,17 @@ def cmd_mega_period(sessions, start: str | None, end: str | None, clear: bool) -
             new = (None, None) if clear else (current[0] if start is None else start, current[1] if end is None else end)
             current = actions.set_mega_window(db, *new)
             print("Saved. The Mega Prize winners and the Arena counter use the new dates straight away.")
+        if visible:
+            actions.set_mega_visibility(db, visible)
+            print(f"Saved. The Mega Prizes are visible to {actions.VISIBILITY[visible]}.")
+        mode = actions.mega_visibility(db)
         challenge = actions.challenge_window(db)
     if current[0]:
         print(f"Mega Prize period: {current[0]} -> {current[1] or 'open-ended'}")
     else:
         print(f"Mega Prize period: none of its own, it follows the challenge period "
               f"({challenge[0] or 'no start date'} -> {challenge[1] or 'open-ended'})")
+    print(f"Visible to: {actions.VISIBILITY[mode]}")
     print(f"Flamingo Challenge period (achievements): {challenge[0] or 'no start date'} -> {challenge[1] or 'open-ended'}")
 
 

@@ -68,7 +68,7 @@ COMMANDS = {  # name as in admin.bat -> (sessions, settings, args) -> None
     "profile-links": lambda s, st, a: console.cmd_profile_links(s),
     "unmerge": lambda s, st, a: console.cmd_unmerge(s, _required(a.alias, "the merged id"), yes=True),
     "challenge": lambda s, st, a: console.cmd_challenge(s, a.start, a.end, a.clear, a.visible or None),
-    "mega-period": lambda s, st, a: console.cmd_mega_period(s, a.start, a.end, a.clear),
+    "mega-period": lambda s, st, a: console.cmd_mega_period(s, a.start, a.end, a.clear, a.visible or None),
     "status": lambda s, st, a: console.cmd_status(s),
     "repair-failed": lambda s, st, a: console.cmd_repair_failed(s, yes=True),
     "cannot-repair": lambda s, st, a: console.cmd_cannot_repair(s, a.hide, yes=True),
@@ -168,7 +168,7 @@ def overview(request: Request):
             "hidden_replays": db.scalar(select(func.count()).select_from(Replay).where(hidden_failure())),
             "challenge": {"start": start, "end": end, "launched": actions.achievements_launched(db),
                           "visibility": actions.achievements_visibility(db)},
-            "mega_period": {"start": mega_start, "end": mega_end},  # none set = the prizes follow the challenge period
+            "mega_period": {"start": mega_start, "end": mega_end, "visibility": actions.mega_visibility(db)},  # none set = the prizes follow the challenge period
             "stat_groups": [{"key": g, "label": label, "hidden": g in hidden, "players": hidden_players[g]}
                             for g, label in actions.STAT_GROUPS.items()],
             "recent": [_log_row(r) for r in actions.command_log(db, 8)],

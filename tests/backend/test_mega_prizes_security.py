@@ -131,10 +131,10 @@ def test_mega_prizes_have_their_own_period(tmp_path, discord):
         report = lambda: client.get("/api/admin/console/mega-prizes").json()["period"]
         overview = lambda: client.get("/api/admin/console/overview").json()
         assert report() == {"start": "2000-01-01", "end": "2000-12-31"}  # none of its own: follows the challenge period
-        assert overview()["mega_period"] == {"start": None, "end": None}
+        assert overview()["mega_period"] == {"start": None, "end": None, "visibility": "preview"}
         act(client, actions.set_mega_window, "2026-11-05", None)
         assert report() == {"start": "2026-11-05", "end": None}
-        assert overview()["mega_period"] == {"start": "2026-11-05", "end": None}
+        assert overview()["mega_period"] == {"start": "2026-11-05", "end": None, "visibility": "preview"}
         assert overview()["challenge"]["start"] == "2000-01-01"  # the achievements' dates are untouched
         act(client, actions.set_challenge_window, "2026-01-01", None)
         assert report() == {"start": "2026-11-05", "end": None}  # and the other way round
@@ -148,3 +148,30 @@ def test_mega_prizes_have_their_own_period(tmp_path, discord):
         assert r.status_code == 200 and report() == {"start": "2026-01-01", "end": None}  # back to following the challenge period
         r = client.post("/api/admin/console/mega-period", json={"start": "2026-11-10", "end": "2026-12-10"}, headers=CONSOLE)
         assert "2026-11-10" in r.json()["output"] and "2026-12-10" in r.json()["output"] and report() == {"start": "2026-11-10", "end": "2026-12-10"}
+
+
+def test_mega_prizes_visible_to(tmp_path, discord):
+    """Console "Visible to" for the Mega Prize period (user, 2026-11-06): Preview role only by default, everyone from the start date on,
+    or nobody (Preview included)."""
+    with app_client(settings(tmp_path)) as client:
+        seed(client)
+        act(client, actions.set_mega_window, "2026-11-01", None)
+        login(client, NO_ROLE)
+        assert client.get("/api/arena/progress").status_code == 403  # the default is Preview-only
+        assert client.get("/api/arena/visible").json()["visible"] is False
+        r = client.post("/api/admin/console/mega-period", json={"visible": "bogus"}, headers=CONSOLE)
+        assert r.status_code != 200 or "Choose one of" in r.json().get("output", "")
+        login(client, MEMBER)
+        assert client.get("/api/arena/progress").status_code == 200 and client.get("/api/arena/visible").json()["visible"] is True
+        r = client.post("/api/admin/console/mega-period", json={"visible": "everyone"}, headers=CONSOLE)
+        assert r.status_code == 200 and "everyone" in r.json()["output"]
+        assert client.get("/api/admin/console/overview").json()["mega_period"]["visibility"] == "everyone"
+        login(client, NO_ROLE)
+        assert client.get("/api/arena/progress").status_code == 200 and client.get("/api/arena/visible").json()["visible"] is True
+        act(client, actions.set_mega_window, "2999-01-01", None)  # the start date has not come: only the Preview role sees it
+        assert client.get("/api/arena/progress").status_code == 403
+        login(client, MEMBER)
+        assert client.get("/api/arena/progress").status_code == 200
+        r = client.post("/api/admin/console/mega-period", json={"visible": "hidden"}, headers=CONSOLE)
+        assert r.status_code == 200 and client.get("/api/arena/progress").status_code == 403  # Preview included
+        assert client.get("/api/arena/visible").json()["visible"] is False

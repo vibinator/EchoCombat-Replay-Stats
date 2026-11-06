@@ -319,6 +319,36 @@ def set_achievements_visibility(db: Session, mode: str) -> str:
     return mode
 
 
+MEGA_VISIBILITY_KEY = "mega_visibility"
+
+
+def mega_visibility(db: Session) -> str:
+    """Who sees the Mega Prizes (user, 2026-11-06): "preview" (the people with the Preview role, how they started out, so it is the
+    default), "everyone" (from the Mega Prize start date on) or "hidden" (nobody, Preview included)."""
+    value = db.scalar(select(AppSetting.value).where(AppSetting.key == MEGA_VISIBILITY_KEY))
+    return value if value in VISIBILITY else "preview"
+
+
+def set_mega_visibility(db: Session, mode: str) -> str:
+    if mode not in VISIBILITY:
+        raise AdminError(f"Choose one of: {', '.join(VISIBILITY)}")
+    db.merge(AppSetting(key=MEGA_VISIBILITY_KEY, value=mode, updated_at=utcnow()))
+    db.commit()
+    return mode
+
+
+def mega_visible(db: Session, previewer: bool) -> bool:
+    """May this visitor see the Mega Prizes? Public once the Mega Prize start date has come (a people with the Preview role see them
+    before that); Preview-only for the people with the role; hidden for everybody."""
+    mode = mega_visibility(db)
+    if mode == "hidden":
+        return False
+    if mode == "preview":
+        return previewer
+    start = mega_window(db)[0]
+    return previewer or (bool(start) and start <= date.today().isoformat())
+
+
 def achievements_started(db: Session) -> bool:
     """The start date is set and has come."""
     start = challenge_window(db)[0]
