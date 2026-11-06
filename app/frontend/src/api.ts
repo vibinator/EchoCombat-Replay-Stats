@@ -614,15 +614,15 @@ export interface AchievementRule {
   new: boolean; // added in this app (80+), not on the original ECRanked site
   group: string | null; // theme of a new achievement
   unit?: string; // ladder targets are in this unit ("%", " m/s", " min"); empty = a count
-  levels?: number[] | null; // tiered achievements: count targets for bronze, silver, gold, diamond, platinum
+  levels?: number[] | null; // tiered achievements: count targets for bronze, gold, platinum, crown
   prize?: string | null; // Mega Prize (in-game item) for completing it
 }
 
-export const LEVELS = ["bronze", "silver", "gold", "diamond", "platinum"] as const;
+export const LEVELS = ["bronze", "gold", "platinum", "crown"] as const;
 
 export interface Achievement extends AchievementRule {
   progress: number;
-  tier: "white" | "bronze" | "silver" | "gold" | "diamond" | "platinum" | null;
+  tier: "white" | "bronze" | "silver" | "gold" | "platinum" | "crown" | null;
   unlocked_at: string | null;
   count?: number; // tiered achievements: games counted so far
   try_next?: { weapon: string; tacmod: string; ordnance: string; label: string }[]; // "Different loadouts": ones this player has not tried
@@ -1004,7 +1004,7 @@ export interface AchievementRarity extends AchievementRule {
 export interface RecentUnlock {
   date: string;
   at: string; // started_at of the game that earned it, "YYYY-MM-DDTHH:MM:SS"
-  medal: "bronze" | "silver" | "gold" | "diamond" | "platinum" | null; // null = a single-step challenge, completed
+  medal: "bronze" | "gold" | "platinum" | "crown" | null; // null = a single-step challenge, completed
   user_id: string;
   name: string;
   id: number;

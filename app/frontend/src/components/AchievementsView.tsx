@@ -406,9 +406,9 @@ function nextMedalFraction(a: Achievement): number | null {
   return nextMedal(a)?.fraction ?? null;
 }
 
-/** Medal colour of a section's overall progress (ladders give 20 % per medal: bronze 20 ... platinum 100 %). */
+/** Medal colour of a section's overall progress (ladders give 25 % per medal: bronze 25 ... crown 100 %). */
 function sectionMedal(progress: number): string | null {
-  return progress >= 1 ? "platinum" : progress >= 0.8 ? "diamond" : progress >= 0.6 ? "gold" : progress >= 0.4 ? "silver" : progress >= 0.2 ? "bronze" : null;
+  return progress >= 1 ? "crown" : progress >= 0.75 ? "platinum" : progress >= 0.5 ? "gold" : progress >= 0.25 ? "bronze" : null;
 }
 
 const EASY_SHOWN = 12;
@@ -711,7 +711,7 @@ function LaunchedSummary({ userId }: { userId: string }) {
   const d = result.data;
   if (!d) return null;
   const counted = d.items.filter((a) => a.counted); // the Combat section is left out of the totals for now
-  const gold = counted.filter((a) => a.progress >= 1).length; // platinum for ladders, 100 % for single-step ones
+  const gold = counted.filter((a) => a.progress >= 1).length; // crown for ladders, 100 % for single-step ones
   const unlocked = counted.filter((a) => a.tier).length;
   const added = d.items.filter((a) => a.new);
   return (
@@ -726,7 +726,7 @@ function LaunchedSummary({ userId }: { userId: string }) {
           <strong>{pct(d.overall)}</strong>
         </div>
         <div className="card">
-          <span className="label">Completed (platinum)</span>
+          <span className="label">Completed (crown)</span>
           <strong>
             {gold} / {d.total}
           </strong>
@@ -815,12 +815,12 @@ export function AchievementRules({ open = false }: { open?: boolean }) {
       <summary>Rules</summary>
       <ul>
         <li>
-          <strong>Medals.</strong> Almost every challenge is a ladder: bronze, silver, gold, diamond, platinum. The bar has one step per medal, the
+          <strong>Medals.</strong> Almost every challenge is a ladder: bronze, gold, platinum and a gold crown with a pink diamond for completing it. The bar has one step per medal, the
           colour of a name is the medal reached and the number under each step is its target. A few single-step challenges keep white 25%, bronze
           50%, silver 75%, gold 100%.
         </li>
         <li>
-          <strong>Completed</strong> means platinum (or 100% for a single-step challenge). <strong>Average progress</strong> counts partial progress
+          <strong>Completed</strong> means the crown (or 100% for a single-step challenge). <strong>Average progress</strong> counts partial progress
           toward every challenge, so it is always higher than the share completed.
         </li>
         <li>

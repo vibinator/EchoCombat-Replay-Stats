@@ -160,11 +160,17 @@ class Rule:
 
 
 # Tiered rules (user, 2026-10-31): almost every rule is a ladder. Order (user, 2026-10-31): bronze, silver, gold, diamond, platinum (platinum is the top medal).
-LEVELS = ("bronze", "silver", "gold", "diamond", "platinum")
+LEVELS = ("bronze", "gold", "platinum", "crown")  # user, 2026-11-06: four medals; the crown (gold with a pink diamond) = completed
+
+
+def four_medals(levels: tuple[float, ...]) -> tuple[float, ...]:
+    """The five written / tuned targets (bronze, silver, gold, diamond, platinum) as the four medals: the same range, silver
+    dropped (bronze = first target, gold = old gold, platinum = old diamond, crown = old platinum; user, 2026-11-06)."""
+    return (levels[0], *levels[2:]) if len(levels) == 5 else levels
 
 
 def _levelled(count, levels: tuple[float, ...]):
-    """Progress spread evenly over the medals: bronze 20 %, silver 40 %, ... platinum 100 %, partial in between."""
+    """Progress spread evenly over the medals: bronze 25 %, gold 50 %, platinum 75 %, crown 100 %, partial in between."""
     def score(games):
         n, prev = count(games), 0
         for i, need in enumerate(levels):
@@ -376,6 +382,7 @@ def _ladder(id_: int, name: str, what: str, icon: str | None, count, levels: tup
     levels = _harder(levels, unit)
     if gear_veteran:
         levels = (*_scaled(_easier_platinum(levels), VETERAN_HARDER)[:3], *VETERAN_TOP)
+    levels = four_medals(levels)
     targets = ", ".join(f"{_num(n)}{unit} {medal}" for n, medal in zip(levels, LEVELS))
     return Rule(id_, name, f"{what} ({targets})", period, icon, _levelled(count, levels), levels=levels, count=count,
                 unit=unit, **kw)
@@ -944,6 +951,7 @@ def _tuned(rule: Rule, levels: tuple[float, ...] | None = None) -> Rule:
     levels = levels or TUNED_LEVELS.get(rule.id)
     if levels is None:
         return rule
+    levels = four_medals(levels)
     what = rule.description.rsplit(" (", 1)[0]
     targets = ", ".join(f"{_num(n)}{rule.unit} {medal}" for n, medal in zip(levels, LEVELS))
     return replace(rule, description=f"{what} ({targets})", levels=levels, score=_levelled(rule.count, levels))
@@ -1019,8 +1027,8 @@ def _groups(games: list[Game], period: str) -> list[list[Game]]:
 
 
 def _reached_gold(entry: dict, rule: Rule) -> bool:
-    """Medal Collector: a ladder counts from gold (third medal) on, a single-step rule when completed."""
-    return entry["count"] >= rule.levels[2] if rule.levels else entry["progress"] >= 1
+    """Medal Collector: a ladder counts from gold (second medal) on, a single-step rule when completed."""
+    return entry["count"] >= rule.levels[1] if rule.levels else entry["progress"] >= 1
 
 
 def evaluate(games: list, rules: list[Rule] = RULES) -> list[dict]:
@@ -1083,7 +1091,7 @@ def achiever_facts(progress: list[float]) -> dict:
         if rule.levels:
             reached = int(p * len(rule.levels) + 1e-6)
             medals += reached
-            gold_plus += reached >= 3
+            gold_plus += reached >= 2
         elif p >= 1:
             medals += 1
             gold_plus += 1

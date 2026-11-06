@@ -34,7 +34,7 @@ def test_kept_apart_from_the_replay_rules():
 
 def test_one_game_ladders():
     r = results([game(kills=12, assists=4, deaths=2, damage=1500.5, objective=9, time_s=120.0)])
-    assert r[164]["count"] == 12 and r[164]["tier"] == "silver" and r[165]["count"] == 4 and r[165]["tier"] is None
+    assert r[164]["count"] == 12 and r[164]["tier"] == "bronze" and r[165]["count"] == 4 and r[165]["tier"] is None
     assert r[166]["count"] == 1500.5 and r[167]["count"] == 10 and r[168]["count"] == 9 and r[169]["count"] == 120
     assert results([game(kills=1, deaths=9)])[167]["count"] == 0  # never below 0
     assert results([game(kills=10, deaths=0)])[170]["progress"] == 1
@@ -99,7 +99,7 @@ def test_objective_damage_heals_and_stuns(tmp_path):
         g = ca.load_games(db, {})[0]["1"][0]
     assert (g.objective_damage, g.heal_bubbles, g.stuns_given) == (950.0, 6, 3)
     r = results([g])
-    assert (r[198]["tier"], r[199]["tier"], r[200]["tier"]) == ("silver", "gold", "gold")
+    assert (r[198]["tier"], r[199]["tier"], r[200]["tier"]) == ("bronze", "gold", "gold")
     report("cut short", True, False)
     report("no log", False, None)
     with sessions() as db:

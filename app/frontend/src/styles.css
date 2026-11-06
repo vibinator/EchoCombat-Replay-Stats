@@ -5,6 +5,7 @@
   --tier-gold: #f0c230;
   --tier-platinum: #5fd6c8;
   --tier-diamond: #6cb8ff;
+  --tier-crown: #ff5fae;
   --tier-bar-default: var(--blue);
   --bg: #16181c;
   --panel: #1f2228;
@@ -801,6 +802,7 @@ svg .crosshair {
 .t-gold { --tier: var(--tier-gold); }
 .t-platinum { --tier: var(--tier-platinum); }
 .t-diamond { --tier: var(--tier-diamond); }
+.t-crown { --tier: var(--tier-crown); }
 
 /* the medal reached colours the name and the status */
 .badge-card[class*="t-"] .badge-text strong,
@@ -971,6 +973,7 @@ nav {
   --tier-gold: #8a6500;
   --tier-platinum: #0a766b;
   --tier-diamond: #1560b5;
+  --tier-crown: #c2186f;
   --bg: #f4f5f7;
   --panel: #ffffff;
   --line: #d9dce1;
@@ -1788,6 +1791,7 @@ td.best {
 .medal-chip.gold { --tier: var(--tier-gold); }
 .medal-chip.diamond { --tier: var(--tier-diamond); }
 .medal-chip.platinum { --tier: var(--tier-platinum); }
+.medal-chip.crown { --tier: var(--tier-crown); }
 .note.ended {
   border-left-color: var(--muted);
 }
@@ -3796,6 +3800,7 @@ button.small {
 .medal-dots .t-gold i { background: var(--tier-gold); }
 .medal-dots .t-diamond i { background: var(--tier-diamond); }
 .medal-dots .t-platinum i { background: var(--tier-platinum); }
+.medal-dots .t-crown i { background: var(--tier-crown); }
 .card-more summary {
   cursor: pointer;
   font-size: 0.8rem;

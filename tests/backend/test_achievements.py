@@ -43,8 +43,8 @@ def test_tiers():
 def test_daily_only_weapon_takes_best_day():
     games = [game("2026-10-27")] * 6 + [game("2026-10-28")] * 15 + [game("2026-10-28", loadout=("assault", "heal", "det"))]
     r = by_id(evaluate(games))
-    # One with the Comet: ladder 3 / 6 / 9 / 17 / 22 games in one day (diamond and platinum are 30 % harder than 13 / 17); the best day (15 Comet-only games) counts
-    assert (r[7]["tier"], r[7]["count"], r[7]["progress"]) == ("platinum", 15, 1.0)
+    # One with the Comet: ladder 3 / 9 / 17 / 22 games in one day (bronze, gold, platinum, crown); the best day (15 Comet-only games) counts
+    assert (r[7]["tier"], r[7]["count"], r[7]["progress"]) == ("crown", 15, 1.0)
     assert (r[5]["tier"], r[5]["count"]) == ("bronze", 1)  # Pulsar only once: the first step
 
 
@@ -52,8 +52,8 @@ def test_weekly_is_a_rolling_seven_days():
     # Sun 1 Nov and Mon 2 Nov are in different calendar weeks but within 7 days of each other
     games = [game(d) for d in ("2026-10-26", "2026-11-01")] + [game("2026-11-02")]
     r = by_id(evaluate(games))
-    # Frame-Drop Hell: the best 7 days hold 2 Dyson games (26 Oct + 1 Nov, or 1 Nov + 2 Nov), ladder 4 / 6 / 8 / 16 / 30
-    assert (r[50]["count"], r[50]["progress"]) == (2, pytest.approx(0.1))
+    # Frame-Drop Hell: the best 7 days hold 2 Dyson games (26 Oct + 1 Nov, or 1 Nov + 2 Nov), ladder 4 / 8 / 12 / 18
+    assert (r[50]["count"], r[50]["progress"]) == (2, pytest.approx(0.125))
     games = [game(d) for d in ("2026-10-30", "2026-11-01", "2026-11-03")]  # all three across a calendar week boundary
     assert by_id(evaluate(games))[50]["count"] == 3
     games = [game(d) for d in ("2026-10-26", "2026-11-02")]  # exactly 7 days apart: not the same window
@@ -82,7 +82,7 @@ def test_all_time_and_overall():
     games = [game(deaths=10) for _ in range(100)]
     r = by_id(evaluate(games))
     assert (r[68]["tier"], r[68]["count"]) == ("gold", 1000)  # 1000 deaths
-    assert (r[59]["tier"], r[59]["count"]) == ("platinum", 100)  # 100 games with Detonator (ordnance id 59)
+    assert (r[59]["tier"], r[59]["count"]) == ("crown", 100)  # 100 games with Detonator (ordnance id 59)
     assert (r[67]["tier"], r[67]["count"]) == (None, 1)  # one loadout combination, ladder 6 / 12 / ...
     assert 0 < overall(list(r.values())) < 1
 
@@ -141,7 +141,7 @@ def test_logic_follows_the_text():
     week = [game(f"2026-10-{d:02d}", deaths=5) for d in (26, 27, 28) for _ in range(9)]
     assert by_id(evaluate(week))[43]["count"] == 0
     week[0] = game("2026-10-26", deaths=4)
-    assert by_id(evaluate(week))[43]["count"] == 27 and by_id(evaluate(week))[43]["tier"] == "platinum"
+    assert by_id(evaluate(week))[43]["count"] == 27 and by_id(evaluate(week))[43]["tier"] == "crown"
     one_evening = [game("2026-10-26", deaths=0)] * 30
     assert by_id(evaluate(one_evening))[43]["count"] == 0  # all on one day
     assert by_id(evaluate([game("2026-10-26", deaths=0, play=60.0)] * 30))[43]["count"] == 0  # short games do not count
@@ -183,7 +183,7 @@ def test_teammate_proximity_targets():
 def test_new_gear_challenges():
     starburst = [game(loadout=("rifle", "heal", "loc"))] * 30
     r = by_id(evaluate(starburst))
-    assert r[105]["tier"] == "diamond" and r[108]["tier"] == "diamond" and r[105]["new"]  # 30 games on the Veteran ladder: 5 / 11 / 19 / 29 / 49
+    assert r[105]["tier"] == "platinum" and r[108]["tier"] == "platinum" and r[105]["new"]  # 30 games on the Veteran ladder: 5 / 19 / 29 / 49
     assert r[86]["progress"] == 0.25  # 1 of the 4 unreleased weapons
     one_game = Game(**{**game().__dict__, "loadouts": {("assault", "heal", "det"): 250, ("blaster", "sensor", "stun"): 250,
                                                       ("scout", "shield", "arc"): 250, ("rocket", "wraith", "burst"): 250}})
@@ -196,7 +196,7 @@ def test_now_public_gear_challenges():
     """101-112 (user, 2026-10-31): the unreleased gear now seen in everyday games."""
     quark_day = [game("2026-10-31", loadout=("smg", "buff", "loc"))] * 10
     r = by_id(evaluate(quark_day))
-    assert r[103]["tier"] == "platinum" and r[104]["tier"] == "platinum"  # only Quark / only Translocator, 10 in one day
+    assert r[103]["tier"] == "crown" and r[104]["tier"] == "crown"  # only Quark / only Translocator, 10 in one day
     assert r[107]["tier"] == "bronze" and r[112]["tier"] == "bronze"  # 10 Quark / Overcharge games on the veteran ladder 5/15/50/150/500
     assert r[101]["progress"] == 0.0 and r[109]["progress"] == 0.5  # no Starburst; Translocator without Dot Field
     both = Game(**{**game().__dict__, "loadouts": {("assault", "heal", "loc"): 500, ("assault", "heal", "dot"): 500}})
@@ -210,25 +210,25 @@ def test_new_result_challenges():
     streak = [played(f"2026-10-{d:02d}", True) for d in range(1, 5)]
     streak.insert(2, Game(**{**game("2026-10-02").__dict__, "team": "blue", "winner": None}))  # no result: skipped
     r = by_id(evaluate(streak))
-    assert (r[90]["count"], r[90]["tier"]) == (4, "silver")  # On a Roll 2/3/4/7/8 (eased 2026-11-04; was 2/4/6/13/18)
+    assert (r[90]["count"], r[90]["tier"]) == (4, "bronze")  # On a Roll 3/5/6/7 (was 2/3/4/7/8 (eased 2026-11-04; was 2/4/6/13/18)
     streak.append(played("2026-10-05", True))
     r = by_id(evaluate(streak))
-    assert r[90]["tier"] == "gold" and by_id(evaluate(streak + [played("2026-10-06", True)]))[90]["tier"] == "diamond"
+    assert r[90]["tier"] == "gold" and by_id(evaluate(streak + [played("2026-10-06", True)]))[90]["tier"] == "platinum"
     assert by_id(evaluate(streak + [played("2026-10-06", False)]))[90]["count"] == 5  # best run kept
 
     sweep = by_id(evaluate([played("2026-10-01", True, rounds_lost=0)]))[93]  # tiered: 1 game = bronze
-    assert (sweep["tier"], sweep["count"], sweep["progress"]) == ("bronze", 1, 0.2)
+    assert (sweep["tier"], sweep["count"], sweep["progress"]) == ("bronze", 1, 0.25)
     assert by_id(evaluate([played("2026-10-01", True, rounds_lost=1)]))[93]["progress"] == 0
     attack = played("2026-10-01", True, mode="payload", map="fission", attacking_team="blue", push_s=120.0)
     defend = played("2026-10-01", True, mode="payload", map="fission", attacking_team="orange", block_s=30.0)
     r = by_id(evaluate([attack, defend]))
     assert (r[94]["tier"], r[94]["count"], r[95]["tier"], r[96]["tier"]) == ("bronze", 1, "bronze", "bronze")  # push 120 s: bronze at 112 s
-    assert (r[97]["tier"], r[97]["unit"]) == ("bronze", " s") and r[96]["estimated"]  # block 30 s = silver (15 / 30 / 45 / 62 / 81 s)
+    assert (r[97]["tier"], r[97]["unit"]) == ("bronze", " s") and r[96]["estimated"]  # block 30 s = bronze
 
 
 def test_tiered_achievements():
-    """Clean Sweep / Special Delivery (user, 2026-10-31): bronze 1, silver 5, gold 10, diamond 25, platinum 100
-    games (diamond and platinum 30 % harder, 2026-11-03: 33 and 130); progress 20 % per medal, partial in between; the text
+    """Clean Sweep / Special Delivery (user, 2026-10-31): 1 / 5 / 10 / 25 / 100 games, 2026-11-03: 1 / 6 / 12 / 39 / 156; 2026-11-06:
+    four medals (silver dropped): bronze 1, gold 12, platinum 39, crown 156; progress 25 % per medal, partial in between; the text
     lists every target (website text is the spec)."""
     from backend.achievements import unlock_threshold
 
@@ -236,27 +236,27 @@ def test_tiered_achievements():
         return [Game(**{**game(f"2026-10-{1 + i % 28:02d}").__dict__, "team": "blue", "winner": "blue", "rounds_lost": 0})
                 for i in range(n)]
 
-    expected = {0: (None, 0.0), 1: ("bronze", 0.2), 3: ("bronze", 0.28), 6: ("silver", 0.4), 12: ("gold", 0.6),
-                39: ("diamond", 0.8), 50: ("diamond", 0.8 + 11 / 117 / 5), 156: ("platinum", 1.0), 180: ("platinum", 1.0)}
+    expected = {0: (None, 0.0), 1: ("bronze", 0.25), 3: ("bronze", 0.25 + 2 / 11 / 4), 6: ("bronze", 0.25 + 5 / 11 / 4), 12: ("gold", 0.5),
+                39: ("platinum", 0.75), 50: ("platinum", 0.75 + 11 / 117 / 4), 156: ("crown", 1.0), 180: ("crown", 1.0)}
     for n, (medal, progress) in expected.items():
         r = by_id(evaluate(sweeps(n)))[93]
-        assert (r["tier"], r["count"], r["levels"]) == (medal, n, [1, 6, 12, 39, 156]), n
+        assert (r["tier"], r["count"], r["levels"]) == (medal, n, [1, 12, 39, 156]), n
         assert r["progress"] == pytest.approx(progress, abs=1e-4), n
     rule = next(r for r in RULES if r.id == 93)
-    assert "1 bronze, 6 silver, 12 gold, 39 diamond, 156 platinum" in rule.description
-    assert unlock_threshold(rule) == 0.2 and unlock_threshold(next(r for r in RULES if r.id == 69)) == 0.2
+    assert "1 bronze, 12 gold, 39 platinum, 156 crown" in rule.description
+    assert unlock_threshold(rule) == 0.25 and unlock_threshold(next(r for r in RULES if r.id == 69)) == 0.25
     delivery = next(r for r in RULES if r.id == 94)
-    assert "Deliver the payload to the end" in delivery.description and delivery.levels == (1, 6, 12, 39, 94)
+    assert "Deliver the payload to the end" in delivery.description and delivery.levels == (1, 12, 39, 94)
     assert "count" not in by_id(evaluate(sweeps(1)))[87]  # single-step rules unchanged
 
 
 def test_ladders_with_units_and_periods():
     """Per-game ladders count the best game, units are in the text, short games do not count."""
     r = by_id(evaluate([game(top=20.0), game(top=9.0)]))
-    assert (r[23]["tier"], r[23]["count"], r[23]["unit"]) == ("gold", 20.0, " m/s")  # 14 / 17 / 20 / 26 / 30
-    assert "14 m/s bronze, 17 m/s silver" in next(x for x in RULES if x.id == 23).description
+    assert (r[23]["tier"], r[23]["count"], r[23]["unit"]) == ("gold", 20.0, " m/s")  # 14 / 20 / 26 / 30
+    assert "14 m/s bronze, 20 m/s gold" in next(x for x in RULES if x.id == 23).description
     r = by_id(evaluate([game(upside=600)]))
-    assert (r[24]["tier"], r[24]["count"]) == ("gold", 60.0)  # 60 % inverted in one 3+ min game: 15 / 35 / 52 / 66 / 78 (TUNED_LEVELS)
+    assert (r[24]["tier"], r[24]["count"]) == ("gold", 60.0)  # 60 % inverted in one 3+ min game: 15 / 52 / 66 / 78 (TUNED_LEVELS)
     assert by_id(evaluate([game(upside=900, play=60.0)]))[24]["count"] == 0
 
 
@@ -283,9 +283,9 @@ def test_grand_tour_and_medal_collector():
     r = by_id(evaluate([won(m) for m in ("dyson", "combustion", "fission", "surge")]))
     assert r[122]["count"] == 1 and r[122]["tier"] == "bronze"
     # Medal Collector counts every challenge at gold or better (more of them since the ladders were retuned on 2026-11-04)
-    assert r[126]["count"] >= 1 and r[126]["levels"] == [5, 10, 25, 65, 98]
+    assert r[126]["count"] >= 1 and r[126]["levels"] == [5, 25, 65, 98]
     r = by_id(evaluate([won("dyson", f"2026-10-{1 + i % 28:02d}") for i in range(120)]))
-    golds = sum(1 for x in r.values() if x["id"] != 126 and x["group"] != "Gear in one game" and (x["count"] >= x["levels"][2] if "levels" in x else x["progress"] >= 1))
+    golds = sum(1 for x in r.values() if x["id"] != 126 and x["group"] != "Gear in one game" and (x["count"] >= x["levels"][1] if "levels" in x else x["progress"] >= 1))
     assert golds > 0 and r[126]["count"] == golds  # Medal Collector counts gold-or-better medals of the others
     assert any(x["group"] == "Gear in one game" and x["progress"] >= 1 for x in r.values())  # Test Drives were completed, and are not counted
 
@@ -327,7 +327,7 @@ def test_new_gear_matches_the_older_gear():
     assert all(by[i].levels == old_week for i in (127, 128, 129, 130, 132, 137, 138))  # only X in one week
     week = [game(f"2026-10-{d:02d}", loadout=("smg", "buff", "loc")) for d in (26, 27, 28) for _ in range(6)]
     r = by_id(evaluate(week))
-    assert (r[129]["tier"], r[129]["count"]) == ("platinum", 18) and r[132]["count"] == 18  # 18 Quark-only games in a week
+    assert (r[129]["tier"], r[129]["count"]) == ("crown", 18) and r[132]["count"] == 18  # 18 Quark-only games in a week
 
 
 def test_one_game_challenges_need_enough_players():
@@ -343,7 +343,7 @@ def test_lone_wolf_uses_its_own_distance():
     base = game("2026-10-01", mate=0).__dict__
     far_from_2_6m_only = Game(**{**base, "in_bounds": 2000, "lone_wolf_near": 400})  # always over 2.6 m, within 3.5 m for 20 %
     assert by_id(evaluate([far_from_2_6m_only]))[143]["count"] == pytest.approx(80)
-    assert by_id(evaluate([Game(**{**base, "in_bounds": 1200})]))[143]["tier"] == "platinum"  # exactly 1 minute at 20 Hz
+    assert by_id(evaluate([Game(**{**base, "in_bounds": 1200})]))[143]["tier"] == "crown"  # exactly 1 minute at 20 Hz
     assert by_id(evaluate([Game(**{**base, "in_bounds": 1199})]))[143]["count"] == 0  # just under: a few seconds of play do not count
     assert "3.5 m" in next(rule for rule in RULES if rule.id == 143).description
 
@@ -364,10 +364,10 @@ def test_lone_wolf_has_no_value_before_the_replay_is_read_again():
 
 
 def test_seven_day_upside_down_needs_three_days_and_ten_minutes_in_bounds():
-    assert next(rule for rule in RULES if rule.id == 49).levels == (9.3, 22, 36, 47, 57)
+    assert next(rule for rule in RULES if rule.id == 49).levels == (9.3, 36, 47, 57)
     def flipped(day, frames=4000):
         return Game(**{**game(day).__dict__, "upside": frames * 3 // 5, "in_bounds": frames})
-    assert by_id(evaluate([flipped("2026-10-01"), flipped("2026-10-02"), flipped("2026-10-03")]))[49]["tier"] == "platinum"
+    assert by_id(evaluate([flipped("2026-10-01"), flipped("2026-10-02"), flipped("2026-10-03")]))[49]["tier"] == "crown"
     assert by_id(evaluate([flipped("2026-10-01"), flipped("2026-10-02"), flipped("2026-10-03", 3995)]))[49]["count"] == 0
     assert by_id(evaluate([flipped("2026-10-01", 12000), flipped("2026-10-02", 12000)]))[49]["count"] == 0  # two days
 
@@ -375,9 +375,9 @@ def test_seven_day_upside_down_needs_three_days_and_ten_minutes_in_bounds():
 def test_speed_demon_needs_a_minute_in_bounds():
     base = game("2026-10-01").__dict__
     rule = next(rule for rule in RULES if rule.id == 145)
-    assert rule.levels == (3.5, 4, 4.5, 5.25, 6)
+    assert rule.levels == (3.5, 4.5, 5.25, 6)
     fast = {**base, "speed_sum": 6.0 * 1200}
-    assert by_id(evaluate([Game(**{**fast, "in_bounds": 1200})]))[145]["tier"] == "platinum"  # 6 m/s for exactly 1 minute at 20 Hz
+    assert by_id(evaluate([Game(**{**fast, "in_bounds": 1200})]))[145]["tier"] == "crown"  # 6 m/s for exactly 1 minute at 20 Hz
     assert by_id(evaluate([Game(**{**fast, "in_bounds": 1199})]))[145]["count"] == 0
 
 
@@ -385,8 +385,8 @@ def test_seven_day_speed_needs_three_days_and_ten_minutes_in_bounds():
     base = game("2026-10-01").__dict__  # 20 Hz, 4 m/s below
     def fast(frames, day="2026-10-01"):
         return Game(**{**base, "started_at": f"{day}T20:00:00.000", "in_bounds": frames, "speed_sum": 4.0 * frames})
-    assert next(rule for rule in RULES if rule.id == 48).levels == (2.75, 3, 3.25, 3.5, 3.75)
-    assert by_id(evaluate([fast(4000), fast(4000, "2026-10-03"), fast(4000, "2026-10-07")]))[48]["tier"] == "platinum"  # exactly 10 minutes, any 3 days of the 7
+    assert next(rule for rule in RULES if rule.id == 48).levels == (2.75, 3.25, 3.5, 3.75)
+    assert by_id(evaluate([fast(4000), fast(4000, "2026-10-03"), fast(4000, "2026-10-07")]))[48]["tier"] == "crown"  # exactly 10 minutes, any 3 days of the 7
     assert by_id(evaluate([fast(4000), fast(4000, "2026-10-03"), fast(3999, "2026-10-07")]))[48]["count"] == 0
     assert by_id(evaluate([fast(24000)]))[48]["count"] == 0  # one long game
     assert by_id(evaluate([fast(6000), fast(6000)]))[48]["count"] == 0  # several games on one day
@@ -395,83 +395,83 @@ def test_seven_day_speed_needs_three_days_and_ten_minutes_in_bounds():
 
 
 def test_seven_day_enemy_share_needs_three_days_and_ten_minutes_in_bounds():
-    assert next(rule for rule in RULES if rule.id == 47).levels == (12, 14, 16, 18, 20)
+    assert next(rule for rule in RULES if rule.id == 47).levels == (12, 16, 18, 20)
     def close(day, frames=4000):
         return Game(**{**game(day).__dict__, "near_enemy": frames // 5, "in_bounds": frames})
-    assert by_id(evaluate([close("2026-10-01"), close("2026-10-02"), close("2026-10-03")]))[47]["tier"] == "platinum"  # 20 % for exactly 10 minutes at 20 Hz
+    assert by_id(evaluate([close("2026-10-01"), close("2026-10-02"), close("2026-10-03")]))[47]["tier"] == "crown"  # 20 % for exactly 10 minutes at 20 Hz
     assert by_id(evaluate([close("2026-10-01"), close("2026-10-02"), close("2026-10-03", 3995)]))[47]["count"] == 0
     assert by_id(evaluate([close("2026-10-01", 12000), close("2026-10-02", 12000)]))[47]["count"] == 0  # two days
 
 
 def test_can_we_talk_needs_a_minute_in_bounds():
     base = game("2026-10-01").__dict__
-    assert next(rule for rule in RULES if rule.id == 22).levels == (25, 30, 35, 40, 50)
+    assert next(rule for rule in RULES if rule.id == 22).levels == (25, 35, 40, 50)
     close = {**base, "near_enemy": 600}
-    assert by_id(evaluate([Game(**{**close, "in_bounds": 1200})]))[22]["tier"] == "platinum"  # 50 % for exactly 1 minute at 20 Hz
+    assert by_id(evaluate([Game(**{**close, "in_bounds": 1200})]))[22]["tier"] == "crown"  # 50 % for exactly 1 minute at 20 Hz
     assert by_id(evaluate([Game(**{**close, "in_bounds": 1199})]))[22]["count"] == 0
 
 
 def test_seven_day_teammate_share_needs_three_days_and_ten_minutes_in_bounds():
-    assert next(rule for rule in RULES if rule.id == 46).levels == (16, 20, 24, 26, 28)
+    assert next(rule for rule in RULES if rule.id == 46).levels == (16, 24, 26, 28)
     def close(day, frames=4000):
         return Game(**{**game(day).__dict__, "near_mate": frames * 7 // 25, "in_bounds": frames})
-    assert by_id(evaluate([close("2026-10-01"), close("2026-10-02"), close("2026-10-03")]))[46]["tier"] == "platinum"  # 28 % for exactly 10 minutes at 20 Hz
+    assert by_id(evaluate([close("2026-10-01"), close("2026-10-02"), close("2026-10-03")]))[46]["tier"] == "crown"  # 28 % for exactly 10 minutes at 20 Hz
     assert by_id(evaluate([close("2026-10-01"), close("2026-10-02"), close("2026-10-03", 3975)]))[46]["count"] == 0
     assert by_id(evaluate([close("2026-10-01", 12000), close("2026-10-02", 12000)]))[46]["count"] == 0  # two days
 
 
 def test_statue_needs_a_minute_in_bounds():
     base = game("2026-10-01").__dict__
-    assert next(rule for rule in RULES if rule.id == 142).levels == (54, 61, 67, 73, 80)
+    assert next(rule for rule in RULES if rule.id == 142).levels == (54, 67, 73, 80)
     still = {**base, "stopped": 960}
-    assert by_id(evaluate([Game(**{**still, "in_bounds": 1200})]))[142]["tier"] == "platinum"  # 80 % for exactly 1 minute at 20 Hz
+    assert by_id(evaluate([Game(**{**still, "in_bounds": 1200})]))[142]["tier"] == "crown"  # 80 % for exactly 1 minute at 20 Hz
     assert by_id(evaluate([Game(**{**still, "in_bounds": 1199})]))[142]["count"] == 0
 
 
 def test_full_team_salvo_needs_a_minute_in_bounds():
     base = game("2026-10-01").__dict__
     close = {**base, "near_mate": 972}  # 81 % of 1200
-    assert by_id(evaluate([Game(**{**close, "in_bounds": 1200})]))[21]["tier"] == "platinum"  # exactly 1 minute at 20 Hz
+    assert by_id(evaluate([Game(**{**close, "in_bounds": 1200})]))[21]["tier"] == "crown"  # exactly 1 minute at 20 Hz
     assert by_id(evaluate([Game(**{**close, "in_bounds": 1199})]))[21]["count"] == 0
 
 
 def test_one_day_targets():
     levels = {rule.id: rule.levels for rule in RULES}
-    assert levels[25] == levels[26] == levels[27] == levels[28] == (3, 4, 5, 7, 9)  # the four maps stay equal
-    assert levels[19] == levels[20] == (5, 7, 9, 12, 16) and levels[29] == (9, 13, 18, 24, 30)
+    assert levels[25] == levels[26] == levels[27] == levels[28] == (3, 5, 7, 9)  # the four maps stay equal
+    assert levels[19] == levels[20] == (5, 9, 12, 16) and levels[29] == (9, 18, 24, 30)
     r = by_id(evaluate([game("2026-10-01", map_="surge")] * 9))
-    assert r[28]["tier"] == "platinum" and "9 platinum" in next(rule for rule in RULES if rule.id == 28).description
-    assert by_id(evaluate([game("2026-10-01", map_="surge")] * 8))[28]["tier"] == "diamond"
+    assert r[28]["tier"] == "crown" and "9 crown" in next(rule for rule in RULES if rule.id == 28).description
+    assert by_id(evaluate([game("2026-10-01", map_="surge")] * 8))[28]["tier"] == "platinum"
 
 
 def test_impossible_top_medals_were_lowered():
     levels = {rule.id: rule.levels for rule in RULES}
-    assert levels[72] == (6, 8, 9, 11, 14) and levels[73] == (2.6, 2.8, 3.0, 3.2, 3.5) and levels[100] == (20, 40, 60, 80, 120)
-    assert levels[146] == (2, 3, 3.5, 4, 4.5) and levels[149] == (2, 3, 4, 5, 6) and levels[150] == (2, 4, 6, 8, 10) and levels[151] == (4, 6, 8, 10, 14)
+    assert levels[72] == (6, 9, 11, 14) and levels[73] == (2.6, 3.0, 3.2, 3.5) and levels[100] == (20, 60, 80, 120)
+    assert levels[146] == (2, 3.5, 4, 4.5) and levels[149] == (2, 4, 5, 6) and levels[150] == (2, 6, 8, 10) and levels[151] == (4, 8, 10, 14)
 
 
 def test_seven_day_map_and_mode_targets():
     levels = {rule.id: rule.levels for rule in RULES}
-    assert levels[50] == levels[51] == levels[52] == levels[53] == (4, 6, 8, 12, 18)  # the four maps stay equal
-    assert levels[44] == levels[45] == (10, 18, 25, 33, 40)  # the two modes stay equal
-    assert levels[54] == (15, 30, 50, 65, 80)
+    assert levels[50] == levels[51] == levels[52] == levels[53] == (4, 8, 12, 18)  # the four maps stay equal
+    assert levels[44] == levels[45] == (10, 25, 33, 40)  # the two modes stay equal
+    assert levels[54] == (15, 50, 65, 80)
     days = [game(f"2026-10-0{i + 1}", map_="surge") for i in range(6)]
-    assert by_id(evaluate(days * 3))[53]["tier"] == "platinum"  # 18 games over 6 days
-    assert by_id(evaluate(days * 2 + days[:5]))[53]["tier"] == "diamond"  # 17
+    assert by_id(evaluate(days * 3))[53]["tier"] == "crown"  # 18 games over 6 days
+    assert by_id(evaluate(days * 2 + days[:5]))[53]["tier"] == "platinum"  # 17
     spread = [game("2026-10-01", map_="surge")] * 9 + [game("2026-10-20", map_="surge")] * 9
     assert by_id(evaluate(spread))[53]["tier"] == "gold"  # 18 games, but only 9 in any 7 days
 
 
 def test_seven_day_gear_needs_three_days_from_gold():
-    assert next(r for r in RULES if r.id == 34).levels == (1, 4, 6, 9, 13)
+    assert next(r for r in RULES if r.id == 34).levels == (1, 6, 9, 13)
     one_evening = [game("2026-10-01")] * 13  # 13 Detonator-only games, all on one day
-    assert by_id(evaluate(one_evening))[34]["tier"] == "silver"  # capped at 4: bronze and silver need no spread
+    assert by_id(evaluate(one_evening))[34]["tier"] == "bronze"  # capped at 4: bronze and silver need no spread
     two_days = [game("2026-10-01")] * 7 + [game("2026-10-02")] * 6
-    assert by_id(evaluate(two_days))[34]["tier"] == "silver"
+    assert by_id(evaluate(two_days))[34]["tier"] == "bronze"
     three_days = [game("2026-10-01")] * 7 + [game("2026-10-02")] * 5 + [game("2026-10-07")]  # 3 days, all inside 7 days
-    assert by_id(evaluate(three_days))[34]["tier"] == "platinum"
+    assert by_id(evaluate(three_days))[34]["tier"] == "crown"
     too_wide = [game("2026-10-01")] * 7 + [game("2026-10-02")] * 5 + [game("2026-10-09")]  # the 3rd day is outside the window
-    assert by_id(evaluate(too_wide))[34]["tier"] == "silver"
+    assert by_id(evaluate(too_wide))[34]["tier"] == "bronze"
     assert "Gold+: 3+ different days" in rule_notes(next(r for r in RULES if r.id == 34))
 
 
@@ -496,12 +496,12 @@ def test_achiever_facts_and_endpoint(tmp_path):
     assert none["completed"] == 0 and none["medals"] == 0 and none["best_section"] is None
     full = achiever_facts([1.0] * len(RULES))
     assert full["completed"] == len(RULES) == full["total"] and full["gold_plus"] == len(RULES) and full["best_section_share"] == 1.0
-    # one ladder at 3 of 5 medals (progress 0.6): gold, 3 medals, nothing completed
+    # one ladder at 2 of 4 medals (progress 0.5): gold, 2 medals, nothing completed
     one = [0.0] * len(RULES)
     index = next(i for i, r in enumerate(RULES) if r.id == 7)
-    one[index] = 0.6
+    one[index] = 0.5
     facts = achiever_facts(one)
-    assert (facts["completed"], facts["medals"], facts["gold_plus"]) == (0, 3, 1) and facts["best_section"] == "In one day"
+    assert (facts["completed"], facts["medals"], facts["gold_plus"]) == (0, 2, 1) and facts["best_section"] == "In one day"
     with app_client(make_settings(tmp_path)) as client:
         add(client, {f"dyson/{i}.echoreplay": rf.plain(rf.lines(20)) for i in range(2)})
         act(client, actions.set_challenge_window, "2026-01-01", None)
