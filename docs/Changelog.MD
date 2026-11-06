@@ -30,7 +30,7 @@ Working record of what changed in each release, newest first.
   a gold-to-pink gradient, and the lock emblem on unmedalled challenges is neutral grey (it was magenta).
 
 ### Achievements page (user, 2026-11-06)
-- **Four pages:** Game, Day, Week and Cumulative (the old theme tabs are filter chips inside each page, plus a "New" chip). Each
+- **Three pages:** Day, Week and Cumulative; the single-game challenges sit in Day behind a "One game" chip (the old theme tabs are filter chips inside each page, plus a "New" chip). Each
   challenge is a compact tile with its icon, name, a short description and a percentage (your progress, or the share of players who
   unlocked it). Everything else (targets, rules, rarity) is in a card on hover or tap; a card opened with a click has a small cross.
 - **Rules** moved to the bottom of the page and say that nothing is locked behind another challenge.
