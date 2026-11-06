@@ -18,6 +18,13 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.06.3 — 12:25
+
+- **Achievements:** "In one Game" is a tab of its own again (In one Game, Day, Week, Cumulative); the "One game" chip inside Day is gone.
+- **Player pictures:** a player's page now shows the Discord picture of the account seen with them on the match list (as the list pages already did), not only bot-linked or exact-name matches.
+- **Discord limits:** fresh picture lookups are capped at 20 per minute for all visitors together, a 429 from Discord pauses them for its Retry-After time, and the last known picture is kept meanwhile.
+- **Home:** "Live on Twitch" now heads the video and "Latest matches" (with "All matches") heads the list beside it.
+
 ## 2026.11.06.2 — 12:15
 
 - Version bump only: the release is everything listed under 2026.11.06.1 just below; nothing else changed.
