@@ -652,15 +652,13 @@ def _both_arms(games):
 
 
 ARM_SHARE = 0.90  # a game is a "left-arm" / "right-arm" game when that setting was at least 90 % of the in-bounds time
-ARM_MAX_STOPPED = 0.50  # Switch Hitter: standing still for more than half of the game does not count (standing still median 34 %, p99 70 %)
 
 
 def _arm_game(g, side: str) -> bool:
-    """Switch Hitter (user, 2026-11-06): a real game played on one arm. 4+ minutes, 1+ minute in bounds, not standing still for most
-    of it (so joining, switching the arm and idling does not count); a win is NOT needed."""
+    """Both Hands (user, 2026-11-06): a full game (4+ minutes, 1+ minute in bounds) played on one arm; a win is NOT needed.
+    Simplified the same day: no standing-still check any more."""
     arm = g.left_arm if side == "left" else g.right_arm
-    return (g.play_time_s >= FULL_GAME_S and _on_the_map(g) and arm >= ARM_SHARE * g.in_bounds
-            and g.stopped <= ARM_MAX_STOPPED * g.in_bounds)
+    return (g.play_time_s >= FULL_GAME_S and _on_the_map(g) and arm >= ARM_SHARE * g.in_bounds)
 
 
 def _switch_hitter(games):
@@ -933,11 +931,11 @@ def _build_rules() -> list[Rule]:
             rules.append(Rule(i, f"{label} ({kind})", f"Use the {label} {kind} for at least {TEST_DRIVE_S / 60:g} minutes in one game", "game", icons.get(code),
                               _test_drive(slot, code), new=True, group=ONE_GAME_GEAR))
             i += 1
-    # Switch Hitter (user, 2026-11-06): the arm is a setting (0 or 100 % in nearly every game), so both arms in ONE game is rare (Ambidextrous);
+    # Both Hands (user, 2026-11-06): the arm is a setting (0 or 100 % in nearly every game), so both arms in ONE game is rare (Ambidextrous);
     # games on each arm over any 7 days is open to every player. Id 201: 152-163 were removed earlier and 198-200 are Combat.
-    rules.append(_ladder(201, "Switch Hitter", "Play full games with the left arm and with the right arm (at least 90 % of the game on that arm, "
-                         "not standing still for most of it) in any 7 days; the arm with fewer games counts", None, _v4(_switch_hitter),
-                         (1, 2, 3, 4, 6), "week", "", new=True, group="Movement"))
+    rules.append(_ladder(201, "Both Hands", "Switch your arm setting between games: in any 7 days, play this many games "
+                         "with your left arm AND this many with your right arm", None, _v4(_switch_hitter),
+                         (1, 2, 3, 4, 6), "week", " games each", new=True, group="Movement"))
     return rules
 
 

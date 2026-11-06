@@ -18,9 +18,13 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.06.13 — 16:03
+
+- **Both Hands, easier rule:** now "Switch your arm setting between games: in any 7 days, play this many games with your left arm AND this many with your right arm", with targets like "3 games each". The standing-still check is gone; a game still needs 4+ minutes, 1+ minute in bounds, 3+ players per team and 90 %+ of it on that arm.
+
 ## 2026.11.06.11 — 15:21
 
-- **New achievement, Switch Hitter (Movement):** play full games with the left arm and with the right arm in any 7 days; the arm with fewer games counts. Medals at 1 / 3 / 5 / 8 games on each arm. Open to every player (the arm is a game setting). A game counts with 90 %+ of it on that arm, 4+ minutes, 1+ minute in bounds, 3+ players per team and not standing still for more than half of it (no AFK / join-and-leave); a win is not needed. The replay challenges go from 157 to 158.
+- **New achievement, Both Hands (Movement):** play full games with the left arm and with the right arm in any 7 days; the arm with fewer games counts. Medals at 1 / 3 / 5 / 8 games on each arm. Open to every player (the arm is a game setting). A game counts with 90 %+ of it on that arm, 4+ minutes, 1+ minute in bounds, 3+ players per team and not standing still for more than half of it (no AFK / join-and-leave); a win is not needed. The replay challenges go from 157 to 158.
 
 ## 2026.11.06.10 — 14:36
 
