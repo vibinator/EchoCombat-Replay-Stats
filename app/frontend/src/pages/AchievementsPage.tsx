@@ -171,13 +171,13 @@ function LaunchedAchievementsPage() {
         <>
           <MegaPrizesSection />
           <div className="ach-intro">
-            <AchievementRules />
             <ChallengeBanner />
             <PlayerPicker />
           </div>
           <TopPlayers />
           <RecentUnlocks />
           <Catalogue />
+          <AchievementRules />
         </>
       )}
     </section>

@@ -18,6 +18,46 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.06.1 — 11:36
+
+### Four medals instead of five (user, 2026-11-06)
+- **Bronze, gold, platinum and a crown** (a gold crown with a pink diamond = completed). Silver is gone; every ladder keeps its range:
+  bronze = the old first target, gold = the old gold, platinum = the old diamond, crown = the old platinum. Medal Collector, the Combat
+  challenges and the Echo Combat Veteran ladder follow (Medal Collector 5 / 25 / 65 / 98; Echo Combat Veteran 33 / 333 / 600 / 1000).
+- **Progress is 25 % per medal** (was 20 %). **Anyone who held silver is now at bronze** until they reach gold; platinum and the crown
+  keep their old targets. Medals are computed on request, so nothing needs migrating.
+- The medal frames were recoloured to the exact medal colours, so the icon, frame, name and bar match; the crown's icon and name are
+  a gold-to-pink gradient, and the lock emblem on unmedalled challenges is neutral grey (it was magenta).
+
+### Achievements page (user, 2026-11-06)
+- **Four pages:** Game, Day, Week and Cumulative (the old theme tabs are filter chips inside each page, plus a "New" chip). Each
+  challenge is a compact tile with its icon, name, a short description and a percentage (your progress, or the share of players who
+  unlocked it). Everything else (targets, rules, rarity) is in a card on hover or tap; a card opened with a click has a small cross.
+- **Rules** moved to the bottom of the page and say that nothing is locked behind another challenge.
+- **"Test Drive:" prefix removed:** the 19 challenges are named like "Pulsar (weapon)", "Detonator (ordnance)", "Repair Matrix (tac mod)".
+- **Renamed:** Silicon Assassin is now Comet Commandments.
+- **Mega Prizes:** front and back pictures of each prize (zoomed, drag or scroll them up and down); a player search inside each prize
+  card instead of one at the top; a top-10 list that shows 3 players and scrolls for the rest, with ▲▼ for places gained or lost in the
+  last 24 hours and the matches gained.
+- **Echo Combat Mega Prize now includes the replay files:** matches from the replay files are added for players linked to their Nakama
+  account by Discord ID, only for matches before the live count started (so nothing is counted twice), with the same rules (4+ minutes,
+  3+ players per team, public, inside the Mega Prize period). It only counts inside the period, so check its start date in the Console.
+
+### Player page and menu (user, 2026-11-06)
+- **Achievements strip** above the Today / This week / This month / All time filters: average progress, crowns and medals, and the three
+  challenges closest to their next medal.
+- **Removed** "Games per map" and "Favourite map". The "Combat" tab is now **Recorder stats** (separate data from the replay stats).
+- **Combat moved into Leaderboard** as a second board (Replay stats / Combat stats); the old /combat address still works. "My profile" sits
+  next to Log out.
+- **Heatmap:** softer colours (no neon cyan), teams are mixed where they overlap instead of one hiding the other, zoom up to 24x with the
+  + / − buttons (drag to pan), and zoomed lines are smoothed.
+
+### Tested (2026-11-06)
+- 409 backend tests, all 60 GET routes against a snapshot of the real database (no errors, none over 3 s), and about 85 browser checks.
+- **Known flaky test:** `test_remote.py::test_damaged_track_files_are_left_out_not_saved` failed once in five full runs and passes alone;
+  it looks timing-related. Ignore it unless it fails again.
+- Not tested: a real Discord login, real Mega Prize data, and a real phone.
+
 ## 2026.11.05.5 — 21:35
 
 ### Mega Prizes (user, 2026-11-05)

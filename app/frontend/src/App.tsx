@@ -11,7 +11,6 @@ import { usePageTitle } from "./usePageTitle";
 
 // Pages other than home load on first visit: the first page view downloads less.
 const AchievementsPage = lazy(() => import("./pages/AchievementsPage").then((m) => ({ default: m.AchievementsPage })));
-const CombatPage = lazy(() => import("./pages/CombatPage").then((m) => ({ default: m.CombatPage })));
 const CombatMatchPage = lazy(() => import("./pages/CombatPage").then((m) => ({ default: m.CombatMatchPage })));
 const ComparePage = lazy(() => import("./pages/ComparePage").then((m) => ({ default: m.ComparePage })));
 const ConsolePage = lazy(() => import("./pages/ConsolePage").then((m) => ({ default: m.ConsolePage })));
@@ -95,12 +94,19 @@ function ProcessingIndicator({ pending }: { pending: number }) {
   );
 }
 
+/** The old /combat address (bookmarks, shared links) opens the Combat tab of the Leaderboard, filters kept. */
+function CombatRedirect() {
+  const { search } = useLocation();
+  const params = new URLSearchParams(search);
+  params.set("board", "combat");
+  return <Navigate replace to={`/leaderboard?${params.toString()}`} />;
+}
+
 const NAV = [
   ["/", "Home"],
   ["/matches", "Matches"],
   ["/players", "Players"],
   ["/leaderboard", "Leaderboard"],
-  ["/combat", "Combat"],
   ["/achievements", "Achievements"],
   ["/compare", "Compare"],
 ] as const;
@@ -138,7 +144,6 @@ function Layout() {
         <nav id="main-nav" className={menuOpen ? "open" : ""}>
           {[
             ...NAV,
-            ...(user ? ([["/profile", "My profile"]] as const) : []),
             ...(user?.console
               ? ([
                   ["/console", "Console"],
@@ -162,7 +167,7 @@ function Layout() {
         </button>
         {user ? (
           <span className="account muted">
-            {user.name} · <a href={LOGOUT_URL}>Log out</a>
+            {user.name} · <NavLink to="/profile">My profile</NavLink> · <a href={LOGOUT_URL}>Log out</a>
           </span>
         ) : me ? (
           me.enabled && (
@@ -189,7 +194,7 @@ function Layout() {
           <Route path="/players/:name/:userId" element={<PlayerPage />} />
           <Route path="/compare" element={<ComparePage />} />
           <Route path="/leaderboard" element={<LeaderboardPage />} />
-          <Route path="/combat" element={<CombatPage />} />
+          <Route path="/combat" element={<CombatRedirect />} />
           <Route path="/combat/:id" element={<CombatMatchPage />} />
           <Route path="/achievements" element={<AchievementsPage />} />
           <Route path="/achievements/:userId" element={<AchievementsPage />} />

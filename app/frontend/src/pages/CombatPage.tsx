@@ -20,8 +20,8 @@ const COLUMNS: [string, string, (r: CombatBoardRow) => string][] = [
 ];
 
 /** Combat stats: the game's own counters from the recorder's match reports. Separate from the replay-derived stats. */
-export function CombatPage() {
-  usePageTitle("Combat stats");
+/** The Combat boards: a tab of the Leaderboard page now (user, 2026-11-06), still its own data source. */
+export function CombatBoard() {
   const [params, setParams] = useSearchParams();
   const stat = params.get("stat") || "kills";
   const period = (params.get("period") as Period) || "all";
@@ -46,7 +46,6 @@ export function CombatPage() {
   const hint = stats.data?.find((s) => s.key === stat)?.hint;
   return (
     <section>
-      <h1>Combat stats</h1>
       <p className="muted combat-intro">
         The game&apos;s own counters, collected from recorded matches
         {summary && summary.matches > 0 && ` (${int(summary.matches)} matches, ${int(summary.players)} players${summary.last_match_at ? `, latest ${dateTime(summary.last_match_at)}` : ""})`}.
@@ -153,12 +152,12 @@ export function CombatMatchPage() {
     <section>
       {match.loading && !m && <Skeleton lines={6} />}
       {isNotFound(match.error) ? (
-        <NotFoundBox heading="Combat match not found" links={[["/combat", "Combat stats"], ["/", "Home"]]}>
+        <NotFoundBox heading="Combat match not found" links={[["/leaderboard?board=combat", "Combat stats"], ["/", "Home"]]}>
           This match has no combat report (yet), or the link is wrong.
         </NotFoundBox>
       ) : (
         <>
-          <p><Link to="/combat">← Combat stats</Link></p>
+          <p><Link to="/leaderboard?board=combat">← Combat stats</Link></p>
           <Status loading={false} error={match.error} />
         </>
       )}

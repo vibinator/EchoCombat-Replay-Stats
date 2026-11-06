@@ -1,4 +1,5 @@
 import { Link, useSearchParams } from "react-router";
+import { CombatBoard } from "./CombatPage";
 import { getGear, getLeaderboard, getLeaderboardStats, type LeaderboardRow, type Period } from "../api";
 import { ShareBar } from "../components/bars";
 import { Status, TableWrap } from "../components/common";
@@ -42,8 +43,7 @@ function podiumLine(stat: string, r: LeaderboardRow): string {
   return parts.join(" · ");
 }
 
-export function LeaderboardPage() {
-  usePageTitle("Leaderboard");
+function ReplayBoard() {
   const [params, setParams] = useSearchParams();
   const stat = params.get("stat") ?? "games";
   const period = (params.get("period") as Period) || "all";
@@ -98,7 +98,6 @@ export function LeaderboardPage() {
 
   return (
     <section>
-      <h1>Leaderboard</h1>
       <div className="filters">
         <label>
           Stat
@@ -260,5 +259,33 @@ function RankChange({ r }: { r: LeaderboardRow }) {
       {delta > 0 ? "▲" : "▼"}
       {Math.abs(delta)}
     </span>
+  );
+}
+
+/** Leaderboard with two boards (user, 2026-11-06): the replay stats and, moved here from the main menu, the Combat stats from the
+ *  recorder's match reports. They are separate data sources, so the tab says so. ?board=combat opens the second one. */
+export function LeaderboardPage() {
+  usePageTitle("Leaderboard");
+  const [params, setParams] = useSearchParams();
+  const board = params.get("board") === "combat" ? "combat" : "replay";
+  function pick(next: "replay" | "combat") {
+    // each board has its own stat, period and map filters: start the other one clean
+    setParams(next === "combat" ? { board: "combat" } : {});
+  }
+  return (
+    <section>
+      <h1>Leaderboard</h1>
+      <div className="tabs section-tabs" role="tablist" aria-label="Leaderboard">
+        <button role="tab" aria-selected={board === "replay"} className={board === "replay" ? "tab active" : "tab"} onClick={() => pick("replay")}>
+          <span className="tab-label">Replay stats</span>
+          <span className="tab-hint">from the replay files</span>
+        </button>
+        <button role="tab" aria-selected={board === "combat"} className={board === "combat" ? "tab active" : "tab"} onClick={() => pick("combat")}>
+          <span className="tab-label">Combat stats</span>
+          <span className="tab-hint">separate data: the game&apos;s own counters</span>
+        </button>
+      </div>
+      {board === "combat" ? <CombatBoard /> : <ReplayBoard />}
+    </section>
   );
 }

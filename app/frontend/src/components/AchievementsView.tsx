@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
 import { LEVELS, getAchievements, getArenaProgress, getChallenges, searchMegaPrizes, type MegaPrizeSearch as SearchResult, getMe, getRarity, loginUrl, type Achievement, type AchievementPeek, type AchievementRarity, type AchievementRule } from "../api";
 import { achievementsPath, pct, ruleText } from "../format";
@@ -229,7 +229,7 @@ function Move({ r }: { r: { rank_change?: number | null; gained?: number } }) {
 function PlayerBar({ r, target }: { r: { name: string; user_id: string; matches: number; rank?: number; rank_change?: number | null; gained?: number }; target: number }) {
   return (
     <li>
-      <span className="mega-name" title={r.user_id}>{r.rank ? `${r.rank}. ` : ""}{r.name}<Move r={r} /></span>
+      <span className="mega-who"><span className="mega-name" title={`${r.name} (${r.user_id})`}>{r.rank ? `${r.rank}. ` : ""}{r.name}</span><Move r={r} /></span>
       <span className="bar" role="progressbar" aria-label={`${r.name} ${r.matches} of ${target}`} aria-valuemin={0} aria-valuemax={target} aria-valuenow={r.matches}>
         <span style={{ width: `${Math.min(100, (r.matches / target) * 100)}%` }} />
       </span>
@@ -238,13 +238,10 @@ function PlayerBar({ r, target }: { r: { name: string; user_id: string; matches:
   );
 }
 
-/** Search a player, then the two prize cards: the players found show inside the card of each prize, with their progress bar.
- *  Public Arena is counted from the live match list, separately from Combat. */
-function MegaPrizes() {
-  const result = useApi(getArenaProgress, "arena-progress");
-  const arena = result.data;
+/** A player search of its own for one prize card (user, 2026-11-06: no shared search box at the top any more). */
+function useMegaSearch(kind: PrizeRow["kind"]) {
   const [q, setQ] = useState("");
-  const [found, setFound] = useState<SearchResult | null>(null);
+  const [found, setFound] = useState<PrizeRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     const term = q.trim();
@@ -253,17 +250,25 @@ function MegaPrizes() {
       return;
     }
     let live = true;
-    const t = setTimeout(() => searchMegaPrizes(term).then((r) => live && (setFound(r), setError(null)), (e: Error) => live && setError(e.message)), 300);
+    const t = setTimeout(() => searchMegaPrizes(term).then((r: SearchResult) => live && (setFound(r.results.filter((x) => x.kind === kind).sort((x, y) => y.matches - x.matches)), setError(null)), (e: Error) => live && setError(e.message)), 300);
     return () => {
       live = false;
       clearTimeout(t);
     };
-  }, [q]);
+  }, [q, kind]);
+  return { q, setQ, found, error };
+}
+
+/** The two prize cards, each with its own player search: the players found show inside that card with their progress bar.
+ *  Public Arena is counted from the live match list, separately from Combat. */
+function MegaPrizes() {
+  const result = useApi(getArenaProgress, "arena-progress");
+  const arena = result.data;
+  const combatSearch = useMegaSearch("combat");
+  const arenaSearch = useMegaSearch("arena");
   if (!arena) return null; // no Preview role (403) or still loading: the section stays hidden
   const combat = arena.combat[0];
   const combatTarget = combat?.levels?.[combat.levels.length - 1] ?? 1000;
-  const byKind = (kind: PrizeRow["kind"]) => (found?.results ?? []).filter((r) => r.kind === kind).sort((x, y) => y.matches - x.matches);
-  const searching = found !== null;
   return (
     <div className="section mega" id="mega-prizes">
       <h2>
@@ -277,10 +282,6 @@ function MegaPrizes() {
           <span className="muted">Only matches played inside this period count for Mega Prizes.</span>
         </div>
       )}
-      <div className="mega-search">
-        <input type="search" placeholder="Search a player for their Mega Prize progress" aria-label="Search a player" value={q} onChange={(e) => setQ(e.target.value)} />
-        {error && <p className="error">{error}</p>}
-      </div>
       <div className="mega-cards">
         <article className="mega-card">
           <PrizePhotos prefix="d13" alt="Delta-13 from Lone Echo 2" />
@@ -290,8 +291,9 @@ function MegaPrizes() {
             {arena.period.active && <span className="live-text" title="Matches are being recorded right now">Recording live data</span>}
             <span className="muted">Only counts games of 4+ minutes with at least 3v3. Matches from the replay files before the live count started are included, linked by Discord ID.</span>
             <span className="muted">{winnersText(arena.winners_combat, combatTarget)}</span>
-            {searching ? (byKind("combat").length > 0 ? (
-              <ul className="mega-results">{byKind("combat").map((r) => <PlayerBar key={r.user_id} r={r} target={combatTarget} />)}</ul>
+            <PrizeSearch s={combatSearch} />
+            {combatSearch.found !== null ? (combatSearch.found.length > 0 ? (
+              <ul className="mega-results scroll">{combatSearch.found.map((r) => <PlayerBar key={r.user_id} r={r} target={combatTarget} />)}</ul>
             ) : (
               <span className="muted">Nobody found.</span>
             )) : (
@@ -313,9 +315,10 @@ function MegaPrizes() {
             <span className="muted">Only counts public matches of 4+ minutes with at least 3v3 (or 6+ players).</span>
             <span className="muted">Arena history only starts on 2026-11-04, so totals are lower than Combat.</span>
             <span className="muted">{winnersText(arena.winners_arena, arena.target)}</span>
-            {searching ? (
-              byKind("arena").length > 0 ? (
-                <ul className="mega-results">{byKind("arena").map((r) => <PlayerBar key={r.user_id} r={r} target={arena.target} />)}</ul>
+            <PrizeSearch s={arenaSearch} />
+            {arenaSearch.found !== null ? (
+              arenaSearch.found.length > 0 ? (
+                <ul className="mega-results scroll">{arenaSearch.found.map((r) => <PlayerBar key={r.user_id} r={r} target={arena.target} />)}</ul>
               ) : (
                 <span className="muted">Nobody found.</span>
               )
@@ -337,12 +340,42 @@ function MegaPrizes() {
   );
 }
 
-/** Front and back of a prize, side by side (user, 2026-11-06). */
-function PrizePhotos({ prefix, alt }: { prefix: string; alt: string }) {
+function PrizeSearch({ s }: { s: ReturnType<typeof useMegaSearch> }) {
   return (
-    <div className="mega-photos">
-      <PrizeImage name={`${prefix}_front.png`} alt={`${alt}, front`} />
-      <PrizeImage name={`${prefix}_back.png`} alt={`${alt}, back`} />
+    <div className="mega-search">
+      <input type="search" placeholder="Search a player" aria-label="Search a player for this prize" value={s.q} onChange={(e) => s.setQ(e.target.value)} />
+      {s.error && <p className="error">{s.error}</p>}
+    </div>
+  );
+}
+
+/** Front and back of a prize, side by side and zoomed in (user, 2026-11-06). The window shows part of the pictures: drag them (mouse
+ *  or finger) or scroll the wheel to move up and down; both move together. Arrow keys work when it is focused. */
+function PrizePhotos({ prefix, alt }: { prefix: string; alt: string }) {
+  const drag = useRef<{ y: number; top: number } | null>(null);
+  return (
+    <div className="mega-photos" tabIndex={0} role="group" aria-label={`${alt}: drag or scroll to move up and down`}
+      title="Drag or scroll to move up and down"
+      onPointerDown={(e) => {
+        drag.current = { y: e.clientY, top: e.currentTarget.scrollTop };
+        e.currentTarget.setPointerCapture(e.pointerId);
+        e.currentTarget.classList.add("dragging");
+      }}
+      onPointerMove={(e) => {
+        if (drag.current) e.currentTarget.scrollTop = drag.current.top - (e.clientY - drag.current.y);
+      }}
+      onPointerUp={(e) => {
+        drag.current = null;
+        e.currentTarget.classList.remove("dragging");
+      }}
+      onPointerCancel={(e) => {
+        drag.current = null;
+        e.currentTarget.classList.remove("dragging");
+      }}>
+      <div className="mega-photos-row">
+        <PrizeImage name={`${prefix}_front.png`} alt={`${alt}, front`} />
+        <PrizeImage name={`${prefix}_back.png`} alt={`${alt}, back`} />
+      </div>
     </div>
   );
 }
@@ -533,6 +566,11 @@ export function Badge({ a, compact = false }: { a: AchievementRule & Partial<Pic
           {ruleText(a.description)}
           {a.estimated && " *"}
         </span>
+        {compact && (
+          <span className="tile-pct" title={catalogue ? "Share of players who have unlocked it" : "Overall progress, counting every medal"}>
+            {catalogue ? (a.unlocked_share != null ? `${pct(a.unlocked_share)} of players` : "") : pct(a.progress)}
+          </span>
+        )}
         {catalogue && <TierSteps a={{ ...a, progress: 0, count: 0, tier: null } as unknown as Achievement & AchievementRule} />}
         {a.prize && <span className="tag mega-prize" title="Mega Prize for completing this challenge">Mega Prize: {a.prize}</span>}
         {!catalogue && (
@@ -588,19 +626,48 @@ export function Badge({ a, compact = false }: { a: AchievementRule & Partial<Pic
  *  popover: it shows on hover or keyboard focus, and a tap on a touch screen opens / closes it. */
 function Tile({ a }: { a: AnyBadge }) {
   const [open, setOpen] = useState(false);
+  const [dismissed, setDismissed] = useState(false); // closed with the cross while the mouse is still over the tile: stays shut until it leaves
   const [side, setSide] = useState("mid");
   function place(el: HTMLElement) {
     const r = el.getBoundingClientRect();
     setSide(r.left < 170 ? "left" : window.innerWidth - r.right < 170 ? "right" : "mid");
   }
+  function close() {
+    setOpen(false);
+    setDismissed(true);
+  }
   return (
-    <div className={`tile${open ? " open" : ""}`} tabIndex={0} role="button" aria-expanded={open}
+    <div className={`tile${open ? " open" : ""}${dismissed ? " dismissed" : ""}`} tabIndex={0} role="button" aria-expanded={open}
       onMouseEnter={(e) => place(e.currentTarget)} onFocus={(e) => place(e.currentTarget)}
-      onClick={(e) => { place(e.currentTarget); setOpen((v) => !v); }}
-      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpen((v) => !v); } else if (e.key === "Escape") setOpen(false); }}
-      onBlur={() => setOpen(false)}>
-      <Badge a={a} compact />
-      <div className={`tile-pop ${side}`} role="tooltip"><Badge a={a} /></div>
+      onMouseLeave={() => setDismissed(false)}
+      onClick={(e) => {
+        if ((e.target as HTMLElement).closest(".tile-pop")) return; // clicks inside the card (links, text) leave it open
+        place(e.currentTarget);
+        setDismissed(false);
+        setOpen((v) => !v);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          if ((e.target as HTMLElement).closest(".tile-pop")) return;
+          e.preventDefault();
+          setDismissed(false);
+          setOpen((v) => !v);
+        } else if (e.key === "Escape") close();
+      }}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+          setOpen(false);
+          setDismissed(false);
+        }
+      }}>
+      {/* pointing at the tile again (after closing with the cross) shows the card on hover once more */}
+      <div className="tile-face" onMouseEnter={() => setDismissed(false)}>
+        <Badge a={a} compact />
+      </div>
+      <div className={`tile-pop ${side}`} role="tooltip">
+        {open && <button type="button" className="tile-close" aria-label="Close" title="Close" onClick={(e) => { e.stopPropagation(); close(); }}>×</button>}
+        <Badge a={a} />
+      </div>
     </div>
   );
 }

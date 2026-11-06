@@ -285,7 +285,7 @@ TUNED_LEVELS: dict[int, tuple[float, ...]] = {
     29: (9, 13, 18, 24, 30),  # Combat on Quest When? (user, 2026-11-05: 102 / 59 / 31 / 12 / 6 players since 1 Aug; was 9/13/18/31/42)
     30: (1, 4, 6, 9, 13),  # Pulse Check
     31: (1, 4, 6, 9, 13),  # Eat My Nova!
-    32: (1, 4, 6, 9, 13),  # Silicon Assassin
+    32: (1, 4, 6, 9, 13),  # Comet Commandments (was Silicon Assassin)
     33: (1, 4, 6, 9, 13),  # I Came to Drop Bombs
     34: (1, 4, 6, 9, 13),  # Throws Better Than an Arena Disc
     35: (1, 4, 6, 9, 13),  # Don't Taze Me Bro Bot
@@ -708,7 +708,7 @@ def _build_rules() -> list[Rule]:
 
     # Weekly (30-54): the most in one calendar week (Monday start)
     names = {
-        "assault": "Pulse Check", "blaster": "Eat My Nova!", "scout": "Silicon Assassin", "rocket": "I Came to Drop Bombs",
+        "assault": "Pulse Check", "blaster": "Eat My Nova!", "scout": "Comet Commandments", "rocket": "I Came to Drop Bombs",
         "det": "Throws Better Than an Arena Disc", "stun": "Don't Taze Me Bro Bot", "arc": "Electroshock Therapy", "burst": "Fully Juiced",
         "heal": "Built to Last", "sensor": "X-Ray Vision Implant Upgrade", "shield": "Check Out My Cool Screensaver", "wraith": "Ghost in the Shell",
     }

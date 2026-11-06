@@ -49,13 +49,6 @@ function ArmBar({ left }: { left: number | null }) {
   );
 }
 
-/** Games per map (all four, in the site's map colours). */
-function MapBar({ games }: { games: Record<string, number> }) {
-  return (
-    <SplitBar parts={MAPS.map((m) => ({ label: title(m), value: games[m] ?? 0, color: `var(--map-${m})`, detail: int(games[m] ?? 0) }))} />
-  );
-}
-
 /** Games per mode. */
 function ModeBar({ games }: { games: Record<string, number> }) {
   const payload = games.payload ?? 0;
@@ -132,7 +125,6 @@ function cards(s: PlayerStats, avg: Averages = {}, months?: TrendPoint[]): CardR
 
 function ProfileHeader({ p }: { p: PlayerProfile }) {
   const main = p.loadouts[0];
-  const favourite = Object.entries(p.stats.games_by_map).sort((a, b) => b[1] - a[1])[0];
   // no `result` while win-loss stats are hidden from players: no form strip then
   const form = p.recent_matches.slice(0, 10).filter((m) => m.result !== undefined);
   const bio = usePlayerBio(p.user_id);
@@ -153,11 +145,6 @@ function ProfileHeader({ p }: { p: PlayerProfile }) {
           {main && (
             <span>
               Main loadout: <GearName item={main.weapon} /> · <GearName item={main.ordnance} /> · <GearName item={main.tacmod} />
-            </span>
-          )}
-          {favourite && (
-            <span>
-              Favourite map: <Link to={`/matches?map=${favourite[0]}&player=${p.user_id}`}>{title(favourite[0])}</Link> ({favourite[1]} games)
             </span>
           )}
           {form.length > 0 && (
@@ -399,7 +386,7 @@ function PlayerHeatmap({ userId, period, maps }: { userId: string; period: Perio
 type PlayerTab = "overview" | "combat" | "achievements" | "gear" | "trends" | "companions" | "heatmap";
 const PLAYER_TABS: [PlayerTab, string, string][] = [
   ["overview", "Overview", "Recent matches"],
-  ["combat", "Combat", "Kills, damage, weapons"],
+  ["combat", "Recorder stats", "Separate data: kills, damage"],
   ["achievements", "Achievements", "Medals and progress"],
   ["gear", "Loadouts & gear use", "What they play with"],
   ["trends", "Trends", "How they change over time"],
@@ -463,6 +450,8 @@ export function PlayerPage() {
         <>
           <ProfileHeader p={p} />
 
+          {tab !== "achievements" && <AchievementsStrip userId={p.user_id} onOpen={() => setTab("achievements")} />}
+
           <div className="filters">
             <div className="tabs" role="tablist">
               {PERIODS.map(([value, label]) => (
@@ -495,16 +484,10 @@ export function PlayerPage() {
                     {under}
                   </div>
                 ))}
-                <div className="card wide">
-                  <span className="label">Games per map</span>
-                  <MapBar games={p.stats.games_by_map} />
-                </div>
               </div>
               <p className="muted footnote">* Estimated.</p>
             </>
           )}
-
-          {tab !== "achievements" && <AchievementsStrip userId={p.user_id} onOpen={() => setTab("achievements")} />}
 
           <div className="tabs section-tabs" role="tablist" aria-label="Player views" ref={tabStrip}>
             {tabs.map(([t, label, hint]) => (

@@ -74,7 +74,7 @@ export function CombatSection({ userId, period, map }: { userId: string; period:
       <p className="muted footnote">
         The game&apos;s own counters from {int(data.matches)} recorded match{data.matches === 1 ? "" : "es"} ({hoursMinutes(s.present_s)} played).
         From a separate source than the replay stats above, so numbers can differ. Only data collected from 4 November 2026
-        onwards. <Link to="/combat">All combat stats</Link>
+        onwards. <Link to="/leaderboard?board=combat">All combat stats</Link>
       </p>
       <div className="cards">
         <Stat label="Matches" value={int(data.matches)} />

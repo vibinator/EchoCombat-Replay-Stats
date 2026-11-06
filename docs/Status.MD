@@ -44,6 +44,7 @@ Build a new, simplified web app that recreates the useful functionality of the o
 - Timestamp timezone unknown (Q6)
 - Front-end extract is saved as `docs/reference/echocombat-extract.md` (no `old-frontend-ecranked.md` exists)
 - Friendly names unknown for newer loadout codes (rifle, smg, chain, magnum, loc, dot) → shown as raw codes
+- Flaky test (2026-11-06): `tests/backend/test_remote.py::test_damaged_track_files_are_left_out_not_saved` failed once in five full runs, passes alone; ignore unless it reoccurs
 
 ## Awaiting your answer
 - —

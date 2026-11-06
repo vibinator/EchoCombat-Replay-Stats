@@ -9,7 +9,7 @@ const Heatmap3DView = lazy(() => import("./Heatmap3DView")); // three.js loads w
 // validated dark categorical order (dataviz), fixed per code so a colour never moves between views.
 const CATEGORICAL = ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#008300", "#9085e9", "#e66767"];
 const FIXED: Record<string, string> = {
-  blue: "#19d9fc", orange: "#ff9d2e", deaths: "#e66767", other: "#8b919c",
+  blue: "#56b4e9", orange: "#f0a030", deaths: "#e66767", other: "#8b919c",
   // weapons
   assault: CATEGORICAL[0], blaster: CATEGORICAL[1], scout: CATEGORICAL[2], rocket: CATEGORICAL[3],
   magnum: CATEGORICAL[4], smg: CATEGORICAL[5], chain: CATEGORICAL[6], rifle: CATEGORICAL[7],
@@ -35,8 +35,8 @@ export const HEATMAP_CELL_M = 0.1; // super fine; the only heatmap resolution of
 
 // Per-player layers: shades around the team colour, so the team still reads at a glance.
 const TEAM_SHADES: Record<string, string[]> = {
-  blue: ["#19d9fc", "#3b6fe0", "#8ff0ff", "#0f9a9a", "#a69cff"],
-  orange: ["#ff9d2e", "#ffbf5e", "#ffd99a", "#e27d12", "#ffae6b"],
+  blue: ["#56b4e9", "#4a7fd0", "#9fd3f2", "#3a9bb0", "#a99be0"],
+  orange: ["#f0a030", "#f5bd62", "#f7d9a0", "#d98512", "#f2ae72"],
 };
 
 function layerColors(layers: HeatmapLayer[]): Map<string, string> {
@@ -56,7 +56,9 @@ function rgb(hex: string): [number, number, number] {
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
 
-/** One canvas: sequential per layer (one hue, alpha rising with log(count)); layers composited "over". */
+/** One canvas: sequential per layer (one hue, alpha rising with log(count)). Where layers overlap the colours are MIXED by how busy
+ *  each layer is there (not painted over one another), so neither team hides the other; the peak is capped below solid so the
+ *  busiest cells do not glare (user, 2026-11-06: it looked too blue). */
 function HeatCanvas({ heatmap, layers, colors, opacity }: { heatmap: Heatmap; layers: HeatmapLayer[]; colors: Map<string, string>; opacity: number }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
@@ -66,20 +68,29 @@ function HeatCanvas({ heatmap, layers, colors, opacity }: { heatmap: Heatmap; la
     el.height = heatmap.rows;
     const ctx = el.getContext("2d")!;
     const img = ctx.createImageData(heatmap.cols, heatmap.rows);
+    const cells = heatmap.cols * heatmap.rows;
+    const wr = new Float32Array(cells), wg = new Float32Array(cells), wb = new Float32Array(cells), wsum = new Float32Array(cells);
+    const clear = new Float32Array(cells).fill(1); // share of the minimap left showing through
     for (const layer of layers) {
       if (layer.max === 0) continue;
       const [r, g, b] = rgb(colors.get(layer.key) ?? "#c3c2b7");
       const scale = Math.log1p(layer.max);
       for (const [c, row, n] of layer.cells) {
-        const a = (0.25 + 0.75 * (Math.log1p(n) / scale)) * opacity;
-        const i = (row * heatmap.cols + c) * 4;
-        const prev = img.data[i + 3] / 255;
-        const out = a + prev * (1 - a);
-        img.data[i] = (r * a + img.data[i] * prev * (1 - a)) / out;
-        img.data[i + 1] = (g * a + img.data[i + 1] * prev * (1 - a)) / out;
-        img.data[i + 2] = (b * a + img.data[i + 2] * prev * (1 - a)) / out;
-        img.data[i + 3] = out * 255;
+        const a = (0.2 + 0.7 * Math.pow(Math.log1p(n) / scale, 1.3)) * opacity;
+        const i = row * heatmap.cols + c;
+        wr[i] += r * a;
+        wg[i] += g * a;
+        wb[i] += b * a;
+        wsum[i] += a;
+        clear[i] *= 1 - a;
       }
+    }
+    for (let i = 0; i < cells; i++) {
+      if (!wsum[i]) continue;
+      img.data[i * 4] = wr[i] / wsum[i];
+      img.data[i * 4 + 1] = wg[i] / wsum[i];
+      img.data[i * 4 + 2] = wb[i] / wsum[i];
+      img.data[i * 4 + 3] = (1 - clear[i]) * 255;
     }
     ctx.putImageData(img, 0, 0);
   }, [heatmap, layers, colors, opacity]);
@@ -173,7 +184,7 @@ export function HeatmapView({ heatmap, caption, view3d, controls }: { heatmap: H
   }, [heatmap.map]);
 
   function setZoom(z: number) {
-    const next = Math.min(8, Math.max(1, z));
+    const next = Math.min(24, Math.max(1, z));
     setZoomState(next);
     if (next === 1) setPan([0, 0]);
   }
@@ -252,7 +263,7 @@ export function HeatmapView({ heatmap, caption, view3d, controls }: { heatmap: H
         {caption ?? ""} Brighter = more time spent there (log scale).{" "}
         {is3d
           ? "In 3D each glow is a 0.5 m cube of space; the map is drawn see-through so the heat shows inside it. Drag to turn, right-drag to move, wheel to zoom."
-          : `${heatmap.cell_m} m cells. Scroll with Ctrl/Alt or use +/− to zoom, drag to pan. Hover for sample counts (2 per second).`}
+          : `${heatmap.cell_m} m cells. Use the + / − buttons to zoom in up to 24×, drag to pan. Hover for sample counts (2 per second).`}
       </p>
 
       {showTable && (
