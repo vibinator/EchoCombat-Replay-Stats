@@ -18,6 +18,10 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.06.10 — 14:36
+
+- **Achievements page:** "Top players" and "Recent medals" now sit side by side, 50:50, to save space. Each shows only as many cards as fit its half (no sideways scrolling); on narrow screens they stack.
+
 ## 2026.11.06.9 — 14:26
 
 - **Recent medals:** the player name and "earned" now sit on the same line.

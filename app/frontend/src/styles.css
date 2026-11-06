@@ -1801,6 +1801,16 @@ td.best {
   grid-area: date;
   font-size: 0.75rem;
 }
+/* Top players and Recent medals share the row 50:50 (user, 2026-11-06): each pane shows only as many cards as fit its half
+   (extra grid rows are 0 high and clipped), so nothing scrolls sideways */
+.ach-duo { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
+.ach-pane { min-width: 0; }
+.ach-pane .section-head { min-height: 2rem; }
+.ach-duo .top-players, .ach-duo .recent-unlocks {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); grid-template-rows: auto; grid-auto-rows: 0; gap: 0 8px; overflow: hidden; padding: 0 0 8px;
+}
+.ach-duo .top-players li, .ach-duo .recent-unlocks li { flex: none; min-width: 0; overflow: hidden; }
+@media (max-width: 900px) { .ach-duo { grid-template-columns: 1fr; } }
 .medal-chip {
   display: inline-block;
   padding: 0 6px;

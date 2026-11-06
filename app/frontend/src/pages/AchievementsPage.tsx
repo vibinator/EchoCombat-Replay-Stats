@@ -61,7 +61,7 @@ function TopPlayers() {
   const avatars = useAvatars(top.data?.map((p) => p.user_id) ?? []);
   if (!top.data || top.data.length === 0) return null;
   return (
-    <>
+    <div className="ach-pane">
       <div className="section-head">
         <h2>Top players</h2>
         <Link to="/leaderboard?stat=achievements">Full leaderboard</Link>
@@ -81,7 +81,7 @@ function TopPlayers() {
           </li>
         ))}
       </ol>
-    </>
+    </div>
   );
 }
 
@@ -98,8 +98,8 @@ function RecentUnlocks() {
   const avatars = useAvatars(recent.data?.map((e) => e.user_id) ?? []);
   if (!recent.data || recent.data.length === 0) return null;
   return (
-    <>
-      <h2>Recent medals</h2>
+    <div className="ach-pane">
+      <div className="section-head"><h2>Recent medals</h2></div>
       <ul className="recent-unlocks" tabIndex={0} aria-label="Recent medals, scroll sideways">
         {recent.data.map((e, i) => (
           <li key={`${e.user_id}-${e.id}-${i}`}>
@@ -113,7 +113,7 @@ function RecentUnlocks() {
           </li>
         ))}
       </ul>
-    </>
+    </div>
   );
 }
 
@@ -185,8 +185,10 @@ function LaunchedAchievementsPage() {
             <ChallengeBanner />
             <PlayerPicker />
           </div>
-          <TopPlayers />
-          <RecentUnlocks />
+          <div className="ach-duo">
+            <TopPlayers />
+            <RecentUnlocks />
+          </div>
           <Catalogue />
           <AchievementRules />
         </>
