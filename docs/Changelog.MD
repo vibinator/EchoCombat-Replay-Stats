@@ -18,6 +18,10 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.06.11 — 15:21
+
+- **New achievement, Switch Hitter (Movement):** play full games with the left arm and with the right arm in any 7 days; the arm with fewer games counts. Medals at 1 / 3 / 5 / 8 games on each arm. Open to every player (the arm is a game setting). A game counts with 90 %+ of it on that arm, 4+ minutes, 1+ minute in bounds, 3+ players per team and not standing still for more than half of it (no AFK / join-and-leave); a win is not needed. The replay challenges go from 157 to 158.
+
 ## 2026.11.06.10 — 14:36
 
 - **Achievements page:** "Top players" and "Recent medals" now sit side by side, 50:50, to save space. Each shows only as many cards as fit its half (no sideways scrolling); on narrow screens they stack.
