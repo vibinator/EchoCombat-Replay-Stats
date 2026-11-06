@@ -4099,3 +4099,18 @@ button.small {
   .mega-card .mega-photos { height: 12rem; }
   .mega-card .mega-body { min-width: 0; }
 }
+
+/* Gear challenges grouped by kind: a framed box with a title, one accent colour per kind (user, 2026-11-06) */
+.gear-group {
+  --gear: var(--blue);
+  margin-top: 18px;
+  padding: 10px 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--gear) 45%, var(--line));
+  border-left: 4px solid var(--gear);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--gear) 5%, transparent);
+}
+.gear-group h3 { margin: 0 0 10px; font-size: 1rem; color: var(--gear); }
+.gear-group.gear-weapon { --gear: #ff8a4c; }
+.gear-group.gear-tacmod { --gear: #4cc9a0; }
+.gear-group.gear-ordnance { --gear: #6cb8ff; }

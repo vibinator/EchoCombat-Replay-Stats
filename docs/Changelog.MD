@@ -18,6 +18,14 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.06.23 — 22:46
+
+- Version bump only: no changes for people using the site.
+
+## 2026.11.06.22 — 22:45
+
+- **Gear challenges grouped:** in In one Game, Day, Week and Cumulative, the weapon, tac mod and ordnance challenges now sit together in three labelled, colour-framed groups (Weapons, Tac mods, Ordnances) below the others.
+
 ## 2026.11.06.21 — 22:41
 
 - Version bump only: no changes for people using the site.
