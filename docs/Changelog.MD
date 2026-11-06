@@ -18,6 +18,10 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.06.2 — 12:15
+
+- Version bump only: the release is everything listed under 2026.11.06.1 just below; nothing else changed.
+
 ## 2026.11.06.1 — 11:36
 
 ### Four medals instead of five (user, 2026-11-06)
