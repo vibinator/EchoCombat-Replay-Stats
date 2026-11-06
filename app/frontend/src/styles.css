@@ -1788,6 +1788,8 @@ td.best {
   grid-area: text;
   min-width: 0;
 }
+/* the inline-flex name sat on the text baseline of its own box, pushing "earned" lower than the name */
+.recent-unlocks .who { vertical-align: middle; }
 .recent-unlocks .desc {
   grid-area: desc;
   min-width: 0;
@@ -3990,7 +3992,7 @@ button.small {
 /* Mega Prizes: front and back side by side, both fitted to the window; + / - zoom, drag to move (no mouse wheel) */
 .mega-photos-wrap { position: relative; margin: 0.75rem 0.75rem 0; }
 .mega-photos {
-  height: 11rem; overflow: hidden; border-radius: 6px; background: var(--panel-2, rgba(255, 255, 255, 0.04));
+  height: 14rem; overflow: hidden; border-radius: 6px; background: var(--panel-2, rgba(255, 255, 255, 0.04));
   touch-action: pan-y; outline-offset: 2px;
 }
 .mega-photos.zoomed { cursor: grab; touch-action: none; }

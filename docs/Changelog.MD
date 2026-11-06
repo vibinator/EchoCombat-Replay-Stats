@@ -18,6 +18,15 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.06.9 — 14:26
+
+- **Recent medals:** the player name and "earned" now sit on the same line.
+- **Mega Prizes:** the prize pictures are slightly bigger.
+
+## 2026.11.06.8 — 12:57
+
+- **Player goals:** a player's page now lists five goals (was three).
+
 ## 2026.11.06.7 — 12:51
 
 - **Recent medals:** fixed the broken card layout from 2026.11.06.5 (text squeezed into a narrow column beside the coloured icon).

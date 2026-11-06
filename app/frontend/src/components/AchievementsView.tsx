@@ -810,10 +810,10 @@ function stableHash(text: string): number {
   return (h >>> 0) / 4294967296;
 }
 
-const GOALS = 3; // shown on the player page
+const GOALS = 5; // shown on the player page (user, 2026-11-06: five, was three)
 const EASE_BAND = 0.25; // challenges this close in difficulty count as equally easy, and are told apart by the random order
 const AFFINITY_PULL = 0.5; // how much of a medal level a favourite theme is worth
-const GOALS_PER_THEME = 2; // so the three are not all about one thing
+const GOALS_PER_THEME = 2; // so the five are not all about one thing
 
 /** The player's personal goals (user, 2026-11-06): random, but always the EASIEST next medals for that player, so they start
  *  small and get harder as the player completes them. "Easy" = the lowest medal level being worked on (bronze before gold ...), then
