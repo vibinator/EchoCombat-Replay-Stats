@@ -1766,6 +1766,7 @@ td.best {
 }
 .recent-unlocks .recent-glyph {
   grid-area: icon;
+  display: block;
   width: 28px;
   height: 28px;
   background: var(--tier-fill, var(--tier, var(--text)));

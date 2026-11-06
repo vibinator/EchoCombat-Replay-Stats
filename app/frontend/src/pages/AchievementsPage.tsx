@@ -89,7 +89,8 @@ function TopPlayers() {
 function RecentIcon({ icon, medal }: { icon: string | null; medal: string | null }) {
   const src = `/achievements/${icon ?? "happy_cubesat.png"}`;
   if (icon?.startsWith("custom/")) return <img src={src} alt="" />;
-  return <span className={`recent-glyph t-${medal ?? "crown"}`} style={{ WebkitMaskImage: `url(${src})`, maskImage: `url(${src})` }} aria-hidden="true" />;
+  // an <i>, not a <span>: the card's text column is styled as its first span (styles.css .recent-unlocks li > span:first-of-type)
+  return <i className={`recent-glyph t-${medal ?? "crown"}`} style={{ WebkitMaskImage: `url(${src})`, maskImage: `url(${src})` }} aria-hidden="true" />;
 }
 
 function RecentUnlocks() {

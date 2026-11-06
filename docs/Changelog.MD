@@ -18,6 +18,10 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.06.7 — 12:51
+
+- **Recent medals:** fixed the broken card layout from 2026.11.06.5 (text squeezed into a narrow column beside the coloured icon).
+
 ## 2026.11.06.6 — 12:47
 
 - **Achievement icons without a player:** in the catalogue (no progress shown) every icon is now one neutral colour instead of its original art colours (red hands, white skulls ...); with a player they still take the colour of the tier reached. Uploaded icons keep their own colours.
