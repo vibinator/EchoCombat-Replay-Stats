@@ -18,6 +18,10 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.06.17 — 22:22
+
+- **Challenge tiles are shorter:** the rule text is gone from the challenge grid tiles; hover a tile to see it.
+
 ## 2026.11.06.16 — 18:48
 - The payload-blocking achievement "Wall of Steel" is now called "Immovable Object" (same id, tiers and progress).
 

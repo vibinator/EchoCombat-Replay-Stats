@@ -553,10 +553,12 @@ export function Badge({ a, compact = false }: { a: AchievementRule & Partial<Pic
           {a.name}
           {a.new && <span className="tag" title="Not on the original ECRanked site: uses data it never read">new</span>}
         </strong>
-        <span className="muted rule-text">
-          {ruleText(a.description)}
-          {a.estimated && " *"}
-        </span>
+        {!compact && ( // compact tiles show the description only on hover (title above) (user, 2026-11-06)
+          <span className="muted rule-text">
+            {ruleText(a.description)}
+            {a.estimated && " *"}
+          </span>
+        )}
         {compact && (
           <span className="tile-pct" title={catalogue ? "Share of players who have unlocked it" : "Overall progress, counting every medal"}>
             {catalogue ? (a.unlocked_share != null ? `${pct(a.unlocked_share)} of players` : "") : pct(a.progress)}
