@@ -38,10 +38,18 @@ type AnyBadge = Parameters<typeof Badge>[0]["a"];
 
 /** Which section (tab) a challenge sits in: its period, or the theme section of a new one. */
 export function sectionId(a: { new: boolean; group: string | null; period: string }): string {
-  if (inPeriodSection(a)) return `p-${a.period}`;
-  const theme = NEW_GROUPS.find(([, , gs]) => gs.includes(a.group ?? ""));
-  return `n-${theme ? theme[0] : "More"}`;
+  return `p-${a.period}`; // one page per period (user, 2026-11-06); the theme is a filter inside it, see themeOf
 }
+
+/** Theme chip of a challenge inside its period page (user, 2026-11-06: themes are filters now, not tabs). */
+export function themeOf(a: { new: boolean; group: string | null; period: string }): string {
+  if (!inPeriodSection(a)) return NEW_GROUPS.find(([, , gs]) => gs.includes(a.group ?? ""))?.[0] ?? "More";
+  return a.new ? "Other new" : "Original";
+}
+
+/** The four pages (user, 2026-11-06): game, day, week, cumulative (= all time). */
+const PAGE_LABELS: Record<string, string> = { game: "Game", day: "Day", week: "Week", all: "Cumulative" };
+const NEW_CHIP = "__new";
 
 type Filter = "done" | "open" | "new";
 const FILTERS: [Filter, string][] = [["open", "In progress"], ["new", "Not started"], ["done", "Completed"]];
@@ -69,7 +77,7 @@ function sortItems<T extends AnyBadge>(list: T[], by: SortBy, tracked: boolean, 
 /** The challenges of one tab, and (for a player) filters Completed / In progress / Not started. Completed achievements are
  *  hidden until you pick Completed; the view opens on the first filter that has something. `only` is the status picked for
  *  the whole page (it replaces the pills). */
-function Section<T extends AnyBadge>({ label, hint, items, only, sort, shares }: { label: string; hint: string; items: T[]; only: Filter | ""; sort: SortBy; shares: Shares }) {
+function Section<T extends AnyBadge>({ label, items, only, sort, shares }: { label: string; items: T[]; only: Filter | ""; sort: SortBy; shares: Shares }) {
   const [picked, setPicked] = useState<Filter | null>(null);
   const tracked = items.every((a) => status(a) !== null);
   const counts = { done: 0, open: 0, new: 0 };
@@ -79,7 +87,6 @@ function Section<T extends AnyBadge>({ label, hint, items, only, sort, shares }:
   const overall = tracked ? items.reduce((sum, a) => sum + (a.progress ?? 0), 0) / items.length : 0;
   return (
     <div className="ach-panel">
-      {hint && <p className="muted ach-hint">{hint}</p>}
       {tracked && (
         <div className="section-progress" title={`${counts.done} of ${items.length} completed, ${pct(overall)} overall`}>
           <div className="bar" style={{ "--sec": `var(--tier-${sectionMedal(overall) ?? "bar-default"})` } as React.CSSProperties} role="progressbar" aria-label={`${label} progress`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(overall * 100)}>
@@ -97,8 +104,8 @@ function Section<T extends AnyBadge>({ label, hint, items, only, sort, shares }:
           ))}
         </div>
       )}
-      <div className="badges scroll-row" tabIndex={0} aria-label={`${label}, scroll sideways`}>
-        {shown.map((a) => <Badge key={a.id} a={a} />)}
+      <div className="tiles" aria-label={label}>
+        {shown.map((a) => <Tile key={a.id} a={a} />)}
       </div>
     </div>
   );
@@ -121,15 +128,19 @@ export function GroupedBadges<T extends AnyBadge>({ items: all }: { items: T[] }
   const term = q.trim().toLowerCase();
   const visible = items.filter((a) => (!newOnly || a.new) && (!term || `${a.name} ${ruleText(a.description)}`.toLowerCase().includes(term))
     && (!tracked || !only || status(a) === only));
-  const sections: { id: string; label: string; hint: string; items: T[] }[] = [
-    ...GROUPS.map(([period, label]) => ({ id: `p-${period}`, label, hint: "", items: [] as T[] })),
-    ...[...NEW_GROUPS, ["More", "", []] as [string, string, string[]]].map(([name, hint]) => ({ id: `n-${name}`, label: name, hint, items: [] as T[] })),
-  ];
+  const sections: { id: string; label: string; items: T[] }[] = GROUPS.map(([period]) => ({ id: `p-${period}`, label: PAGE_LABELS[period], items: [] as T[] }));
   for (const a of visible) sections.find((x) => x.id === sectionId(a))?.items.push(a);
   const shownSections = sections.filter((x) => x.items.length > 0);
-  // the tab comes from the address (?section=), so a link can open one; "Jump to new challenges" (#new) opens the first theme tab
-  const wanted = hash === "#new" ? shownSections.find((x) => x.id.startsWith("n-"))?.id : params.get("section");
+  // the page comes from the address (?section=), so a link can open one; "Jump to new challenges" (#new) picks the New chip
+  const wanted = params.get("section");
   const active = shownSections.find((x) => x.id === wanted) ?? shownSections[0];
+  const [theme, setTheme] = useState(hash === "#new" ? NEW_CHIP : "");
+  const themes = new Map<string, number>();
+  for (const a of active?.items ?? []) themes.set(themeOf(a), (themes.get(themeOf(a)) ?? 0) + 1);
+  const newCount = (active?.items ?? []).filter((a) => a.new).length;
+  const chip = theme === NEW_CHIP ? (newCount ? NEW_CHIP : "") : themes.has(theme) ? theme : "";
+  const pageItems = !active ? [] : chip === NEW_CHIP ? active.items.filter((a) => a.new) : chip ? active.items.filter((a) => themeOf(a) === chip) : active.items;
+  const themeHint = (name: string) => NEW_GROUPS.find(([n]) => n === name)?.[1] ?? (name === "Original" ? "Challenges from the original ECRanked site" : "");
   function pick(id: string) {
     const next = new URLSearchParams(params);
     if (id === shownSections[0]?.id) next.delete("section");
@@ -166,12 +177,21 @@ export function GroupedBadges<T extends AnyBadge>({ items: all }: { items: T[] }
             {shownSections.map((x) => (
               <button key={x.id} role="tab" aria-selected={active.id === x.id} className={active.id === x.id ? "tab active" : "tab"} onClick={() => pick(x.id)}>
                 <span className="tab-label">{x.label}</span>
-                <span className="tab-hint">{x.items.length} challenges</span>
+                <span className="tab-hint">{x.items.length}</span>
               </button>
             ))}
           </div>
-          {tracked && <NotYetStarted items={active.items as unknown as Achievement[]} />}
-          <Section key={active.id} label={active.label} hint={active.hint} items={active.items} only={only} sort={sort} shares={shares} />
+          {(themes.size > 1 || newCount > 0) && (
+            <div className="theme-chips" role="group" aria-label="Theme">
+              <button className={chip === "" ? "chip active" : "chip"} onClick={() => setTheme("")}>All {active.items.length}</button>
+              {newCount > 0 && <button className={chip === NEW_CHIP ? "chip active" : "chip"} title="Not on the original ECRanked site" onClick={() => setTheme(NEW_CHIP)}>New {newCount}</button>}
+              {[...themes].map(([name, n]) => (
+                <button key={name} className={chip === name ? "chip active" : "chip"} title={themeHint(name)} onClick={() => setTheme(name)}>{name} {n}</button>
+              ))}
+            </div>
+          )}
+          {tracked && <NotYetStarted items={pageItems as unknown as Achievement[]} />}
+          <Section key={active.id + chip} label={active.label} items={pageItems} only={only} sort={sort} shares={shares} />
         </>
       )}
     </>
@@ -191,11 +211,25 @@ type PrizeRow = SearchResult["results"][number];
 const winnersText = (n: number, target: number) =>
   `${n === 0 ? "No winners yet" : `${n} ${n === 1 ? "winner" : "winners"} so far`}: everyone who reaches ${target} wins the prize.`;
 
+/** Change over the last day: an arrow for the rank (up / down) and the matches gained, shown next to a player's name. */
+function Move({ r }: { r: { rank_change?: number | null; gained?: number } }) {
+  if (r.rank_change === undefined) return null;
+  const up = (r.rank_change ?? 0) > 0;
+  const down = (r.rank_change ?? 0) < 0;
+  const gained = r.gained ? `+${r.gained.toLocaleString()} in the last 24 h` : "no matches in the last 24 h";
+  const title = r.rank_change === null ? `New in the list, ${gained}` : up ? `Up ${r.rank_change} place${r.rank_change > 1 ? "s" : ""}, ${gained}` : down ? `Down ${-r.rank_change} place${r.rank_change < -1 ? "s" : ""}, ${gained}` : `Same place, ${gained}`;
+  return (
+    <span className={`move ${up ? "up" : down ? "down" : "same"}`} title={title}>
+      {up ? "▲" : down ? "▼" : "–"}{r.rank_change ? Math.abs(r.rank_change) : ""}{r.gained ? <small> +{r.gained}</small> : null}
+    </span>
+  );
+}
+
 /** One player's progress inside a prize card: name, a bar and the count. */
-function PlayerBar({ r, target }: { r: { name: string; user_id: string; matches: number }; target: number }) {
+function PlayerBar({ r, target }: { r: { name: string; user_id: string; matches: number; rank?: number; rank_change?: number | null; gained?: number }; target: number }) {
   return (
     <li>
-      <span className="mega-name" title={r.user_id}>{r.name}</span>
+      <span className="mega-name" title={r.user_id}>{r.rank ? `${r.rank}. ` : ""}{r.name}<Move r={r} /></span>
       <span className="bar" role="progressbar" aria-label={`${r.name} ${r.matches} of ${target}`} aria-valuemin={0} aria-valuemax={target} aria-valuenow={r.matches}>
         <span style={{ width: `${Math.min(100, (r.matches / target) * 100)}%` }} />
       </span>
@@ -249,29 +283,29 @@ function MegaPrizes() {
       </div>
       <div className="mega-cards">
         <article className="mega-card">
-          <PrizeImage name="biomass.jpg" alt="Delta-13 from Lone Echo 2" />
+          <PrizePhotos prefix="d13" alt="Delta-13 from Lone Echo 2" />
           <div className="mega-body">
             <strong>Play {combatTarget} Echo Combat Matches</strong>
             <span className="tag mega-prize">Mega Prize: {combat?.prize ?? "Delta-13 from Lone Echo 2"}</span>
             {arena.period.active && <span className="live-text" title="Matches are being recorded right now">Recording live data</span>}
-            <span className="muted">Only counts games of 4+ minutes with at least 3v3.</span>
+            <span className="muted">Only counts games of 4+ minutes with at least 3v3. Matches from the replay files before the live count started are included, linked by Discord ID.</span>
             <span className="muted">{winnersText(arena.winners_combat, combatTarget)}</span>
             {searching ? (byKind("combat").length > 0 ? (
               <ul className="mega-results">{byKind("combat").map((r) => <PlayerBar key={r.user_id} r={r} target={combatTarget} />)}</ul>
             ) : (
               <span className="muted">Nobody found.</span>
             )) : (
-              arena.closest_combat.length > 0 && (
+              arena.top_combat.length > 0 && (
                 <>
-                  <span className="muted">Closest to winning (not there yet)</span>
-                  <ul className="mega-results">{arena.closest_combat.map((r) => <PlayerBar key={r.user_id} r={r} target={combatTarget} />)}</ul>
+                  <span className="muted">Top {arena.top_combat.length} (▲▼ = places gained or lost in the last 24 h)</span>
+                  <ul className="mega-results scroll">{arena.top_combat.map((r) => <PlayerBar key={r.user_id} r={r} target={combatTarget} />)}</ul>
                 </>
               )
             )}
           </div>
         </article>
         <article className="mega-card">
-          <PrizeImage name="jack.jpg" alt="Jack, Lone Echo" />
+          <PrizePhotos prefix="jack" alt="Jack, Lone Echo" />
           <div className="mega-body">
             <strong>Play {arena.target} Public Arena Matches</strong>
             <span className="tag mega-prize">Mega Prize: Jack Series 11 from Lone Echo 1/2</span>
@@ -287,20 +321,10 @@ function MegaPrizes() {
               )
             ) : (
               <>
-                {arena.closest_arena.length > 0 && (
+                {arena.top_arena.length > 0 && (
                   <>
-                    <span className="muted">Closest to winning (not there yet)</span>
-                    <ul className="mega-results">{arena.closest_arena.map((p) => <PlayerBar key={p.user_id} r={p} target={arena.target} />)}</ul>
-                  </>
-                )}
-                {arena.players.length > 0 && (
-                  <>
-                    <span className="muted">Reached it</span>
-                    <ul className="mega-results">
-                      {arena.players.filter((p) => p.completed).slice(0, 5).map((p) => (
-                        <PlayerBar key={p.user_id} r={p} target={arena.target} />
-                      ))}
-                    </ul>
+                    <span className="muted">Top {arena.top_arena.length} (▲▼ = places gained or lost in the last 24 h)</span>
+                    <ul className="mega-results scroll">{arena.top_arena.map((p) => <PlayerBar key={p.user_id} r={p} target={arena.target} />)}</ul>
                   </>
                 )}
               </>
@@ -309,6 +333,16 @@ function MegaPrizes() {
           </div>
         </article>
       </div>
+    </div>
+  );
+}
+
+/** Front and back of a prize, side by side (user, 2026-11-06). */
+function PrizePhotos({ prefix, alt }: { prefix: string; alt: string }) {
+  return (
+    <div className="mega-photos">
+      <PrizeImage name={`${prefix}_front.png`} alt={`${alt}, front`} />
+      <PrizeImage name={`${prefix}_back.png`} alt={`${alt}, back`} />
     </div>
   );
 }
@@ -468,7 +502,7 @@ function levelText(count: number, levels: number[], unit = ""): string {
   return `${shown.toLocaleString()}${unit} more to reach ${LEVELS[next]}`;
 }
 
-export function Badge({ a }: { a: AchievementRule & Partial<Pick<Achievement, "progress" | "tier" | "unlocked_at" | "count" | "try_next">> & Partial<Pick<AchievementRarity, "unlocked_share" | "completed_share">> }) {
+export function Badge({ a, compact = false }: { a: AchievementRule & Partial<Pick<Achievement, "progress" | "tier" | "unlocked_at" | "count" | "try_next">> & Partial<Pick<AchievementRarity, "unlocked_share" | "completed_share">>; compact?: boolean }) {
   const tier = a.tier ?? null;
   const catalogue = a.progress === undefined;
   const frame = tier ? `${tier}.png` : "white_lock.png";
@@ -479,7 +513,7 @@ export function Badge({ a }: { a: AchievementRule & Partial<Pick<Achievement, "p
   const tinted = state.includes("tinted") && a.icon != null && !a.icon.startsWith("custom/");
   const close = closeness(a);
   return (
-    <div className={`badge-card${tier || catalogue ? "" : " locked"}${tier ? ` t-${tier}` : ""}${tinted ? state : state.replace(" tinted", "")}${close ? " close" : ""}`}
+    <div className={`badge-card${compact ? " compact" : ""}${tier || catalogue ? "" : " locked"}${tier ? ` t-${tier}` : ""}${tinted ? state : state.replace(" tinted", "")}${close ? " close" : ""}`}
       style={close ? ({ "--close-hue": close.hue } as React.CSSProperties) : undefined}
       title={`${ruleText(a.description)}${a.estimated ? " (estimated)" : ""}${close ? ` · ${close.label}` : ""}`}>
       <div className="badge-art">
@@ -546,6 +580,27 @@ export function Badge({ a }: { a: AchievementRule & Partial<Pick<Achievement, "p
           </details>
         )}
       </div>
+    </div>
+  );
+}
+
+/** A compact tile (user, 2026-11-06): art, name and the medal bar. Everything else (description, rules, targets, rarity) is in a
+ *  popover: it shows on hover or keyboard focus, and a tap on a touch screen opens / closes it. */
+function Tile({ a }: { a: AnyBadge }) {
+  const [open, setOpen] = useState(false);
+  const [side, setSide] = useState("mid");
+  function place(el: HTMLElement) {
+    const r = el.getBoundingClientRect();
+    setSide(r.left < 170 ? "left" : window.innerWidth - r.right < 170 ? "right" : "mid");
+  }
+  return (
+    <div className={`tile${open ? " open" : ""}`} tabIndex={0} role="button" aria-expanded={open}
+      onMouseEnter={(e) => place(e.currentTarget)} onFocus={(e) => place(e.currentTarget)}
+      onClick={(e) => { place(e.currentTarget); setOpen((v) => !v); }}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpen((v) => !v); } else if (e.key === "Escape") setOpen(false); }}
+      onBlur={() => setOpen(false)}>
+      <Badge a={a} compact />
+      <div className={`tile-pop ${side}`} role="tooltip"><Badge a={a} /></div>
     </div>
   );
 }
@@ -679,6 +734,54 @@ export function ComingSoon({ start, total, peek }: { start: string | null; total
   );
 }
 
+/** Progress at the top of the player page (user, 2026-11-06): overall bar, crowns and medals, and the three challenges closest to
+ *  their next medal. Clicking the header opens the Achievements tab. Hidden until achievements are visible to this visitor. */
+export function AchievementsStrip({ userId, onOpen }: { userId: string; onOpen: () => void }) {
+  const { visible } = useAchievementsAccess();
+  if (!visible) return null;
+  return <StripBody userId={userId} onOpen={onOpen} />;
+}
+
+function StripBody({ userId, onOpen }: { userId: string; onOpen: () => void }) {
+  const d = useApi(() => getAchievements(userId), userId).data;
+  if (!d) return null;
+  const counted = d.items.filter((a) => a.counted && !a.prize);
+  const crowns = counted.filter((a) => a.progress >= 1).length;
+  const medals = LEVELS.map((m) => [m, counted.filter((a) => a.levels && a.tier === m).length] as const);
+  const next = counted
+    .filter((a) => a.progress < 1 && a.levels && a.count != null)
+    .map((a) => [a, nextMedal(a)] as const)
+    .filter((x): x is readonly [Achievement, { fraction: number; medal: string }] => x[1] !== null)
+    .sort((x, y) => y[1].fraction - x[1].fraction)
+    .slice(0, 3);
+  return (
+    <section className="ach-strip" aria-label="Achievements">
+      <button className="ach-strip-head" onClick={onOpen} title="Open the Achievements tab">
+        <strong>Achievements</strong>
+        <div className="bar" style={{ "--sec": `var(--tier-${sectionMedal(d.overall) ?? "bar-default"})` } as React.CSSProperties} role="progressbar" aria-label="Average progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(d.overall * 100)}>
+          <div style={{ width: `${d.overall * 100}%` }} />
+        </div>
+        <span className="muted">{pct(d.overall)} · {crowns} / {counted.length} crowns</span>
+        <span className="strip-medals">
+          {medals.map(([m, n]) => (
+            <span key={m} className={`t-${m}`} title={`Challenges where ${m} is the best medal`}><i />{n}</span>
+          ))}
+        </span>
+      </button>
+      {next.length > 0 && (
+        <div className="ach-strip-next" aria-label="Closest to the next medal">
+          {next.map(([a, nm]) => (
+            <div key={a.id} className="strip-next">
+              <Tile a={a} />
+              <span className="muted">{levelText(a.count ?? 0, a.levels ?? [], a.unit)} · {pct(nm.fraction)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 export function AchievementsSummary({ userId }: { userId: string }) {
   const { visible, start, total } = useAchievementsAccess();
   if (visible) return <LaunchedSummary userId={userId} />;
@@ -748,7 +851,7 @@ function LaunchedSummary({ userId }: { userId: string }) {
         )}
       </div>
       <div className="ach-summary-tabs">
-        {[...GROUPS.map(([period, label]) => [`p-${period}`, label] as const), ...NEW_GROUPS.map(([name]) => [`n-${name}`, name] as const)].map(([id, label]) => {
+        {GROUPS.map(([period]) => [`p-${period}`, PAGE_LABELS[period]] as const).map(([id, label]) => {
           const list = d.items.filter((a) => !a.prize && sectionId(a) === id);
           if (list.length === 0) return null;
           const done = list.filter((a) => a.progress >= 1).length;
@@ -826,6 +929,11 @@ export function AchievementRules({ open = false }: { open?: boolean }) {
         <li>
           <strong>Progress is your best ever</strong>: your best game, best calendar day, best rolling 7 days, or the all-time total. A "7 days" window
           is any 7 days in a row, not a calendar week.
+        </li>
+        <li>
+          <strong>Nothing is locked.</strong> Every challenge is open from your first game, in any order. Daily challenges suit a short session,
+          "any 7 days" ones sit in between, and the all-time ones count every game you have played, so daily and weekly play always adds to them.
+          Medal Collector counts the gold (or better) medals you hold on all the others.
         </li>
         <li>
           <strong>Each achievement lists its own rules</strong> under its description: whether the best game, day or 7 days counts, whether games

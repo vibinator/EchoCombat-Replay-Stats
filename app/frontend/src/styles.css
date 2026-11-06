@@ -3904,3 +3904,66 @@ button.small {
   margin-top: 8px;
 }
 .ach-summary-tabs .bar div { background: var(--sec, var(--blue)); }
+
+/* Mega Prizes: the top 10 scrolls inside the card (about 5 rows visible); ▲▼ = places gained / lost in the last 24 h */
+.mega-body .mega-results.scroll {
+  max-height: 9.5rem;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+.move {
+  margin-left: 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.move small { font-weight: 400; }
+.move.up { color: #3fb36b; }
+.move.down { color: #e5534b; }
+.move.same { color: var(--muted, #9aa0a6); }
+
+/* Achievements page (user, 2026-11-06): one page per period, tiles instead of long cards, details in a popover */
+.theme-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.chip {
+  padding: 3px 10px; border-radius: 999px; border: 1px solid var(--line); background: transparent;
+  color: inherit; font: inherit; font-size: 0.85rem; cursor: pointer;
+}
+.chip.active { background: var(--panel); border-color: var(--blue); }
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin-top: 8px; }
+.tile { position: relative; outline-offset: 2px; cursor: pointer; }
+.tile > .badge-card.compact { flex-direction: column; text-align: center; height: 100%; gap: 6px; padding: 10px 8px; }
+.tile .badge-card.compact .badge-text { align-items: center; width: 100%; }
+.tile .badge-card.compact .badge-text > *:not(strong):not(.tier-steps) { display: none; }
+.tile .badge-card.compact .tier-steps .step > span { display: none; }
+.tile .badge-card.compact .badge-text strong { font-size: 0.85rem; line-height: 1.2; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.tile .badge-card.compact .badge-text strong .tag { display: none; }
+.tile-pop {
+  display: none; position: absolute; top: calc(100% + 4px); z-index: 30; width: min(320px, 92vw);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45); border-radius: 8px; text-align: left;
+}
+.tile-pop.mid { left: 50%; transform: translateX(-50%); }
+.tile-pop.left { left: 0; }
+.tile-pop.right { right: 0; }
+.tile:hover .tile-pop, .tile:focus-within .tile-pop, .tile.open .tile-pop { display: block; }
+.tile-pop .badge-card { background: var(--panel); border: 1px solid var(--line); }
+
+/* Player page: achievements progress above the tabs (user, 2026-11-06) */
+.ach-strip { margin: 12px 0; padding: 10px 12px; border-radius: 8px; background: var(--panel); }
+.ach-strip-head {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px; width: 100%; padding: 0; border: 0;
+  background: none; color: inherit; font: inherit; text-align: left; cursor: pointer;
+}
+.ach-strip-head .bar { flex: 1 1 140px; min-width: 100px; max-width: 320px; }
+.strip-medals { display: inline-flex; gap: 10px; font-size: 0.85rem; }
+.strip-medals i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 4px; background: var(--tier); }
+.ach-strip-next { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin-top: 10px; }
+.strip-next { display: flex; flex-direction: column; gap: 4px; }
+.strip-next > .muted { font-size: 0.78rem; text-align: center; }
+
+/* Mega Prizes: front and back of the prize side by side (transparent full-body pictures, so no 16:9 crop) */
+.mega-photos { display: flex; justify-content: center; gap: 0.5rem; margin: 0.75rem 0.75rem 0; }
+.mega-card .mega-photos img, .mega-photos .mega-img-placeholder {
+  width: auto; max-width: 48%; height: 15rem; margin: 0; aspect-ratio: auto; object-fit: contain; object-position: center;
+  background: none; border-radius: 0;
+}
+.mega-photos .mega-img-placeholder { width: 7rem; background: var(--panel-2, rgba(255, 255, 255, 0.06)); border-radius: 6px; }

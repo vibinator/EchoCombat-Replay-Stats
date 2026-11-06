@@ -4,7 +4,7 @@ import {
   getCombatPlayer, getCompanions, getPlayer, getPlayerHeatmap3d, getPlayerHeatmapBy, getTrends,
   type Companion, type CompanionWindow, type GearUse, type GearUseSet, type HeatmapLayerMode, type Period, type PlayerProfile, type PlayerStats, type TrendPoint,
 } from "../api";
-import { AchievementsSummary } from "../components/AchievementsView";
+import { AchievementsStrip, AchievementsSummary } from "../components/AchievementsView";
 import { CombatSection } from "../components/CombatView";
 import { ShareBar, Sparkline, SplitBar, VsAverage } from "../components/bars";
 import { LineChart } from "../components/charts";
@@ -503,6 +503,8 @@ export function PlayerPage() {
               <p className="muted footnote">* Estimated.</p>
             </>
           )}
+
+          {tab !== "achievements" && <AchievementsStrip userId={p.user_id} onOpen={() => setTab("achievements")} />}
 
           <div className="tabs section-tabs" role="tablist" aria-label="Player views" ref={tabStrip}>
             {tabs.map(([t, label, hint]) => (

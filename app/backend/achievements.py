@@ -909,10 +909,11 @@ def _build_rules() -> list[Rule]:
     icons = {code: icon for code, _, icon in WEAPONS + ORDNANCES + TACMODS} | GEAR_ICONS
     weapons, tacmods, ordnances = _released_gear()
     i = 179
-    for slot, table, codes in (("weapon", gear.WEAPONS, weapons), ("tacmod", gear.TACMODS, tacmods), ("ordnance", gear.ORDNANCES, ordnances)):
+    for slot, kind, table, codes in (("weapon", "weapon", gear.WEAPONS, weapons), ("tacmod", "tac mod", gear.TACMODS, tacmods), ("ordnance", "ordnance", gear.ORDNANCES, ordnances)):
         for code in codes:
             label = gear.lookup(table, code).display_name
-            rules.append(Rule(i, f"Test Drive: {label}", f"Use {label} for at least {TEST_DRIVE_S / 60:g} minutes in one game", "game", icons.get(code),
+            # No "Test Drive:" prefix (user, 2026-11-06: it repeated 19 times); the name says which kind of item it is instead
+            rules.append(Rule(i, f"{label} ({kind})", f"Use the {label} {kind} for at least {TEST_DRIVE_S / 60:g} minutes in one game", "game", icons.get(code),
                               _test_drive(slot, code), new=True, group=ONE_GAME_GEAR))
             i += 1
     return rules

@@ -266,3 +266,14 @@ def test_accounts_are_collected_and_linked_every_poll(tmp_path):
         db.commit()
     t.poll(now=2e9 + 10)  # unchanged: nothing is written again before ACCOUNT_REFRESH_S
     assert t.accounts_seen == 3
+
+
+def test_top_list_shows_rank_change_and_matches_gained():
+    from backend.api.arena import _moves
+    now = [{"user_id": "a", "name": "A", "count": 12}, {"user_id": "b", "name": "B", "count": 11}, {"user_id": "c", "name": "C", "count": 3}]
+    before = {"a": 9, "b": 11}  # a day ago: B led with 11, A had 9, C had nothing yet
+    rows = {r["user_id"]: r for r in _moves(now, before)}
+    assert (rows["a"]["rank"], rows["a"]["rank_change"], rows["a"]["gained"]) == (1, 1, 3)  # climbed from 2nd
+    assert (rows["b"]["rank"], rows["b"]["rank_change"], rows["b"]["gained"]) == (2, -1, 0)  # dropped from 1st
+    assert (rows["c"]["rank_change"], rows["c"]["gained"]) == (None, 3)  # new on the list
+    assert len(_moves([{"user_id": str(i), "name": "x", "count": i} for i in range(30)], {})) == 10  # top 10 only

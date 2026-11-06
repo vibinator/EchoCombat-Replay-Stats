@@ -513,19 +513,19 @@ def test_achiever_facts_and_endpoint(tmp_path):
 def test_test_drive_one_challenge_per_released_item():
     from backend.achievements import _released_gear, section_of
 
-    drives = {r.name: r for r in RULES if r.name.startswith("Test Drive: ")}
+    drives = {r.name: r for r in RULES if r.group == "Gear in one game"}
     assert len(drives) == sum(len(x) for x in _released_gear()) == 19
-    assert {"Test Drive: Pulsar", "Test Drive: Overcharge", "Test Drive: Dot Field", "Test Drive: Blazar"} <= set(drives)
+    assert {"Pulsar (weapon)", "Overcharge (tac mod)", "Dot Field (ordnance)", "Blazar (weapon)"} <= set(drives)
     assert all(r.counted and r.period == "game" and section_of(r) == "In one game" for r in drives.values())
-    pulsar = next(r for r in drives.values() if r.name.endswith("Pulsar"))
-    assert pulsar.description == "Use Pulsar for at least 3 minutes in one game"
+    pulsar = next(r for r in drives.values() if r.name == "Pulsar (weapon)")
+    assert pulsar.description == "Use the Pulsar weapon for at least 3 minutes in one game"
     assert rule_notes(pulsar) == ["Best game", "3+ players per team"]
 
 
 def test_test_drive_counts_the_time_in_one_game():
-    pulsar = next(r.id for r in RULES if r.name == "Test Drive: Pulsar")
-    nova = next(r.id for r in RULES if r.name == "Test Drive: Nova")
-    heal = next(r.id for r in RULES if r.name == "Test Drive: Repair Matrix")
+    pulsar = next(r.id for r in RULES if r.name == "Pulsar (weapon)")
+    nova = next(r.id for r in RULES if r.name == "Nova (weapon)")
+    heal = next(r.id for r in RULES if r.name == "Repair Matrix (tac mod)")
 
     def swapped(pulsar_frames, nova_frames, play=400.0):
         g = game(play=play)

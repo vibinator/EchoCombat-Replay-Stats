@@ -11,7 +11,7 @@ from backend import admin_actions as actions
 from backend import mega_prizes
 from backend.models import ArenaPlayer
 
-PRIZE_URLS = ["/api/arena/progress", "/api/arena/search?q=zed", "/api/arena/image/jack.jpg", "/api/arena/image/biomass.jpg"]
+PRIZE_URLS = ["/api/arena/progress", "/api/arena/search?q=zed", "/api/arena/image/jack_front.png", "/api/arena/image/d13_back.png"]
 CONSOLE_URLS = ["/api/admin/console/mega-prizes", "/api/admin/console/mega-prizes.csv"]
 WORDS = ("Echo Combat Veteran", "Mega Prize", "BioMass", "Jack Model", "OG High Quality", "Delta-13", "Jack Series 11")
 
@@ -116,10 +116,10 @@ def test_prize_pictures_load_with_the_scraper_guard_on(tmp_path, discord):
     browser = {"user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/130"}
     with app_client(settings(tmp_path, scraper_guard=True, rate_limit_per_min=0, rate_limit_per_hour=0)) as client:
         login(client, MEMBER)
-        assert client.get("/api/arena/image/jack.jpg", headers=browser).status_code == 403  # no X-EchoVR: an <img> tag, or a scraper
-        for name in ("jack.jpg", "biomass.jpg"):
+        assert client.get("/api/arena/image/jack_front.png", headers=browser).status_code == 403  # no X-EchoVR: an <img> tag, or a scraper
+        for name in ("jack_front.png", "jack_back.png", "d13_front.png", "d13_back.png"):
             r = client.get(f"/api/arena/image/{name}", headers=browser | {"x-echovr": "1"})
-            assert r.status_code == 200 and r.headers["content-type"] == "image/jpeg" and r.content[:2] == b"\xff\xd8", name
+            assert r.status_code == 200 and r.headers["content-type"] == "image/png" and r.content[:4] == b"\x89PNG", name
 
 
 def test_mega_prizes_have_their_own_period(tmp_path, discord):

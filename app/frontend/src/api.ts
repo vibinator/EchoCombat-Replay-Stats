@@ -1185,6 +1185,15 @@ export const saveMyProfile = (edit: { bio: string | null; show_avatar: boolean }
   });
 
 /** Public Echo Arena matches (Mega Prize, hidden tab, Preview role only): separate from the Combat stats. */
+export interface MegaTopPlayer {
+  user_id: string;
+  name: string;
+  matches: number;
+  rank: number;
+  rank_change: number | null; // + climbed, - dropped, null = new in the list (or nothing a day ago)
+  gained: number; // matches in the last day
+}
+
 export interface ArenaProgress {
   target: number;
   min_minutes: number;
@@ -1194,6 +1203,9 @@ export interface ArenaProgress {
   winners_arena: number;
   closest_combat: { user_id: string; name: string; matches: number }[]; // top 2 not yet at the target
   closest_arena: { user_id: string; name: string; matches: number }[];
+  /** the top 10 of each prize, with the change over the last day */
+  top_combat: MegaTopPlayer[];
+  top_arena: MegaTopPlayer[];
   /** the Mega Prize period (its own dates, or the challenge period); active = running today */
   period: { start: string | null; end: string | null; active: boolean };
 }
