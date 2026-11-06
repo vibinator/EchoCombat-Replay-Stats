@@ -53,17 +53,6 @@ const PAGE_LABELS: Record<string, string> = { game: "In one Game", day: "Day", w
 const PAGES = GROUPS;
 const NEW_CHIP = "__new";
 
-/** Challenges about one kind of gear (user, 2026-11-06): in every tab they sit together in a labelled group per kind. By rule id
- *  (the kind is not in the rule data); a new gear challenge without an entry just stays in the ungrouped part. */
-type GearKind = "weapon" | "tacmod" | "ordnance";
-const GEAR_KINDS: [GearKind, string, string, number[]][] = [
-  ["weapon", "Weapons", "Pulsar, Nova, Comet, Meteor and the experimental weapons", [5, 6, 7, 8, 31, 32, 55, 56, 57, 58, 86, 87, 101, 102, 103, 105, 106, 107, 110, 123, 127, 128, 129, 133, 135, 137,
-    179, 180, 181, 182, 183, 184, 185, 186]],
-  ["tacmod", "Tac mods", "Repair Matrix, Threat Scanner, Energy Barrier, Phase Shift and Overcharge", [63, 64, 65, 66, 89, 112, 131, 132, 187, 188, 189, 190, 191]],
-  ["ordnance", "Ordnances", "Detonator, Stun Field, Arc Mine, Instant Repair, Translocator and Dot Field", [59, 60, 61, 62, 88, 104, 108, 109, 111, 130, 134, 136, 138, 192, 193, 194, 195, 196, 197]],
-];
-const gearKindOf = (id: number): GearKind | null => GEAR_KINDS.find(([, , , ids]) => ids.includes(id))?.[0] ?? null;
-
 type Filter = "done" | "open" | "new";
 const FILTERS: [Filter, string][] = [["open", "In progress"], ["new", "Not started"], ["done", "Completed"]];
 
@@ -117,21 +106,9 @@ function Section<T extends AnyBadge>({ label, items, only, sort, shares }: { lab
           ))}
         </div>
       )}
-      {(() => {
-        const rest = shown.filter((a) => !gearKindOf(a.id));
-        const groups = GEAR_KINDS.map(([kind, title, hint]) => ({ kind, title, hint, list: shown.filter((a) => gearKindOf(a.id) === kind) })).filter((g) => g.list.length > 0);
-        return (
-          <>
-            {rest.length > 0 && <div className="tiles" aria-label={label}>{rest.map((a) => <Tile key={a.id} a={a} />)}</div>}
-            {groups.map((g) => (
-              <section key={g.kind} className={`gear-group gear-${g.kind}`} aria-label={g.title}>
-                <h3 title={g.hint}>{g.title} <span className="muted">{g.list.length}</span></h3>
-                <div className="tiles">{g.list.map((a) => <Tile key={a.id} a={a} />)}</div>
-              </section>
-            ))}
-          </>
-        );
-      })()}
+      <div className="tiles" aria-label={label}>
+        {shown.map((a) => <Tile key={a.id} a={a} />)}
+      </div>
     </div>
   );
 }
@@ -560,7 +537,7 @@ export function Badge({ a, compact = false }: { a: AchievementRule & Partial<Pic
   const tinted = (catalogue || state.includes("tinted")) && !a.icon?.startsWith("custom/"); // catalogue (no player): one neutral colour for every icon (user, 2026-11-06) // the generic cubesat (no icon of its own) is a silhouette too: it takes the tier colour like the rest (user, 2026-11-06)
   const close = closeness(a);
   return (
-    <div className={`badge-card${compact ? " compact" : ""}${tier || catalogue ? "" : " locked"}${catalogue ? " catalogue" : ""}${tier ? ` t-${tier}` : ""}${tinted ? state : state.replace(" tinted", "")}${close ? " close" : ""}`}
+    <div className={`badge-card${compact ? " compact" : ""}${tier || catalogue ? "" : " locked"}${tier ? ` t-${tier}` : ""}${tinted ? state : state.replace(" tinted", "")}${close ? " close" : ""}`}
       style={close ? ({ "--close-hue": close.hue } as React.CSSProperties) : undefined}
       title={`${ruleText(a.description)}${a.estimated ? " (estimated)" : ""}${close ? ` · ${close.label}` : ""}`}>
       <div className="badge-art">

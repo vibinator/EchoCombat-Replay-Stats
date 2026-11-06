@@ -18,6 +18,10 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.06.24 — 22:50
+
+- **Reverted:** the gear groups (Weapons, Tac mods, Ordnances) and the pink catalogue icons are gone again. The pink-purple lock emblem on locked challenges stays.
+
 ## 2026.11.06.23 — 22:46
 
 - Version bump only: no changes for people using the site.
