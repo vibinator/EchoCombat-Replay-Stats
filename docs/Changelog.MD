@@ -18,6 +18,22 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.06.21 — 22:41
+
+- Version bump only: no changes for people using the site.
+
+## 2026.11.06.20 — 22:40
+
+- **The pink lock is never greyed:** the lock emblem on locked challenges keeps its colour and full strength.
+
+## 2026.11.06.19 — 22:38
+
+- **Challenge catalogue icons are pink-purple:** with no player selected the icons use the original lock colour instead of white.
+
+## 2026.11.06.18 — 22:35
+
+- **Lock emblem is pink-purple again:** locked challenges (below the first medal) show the original pink-purple lock instead of the grey one.
+
 ## 2026.11.06.17 — 22:22
 
 - **Challenge tiles are shorter:** the rule text is gone from the challenge grid tiles; hover a tile to see it.

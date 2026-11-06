@@ -901,6 +901,11 @@ svg .crosshair {
   mask: no-repeat center / contain;
 }
 
+/* catalogue (no player) = nothing unlocked yet: the original pink-purple of the lock emblem (user, 2026-11-06) */
+.badge-card.catalogue .glyph {
+  background: #bd2174;
+}
+
 .badge-card.started .glyph {
   background: var(--text);
 }
@@ -932,6 +937,9 @@ svg .crosshair {
   width: 48px;
   height: 48px;
 }
+
+/* the pink lock is never greyed or dimmed, whatever the card around it does (user, 2026-11-06) */
+.badge-card.locked .badge-art .tier { opacity: 1; filter: none; }
 
 .badge-art .tier {
   right: -4px;

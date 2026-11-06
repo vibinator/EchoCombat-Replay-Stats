@@ -529,7 +529,7 @@ function levelText(count: number, levels: number[], unit = ""): string {
 export function Badge({ a, compact = false }: { a: AchievementRule & Partial<Pick<Achievement, "progress" | "tier" | "unlocked_at" | "count" | "try_next">> & Partial<Pick<AchievementRarity, "unlocked_share" | "completed_share">>; compact?: boolean }) {
   const tier = a.tier ?? null;
   const catalogue = a.progress === undefined;
-  const frame = tier ? `${tier}.png` : "white_lock.png";
+  const frame = tier ? `${tier}.png` : "lock_clear_no_square.png";
   const src = IMG + (a.icon ?? GENERIC_ICON);
   // The glyph takes the colour of the tier reached; grey = not started, plain = started, no tier yet (user,
   // 2026-11-02). Built-in art is one colour on transparent, so it is used as a mask; uploads keep their own colours.
@@ -537,7 +537,7 @@ export function Badge({ a, compact = false }: { a: AchievementRule & Partial<Pic
   const tinted = (catalogue || state.includes("tinted")) && !a.icon?.startsWith("custom/"); // catalogue (no player): one neutral colour for every icon (user, 2026-11-06) // the generic cubesat (no icon of its own) is a silhouette too: it takes the tier colour like the rest (user, 2026-11-06)
   const close = closeness(a);
   return (
-    <div className={`badge-card${compact ? " compact" : ""}${tier || catalogue ? "" : " locked"}${tier ? ` t-${tier}` : ""}${tinted ? state : state.replace(" tinted", "")}${close ? " close" : ""}`}
+    <div className={`badge-card${compact ? " compact" : ""}${tier || catalogue ? "" : " locked"}${catalogue ? " catalogue" : ""}${tier ? ` t-${tier}` : ""}${tinted ? state : state.replace(" tinted", "")}${close ? " close" : ""}`}
       style={close ? ({ "--close-hue": close.hue } as React.CSSProperties) : undefined}
       title={`${ruleText(a.description)}${a.estimated ? " (estimated)" : ""}${close ? ` · ${close.label}` : ""}`}>
       <div className="badge-art">
@@ -709,7 +709,7 @@ function SneakPeek({ peek }: { peek: AchievementPeek }) {
           <div key={icon} className="badge-card locked">
             <div className="badge-art">
               <img className="icon" src={IMG + icon} alt="" />
-              <img className="tier" src={IMG + "white_lock.png"} alt="locked" />
+              <img className="tier" src={IMG + "lock_clear_no_square.png"} alt="locked" />
             </div>
             <div className="badge-text">
               <strong>???</strong>
