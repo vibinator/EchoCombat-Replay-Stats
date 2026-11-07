@@ -195,7 +195,7 @@ function ReplayBoard() {
               </div>
             )}
             <TableWrap>
-              <table className="stack">
+              <table className="stack board">{/* board: on a phone one line per player, tap it for the other columns (Review GUI-5) */}
                 <thead>
                   <tr>
                     <th className="num">#</th>
@@ -211,18 +211,19 @@ function ReplayBoard() {
                 </thead>
                 <tbody>
                   {board.data.items.map((r) => (
-                    <tr key={r.user_id}>
-                      <td data-label="#" className="num">
+                    // the class toggle only matters under 760 px (styles.css, table.board): it opens the hidden columns
+                    <tr key={r.user_id} onClick={(e) => e.currentTarget.classList.toggle("open")}>
+                      <td data-label="#" className="num keep rank">
                         {r.rank} <RankChange r={r} />
                       </td>
-                      <td data-label="Player">
+                      <td data-label="Player" className="keep">
                         <span className="who"><Avatar name={r.name} url={avatars[r.user_id]} /><Link to={playerPath(r.user_id, r.name)}>{r.name}</Link></span>
                       </td>
                       {columns.map(([key, label]) => {
                         const v = r[key] as number | null;
                         return <td key={key} data-label={label} className="num">{v == null ? "–" : formatValue(key, v)}</td>;
                       })}
-                      <td data-label={board.data!.label}>
+                      <td data-label={board.data!.label} className="keep value">
                         <ShareBar value={r.value} max={board.data!.max_value ?? board.data!.items[0]?.value ?? 0}>{formatValue(stat, r.value)}</ShareBar>
                       </td>
                     </tr>

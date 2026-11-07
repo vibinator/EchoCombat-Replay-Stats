@@ -42,7 +42,7 @@ const RANGES: [PlayersSeen["range"], string][] = [
 ];
 
 function PlayersSeenChart() {
-  const [range, setRange] = useState<PlayersSeen["range"]>("24h");
+  const [range, setRange] = useState<PlayersSeen["range"]>("7d"); // 7 days: a quiet day no longer opens on an empty chart (Review GUI-2, user 2026-11-07)
   const [anchor, setAnchor] = useState<PlayersSeen["anchor"]>("now");
   const seen = useApi(() => getPlayersSeen(range, anchor), `${range}|${anchor}`);
   const d = seen.data;
@@ -128,38 +128,36 @@ const TWITCH_CHANNEL = "combat_stream_bot";
  * not visible enough (user 2026-11-01: it started and paused straight away): it loads once half of it is on screen,
  * and a smaller one (phones) does not autoplay, it shows its play button instead. */
 function LiveStream() {
-  // The player is several MB of third-party script and video: load it once the page has settled and the box is on
-  // screen, so it does not compete with the numbers (user, 2026-10-31: the home page was slow).
+  // The player is several MB of third-party script, video and trackers: it loads only when the visitor asks for it
+  // (click to load, Review SEC-5 / PERF-5, approved 2026-11-07). Until then a poster says whether the bot is live.
   const box = useRef<HTMLDivElement>(null);
   const [show, setShow] = useState(false);
   const [autoplay, setAutoplay] = useState(true);
-  useEffect(() => {
-    const el = box.current;
-    if (!el) return;
-    let timer = 0;
-    const seen = new IntersectionObserver(
-      ([e]) => {
-        if (e.isIntersecting) {
-          timer = window.setTimeout(() => {
-            const r = el.getBoundingClientRect();
-            setAutoplay(r.width >= 400 && r.height >= 300);
-            setShow(true);
-          }, 1200);
-          seen.disconnect();
-        }
-      },
-      { threshold: 0.5 },
-    );
-    seen.observe(el);
-    return () => {
-      seen.disconnect();
-      window.clearTimeout(timer);
-    };
-  }, []);
+  const [live, setLive] = useState<boolean | null>(null);
+  useWhileVisible(() => {
+    if (show) return;
+    getLive()
+      .then((d) => setLive(d.live))
+      .catch(() => undefined);
+  }, LIVE_POLL_MS);
+  const open = () => {
+    const r = box.current?.getBoundingClientRect();
+    setAutoplay(!!r && r.width >= 400 && r.height >= 300);
+    setShow(true);
+  };
   const src = `https://player.twitch.tv/?channel=${TWITCH_CHANNEL}&parent=${encodeURIComponent(window.location.hostname)}&muted=true&autoplay=${autoplay}`;
   return (
     <div className="twitch-embed" ref={box}>
-      {show && <iframe src={src} title="Live Echo Combat spectator bot on Twitch" allow="autoplay; fullscreen; picture-in-picture; encrypted-media" allowFullScreen />}
+      {show ? (
+        <iframe src={src} title="Live Echo Combat spectator bot on Twitch" allow="autoplay; fullscreen; picture-in-picture; encrypted-media" allowFullScreen />
+      ) : (
+        <button type="button" className={`twitch-poster${live ? " live" : ""}`} onClick={open} aria-label="Load the Twitch player">
+          <span className="twitch-state">{live ? "● Live now" : live === false ? "Offline" : "Twitch"}</span>
+          <span className="twitch-play" aria-hidden="true">▶</span>
+          <strong>{live ? "Watch the game" : "Open the player"}</strong>
+          <small>Loads the Twitch player and its scripts only when you click.</small>
+        </button>
+      )}
     </div>
   );
 }

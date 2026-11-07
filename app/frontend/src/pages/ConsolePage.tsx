@@ -230,6 +230,12 @@ const GROUPS: { title: string; commands: Command[] }[] = [
         ],
         confirm: (v) => (v.unhide_all ? "Show every hidden replay again?" : v.unhide ? `Show ${v.unhide} again?` : null),
       },
+      {
+        name: "forget-missing",
+        label: "Forget replays whose file is gone",
+        help: "After the replay folder was moved or files were deleted: forgets the replay rows (and their matches) whose file is no longer under the replay folder. The same matches recorded under another path keep showing; players stay. Refuses while the folder is offline.",
+        confirm: () => "Forget every replay row whose file is not in the replay folder any more, with its match?",
+      },
     ],
   },
   {
@@ -346,7 +352,7 @@ const TABS: { id: string; label: string; names: string[]; opens?: false }[] = [
     id: "replays",
     label: "Replays",
     opens: false,
-    names: ["remote", "process-missing", "fix-replay", "repair-failed", "repair-aggressive-failed", "cannot-repair", "hidden", "reprocess-all"],
+    names: ["remote", "process-missing", "fix-replay", "repair-failed", "repair-aggressive-failed", "cannot-repair", "hidden", "forget-missing", "reprocess-all"],
   },
   // starts on the dates: the winners report reads the whole archive, which takes up to half a minute during a re-read
   { id: "achievements", label: "Achievements", names: ["challenge", "mega-period", "mega-prizes", "hidden-stats", "export-achievements"] },

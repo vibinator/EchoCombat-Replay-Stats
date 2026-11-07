@@ -12,8 +12,11 @@ tracks.bin
 tracks3d.bin
 /tests/sample-replays/
 
-# Reference material from the old site (read-only, not ours to publish)
-/docs/reference/
+# Reference material from the old site (read-only, not ours to publish). The other files in docs/reference/ are this
+# app's own code maps (docs/reference/README.md, 2026-11-07) and are uploaded.
+/docs/reference/minimaps/
+/docs/reference/echocombat-extract.md
+/docs/reference/gear-table.json
 
 # Environments, dependencies and build output (recreated by run.bat)
 /.venv/

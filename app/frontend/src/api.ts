@@ -357,6 +357,7 @@ export interface MatchDetail extends MatchSummary {
   also_recorded_in: number[]; // other recordings of the same match
   duplicate_of: number | null; // set: that recording counts in the stats, this one does not
   repaired: { aggressive: boolean; frames: number | null } | null; // read from a damaged file by a repair
+  has_combat: boolean; // the recorder sent a combat report for this match (Combat tab); false = do not ask for it
 }
 
 export interface PlayerListItem {

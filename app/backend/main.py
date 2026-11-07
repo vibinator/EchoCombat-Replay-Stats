@@ -14,7 +14,9 @@ from . import arena, auth, combat, discord_names, guard, icons, tracks
 from .api import achievements, admin, avatars, arena as arena_api, auth as auth_api, combat as combat_api, console, imports, profiles, leaderboard, matches, overview, permissions, players, remote_worker, replays
 from .config import PROJECT_ROOT, Settings
 from .db import open_db, warm
-from .errors import ApiError, api_error_handler
+from fastapi.exceptions import RequestValidationError
+
+from .errors import ApiError, api_error_handler, overflow_error_handler, validation_error_handler
 from .middleware import SiteMiddleware
 from .stats import STATS_VERSION
 from .version import APP_VERSION, RELEASED, VERSION
@@ -76,6 +78,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(title="Echo Combat Stats", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
     app.state.settings = settings
     app.add_exception_handler(ApiError, api_error_handler)
+    app.add_exception_handler(RequestValidationError, validation_error_handler)  # same {error_code, message} shape (BUG-9)
+    app.add_exception_handler(OverflowError, overflow_error_handler)  # ids beyond 64 bits: 404, not 500 (BUG-4)
     # Large answers that are not cached (cached ones are gzipped once, cache.py). Level 4: 12x faster than the
     # default 9 for 8 % more bytes
     app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=4)

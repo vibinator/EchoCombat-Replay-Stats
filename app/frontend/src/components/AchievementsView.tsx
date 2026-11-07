@@ -561,7 +561,9 @@ export function Badge({ a, compact = false }: { a: AchievementRule & Partial<Pic
         )}
         {compact && (
           <span className="tile-pct" title={catalogue ? "Share of players who have unlocked it" : "Overall progress, counting every medal"}>
-            {catalogue ? (a.unlocked_share != null ? `${pct(a.unlocked_share)} of players` : "") : pct(a.progress)}
+            {catalogue
+              ? a.unlocked_share == null ? "" : a.unlocked_share === 0 ? "nobody yet" : a.unlocked_share < 0.01 ? "under 1% of players" : `${pct(a.unlocked_share)} of players`
+              : pct(a.progress)}{/* "0 % of players" looked broken (Review GUI-9) */}
           </span>
         )}
         {catalogue && <TierSteps a={{ ...a, progress: 0, count: 0, tier: null } as unknown as Achievement & AchievementRule} />}

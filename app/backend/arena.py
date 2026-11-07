@@ -106,7 +106,8 @@ class Tracker:
                 wait = self.interval
             except Exception as e:  # network down, bad JSON...: ask less often until it works again
                 wait = min(max(wait, self.interval) * 2, MAX_BACKOFF_S)
-                self._last_error = (time.time(), f"{type(e).__name__}: {e}"[:200])
+                # first line only: a database error carries its SQL statement, which the Console must not show (Review SEC-3)
+                self._last_error = (time.time(), f"{type(e).__name__}: {str(e).splitlines()[0] if str(e) else ''}"[:160])
                 log.warning("arena poll failed (%s); next try in %d s", e, wait)
 
     def _in_period(self, now: float) -> bool:

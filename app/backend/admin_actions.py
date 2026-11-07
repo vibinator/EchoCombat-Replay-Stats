@@ -189,6 +189,34 @@ def scan(sessions: sessionmaker, settings: Settings):
 
 # --- hidden replays ------------------------------------------------------------------------------
 
+def missing_replays(db: Session, settings: Settings) -> list[Replay]:
+    """Replay rows whose file is no longer under the replay folder: moved, deleted, or left behind when
+    ECHOVR_REPLAY_SOURCE changed (paths are relative to it, so every file was discovered again under the new root,
+    Review BUG-2). Raises AdminError when the folder itself is not reachable: an offline share must never look like
+    every file is gone."""
+    root = settings.source_dir
+    if not root.is_dir():
+        raise AdminError(f"The replay folder {root} is not reachable: nothing is forgotten while it is offline")
+    return [r for r in db.scalars(select(Replay).order_by(Replay.source_mtime.desc())) if not (root / r.source_path).is_file()]
+
+
+def forget_missing(db: Session, settings: Settings) -> int:
+    """Deletes the rows of missing files, with their matches (cascade; players stay). The same match recorded under
+    its new path keeps showing. Returns how many were forgotten."""
+    rows = missing_replays(db, settings)
+    ids = [r.id for r in rows]
+    for chunk in (ids[i:i + 500] for i in range(0, len(ids), 500)):
+        db.execute(delete(PriorityReplay).where(PriorityReplay.replay_id.in_(chunk)))
+        db.execute(delete(Match).where(Match.replay_id.in_(chunk)))
+        db.execute(delete(Replay).where(Replay.id.in_(chunk)))
+    db.commit()
+    if ids:
+        from . import duplicates  # the counted copy of a session may have been one of them
+        duplicates.refresh_all(sessionmaker(db.get_bind()))
+        bump_generation()
+    return len(ids)
+
+
 def hide_unrepairable(db: Session) -> list[str]:
     paths = db.scalars(select(Replay.source_path).where(unrepairable(), ~hidden_failure())).all()
     now = utcnow()

@@ -166,8 +166,8 @@ function Layout() {
           {theme === "dark" ? "Light" : "Dark"}
         </button>
         {user ? (
-          <span className="account muted">
-            {user.name} · <NavLink to="/profile">My profile</NavLink> · <a href={LOGOUT_URL}>Log out</a>
+          <span className="account muted">{/* the name opens the profile: short enough for the top bar's one row (Review GUI-1, approved 2026-11-07) */}
+            <NavLink to="/profile" title="My profile">{user.name}</NavLink> · <a href={LOGOUT_URL}>Log out</a>
           </span>
         ) : me ? (
           me.enabled && (

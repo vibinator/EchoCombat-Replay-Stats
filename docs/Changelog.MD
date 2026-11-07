@@ -18,6 +18,48 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.07.2 — 23:13
+
+### Fixes from the 2026-11-07 review (docs/Review-2026-11-07.MD)
+- **A busy database no longer loses work (BUG-1, BUG-3):** writers wait up to 30 s for each other instead of failing after 5 s with
+  `database is locked`; if it still happens, the replay goes back into the queue (its old match stays) and a combat report is read
+  again on the next scan. Before, the replay was marked failed, its match deleted, and the report stuck as failed.
+- **New: "Forget replays whose file is gone" (BUG-2)** in the Console (Replays tab) and `admin.bat forget-missing`: after the replay
+  folder was moved or files were deleted, the rows (and matches) whose file is no longer under the folder are forgotten; players
+  stay and the same matches recorded under another path keep showing. It refuses while the folder is offline.
+- **Remote processing race fixed (BUG-5):** the server checks the "process on another PC" setting in the same transaction as it
+  claims replays, and never takes back a claim the PC made after that check. The flaky test passes every time now.
+- **Errors in one shape (BUG-4, BUG-9):** validation errors answer `{error_code: "bad_request", message}` (the pages show the message
+  instead of "Request failed (422)"); an id beyond 64 bits is 404, not a 500.
+- **Match page (BUG-6, BUG-7):** an unknown `?tab=` shows the players instead of an empty page; the Combat report is asked for only
+  when the match has one (`has_combat` on the match answer), so no more 404s in the browser console.
+- **Console (SEC-3):** the Arena card shows the first line of an error only, never the SQL statement.
+- **Combat lists (GUI-7):** reports with 0 players (empty lobbies) are left out (`min_players`, default 1).
+- **GUI, approved one by one (GUI-1, 2, 4, 5, 9, 10, SEC-5):** the top bar shows the name (a link to My profile) and Log out; the home
+  'Players seen in Combat' card opens on 7 days; on phones the Recent matches table becomes cards, tab strips scroll with a fade
+  hint, the leaderboard shows one line per player (tap for the rest) and the match highlight cards sit two per row; achievement
+  tiles say 'nobody yet' / 'under 1 % of players' instead of '0 %'; the Twitch player on the home page loads only when clicked
+  (a poster says Live now / Offline), so no third-party scripts run by default. On laptop widths (up to 1500 px) the
+  "Processing N replays" indicator is the spinner alone (text on hover), so the top bar stays one row while an import runs.
+- GitHub Actions now runs `pip-audit` and `npm audit` (advisory, not blocking). `config.py` escape-sequence warning fixed.
+- Nothing to do after updating; no replay is re-read.
+
+
+## 2026.11.07.1 — 22:31
+
+### End-to-end review and reference files (user, 2026-11-07)
+- **No change for people using the site.** The whole app was tested end to end (414 backend tests, build, every API route, every page in a
+  headless browser at desktop and phone width, console commands, permissions, icons, caching, load). Findings and the options for
+  fixing them are in `docs/Review-2026-11-07.MD` (BUG / SEC / PERF / GUI / DATA numbers): the main ones are SQLite `database is locked`
+  at startup losing a replay result and combat reports (BUG-1), and a changed replay root duplicating every replay row (BUG-2).
+- **Reference files for future edits:** `docs/reference/` now holds code maps that are read instead of the source (`README.md` explains
+  them): generated `SYMBOLS.md`, `API-ROUTES.md`, `FRONTEND-MAP.md`, `CSS-MAP.md`, `TESTS-MAP.md` (`python app/tools/reference/make_reference.py`,
+  run after each change set) and hand-written `CODE-MAP.md`, `RECIPES.md`, `E2E-TESTING.md`.
+- **Repeatable local end-to-end run:** `app/tools/e2e/run_local.bat` starts the site with the Discord login bypassed (fake secrets, a test
+  id with Console access, rate limit off), `local_login.py` mints the session cookie, `api_sweep.py` and `browser_sweep.py` run the checks.
+- `.gitignore` and `upload_to_github.bat` now exclude only the old-site material in `docs/reference/` (minimaps, extract, gear table),
+  so the code maps are uploaded with the app.
+
 ## 2026.11.06.24 — 22:50
 
 - **Reverted:** the gear groups (Weapons, Tac mods, Ordnances) and the pink catalogue icons are gone again. The pink-purple lock emblem on locked challenges stays.

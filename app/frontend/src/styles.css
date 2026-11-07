@@ -1049,6 +1049,11 @@ nav {
 @media (max-width: 480px) {
   .processing-text { display: none; } /* spinner only; the full text is in the tooltip */
 }
+/* Laptop widths: "Processing 53,000 replays" pushed the account onto a second row of the top bar while an import ran;
+   the spinner alone (text in the tooltip) keeps it one row. "Server busy" keeps its text (approved 2026-11-07, GUI-1). */
+@media (min-width: 481px) and (max-width: 1500px) {
+  .processing:not(.unreachable) .processing-text { display: none; }
+}
 /* the server did not answer: pages keep their data (api.ts connection) */
 .processing.unreachable { color: var(--orange); }
 .processing.unreachable::before {
@@ -1276,6 +1281,38 @@ kbd {
   border: 0;
   display: block;
 }
+/* Click to load (Review SEC-5): a poster in the player's place until the visitor asks for the stream */
+.twitch-poster {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px;
+  border: 0;
+  border-radius: 0;
+  color: #fff;
+  background: linear-gradient(rgba(10, 12, 16, 0.55), rgba(10, 12, 16, 0.85)), url("/combat_background.jpg") center / cover;
+  cursor: pointer;
+  text-align: center;
+}
+.twitch-poster:hover .twitch-play { transform: scale(1.08); background: rgba(255, 255, 255, 0.28); }
+.twitch-poster .twitch-state { font-size: 0.85rem; letter-spacing: 0.04em; text-transform: uppercase; color: rgba(255, 255, 255, 0.75); }
+.twitch-poster.live .twitch-state { color: #4ade80; }
+.twitch-poster .twitch-play {
+  width: 64px;
+  height: 64px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 1.6rem;
+  background: rgba(255, 255, 255, 0.18);
+  transition: transform 0.15s, background 0.15s;
+}
+.twitch-poster strong { font-size: 1.1rem; }
+.twitch-poster small { color: rgba(255, 255, 255, 0.65); }
 .two-col {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
@@ -1533,6 +1570,11 @@ section > .skeleton:first-child {
 }
 /* few cards, each with a player name: stretch them across the row so long names fit (FitText) */
 .cards.highlights { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+/* phones: two highlight cards per row (three rows, not six) before the tabs (Review GUI-10, approved 2026-11-07) */
+@media (max-width: 500px) {
+  .cards.highlights { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .cards.highlights .card { padding: 10px; }
+}
 .highlights .card.team-blue { border-top: 3px solid var(--blue); }
 .highlights .card.team-orange { border-top: 3px solid var(--orange); }
 
@@ -1926,6 +1968,57 @@ td.best {
     text-align: left;
   }
   .podium-step.place-1 { min-height: 120px; }
+  /* Tab strips (match, player, Console) scroll sideways on a phone; the fade at the right edge says there is more.
+     The padding keeps the last tab clear of the fade once scrolled to the end (Review GUI-4, approved 2026-11-07). */
+  .section-tabs {
+    padding-right: 32px;
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
+    scrollbar-width: none;
+  }
+  .section-tabs::-webkit-scrollbar {
+    display: none;
+  }
+  /* Leaderboard on a phone (Review GUI-5, approved 2026-11-07): one line per player (rank, name, the ranked value with
+     a chevron); tapping the row shows the other columns underneath. 50 rows fit in a fifth of the old height. */
+  table.board tr {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    column-gap: 10px;
+    padding: 6px 10px;
+    cursor: pointer;
+  }
+  table.board td.keep {
+    display: block;
+    padding: 2px 0;
+    text-align: left;
+  }
+  table.board td.keep::before {
+    content: none;
+  }
+  table.board td.rank {
+    color: var(--muted);
+    font-size: 0.85rem;
+  }
+  table.board td.value {
+    text-align: right;
+  }
+  table.board td.value::after {
+    content: " ▾";
+    color: var(--muted);
+  }
+  table.board tr.open td.value::after {
+    content: " ▴";
+  }
+  table.board td:not(.keep) {
+    display: none;
+    grid-column: 1 / -1;
+  }
+  table.board tr.open td:not(.keep) {
+    display: flex;
+    border-top: 1px solid var(--line);
+  }
 }
 
 /* Laptop widths: tighter header, so the login button stays on the same line instead of adding a second row */

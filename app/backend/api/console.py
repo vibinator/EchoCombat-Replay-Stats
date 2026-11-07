@@ -72,6 +72,7 @@ COMMANDS = {  # name as in admin.bat -> (sessions, settings, args) -> None
     "status": lambda s, st, a: console.cmd_status(s),
     "repair-failed": lambda s, st, a: console.cmd_repair_failed(s, yes=True),
     "cannot-repair": lambda s, st, a: console.cmd_cannot_repair(s, a.hide, yes=True),
+    "forget-missing": lambda s, st, a: console.cmd_forget_missing(s, st, yes=True),
     "hidden": lambda s, st, a: console.cmd_hidden(s, a.unhide or None, a.unhide_all, yes=True),
     "reprocess": lambda s, st, a: console.cmd_reprocess(s, _required(a.replay, "a replay id or path")),
     "repair": lambda s, st, a: console.cmd_repair(s, _required(a.replay, "a replay id or path")),

@@ -23,6 +23,14 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      # Known advisories in the pinned packages (Review SEC-7). Reported, not blocking: the build still runs; fix by
+      # bumping the pin in requirements.txt / package.json
+      - name: Audit Python packages (advisory)
+        continue-on-error: true
+        run: pip install --quiet pip-audit && pip-audit -r app/backend/requirements.txt --progress-spinner off
+      - name: Audit npm packages (advisory)
+        continue-on-error: true
+        run: cd app/frontend && npm audit --omit=dev --audit-level=high
       - name: Read app version
         id: version
         run: echo "version=$(sed -n 's/^VERSION = "\(.*\)"/\1/p' app/backend/version.py)" >> "$GITHUB_OUTPUT"

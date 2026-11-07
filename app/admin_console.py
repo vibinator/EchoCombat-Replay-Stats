@@ -609,6 +609,32 @@ def describe_replay(r: Replay) -> str:
     return f"{r.source_path:<60} {why}"
 
 
+def cmd_forget_missing(sessions, settings: Settings, yes: bool) -> int:
+    """Forgets replay rows whose file is gone from the replay folder (moved root, deleted files): their matches go with
+    them, players stay. Nothing on the share is touched. Refuses while the folder is offline."""
+    with sessions() as db:
+        try:
+            rows = actions.missing_replays(db, settings)
+        except actions.AdminError as e:
+            raise ConsoleError(str(e)) from None
+        if not rows:
+            print(f"Every replay row has its file under {settings.source_dir}. Nothing to forget.")
+            return 0
+        with_match = sum(1 for r in rows if db.scalar(select(Match.id).where(Match.replay_id == r.id)) is not None)
+        print(f"{len(rows)} replay rows point to files that are not under {settings.source_dir} any more "
+              f"({with_match} with a match). Newest first:")
+        for r in rows[:5]:
+            print(f"  {describe_replay(r)}")
+        if len(rows) > 5:
+            print(f"  ... and {len(rows) - 5} more")
+        if not confirm(f"Forget these {len(rows)} rows and their matches? (the same matches recorded under another path keep showing)", yes):
+            print("Nothing changed.")
+            return 0
+        n = actions.forget_missing(db, settings)
+    print(f"Forgotten {n} replay rows. Stats and leaderboards update within a few minutes.")
+    return n
+
+
 def cmd_cannot_repair(sessions, hide: bool, yes: bool) -> list[Replay]:
     with sessions() as db:
         rows = db.scalars(select(Replay).where(unrepairable(), not_(hidden_failure()))
@@ -922,7 +948,7 @@ def interactive(sessions, settings: Settings) -> None:
 # subcommands that change something: written to the audit log (Console page) with the Windows / container user
 LOGGED = {"merge", "unmerge", "link-profile", "unlink-profile", "challenge", "mega-period", "preview-roles", "admin-roles", "admin-users", "hide-stats", "repair-failed",
           "cannot-repair", "hidden", "reprocess", "repair", "scan", "reprocess-all", "repair-aggressive",
-          "repair-aggressive-failed", "remote", "process-missing"}
+          "repair-aggressive-failed", "remote", "process-missing", "forget-missing"}
 
 
 def _run_logged(sessions, settings: Settings, args) -> int:
@@ -980,6 +1006,8 @@ def main_command(sessions, settings: Settings, args) -> None:
             cmd_repair_failed(sessions, args.yes)
         case "cannot-repair":
             cmd_cannot_repair(sessions, args.hide, args.yes)
+        case "forget-missing":
+            cmd_forget_missing(sessions, settings, args.yes)
         case "hidden":
             cmd_hidden(sessions, args.unhide, args.unhide_all, args.yes)
         case "reprocess":
@@ -1048,6 +1076,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--yes", action="store_true")
     p = sub.add_parser("cannot-repair", help="list failed replays that repair cannot fix")
     p.add_argument("--hide", action="store_true", help="hide them on the website")
+    p.add_argument("--yes", action="store_true")
+    p = sub.add_parser("forget-missing", help="forget replay rows whose file is gone from the replay folder (after a moved root)")
     p.add_argument("--yes", action="store_true")
     p = sub.add_parser("hidden", help="list hidden replays")
     p.add_argument("--unhide", metavar="PATH", help="show this replay again")

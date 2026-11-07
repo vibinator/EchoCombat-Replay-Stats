@@ -136,7 +136,7 @@ export function MatchTable({ matches, extra }: { matches: MatchSummary[]; extra?
   if (matches.length === 0) return <p className="muted">No matches yet. Replays are still being imported — see Import.</p>;
   return (
     <TableWrap>
-      <table>
+      <table className="stack">{/* under 760 px each row becomes a card; the columns were cut off on phones (Review GUI-4) */}
         <thead>
           <tr>
             <th className="num">Match</th>
@@ -152,20 +152,20 @@ export function MatchTable({ matches, extra }: { matches: MatchSummary[]; extra?
         <tbody>
           {matches.map((m) => (
             <tr key={m.id}>
-              <td className="num match-id">
+              <td className="num match-id" data-label="Match">
                 <Link to={`/matches/${m.id}`}>#{m.id}</Link>
               </td>
-              <td>
+              <td data-label="Date">
                 <Link to={`/matches/${m.id}`}><LocalTime iso={m.started_at} /></Link>
               </td>
-              <td>{title(m.map)}</td>
-              <td>{modeLabel(m.mode)}</td>
-              <td>{scoreText(m)}</td>
-              <td>
+              <td data-label="Map">{title(m.map)}</td>
+              <td data-label="Mode">{modeLabel(m.mode)}</td>
+              <td data-label="Score">{scoreText(m)}</td>
+              <td data-label="Winner">
                 <TeamBadge team={m.winner} />
               </td>
-              <td className="num">{duration(m.duration_s)}</td>
-              {extra && <td>{extra(m)}</td>}
+              <td className="num" data-label="Length">{duration(m.duration_s)}</td>
+              {extra && <td data-label="Result">{extra(m)}</td>}
             </tr>
           ))}
         </tbody>

@@ -15,6 +15,7 @@ from concurrent.futures.process import BrokenProcessPool
 from pathlib import Path
 
 from sqlalchemy import delete, func, or_, select, update
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import sessionmaker
 
 from parser import PARSER_VERSION, ReplayError, open_replay
@@ -135,6 +136,13 @@ def _save_result(sessions: sessionmaker, replay_id: int, result: tuple) -> None:
             replay.parser_version = PARSER_VERSION
             replay.processed_at = utcnow()
             db.commit()
+        except OperationalError as e:
+            # the database was busy / locked (another writer, a full disk, the NAS stalling): nothing is wrong with the
+            # replay, so it goes back into the queue and its previous match stays (Review BUG-1)
+            db.rollback()
+            log.warning("Saving replay %s postponed, the database was busy: %s", replay_id, str(e).splitlines()[0][:160])
+            db.execute(update(Replay).where(Replay.id == replay_id, Replay.status == "processing").values(status="queued"))
+            db.commit()
         except Exception as e:
             db.rollback()
             log.exception("Saving replay %s failed", replay_id)
@@ -175,10 +183,13 @@ def requeue_unfinished_and_outdated(sessions: sessionmaker) -> int:
         return result.rowcount
 
 
-def claim_queued(sessions: sessionmaker, count: int) -> list[tuple[int, str, bool | str]]:
+def claim_queued(sessions: sessionmaker, count: int, server: bool = False) -> list[tuple[int, str, bool | str]]:
     """Marks up to `count` queued replays 'processing' and returns (id, source path relative to the share, repair mode).
-    Used by this server's own worker and by the remote PC (remote.py)."""
+    Used by this server's own worker (`server=True`: nothing is claimed when remote processing is set to the PC only,
+    checked in the same transaction so a mode switch cannot slip in between, Review BUG-5) and by the remote PC (remote.py)."""
     with sessions() as db:
+        if server and not remote.server_works(db):
+            return []
         # admin console merges / repairs first (priority_replays), then the backlog, newest file first. Priority
         # replays go newest match first (user, 2026-10-31: a merged player's latest games are right first);
         # ones without a match yet (e.g. repairs) by newest file.
@@ -309,12 +320,13 @@ class Worker:
     def _claim(self, count: int) -> list[tuple[int, str, bool | str]]:
         """(id, absolute path, repair mode) of up to `count` queued replays, now marked 'processing'. Nothing while
         remote processing is set to the PC only (remote.py); with "both" this server takes replays too."""
+        read_at = time.monotonic()
         with self.sessions() as db:
-            pc_on, works = remote.enabled(db), remote.server_works(db)
-        remote.requeue_abandoned(self.sessions, everything=not pc_on)  # off: whatever the PC still holds is ours again
-        if not works:  # the PC only: it reads them
-            return []
-        claimed = claim_queued(self.sessions, count)
+            pc_on = remote.enabled(db)
+        # off: whatever the PC still held when the mode was read is ours again (claims made after that read belong to
+        # a mode switched on meanwhile and stay with the PC)
+        remote.requeue_abandoned(self.sessions, everything=not pc_on, before=read_at)
+        claimed = claim_queued(self.sessions, count, server=True)  # nothing while the PC alone reads them
         for replay_id, path, _ in claimed:
             self._started[replay_id] = (path, time.monotonic())
         return [(rid, str(self.settings.source_dir / path), repair) for rid, path, repair in claimed]

@@ -10,6 +10,9 @@ class Base(DeclarativeBase):
     pass
 
 
+BUSY_TIMEOUT_S = 30  # how long a write waits for another writer (SQLite has one at a time)
+
+
 def utcnow() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
@@ -19,13 +22,16 @@ def open_db(db_path: Path, cache_mb: int = 0) -> tuple[Engine, sessionmaker]:
     shared by every connection) plus a 32 MB page cache per connection. Not temp_store=MEMORY: measured 60 %
     slower on the archive-wide GROUP BY queries."""
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    engine = create_engine(f"sqlite:///{db_path}", connect_args={"check_same_thread": False})
+    # Several threads write (worker results, combat reports, arena poll, scanner, console): a writer waits up to
+    # BUSY_TIMEOUT_S for the others instead of failing with "database is locked" after Python's default 5 s (Review BUG-1)
+    engine = create_engine(f"sqlite:///{db_path}", connect_args={"check_same_thread": False, "timeout": BUSY_TIMEOUT_S})
 
     @event.listens_for(engine, "connect")
     def _pragmas(conn, _record):
         cur = conn.cursor()
         cur.execute("PRAGMA journal_mode=WAL")
         cur.execute("PRAGMA foreign_keys=ON")
+        cur.execute(f"PRAGMA busy_timeout={BUSY_TIMEOUT_S * 1000}")
         if cache_mb > 0:
             cur.execute(f"PRAGMA mmap_size={cache_mb * 1024 * 1024}")
             cur.execute("PRAGMA cache_size=-32768")

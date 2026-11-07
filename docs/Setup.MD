@@ -58,6 +58,7 @@ Replays it queues go to the front of the queue: a running server picks them up w
 | `admin.bat reprocess <replay id or path>` | Read one replay again |
 | `admin.bat repair <replay id or path>` / `repair-failed` | Repair (salvage) damaged replays |
 | `admin.bat cannot-repair [--hide]` / `hidden [--unhide <path> \| --unhide-all]` | Replays repair cannot fix: list, hide from the Import page, show again |
+| `admin.bat forget-missing` | After the replay folder was moved (`ECHOVR_REPLAY_SOURCE` changed) or files were deleted: forgets the replay rows whose file is no longer under the folder, with their matches (players stay; the same matches under their new path keep showing). Refuses while the folder is offline. Also in the Console, Replays tab |
 | `admin.bat remote [--on \| --off]` | Read replays on another PC (`remote_worker.bat`) instead of on this server; no option shows the setting and when the PC last asked for work. Menu option 21 |
 | `admin.bat scan` | Look for new files in the replay folder now |
 | `admin.bat reprocess-all` | Rescan the folder, then read every replay again (about 3 hours; current results stay visible until replaced) |
@@ -70,7 +71,7 @@ the matches to pick from.
 Double-click `upload_to_github.bat`. First time: create an **empty** repository at https://github.com/new (no README,
 .gitignore or licence) and paste its address when asked; Git may open a GitHub sign-in window. Each run uploads the
 application only, labelled with the beta version (`Beta N: <your description>`). Never uploaded (`.gitignore`): `data\`
-(database, position tracks, exports), any `.echoreplay` / database file, `tests\sample-replays`, `docs\reference`,
+(database, position tracks, exports), any `.echoreplay` / database file, `tests\sample-replays`, the old-site files in `docs\reference` (minimaps, extract, gear table; the code maps there are uploaded),
 `.venv`, `node_modules`, the built website. If one of those is ever about to be uploaded anyway, the script stops
 before anything is sent. Needs Git for Windows (https://git-scm.com/download/win).
 

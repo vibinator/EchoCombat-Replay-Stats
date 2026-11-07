@@ -323,10 +323,13 @@ function MatchContent({ id }: { id: number }) {
   const m = match.data;
   usePageTitle(m ? `${title(m.map)} #${m.id}` : `Match #${id}`);
   const [params, setParams] = useSearchParams();
-  const tab = (params.get("tab") as Tab) || "players";
+  // an unknown ?tab= (an old link, a typo) shows the players, not an empty page (Review BUG-6)
+  const wanted = params.get("tab");
+  const tab: Tab = TABS.some(([t]) => t === wanted) ? (wanted as Tab) : "players";
   const setTab = (t: Tab) => setParams(t === "players" ? {} : { tab: t }, { replace: true });
-  // the Combat tab only exists for matches the recorder sent a report for (same cached request as the tab's own content)
-  const sessionId = m?.session_id;
+  // the Combat tab only exists for matches the recorder sent a report for; the match answer says so, so matches
+  // without one never ask (Review BUG-7). Same cached request as the tab's own content.
+  const sessionId = m?.has_combat ? m.session_id : undefined;
   const combat = useApi(() => (sessionId ? getCombatMatch(sessionId) : Promise.resolve(null)), `combat-match|${sessionId ?? ""}`);
   const hasCombat = !!combat.data;
   const tabs = TABS.filter(([t]) => (t !== "combat" || hasCombat) && (t !== "gear" || (!!m && hasGearData(m))));

@@ -83,7 +83,7 @@ All JSON. No upload, delete or replay-download endpoints: replays come only from
 | GET | /api/replays | List replays (newest file first); filter `status` | 3 |
 | GET | /api/replays/{id} | `source_path`, status, error, warnings, `match_id` (also in list items) | 3, 5 |
 | GET | /api/matches | List; filters `map`, `mode`, `player` (user_id), `player_name`, `from`/`to`, `private`, `min_players`, `result` (blue / orange / attack_win / defence_win / unknown); `with_players` adds names (cards) | 6, D37 |
-| GET | /api/matches/{id} | Match + teams + per-player stats (derived % included) + loadouts + `also_recorded_in` (other copies of the same match) + `duplicate_of` (set: that copy counts in stats instead, D13) | 6 |
+| GET | /api/matches/{id} | Match + teams + per-player stats (derived % included) + loadouts + `also_recorded_in` (other copies of the same match) + `duplicate_of` (set: that copy counts in stats instead, D13) + `has_combat` (a recorder report exists: the page asks for the Combat tab only then) | 6 |
 | GET | /api/matches/{id}/events | Timeline; filter `type` | 6 |
 | GET | /api/players | Search; `q` (name contains, case-insensitive), paging; items include games, last_seen_at | 6 |
 | GET | /api/players/{user_id} | A merged id answers with its main player (`user_id` = main; the page moves there). Profile stat set (DataModel; `period`=day\|week\|month\|all, `map`) + wins/losses + level + loadout usage + 20 recent matches (with team, result) | 6 |
@@ -91,7 +91,7 @@ All JSON. No upload, delete or replay-download endpoints: replays come only from
 | GET | /api/leaderboard/stats | Selectable stats `[{key, label, higher_is_better}]` | 7 |
 | GET | /api/leaderboard/gear | Loadout codes + names (released first, then cut) | 7 |
 | GET | /api/matches/{id}/timeline | `{hz, duration_s, series{blue_points, orange_points \| payload_distance}, events}`; series empty for old-format replays | 7 |
-| GET | /api/matches/{id}/heatmap | `mode` team / weapons / ordnance / tacmod / loadout / speed, `cell` 0.25 / 0.5 / 1, `player`. 404 `no_tracks` until processed | 7, D35 |
+| GET | /api/matches/{id}/heatmap | `mode` team / weapons / ordnance / tacmod / loadout / speed, `cell` 0.1 only (`heatmaps.CELL_SIZES`; the coarser 0.25 / 0.5 / 1 were dropped with the 0.1 m heatmaps), `player`. 404 `no_tracks` until processed | 7, D35 |
 | GET | /api/matches/{id}/playback | Positions per player at 2 Hz in image space (u, v, team) | D37 |
 | GET | /api/matches/{id}/playback3d | Head position (dm), facing (yaw 0–255, pitch °), team and hands (relative to the head, 2 cm steps) per player at 5 Hz in world space, payload cart position, payload route / capture point in metres, play extent, map model URL (`/maps3d/<map>.glb?v=<release>`, cached for good). From `tracks3d.bin`; a match without one (processed before 3D playback) gets it built on first view in the worker's low-priority processes (~1 s; 503 `tracks3d_building` after 25 s, 404 `no_tracks3d` when the replay cannot be read) | 3D playback |
 | GET | /api/players/{user_id}/heatmap | `map` (required), `mode` = the match modes + deaths, `period`, `last` (default 200, max 5000), `cell`. Cached per data stamp | 7, D35 |
@@ -132,7 +132,8 @@ Heatmap response: `{map, image: "/minimaps/<map>.png", cols, rows, cell_m, match
 ```
 
 ## Error handling
-- API errors (e.g. 404 `not_found`, `file_missing`, 409 `busy`) → body `{error_code, message}`.
+- API errors (e.g. 404 `not_found`, `file_missing`, 409 `busy`) → body `{error_code, message}`. Validation errors are 422 `bad_request` with the same shape (`message` = the first problem, `detail` = the list); an id beyond 64 bits is 404 (`errors.py`).
+- SQLite has one writer at a time and several threads write (worker, combat reports, arena poll, scanner, console): a writer waits up to `db.BUSY_TIMEOUT_S` (30 s). If it still fails, a replay result goes back to `queued` and a combat report is read again next scan; nothing is marked failed for a busy database.
 - Parse/stats failures stored on the replay row and listed on the Import page; nothing partial is persisted (single transaction).
 - Same `sessionid` in several files → separate matches with `also_recorded_in` (D13).
 - Unknown map code → `map = "unknown"`; bounds-based stats skipped (deaths_est = 0, frames_in_bounds = frames_present); mode from fields present.

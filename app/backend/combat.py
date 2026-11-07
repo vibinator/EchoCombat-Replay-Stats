@@ -21,6 +21,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from sqlalchemy import delete, select
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import sessionmaker
 
 from .config import Settings
@@ -167,6 +168,12 @@ def _process(sessions: sessionmaker, root: Path, rel: str, size: int, mtime: flo
                 save_report(db, row.id, parsed)
             row.status, row.error_message = ("done", None) if parsed else ("failed", error)
             db.commit()
+        except OperationalError as e:
+            # database busy / locked: nothing is wrong with the report; it is not recorded, so the next scan reads it
+            # again (Review BUG-1 / BUG-3)
+            db.rollback()
+            log.warning("Saving combat report %s postponed, the database was busy: %s", rel, str(e).splitlines()[0][:160])
+            return False
         except Exception as e:  # noqa: BLE001 - one bad report never stops the others
             db.rollback()
             log.exception("Saving combat report %s failed", rel)

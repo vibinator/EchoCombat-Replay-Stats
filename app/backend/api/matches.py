@@ -22,7 +22,7 @@ from ..gear import ORDNANCES, TACMODS, WEAPONS
 from ..gear import lookup as gear_lookup
 from ..stats.map_objects import CAPTURE_POINTS, PAYLOAD_ROUTES
 from ..stats.maps import HEATMAP_LAYOUTS
-from ..models import AggressiveRepair, DuplicateMatch, Event, Match, MatchPlayer, MatchPlayerLoadout, Player, RepairRequest, Replay
+from ..models import AggressiveRepair, CombatMatch, DuplicateMatch, Event, Match, MatchPlayer, MatchPlayerLoadout, Player, RepairRequest, Replay
 from ..version import VERSION
 from .derived import ID_MAX, MAP_PATTERN, MODE_PATTERN, TEXT_MAX, dominant_arm, loadout, match_summary, ratio
 from .downloads import download_csv, download_json
@@ -222,6 +222,8 @@ def match_detail(request: Request, match_id: int) -> dict:
             "also_recorded_in": list(also),
             "duplicate_of": duplicate_of,  # another recording of this match counts in the stats instead (D13)
             "repaired": repaired,
+            # the recorder's combat report exists: the page shows the Combat tab and asks for it only then (Review BUG-7)
+            "has_combat": db.scalar(select(CombatMatch.id).where(CombatMatch.session_id == match.session_id).limit(1)) is not None,
         }
 
 

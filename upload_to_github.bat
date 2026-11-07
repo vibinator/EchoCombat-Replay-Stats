@@ -55,7 +55,7 @@ if errorlevel 1 goto :error
 rem Safety net: never upload data, even if .gitignore was edited (git's own path matching; findstr is unreliable
 rem with several patterns).
 set "BLOCKED=%TEMP%\echovr-blocked.txt"
-git -c core.quotepath=off diff --cached --name-only -- "*.echoreplay" "*.ecrreplay" "*.db" "*.db-wal" "*.db-shm" "*.sqlite" "*tracks.bin" "data/*" "tests/sample-replays/*" "docs/reference/*" "*node_modules/*" ".venv/*" > "%BLOCKED%"
+git -c core.quotepath=off diff --cached --name-only -- "*.echoreplay" "*.ecrreplay" "*.db" "*.db-wal" "*.db-shm" "*.sqlite" "*tracks.bin" "data/*" "tests/sample-replays/*" "docs/reference/minimaps/*" "docs/reference/echocombat-extract.md" "docs/reference/gear-table.json" "*node_modules/*" ".venv/*" > "%BLOCKED%"
 set "BLOCKED_SIZE=0"
 for %%F in ("%BLOCKED%") do set "BLOCKED_SIZE=%%~zF"
 if not "!BLOCKED_SIZE!"=="0" (

@@ -205,9 +205,14 @@ def leaderboard(request: Request, stat: str = Query("kills", pattern="^(" + "|".
 
 @router.get("/matches")
 def matches(request: Request, limit: int = Query(30, ge=1, le=200), offset: int = Query(0, ge=0),
-            map: str | None = Query(None, pattern=MAP_PATTERN)):
+            map: str | None = Query(None, pattern=MAP_PATTERN),
+            min_players: int = Query(1, ge=0, le=16, description="empty lobbies (0 players) are left out by default")):
     where = [CombatMatch.map == map] if map else []
     with request.app.state.sessionmaker() as db:
+        # reports with fewer than min_players players (empty lobbies the recorder sat in) are not matches (Review GUI-7)
+        played = select(CombatPlayer.match_id).group_by(CombatPlayer.match_id).having(func.count() >= min_players)
+        if min_players > 0:
+            where.append(CombatMatch.id.in_(played))
         total = db.scalar(select(func.count()).select_from(CombatMatch).where(*where))
         rows = db.execute(
             select(CombatMatch, func.count(CombatPlayer.user_id), func.sum(CombatPlayer.kills), func.sum(CombatPlayer.damage))

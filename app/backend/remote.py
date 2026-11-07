@@ -136,11 +136,13 @@ def requeue(sessions: sessionmaker, replay_ids: list[int]) -> int:
     return done
 
 
-def requeue_abandoned(sessions: sessionmaker, everything: bool = False) -> int:
-    """Replays the PC claimed and never answered (or all of them: remote processing was turned off)."""
+def requeue_abandoned(sessions: sessionmaker, everything: bool = False, before: float | None = None) -> int:
+    """Replays the PC claimed and never answered (or all of them: remote processing was turned off). `before` (a
+    time.monotonic() value) limits "all of them" to claims made before the caller read the setting."""
     now = time.monotonic()
     with _lock:
-        stale = [rid for rid, at in _claims.items() if everything or now - at > CLAIM_TIMEOUT_S]
+        stale = [rid for rid, at in _claims.items()
+                 if (everything and (before is None or at < before)) or now - at > CLAIM_TIMEOUT_S]
     if stale:
         log.warning("Queueing %d replay(s) claimed by the remote PC again (%s)", len(stale),
                     "remote processing is off" if everything else "no answer")
