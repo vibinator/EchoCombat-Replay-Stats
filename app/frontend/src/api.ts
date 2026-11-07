@@ -376,6 +376,10 @@ export type Period = "day" | "week" | "month" | "all";
 
 export interface PlayerStats {
   games: number;
+  /** games behind the averages: 2+ minutes with 2+ players per team (stats/quality.py); totals count every game */
+  counted_games: number;
+  /** games with a recorded winner, behind the win rate */
+  decided_games: number;
   /** wins / losses / result / win_rate: left out while win-loss stats are hidden (Console: Hide stats from players) */
   wins?: number;
   losses?: number;

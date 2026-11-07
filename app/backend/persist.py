@@ -13,7 +13,7 @@ from parser import ReplayMeta
 from . import duplicates
 from .aliases import alias_map
 from .models import Event, Match, MatchPlayer, MatchPlayerLoadout, Player
-from .stats import MatchStats, PlayerStats
+from .stats import MatchStats, PlayerStats, quality
 
 
 def _iso(dt: datetime) -> str:
@@ -70,6 +70,7 @@ def save_match(db: Session, replay_id: int, meta: ReplayMeta, stats: MatchStats,
         final_game_timer=stats.final_game_timer,
         blue_capture_s=stats.blue_capture_s,
         orange_capture_s=stats.orange_capture_s,
+        counted_for_stats=int(quality.counted_for_stats(stats.duration_s, stats.players)),
     )
     db.add(match)
     db.flush()

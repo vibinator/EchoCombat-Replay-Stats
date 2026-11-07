@@ -397,7 +397,7 @@ export function HomePage() {
                     <strong>
                       <span className="team-text blue">{int(g.capture_wins.blue)}</span> – <span className="team-text orange">{int(g.capture_wins.orange)}</span>
                     </strong>
-                    <span className="muted">blue – orange</span>
+                    <span className="muted">blue – orange · of {int(g.capture_wins.blue + g.capture_wins.orange)} decided</span>
                   </div>
                 )}
               </div>

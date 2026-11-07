@@ -91,28 +91,32 @@ function trend(items: TrendPoint[] | undefined, key: "games" | "avg_speed" | "de
 }
 
 function cards(s: PlayerStats, avg: Averages = {}, months?: TrendPoint[]): CardRow[] {
+  // averages and rates count only games of 2+ minutes with 2+ players per team (user, 2026-11-07, Review DATA-3);
+  // the win rate counts games with a recorded winner (DATA-2). Each ⓘ says so with the numbers behind it.
+  const counted = s.counted_games === s.games ? "" : ` Counts ${int(s.counted_games)} of ${int(s.games)} games: 2+ minutes with 2+ players per team.`;
+  const decided = s.decided_games == null ? "" : ` ${int(s.decided_games)} of ${int(s.games)} games have a recorded winner.`;
   const list: CardRow[] = [
     ["Games", int(s.games), "The line: games per month, all time", trend(months, "games", "Games")],
     // left out of the answer while win-loss stats are hidden from players
     ...(s.wins != null && s.losses != null
       ? ([
-          ["Wins – losses", `${int(s.wins)} – ${int(s.losses)}`, "Matches without a known winner are not counted"],
-          ["Win rate", s.wins + s.losses ? pct(s.wins / (s.wins + s.losses)) : "–", "Wins out of the games with a known winner"],
+          ["Wins – losses", `${int(s.wins)} – ${int(s.losses)}`, `Matches without a known winner are not counted.${decided}${counted}`],
+          ["Win rate", s.wins + s.losses ? pct(s.wins / (s.wins + s.losses)) : "–", `Wins out of the games with a known winner.${decided}${counted}`],
         ] as CardRow[])
       : []),
     ["Hours played", num(s.hours_played)],
-    ["Deaths*", int(s.deaths_est), "Estimated from leaving the map bounds"],
-    ["Deaths / game*", num(s.deaths_per_game_est, 2), "The line: per month, all time", trend(months, "deaths_per_game_est", "Deaths per game")],
-    ["Average speed", `${num(s.avg_speed, 2)} m/s`, "The line: per month, all time", trend(months, "avg_speed", "Average speed")],
-    ["Top speed", `${num(s.top_speed)} m/s`, "Fastest speed held for a full second"],
-    ["Time idle", <VsAverage value={s.pct_stopped} average={avg.pct_stopped} />, "Moving slower than 1 m/s. The tick: every player's average"],
-    ["Inverted", <VsAverage value={s.pct_upside_down} average={avg.pct_upside_down} />, "The tick: every player's average"],
-    ["Near a teammate", <VsAverage value={s.pct_near_mate} average={avg.pct_near_mate} />, "The tick: every player's average"],
-    ["Near an enemy", <VsAverage value={s.pct_near_enemy} average={avg.pct_near_enemy} />, "The tick: every player's average"],
-    ["Average ping", num(s.avg_ping, 0), "The line: per month, all time", trend(months, "avg_ping", "Average ping")],
+    ["Deaths*", int(s.deaths_est), `Estimated from leaving the map bounds.${counted}`],
+    ["Deaths / game*", num(s.deaths_per_game_est, 2), `The line: per month, all time.${counted}`, trend(months, "deaths_per_game_est", "Deaths per game")],
+    ["Average speed", `${num(s.avg_speed, 2)} m/s`, `The line: per month, all time.${counted}`, trend(months, "avg_speed", "Average speed")],
+    ["Top speed", `${num(s.top_speed)} m/s`, `Fastest speed held for a full second.${counted}`],
+    ["Time idle", <VsAverage value={s.pct_stopped} average={avg.pct_stopped} />, `Moving slower than 1 m/s. The tick: every player's average.${counted}`],
+    ["Inverted", <VsAverage value={s.pct_upside_down} average={avg.pct_upside_down} />, `The tick: every player's average.${counted}`],
+    ["Near a teammate", <VsAverage value={s.pct_near_mate} average={avg.pct_near_mate} />, `The tick: every player's average.${counted}`],
+    ["Near an enemy", <VsAverage value={s.pct_near_enemy} average={avg.pct_near_enemy} />, `The tick: every player's average.${counted}`],
+    ["Average ping", num(s.avg_ping, 0), `Readings above 400 ms count as 400. The line: per month, all time.${counted}`, trend(months, "avg_ping", "Average ping")],
     ["Packet loss", s.avg_packet_loss == null ? "–" : `${(s.avg_packet_loss * 100).toFixed(2)}%`],
     ["Emotes", int(s.emote_count)],
-    ["Left early", <VsAverage value={s.pct_left_early} average={avg.pct_left_early} />, "Last seen more than 45 s before the end. The tick: every player's average"],
+    ["Left early", <VsAverage value={s.pct_left_early} average={avg.pct_left_early} />, `Last seen more than 45 s before the end. The tick: every player's average.${counted}`],
     ["Arm", <ArmBar left={s.pct_left_arm} />, "Share of play time with the in-game dominant arm set to right / left"],
   ];
   if (s.games) list.push(["Modes", <ModeBar games={s.games_by_mode} />]);

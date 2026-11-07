@@ -60,6 +60,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
             def warm_caches():  # the home page first (the first thing people open), then the heavy achievements ranking
                 overview.warm(app)
+                auth.check_fixed_ids(settings)  # a mistyped staff id in the YAML is logged, not silently granted (SEC-2)
                 achievements.warm(app.state.sessionmaker, previews=auth.enabled(settings))
 
             threading.Thread(target=warm_caches, name="warm-caches", daemon=True).start()

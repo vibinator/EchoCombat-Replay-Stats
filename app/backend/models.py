@@ -61,6 +61,8 @@ class Match(Base):
     has_tracks: Mapped[bool]  # position tracks file saved (heatmaps / timeline chart)
     blue_capture_s: Mapped[float]  # capture-point: time blue's progress was rising
     orange_capture_s: Mapped[float]
+    # 1 = counts for averages (stats/quality.py: 2+ minutes, 2+ per team), 0 = totals only; NULL = older row, filled at startup
+    counted_for_stats: Mapped[int | None]
 
 
 class DuplicateMatch(Base):
@@ -102,6 +104,7 @@ class MatchPlayer(Base):
     left_early: Mapped[bool]
     ping_sum: Mapped[float]
     ping_frames: Mapped[int]
+    ping_capped_sum: Mapped[float | None]  # readings capped at stats.player.PING_CAP, for averages (DATA-5); NULL until the replay is read again (D57)
     frames_in_bounds: Mapped[int]
     speed_sum: Mapped[float]
     top_speed: Mapped[float] = mapped_column(index=True)  # home page "fastest player"

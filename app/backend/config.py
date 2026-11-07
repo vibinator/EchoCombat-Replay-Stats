@@ -56,6 +56,9 @@ class Settings:
     edge_cache_s: int = 0
     # Twitch channel of the spectator bot: live = a game is being played now (twitch.py); "" = not checked (the tests)
     twitch_channel: str = ""
+    # Averages, rates and win rates on profiles / trends / compare / leaderboard count only games of 2+ minutes with 2+
+    # players per team (stats/quality.py, user 2026-11-07); totals count everything. Tests switch it off
+    counted_stats: bool = True
 
     @classmethod
     def from_env(cls) -> "Settings":

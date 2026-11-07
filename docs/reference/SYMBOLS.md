@@ -63,9 +63,9 @@ File-download responses for exports (CSV / JSON). Built in memory: exports are s
 ### `app/backend/api/imports.py` (119 lines)
 - `STATUSES`:16 / `RATE_WINDOW_MIN`:17 / _stage:20 / import_status:25 / _minutes:111
 
-### `app/backend/api/leaderboard.py` (266 lines)
+### `app/backend/api/leaderboard.py` (276 lines)
 Leaderboard (D15): the profile aggregates grouped by player, ranked by one stat.
-- `WIN_LOSS_STATS`:20 / `STATS`:22 / _aggregate:41 / _where:62 / _aggregate_rows:86 / _summary:93 / _values:104 / _rank:128 / `SORTS`:134 / _resort:137 / list_stats:154 / leaderboard:164 / _leaderboard:199 / achievers:247 / list_gear:261
+- `WIN_LOSS_STATS`:21 / `STATS`:23 / _aggregate:42 / _where:71 / _aggregate_rows:95 / _summary:103 / _values:114 / _rank:138 / `SORTS`:144 / _resort:147 / list_stats:164 / leaderboard:174 / _leaderboard:209 / achievers:257 / list_gear:271
 
 ### `app/backend/api/matches.py` (615 lines)
 - player_counts:33 / list_matches:41 / _list_matches:60 / `MAX_THUMBNAILS`:106 / get_thumbnails:111 / _thumbnails:120 / _thumbnail:131 / _thumbnail_for:140 / player_row:146 / get_match:179 / match_detail:183 / repair_note:230 / get_events:243 / _event_data:262 / _match_or_404:270 / _tracks:277 / get_timeline:285 / _timeline:290 / `MATCH_HEATMAP_MODES`:299 / get_match_heatmap:303 / _match_heatmap:317 / get_match_heatmap3d:340 / _match_heatmap3d:352 / `EXPORT_COLUMNS`:376 / export_rows:383 / export_match:396 / get_playback:406 / _playback:412 / `PLAYBACK_EVENTS`:448 / `MAPS_3D`:450 / `PAYLOAD_MODEL_MAPS`:451 / `BUILD_WAIT_S`:452 / `MAX_BUILD_WAITERS`:453 / `FAILED_TTL_S`:454 / _recently_failed:461 / _remember_failure:466 / _tracks3d:475 / get_playback3d:537 / _playback3d:544 / _map_objects:571 / _gear_names:588 / _speeds:592 / _loadout_runs:605
@@ -78,8 +78,8 @@ Home dashboard, archive activity and global search.
 Permissions page (user, 2026-10-30): console users give or take away Admin (the Status page), the Console and the Preview,
 - _server_roles:20 / _state:30 / permissions:50 / **class Change**:55 / change:63
 
-### `app/backend/api/players.py` (452 lines)
-- `RECENT_MATCHES`:24 / games_of:27 / search_players:34 / _search_players:44 / _filters:70 / _profile:79 / _site_averages:135 / compare_players:160 / _compare_players:166 / get_player:192 / _get_player:203 / `HEATMAP_MODES`:265 / _player_heatmap:268 / get_player_heatmap:301 / `HEATMAP3D_MODES`:316 / _player_heatmap3d:319 / get_player_heatmap3d:339 / get_trends:353 / _get_trends:358 / `COMPANION_WINDOWS`:388 / _mine:392 / _together:402 / get_companions:414 / _get_companions:422
+### `app/backend/api/players.py` (477 lines)
+- `RECENT_MATCHES`:25 / games_of:28 / search_players:35 / _search_players:45 / _filters:71 / _profile:80 / _site_averages:147 / compare_players:177 / _compare_players:183 / get_player:210 / _get_player:221 / `HEATMAP_MODES`:283 / _player_heatmap:286 / get_player_heatmap:319 / `HEATMAP3D_MODES`:334 / _player_heatmap3d:337 / get_player_heatmap3d:357 / get_trends:371 / _get_trends:376 / `COMPANION_WINDOWS`:413 / _mine:417 / _together:427 / get_companions:439 / _get_companions:447
 
 ### `app/backend/api/profiles.py` (331 lines)
 Player profiles linked to Discord (user, 2026-11-02).
@@ -97,9 +97,9 @@ Replays found in the share (D25). Read-only: files are added by the scanner; rep
 Public Echo Arena matches per player, counted from the live Nakama match list (user, 2026-11-04). Completely
 - `URL`:21 / `MIN_PRESENT_S`:22 / `MIN_TEAM`:23 / `MIN_SEEN`:24 / `TIMEOUT_S`:25 / `MAX_BYTES`:26 / `MAX_BACKOFF_S`:27 / `KEEP_COUNTED_S`:28 / `PRUNE_EVERY_S`:29 / `ACCOUNT_REFRESH_S`:30 / `WINDOW_CHECK_S`:31 / `NON_PLAYER_TEAMS`:32 / `STATUS_OK_POLLS`:33 / _stamp:37 / is_public_arena:42 / is_public_combat:47 / **class _Kind**:52 / **class Tracker**:70 [start:86, stop:90, _fetch:94, _run:101, _in_period:113, poll:123, _collect_accounts:135, _link:166, _poll_kind:177, status:227, _purge:248, _save:259]
 
-### `app/backend/auth.py` (333 lines)
+### `app/backend/auth.py` (366 lines)
 Discord login, only for previewing achievements before their launch date (D41). Login = OAuth2 "identify" (who
-- `API`:23 / `AUTHORIZE_URL`:24 / `SESSION_COOKIE`:25 / `STATE_COOKIE`:26 / `SESSION_DAYS`:27 / `STATE_S`:28 / `ROLE_CHECK_S`:29 / `ROLE_RETRY_S`:30 / http_client:37 / enabled:42 / is_discord_id:48 / _bot_get:54 / server_roles:59 / user_name:71 / `AVATAR_CHECK_S`:88 / `AVATAR_MAX_PER_MIN`:89 / _avatar_budget:96 / avatar_url:108 / redirect_uri:147 / secure_cookies:151 / _key:157 / _b64:166 / _unb64:170 / sign:174 / unsign:179 / authorize_url:195 / user_from_code:202 / forget_roles:224 / _ask_roles:230 / member_roles:251 / viewer:280 / allowed:294 / _has:307 / has_preview:319 / is_admin:324 / has_console:329
+- `API`:23 / `AUTHORIZE_URL`:24 / `SESSION_COOKIE`:25 / `STATE_COOKIE`:26 / `SESSION_DAYS`:27 / `STATE_S`:28 / `ROLE_CHECK_S`:29 / `ROLE_RETRY_S`:30 / http_client:37 / enabled:42 / is_discord_id:48 / _bot_get:54 / server_roles:59 / check_fixed_ids:68 / user_name:101 / `AVATAR_CHECK_S`:118 / `AVATAR_MAX_PER_MIN`:119 / _avatar_budget:126 / avatar_url:138 / redirect_uri:180 / secure_cookies:184 / _key:190 / _b64:199 / _unb64:203 / sign:207 / unsign:212 / authorize_url:228 / user_from_code:235 / forget_roles:257 / _ask_roles:263 / member_roles:284 / viewer:313 / allowed:327 / _has:340 / has_preview:352 / is_admin:357 / has_console:362
 
 ### `app/backend/cache.py` (260 lines)
 Caches for answers built from the archive: home page, leaderboard, profiles, heatmaps, match views (D53). Keyed on
@@ -113,11 +113,11 @@ Combat stats from the recorder's match reports (user, 2026-11-04). Completely se
 Combat achievements (user, 2026-11-05): built only from the recorder's match reports (combat_matches, combat_players), kept
 - `GROUP`:27 / `MIN_PER_TEAM`:28 / `RARITY_MIN_GAMES`:29 / `RECENT_DAYS`:30 / **class CombatGame**:34 [day:50, start_dt:54] / _total:58 / _rule:66 / load_games:94 / _player:127 / `_EMPTY`:137 / _everyone:140 / player_items:164 / player_name:170 / catalogue:176 / recent:190
 
-### `app/backend/config.py` (104 lines)
-- `PROJECT_ROOT`:5 / `DEFAULT_SOURCE`:6 / `DISCORD_CLIENT_ID`:8 / `DISCORD_GUILD_ID`:9 / _secret:12 / **class Settings**:18 [from_env:61, processed_dir:90, db_path:94, combat_dir:98]
+### `app/backend/config.py` (107 lines)
+- `PROJECT_ROOT`:5 / `DEFAULT_SOURCE`:6 / `DISCORD_CLIENT_ID`:8 / `DISCORD_GUILD_ID`:9 / _secret:12 / **class Settings**:18 [from_env:64, processed_dir:93, db_path:97, combat_dir:101]
 
-### `app/backend/db.py` (146 lines)
-- **class Base**:9 / `BUSY_TIMEOUT_S`:13 / utcnow:16 / open_db:20 / warm:50 / _add_missing_columns:64 / _add_missing_indexes:80 / `DERIVED_TABLES`:90 / `PRESERVED_TABLES`:92 / `COMBAT_TABLES`:96 / `IN_PLACE_COLUMNS`:101 / _add_columns_in_place:104 / _stale:118 / _rebuild_stale_tables:124
+### `app/backend/db.py` (154 lines)
+- **class Base**:9 / `BUSY_TIMEOUT_S`:13 / utcnow:16 / open_db:20 / warm:51 / _add_missing_columns:65 / _add_missing_indexes:81 / `DERIVED_TABLES`:91 / `PRESERVED_TABLES`:93 / `COMBAT_TABLES`:97 / `IN_PLACE_COLUMNS`:102 / _backfill_counted:105 / _add_columns_in_place:112 / _stale:126 / _rebuild_stale_tables:132
 
 ### `app/backend/discord_names.py` (144 lines)
 Discord avatars for players not linked by the bot (user, 2026-11-02): when a player's name matches exactly one
@@ -155,7 +155,7 @@ Heatmap grids in minimap image space (D18). Cells are `cell_m` metres (0.1 m, us
 Achievement icons chosen on the Console page (D43): an existing badge image or an uploaded PNG. The choice is
 - `KEY`:20 / `CUSTOM`:21 / `CUSTOM_NAME`:22 / `MAX_BYTES`:23 / `MAX_SIDE`:24 / `PNG`:25 / `BUILT_IN_DIRS`:27 / `NOT_ICONS`:28 / `ALL_RULES`:29 / `RULE_IDS`:30 / **class IconError**:33 / overrides:37 / apply:42 / custom_dir:48 / built_in:52 / available:57 / default:64 / set_icon:68 / save_upload:85
 
-### `app/backend/main.py` (133 lines)
+### `app/backend/main.py` (134 lines)
 - `FRONTEND_DIST`:26 / **class SinglePageApp**:29 [get_response:32] / create_app:44
 
 ### `app/backend/mega_prizes.py` (51 lines)
@@ -170,11 +170,11 @@ Merge suggestions for the Console (D34 merges): player records that used the sam
 Every request and answer of the site in one pure ASGI layer (it replaces four @app.middleware layers that cost
 - `PER_VISITOR`:25 / `WRITES`:26 / `BOT`:27 / `STATIC_MAX_AGE_S`:28 / `EDGE_STALE_IF_ERROR_S`:29 / _refusal:32 / _api_cache:46 / _versioned:58 / _static_cache:63 / **class SiteMiddleware**:77
 
-### `app/backend/models.py` (386 lines)
+### `app/backend/models.py` (389 lines)
 Tables as specified in docs/DataModel.MD.
-- **class Replay**:9 / **class Match**:33 / **class DuplicateMatch**:66 / **class Player**:76 / **class MatchPlayer**:86 / **class MatchPlayerLoadout**:122 / **class Event**:135 / **class AppSetting**:149 / **class PlayerProfile**:159 / **class DiscordProfile**:174 / **class NakamaAccount**:187 / **class PlayerAlias**:204 / **class RepairRequest**:214 / **class AggressiveRepair**:223 / **class PriorityReplay**:233 / **class HiddenReplay**:241 / **class ConsoleLog**:251 / **class ArenaPlayer**:268 / **class ArenaCounted**:282 / **class NakamaCombatPlayer**:292 / **class NakamaCombatCounted**:306 / **class CombatFile**:322 / **class CombatMatch**:338 / **class CombatPlayer**:353
+- **class Replay**:9 / **class Match**:33 / **class DuplicateMatch**:68 / **class Player**:78 / **class MatchPlayer**:88 / **class MatchPlayerLoadout**:125 / **class Event**:138 / **class AppSetting**:152 / **class PlayerProfile**:162 / **class DiscordProfile**:177 / **class NakamaAccount**:190 / **class PlayerAlias**:207 / **class RepairRequest**:217 / **class AggressiveRepair**:226 / **class PriorityReplay**:236 / **class HiddenReplay**:244 / **class ConsoleLog**:254 / **class ArenaPlayer**:271 / **class ArenaCounted**:285 / **class NakamaCombatPlayer**:295 / **class NakamaCombatCounted**:309 / **class CombatFile**:325 / **class CombatMatch**:341 / **class CombatPlayer**:356
 
-### `app/backend/persist.py` (100 lines)
+### `app/backend/persist.py` (101 lines)
 MatchStats -> database rows. Callers commit, so a match is stored completely or not at all.
 - _iso:19 / delete_match:23 / _upsert_player:30 / save_match:43
 
@@ -200,13 +200,17 @@ Fixed objects per map, measured from real replays (2026-10-31), for drawing the 
 Payload maps: attacking team, winner, per-player time on the payload (ReplayData "Payload semantics").
 - `ON_PAYLOAD_RADIUS_M`:8 / `FINAL_CHECKPOINT`:9 / **class PayloadAccumulator**:12 [add:21, attacking_team:37, winner:42, push_block:52] / _other:62
 
-### `app/backend/stats/player.py` (187 lines)
+### `app/backend/stats/player.py` (191 lines)
 Per-player accumulator. Rules follow the old app (ReplayData.MD): ping over all frames (except the 999 placeholder),
-- `LEFT_EARLY_S`:15 / `NEAR_DISTANCE_SQ`:16 / `LONE_WOLF_DISTANCE_SQ`:17 / `STOPPED_SPEED`:18 / `PING_PLACEHOLDER`:19 / `TOP_SPEED_WINDOW_S`:20 / **class PlayerAccumulator**:23 [event:63, add:67, _add_in_bounds:101, _track_top_speed:142, result:156]
+- `LEFT_EARLY_S`:15 / `NEAR_DISTANCE_SQ`:16 / `LONE_WOLF_DISTANCE_SQ`:17 / `STOPPED_SPEED`:18 / `PING_PLACEHOLDER`:19 / `PING_CAP`:20 / `TOP_SPEED_WINDOW_S`:21 / **class PlayerAccumulator**:24 [event:65, add:69, _add_in_bounds:104, _track_top_speed:145, result:159]
 
-### `app/backend/stats/results.py` (73 lines)
+### `app/backend/stats/quality.py` (46 lines)
+Which matches count for averages (user, 2026-11-07, Review DATA-3): a game of at least COUNTED_MIN_S with at least
+- `COUNTED_MIN_S`:11 / `COUNTED_MIN_PER_TEAM`:12 / `PRESENT_SHARE`:13 / `BACKFILL_SQL`:16 / counted_for_stats:28 / only_counted:39 / rule_text:44
+
+### `app/backend/stats/results.py` (74 lines)
 Output of stats.compute(); persisted by backend/persist.py. Counters default to 0 until their calculator exists.
-- **class PlayerStats**:8 / **class EventRecord**:41 / **class MatchStats**:51
+- **class PlayerStats**:8 / **class EventRecord**:42 / **class MatchStats**:52
 
 ### `app/backend/tracks.py` (248 lines)
 Per-replay position tracks (D11, D18): `data/processed/<replay_id>/tracks.bin`.

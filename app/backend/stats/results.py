@@ -19,6 +19,7 @@ class PlayerStats:
     left_early: bool
     ping_sum: float = 0.0
     ping_frames: int = 0  # frames with a real ping reading (not 999)
+    ping_capped_sum: float = 0.0  # the same readings capped at player.PING_CAP (400 ms): averages use this (DATA-5)
     frames_in_bounds: int = 0
     speed_sum: float = 0.0
     top_speed: float = 0.0

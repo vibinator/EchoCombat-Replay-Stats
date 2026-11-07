@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import OperationalError
 
 from backend import admin_actions, worker
-from backend.models import Match, Replay
+from backend.models import Match, MatchPlayer, Replay
 from backend.scanner import scan_once
 
 PAGE = {"X-EchoVR": "1", "User-Agent": "Mozilla/5.0"}
@@ -95,6 +95,52 @@ def test_error_shape_for_validation_and_huge_ids(tmp_path):
         assert r.status_code == 422 and r.json()["error_code"] == "bad_request" and r.json()["message"].startswith("limit:")
         r = client.get("/api/matches/" + "9" * 30, headers=PAGE)
         assert r.status_code == 404 and r.json()["error_code"] == "not_found"
+
+
+def a_counted_match(seconds=130, per_team=2, ping=60):
+    """A match long enough and full enough to count for averages (stats/quality.py): 20 Hz frames."""
+    blue = [rf.player(100 + i, f"B{i}", i) for i in range(per_team)]
+    orange = [rf.player(200 + i, f"O{i}", per_team + i) for i in range(per_team)]
+    for p in blue + orange:
+        p["ping"] = ping
+    frames = [rf.frame(teams=[{"players": blue}, {"players": orange}, {}]) for _ in range(seconds * 20)]
+    return rf.plain(rf.lines_from(frames))
+
+
+def test_counted_for_stats_follows_the_two_minute_two_per_team_rule(tmp_path):
+    with app_client(make_settings(tmp_path)) as client:
+        _import(client, {"dyson/short.echoreplay": a_match(), "dyson/long.echoreplay": a_counted_match(), "dyson/thin.echoreplay": a_counted_match(per_team=1)})
+        with client.app.state.sessionmaker() as db:
+            flags = {r.source_path.split("/")[1]: m.counted_for_stats for m, r in db.execute(select(Match, Replay).join(Replay, Replay.id == Match.replay_id))}
+        assert flags == {"short.echoreplay": 0, "long.echoreplay": 1, "thin.echoreplay": 0}
+
+
+def test_averages_count_only_counted_games_when_the_rule_is_on(tmp_path):
+    with app_client(make_settings(tmp_path, counted_stats=True)) as client:
+        _import(client, {"dyson/short.echoreplay": a_match(), "dyson/long.echoreplay": a_counted_match()})
+        with client.app.state.sessionmaker() as db:
+            short_player = db.scalar(select(Replay).where(Replay.source_path == "dyson/short.echoreplay"))
+            assert short_player is not None
+        # the player of the 2-second match only: totals count it, averages have nothing to count
+        p = client.get("/api/players/42", headers=PAGE).json()["stats"]  # "Other" from a_match
+        assert p["games"] == 1 and p["counted_games"] == 0 and p["avg_speed"] is None and p["deaths_per_game_est"] is None
+        # a player of the long match: counted
+        q = client.get("/api/players/100", headers=PAGE).json()["stats"]
+        assert q["games"] == 1 and q["counted_games"] == 1 and q["avg_speed"] is not None
+        board = client.get("/api/leaderboard?stat=avg_speed&min_games=1", headers=PAGE).json()
+        assert {r["user_id"] for r in board["items"]} == {"100", "101", "200", "201"}  # the short match's players have no average
+
+
+def test_ping_spikes_are_capped_in_averages(tmp_path):
+    with app_client(make_settings(tmp_path)) as client:
+        _import(client, {"dyson/spiky.echoreplay": a_counted_match(seconds=10, ping=900)})
+        with client.app.state.sessionmaker() as db:
+            row = db.execute(select(MatchPlayer.ping_sum, MatchPlayer.ping_capped_sum, MatchPlayer.ping_frames).limit(1)).one()
+        assert row.ping_sum == 900 * row.ping_frames and row.ping_capped_sum == 400 * row.ping_frames
+        assert client.get("/api/players/100", headers=PAGE).json()["stats"]["avg_ping"] == 400  # profile: capped
+        m = client.get("/api/matches?limit=1", headers=PAGE).json()["items"][0]
+        blue = client.get(f"/api/matches/{m['id']}", headers=PAGE).json()["teams"]["blue"][0]
+        assert blue["avg_ping"] == 900  # match page: the raw reading
 
 
 def test_match_says_whether_it_has_a_combat_report(tmp_path):

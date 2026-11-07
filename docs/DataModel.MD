@@ -57,6 +57,7 @@ Index: `(status, source_mtime)` for newest-first claiming. Files removed from th
 | contested_s | REAL NOT NULL | time `contested` = true |
 | has_tracks | INTEGER NOT NULL | bool; position tracks file saved (Import page counts these instead of checking files) |
 | blue_capture_s / orange_capture_s | REAL NOT NULL | capture point: time that team's progress was rising (0 when not recorded) |
+| counted_for_stats | INTEGER NULL | 1 = counts for averages, rates and win rates (`stats/quality.py`: 2+ minutes and 2+ players per team present for half the match), 0 = totals only. Set on save; NULL rows (older databases) are filled by one UPDATE at startup (`db._backfill_counted`). Off in tests (`Settings.counted_stats`) |
 | winner | TEXT NULL | `blue` \| `orange` \| NULL. Capture point: more rounds. Payload: attacking team if final checkpoint = 3, defending team if timer = 0, else NULL |
 | attacking_team | TEXT NULL | payload only (ReplayData Payload semantics) |
 | final_game_timer | REAL NULL | payload only; seconds left |
@@ -87,6 +88,7 @@ Index: `(status, source_mtime)` for newest-first claiming. Files removed from th
 | left_early | INTEGER NOT NULL | bool; last seen > 45 s before end (old "crashed") |
 | ping_sum | REAL NOT NULL | sum of real readings (ping 999 excluded, D24) |
 | ping_frames | INTEGER NOT NULL | frames with a real reading; avg ping = ping_sum ÷ ping_frames |
+| ping_capped_sum | REAL NULL | the same readings capped at 400 ms (`stats/player.py: PING_CAP`): profile / leaderboard / trend averages use `COALESCE(ping_capped_sum, ping_sum)`; the match page shows the raw average. Added in place (D57), NULL until the replay is read again (stats v11, 2026-11-07) |
 | frames_in_bounds | INTEGER NOT NULL | denominator for below |
 | speed_sum | REAL NOT NULL | ÷ frames_in_bounds = avg speed |
 | top_speed | REAL NOT NULL | highest speed held for a full 1 s (max of rolling 1 s min, in-bounds samples; window resets on death) |
@@ -162,6 +164,11 @@ the whole archive at startup (`duplicates.refresh_all`, ~0.05 s). Stat queries l
 | loadout usage; top loadout | SUM(frames) per combo from match_player_loadouts |
 
 Every profile stat takes a period: day / week / month / all (calendar, recorder local time).
+
+Counted games (user, 2026-11-07): `total_games`, `hours_played`, `emote_count`, push / block are over every match; every
+average, percentage, deaths/game and the win rate are over matches with `counted_for_stats = 1` (SUM(CASE WHEN … ) in one
+scan); `counted_games` and `decided_games` (wins + losses) are returned so the pages can say "N of M games". The leaderboard,
+trends, compare and the site averages follow the same rule; achievements keep their own (4+ minutes, 3+ per team).
 
 Profile also: avg_packet_loss = SUM(packet_loss_sum) / SUM(frames_present); emote_count = SUM(emote_count).
 

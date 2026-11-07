@@ -234,7 +234,8 @@ function ReplayBoard() {
             <p className="muted footnote">
               {sort ? `Ranked by ${sortLabel?.toLowerCase()}, highest first` : board.data.higher_is_better ? "Highest first" : "Lowest first"} · Click a column header to re-rank ·{" "}
               {int(total)} ranked players · Arrows compare with one period earlier
-              (all time: with 7 days ago).
+              (all time: with 7 days ago). Averages, rates and win rates count games of 2+ minutes with 2+ players per team;
+              games without a recorded winner count for neither side. Games and hours count everything.
             </p>
             {total > PAGE_SIZE && (
               <div className="pager">

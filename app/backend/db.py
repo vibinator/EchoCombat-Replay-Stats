@@ -44,6 +44,7 @@ def open_db(db_path: Path, cache_mb: int = 0) -> tuple[Engine, sessionmaker]:
     Base.metadata.create_all(engine)
     _add_missing_columns(engine)
     _add_missing_indexes(engine)
+    _backfill_counted(engine)
     return engine, sessionmaker(engine, expire_on_commit=False)
 
 
@@ -98,7 +99,14 @@ COMBAT_TABLES = ("combat_players", "combat_matches", "combat_files")
 
 # Derived columns added without the usual drop + rebuild (D57, an exception to D23): the site keeps its match stats while
 # a higher STATS_VERSION reads every replay again. Must be nullable: NULL = this replay has not been read again yet.
-IN_PLACE_COLUMNS = {"match_players": ("frames_lone_wolf_near",)}
+IN_PLACE_COLUMNS = {"match_players": ("frames_lone_wolf_near", "ping_capped_sum"), "matches": ("counted_for_stats",)}
+
+
+def _backfill_counted(engine: Engine) -> None:
+    """matches.counted_for_stats for rows saved before the column existed (stats/quality.py, one UPDATE, ~1 s for 30k)."""
+    from .stats.quality import BACKFILL_SQL
+    with engine.begin() as conn:
+        conn.execute(text(BACKFILL_SQL))
 
 
 def _add_columns_in_place(engine: Engine) -> None:

@@ -7,7 +7,7 @@ path is in middleware.WRITES / BOT. Console routes need auth.has_console; profil
 
 | Method | Path | Handler | Where | Purpose |
 |---|---|---|---|---|
-| GET | `/achievements/custom/{name}` | custom_icon | app/backend/main.py:117 | Icons uploaded on the Console page (D43). Before the site mount, which serves the built-in ones. |
+| GET | `/achievements/custom/{name}` | custom_icon | app/backend/main.py:118 | Icons uploaded on the Console page (D43). Before the site mount, which serves the built-in ones. |
 | GET | `/api/achievements` | list_achievements | app/backend/api/achievements.py:431 | The rule catalogue with rarity: share of players (10+ games) who unlocked (25 %+, tiered: bronze) / completed  |
 | GET | `/api/achievements/recent` | recent_unlocks | app/backend/api/achievements.py:451 | Latest 100 % completions by players active in the last 30 days of the archive. |
 | POST | `/api/admin/achievements/{rule_id}/icon` | upload_icon | app/backend/api/admin.py:53 | Body = the PNG file itself (Content-Type: image/png). Stored, then used for this achievement. |
@@ -44,12 +44,12 @@ path is in middleware.WRITES / BOT. Console routes need auth.has_console; profil
 | GET | `/api/combat/players/{user_id}` | player | app/backend/api/combat.py:106 |  |
 | GET | `/api/combat/stats` | stat_options | app/backend/api/combat.py:101 |  |
 | GET | `/api/combat/summary` | summary | app/backend/api/combat.py:92 |  |
-| GET | `/api/health` | health | app/backend/main.py:113 |  |
+| GET | `/api/health` | health | app/backend/main.py:114 |  |
 | GET | `/api/import` | import_status | app/backend/api/imports.py:24 | Import progress, broken down by what each replay produces. |
-| GET | `/api/leaderboard` | leaderboard | app/backend/api/leaderboard.py:163 |  |
-| GET | `/api/leaderboard/achievers` | achievers | app/backend/api/leaderboard.py:246 | The top of the achievements ranking with facts about each player: challenges completed, medals, gold or better |
-| GET | `/api/leaderboard/gear` | list_gear | app/backend/api/leaderboard.py:260 | Loadout codes + names, for the loadout leaderboard picker (released first, then cut). |
-| GET | `/api/leaderboard/stats` | list_stats | app/backend/api/leaderboard.py:153 |  |
+| GET | `/api/leaderboard` | leaderboard | app/backend/api/leaderboard.py:173 |  |
+| GET | `/api/leaderboard/achievers` | achievers | app/backend/api/leaderboard.py:256 | The top of the achievements ranking with facts about each player: challenges completed, medals, gold or better |
+| GET | `/api/leaderboard/gear` | list_gear | app/backend/api/leaderboard.py:270 | Loadout codes + names, for the loadout leaderboard picker (released first, then cut). |
+| GET | `/api/leaderboard/stats` | list_stats | app/backend/api/leaderboard.py:163 |  |
 | GET | `/api/matches` | list_matches | app/backend/api/matches.py:40 |  |
 | GET | `/api/matches/thumbnails` | get_thumbnails | app/backend/api/matches.py:110 | Team heat over the minimap for a page of match cards, as PNG data URLs keyed by match id (matches without |
 | GET | `/api/matches/{match_id}` | get_match | app/backend/api/matches.py:178 |  |
@@ -66,14 +66,14 @@ path is in middleware.WRITES / BOT. Console routes need auth.has_console; profil
 | GET | `/api/overview/live` | live | app/backend/api/overview.py:88 | Is a game being played now (the spectator bot is live on Twitch)? The home page's "Game in progress" card |
 | GET | `/api/overview/players-seen` | players_seen | app/backend/api/overview.py:244 |  |
 | GET | `/api/overview/processing` | processing | app/backend/api/overview.py:68 | Replays still waiting to be read, for the "processing" spinner in the top bar. Not cached: it is the live queu |
-| GET | `/api/players` | search_players | app/backend/api/players.py:33 |  |
-| GET | `/api/players/compare/{user_ids}` | compare_players | app/backend/api/players.py:159 | Profiles of 2-4 players side by side + head-to-head record of the first two. |
-| GET | `/api/players/{user_id}` | get_player | app/backend/api/players.py:191 |  |
+| GET | `/api/players` | search_players | app/backend/api/players.py:34 |  |
+| GET | `/api/players/compare/{user_ids}` | compare_players | app/backend/api/players.py:176 | Profiles of 2-4 players side by side + head-to-head record of the first two. |
+| GET | `/api/players/{user_id}` | get_player | app/backend/api/players.py:209 |  |
 | GET | `/api/players/{user_id}/achievements` | player_achievements | app/backend/api/achievements.py:167 |  |
-| GET | `/api/players/{user_id}/companions` | get_companions | app/backend/api/players.py:413 |  |
-| GET | `/api/players/{user_id}/heatmap` | get_player_heatmap | app/backend/api/players.py:300 |  |
-| GET | `/api/players/{user_id}/heatmap3d` | get_player_heatmap3d | app/backend/api/players.py:338 |  |
-| GET | `/api/players/{user_id}/trends` | get_trends | app/backend/api/players.py:352 |  |
+| GET | `/api/players/{user_id}/companions` | get_companions | app/backend/api/players.py:438 |  |
+| GET | `/api/players/{user_id}/heatmap` | get_player_heatmap | app/backend/api/players.py:318 |  |
+| GET | `/api/players/{user_id}/heatmap3d` | get_player_heatmap3d | app/backend/api/players.py:356 |  |
+| GET | `/api/players/{user_id}/trends` | get_trends | app/backend/api/players.py:370 |  |
 | GET | `/api/profiles/discord/{discord_id}` | get_discord_profile | app/backend/api/profiles.py:174 |  |
 | POST | `/api/profiles/discord/{discord_id}` | edit_discord_profile | app/backend/api/profiles.py:185 | Only the bio and the avatar choice, only by that Discord account itself (logged in with Discord). |
 | GET | `/api/profiles/me` | my_profile | app/backend/api/profiles.py:110 | The logged-in visitor's own profile (from the Discord login only; nothing about anyone else is asked for). |

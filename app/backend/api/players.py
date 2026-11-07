@@ -15,6 +15,7 @@ from ..errors import ApiError
 from ..gear import WEAPONS
 from ..gear import lookup as gear_lookup
 from ..models import Event, Match, MatchPlayer, MatchPlayerLoadout, Player, PlayerAlias
+from ..stats import quality
 from ..stats.maps import HEATMAP_LAYOUTS
 from .matches import MAPS_3D
 from .derived import MAP_PATTERN, PERIODS, TEXT_MAX, dominant_arm, loadout, match_summary, period_start, ratio
@@ -76,27 +77,36 @@ def _filters(player_id: int, period: str, map_: str | None):
     return and_(*conditions)
 
 
-def _profile(db, where) -> dict:
+def _profile(db, where, strict: bool = True) -> dict:
+    """The profile stat set. Totals (games, hours, emotes, push / block) count every match; averages, rates and
+    win rates count only matches that pass stats/quality.py when `strict` (Settings.counted_stats, user 2026-11-07)."""
     s = func.sum
     won = case((Match.winner == MatchPlayer.team, 1), else_=0)
     lost = case((and_(Match.winner.is_not(None), Match.winner != MatchPlayer.team), 1), else_=0)
+
+    def c(expr):
+        return quality.only_counted(Match, expr, strict)
+
+    ping = func.coalesce(MatchPlayer.ping_capped_sum, MatchPlayer.ping_sum)  # spikes capped once the replay was read again (DATA-5)
+    top = func.max(case((Match.counted_for_stats == 1, MatchPlayer.top_speed), else_=None)) if strict else func.max(MatchPlayer.top_speed)
     row = db.execute(
         select(
-            func.count().label("games"), s(won).label("wins"), s(lost).label("losses"),
-            s(MatchPlayer.deaths_est).label("deaths"), s(MatchPlayer.play_time_s).label("play_time"),
-            s(MatchPlayer.speed_sum).label("speed_sum"), s(MatchPlayer.frames_in_bounds).label("in_bounds"),
-            func.max(MatchPlayer.top_speed).label("top_speed"),
-            s(MatchPlayer.ping_sum).label("ping_sum"), s(MatchPlayer.ping_frames).label("ping_frames"),
-            s(MatchPlayer.frames_stopped).label("stopped"), s(MatchPlayer.frames_upside_down).label("upside"),
-            s(MatchPlayer.frames_near_mate).label("mate"), s(MatchPlayer.frames_near_enemy).label("enemy"),
+            func.count().label("games"), s(c(1)).label("counted"), s(c(won)).label("wins"), s(c(lost)).label("losses"),
+            s(c(MatchPlayer.deaths_est)).label("deaths"), s(MatchPlayer.play_time_s).label("play_time"),
+            s(c(MatchPlayer.speed_sum)).label("speed_sum"), s(c(MatchPlayer.frames_in_bounds)).label("in_bounds"),
+            top.label("top_speed"),
+            s(c(ping)).label("ping_sum"), s(c(MatchPlayer.ping_frames)).label("ping_frames"),
+            s(c(MatchPlayer.frames_stopped)).label("stopped"), s(c(MatchPlayer.frames_upside_down)).label("upside"),
+            s(c(MatchPlayer.frames_near_mate)).label("mate"), s(c(MatchPlayer.frames_near_enemy)).label("enemy"),
             s(MatchPlayer.frames_left_arm).label("left"), s(MatchPlayer.frames_right_arm).label("right"),
-            s(case((MatchPlayer.left_early, 1), else_=0)).label("left_early"),
+            s(c(case((MatchPlayer.left_early, 1), else_=0))).label("left_early"),
             s(MatchPlayer.payload_push_s).label("push"), s(MatchPlayer.payload_block_s).label("block"),
-            s(MatchPlayer.packet_loss_sum).label("loss"), s(MatchPlayer.frames_present).label("present"),
+            s(c(MatchPlayer.packet_loss_sum)).label("loss"), s(c(MatchPlayer.frames_present)).label("present"),
             s(MatchPlayer.emote_count).label("emotes"),
         ).select_from(MatchPlayer).join(Match, Match.id == MatchPlayer.match_id).where(where)
     ).one()
     games = row.games or 0
+    counted = row.counted or 0  # the denominator of per-game averages
     by_map = dict(db.execute(
         select(Match.map, func.count()).select_from(MatchPlayer).join(Match, Match.id == MatchPlayer.match_id)
         .where(where).group_by(Match.map)
@@ -107,13 +117,15 @@ def _profile(db, where) -> dict:
     ).all())
     return {
         "games": games,
+        "counted_games": counted,  # games behind the averages (stats/quality.py); = games when the rule is off
+        "decided_games": (row.wins or 0) + (row.losses or 0),  # games with a recorded winner, behind the win rate
         "wins": row.wins or 0,
         "losses": row.losses or 0,
         "games_by_map": by_map,
         "games_by_mode": by_mode,
         "hours_played": round((row.play_time or 0) / 3600, 2),
         "deaths_est": row.deaths or 0,
-        "deaths_per_game_est": ratio(row.deaths, games, 2),
+        "deaths_per_game_est": ratio(row.deaths, counted, 2),
         "avg_speed": ratio(row.speed_sum, row.in_bounds, 2),
         "top_speed": round(row.top_speed, 2) if row.top_speed is not None else None,
         "avg_ping": ratio(row.ping_sum, row.ping_frames, 1),
@@ -121,7 +133,7 @@ def _profile(db, where) -> dict:
         "pct_upside_down": ratio(row.upside, row.in_bounds),
         "pct_near_mate": ratio(row.mate, row.in_bounds),
         "pct_near_enemy": ratio(row.enemy, row.in_bounds),
-        "pct_left_early": ratio(row.left_early, games),
+        "pct_left_early": ratio(row.left_early, counted),
         "dominant_arm": dominant_arm(row.left or 0, row.right or 0),
         "pct_left_arm": ratio(row.left, (row.left or 0) + (row.right or 0)),
         "payload_push_s": round(row.push or 0, 1),
@@ -142,12 +154,17 @@ def _site_averages(request: Request, period: str, map_: str | None) -> dict:
         if map_:
             conditions.append(Match.map == map_)
         s = func.sum
+        strict = request.app.state.settings.counted_stats
+
+        def c(expr):  # the same counted-game rule as the player's own averages (stats/quality.py)
+            return quality.only_counted(Match, expr, strict)
+
         with request.app.state.sessionmaker() as db:
             row = db.execute(
-                select(func.count().label("games"), s(MatchPlayer.frames_in_bounds).label("in_bounds"),
-                       s(MatchPlayer.frames_stopped).label("stopped"), s(MatchPlayer.frames_upside_down).label("upside"),
-                       s(MatchPlayer.frames_near_mate).label("mate"), s(MatchPlayer.frames_near_enemy).label("enemy"),
-                       s(case((MatchPlayer.left_early, 1), else_=0)).label("left_early"))
+                select(s(c(1)).label("games"), s(c(MatchPlayer.frames_in_bounds)).label("in_bounds"),
+                       s(c(MatchPlayer.frames_stopped)).label("stopped"), s(c(MatchPlayer.frames_upside_down)).label("upside"),
+                       s(c(MatchPlayer.frames_near_mate)).label("mate"), s(c(MatchPlayer.frames_near_enemy)).label("enemy"),
+                       s(c(case((MatchPlayer.left_early, 1), else_=0))).label("left_early"))
                 .select_from(MatchPlayer).join(Match, Match.id == MatchPlayer.match_id).where(and_(*conditions))
             ).one()
         return {"pct_stopped": ratio(row.stopped, row.in_bounds), "pct_upside_down": ratio(row.upside, row.in_bounds),
@@ -173,7 +190,8 @@ def _compare_players(request: Request, user_ids: str, period: str, v: visibility
         if missing:
             raise ApiError(404, "not_found", f"Player(s) not found: {', '.join(missing)}")
         wl = not any(v.hides(*visibility.ids(db, u)) for u in ids)
-        profiles = [{"user_id": u, "name": players[u].name, "stats": _profile(db, _filters(players[u].id, period, None))}
+        strict = request.app.state.settings.counted_stats
+        profiles = [{"user_id": u, "name": players[u].name, "stats": _profile(db, _filters(players[u].id, period, None), strict)}
                     for u in ids]
         if not wl:
             profiles = [p | {"stats": visibility.without(p["stats"])} for p in profiles]
@@ -210,7 +228,7 @@ def _get_player(request: Request, user_id: str, period: str, map: str | None, v:
             raise ApiError(404, "not_found", f"Player {user_id} not found")
         wl = not v.hides(*visibility.ids(db, user_id))
         where = _filters(player.id, period, map)
-        stats = _profile(db, where)
+        stats = _profile(db, where, request.app.state.settings.counted_stats)
         if not wl:
             stats = visibility.without(stats)
         ids = ids_of(db, player.user_id)
@@ -362,23 +380,30 @@ def _get_trends(request: Request, user_id: str, bucket: str, v: visibility.View 
     s = func.sum
     won = case((Match.winner == MatchPlayer.team, 1), else_=0)
     lost = case((and_(Match.winner.is_not(None), Match.winner != MatchPlayer.team), 1), else_=0)
+    strict = request.app.state.settings.counted_stats
+
+    def c(e):  # averages over counted games only, as on the profile (stats/quality.py)
+        return quality.only_counted(Match, e, strict)
+
+    ping = func.coalesce(MatchPlayer.ping_capped_sum, MatchPlayer.ping_sum)
+    top = func.max(case((Match.counted_for_stats == 1, MatchPlayer.top_speed), else_=None)) if strict else func.max(MatchPlayer.top_speed)
     with request.app.state.sessionmaker() as db:
         player = db.scalar(select(Player).where(Player.user_id == user_id))
         if player is None:
             raise ApiError(404, "not_found", f"Player {user_id} not found")
         wl = not v.hides(*visibility.ids(db, user_id))
         rows = db.execute(
-            select(expr.label("period"), func.count().label("games"), s(won).label("wins"), s(lost).label("losses"),
-                   s(MatchPlayer.deaths_est).label("deaths"), s(MatchPlayer.speed_sum).label("speed"),
-                   s(MatchPlayer.frames_in_bounds).label("in_bounds"), s(MatchPlayer.ping_sum).label("ping"),
-                   s(MatchPlayer.ping_frames).label("ping_frames"), func.max(MatchPlayer.top_speed).label("top"))
+            select(expr.label("period"), func.count().label("games"), s(c(1)).label("counted"), s(c(won)).label("wins"), s(c(lost)).label("losses"),
+                   s(c(MatchPlayer.deaths_est)).label("deaths"), s(c(MatchPlayer.speed_sum)).label("speed"),
+                   s(c(MatchPlayer.frames_in_bounds)).label("in_bounds"), s(c(ping)).label("ping"),
+                   s(c(MatchPlayer.ping_frames)).label("ping_frames"), top.label("top"))
             .select_from(MatchPlayer).join(Match, Match.id == MatchPlayer.match_id)
             .where(MatchPlayer.player_id == player.id, counted(Match.id)).group_by("period").order_by("period")
         ).all()
     return {"bucket": bucket, "items": [{
         "period": r.period, "games": r.games,
         **({"win_rate": ratio(r.wins, (r.wins or 0) + (r.losses or 0))} if wl else {}),
-        "deaths_per_game_est": ratio(r.deaths, r.games, 2),
+        "deaths_per_game_est": ratio(r.deaths, r.counted, 2),
         "avg_speed": ratio(r.speed, r.in_bounds, 2),
         "top_speed": round(r.top or 0, 2),
         "avg_ping": ratio(r.ping, r.ping_frames, 1),

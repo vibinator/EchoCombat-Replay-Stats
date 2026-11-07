@@ -18,6 +18,25 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.07.3 — 23:31
+
+### Counted games, decided games, ping cap (user, 2026-11-07, Review DATA-2 / DATA-3 / DATA-5)
+- **Averages, rates and win rates now count only games of 2+ minutes with 2+ players per team** (present for at least half of
+  the game): profiles, trends, compare, the site-average ticks and the leaderboard. Games played, hours, emotes and payload push /
+  block still count every match. Each ⓘ on a player's page says 'Counts N of M games'; the leaderboard and compare footnotes say
+  the rule. Achievements keep their own rule (4+ minutes, 3+ per team). Stored per match (`counted_for_stats`); existing matches are
+  classified once at the first start (about a second).
+- **'Decided' games are shown:** the win-rate ⓘ says how many games have a recorded winner (43 % of the archive has none), the
+  home 'Capture point wins' card says 'of N decided'.
+- **Ping spikes capped:** readings above 400 ms count as 400 in profile / leaderboard / trend averages (the match page keeps the
+  raw average). Stats version 11: replays are read again in the background, old averages stay until each one is done (no data
+  disappears; the cap applies to a player once their replays are re-read).
+- **Discord staff ids checked at startup (SEC-2):** an id in `ECHOVR_DISCORD_PREVIEW_ROLES` that is neither a role nor a member of
+  the server is logged as a warning (a typo would otherwise grant the Console to nobody, or to a stranger who joins later).
+- Discord accounts that do not exist are remembered for an hour instead of being asked again every 30 s (PERF-6).
+- **After updating:** nothing to do. The NAS re-reads the archive in the background (hours at 2 workers); the site stays up.
+
+
 ## 2026.11.07.2 — 23:13
 
 ### Fixes from the 2026-11-07 review (docs/Review-2026-11-07.MD)

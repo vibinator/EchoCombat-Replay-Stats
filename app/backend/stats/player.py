@@ -17,6 +17,7 @@ NEAR_DISTANCE_SQ = 7.0  # head distance² in m² (≈ 2.65 m)
 LONE_WOLF_DISTANCE_SQ = 12.25  # head distance² in m² (3.5 m): Lone Wolf only; every other "near" stat keeps NEAR_DISTANCE_SQ
 STOPPED_SPEED = 1.0  # m/s
 PING_PLACEHOLDER = 999  # API value when there is no reading; excluded from average ping
+PING_CAP = 400  # a reading above this counts as this much in averages (profile, leaderboard, trends); the match page shows the raw average
 TOP_SPEED_WINDOW_S = 1.0  # top speed = highest speed held for a full window
 
 
@@ -37,6 +38,7 @@ class PlayerAccumulator:
         self.team = ""
 
         self.ping_sum = 0.0
+        self.ping_capped_sum = 0.0
         self.packet_loss_sum = 0.0
         self.emote_count = 0
         self._emoting = False
@@ -81,6 +83,7 @@ class PlayerAccumulator:
         self._emoting = p.emote
         if p.ping < PING_PLACEHOLDER:
             self.ping_sum += p.ping
+            self.ping_capped_sum += min(p.ping, PING_CAP)  # spikes count as PING_CAP in averages (user, 2026-11-07)
             self.ping_frames += 1
 
         loading_in = is_load_in(p.head_position, self.load_in)  # parked at the load-in spot: neither in nor out
@@ -169,6 +172,7 @@ class PlayerAccumulator:
             left_early=(ended_at - self.last_seen).total_seconds() > LEFT_EARLY_S,
             ping_sum=self.ping_sum,
             ping_frames=self.ping_frames,
+            ping_capped_sum=self.ping_capped_sum,
             packet_loss_sum=round(self.packet_loss_sum, 4),
             emote_count=self.emote_count,
             frames_in_bounds=self.frames_in_bounds,

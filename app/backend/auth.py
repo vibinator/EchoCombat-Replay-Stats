@@ -65,6 +65,36 @@ def server_roles(settings: Settings) -> list[dict]:
     return [{"id": x["id"], "name": x["name"]} for x in roles if x["id"] != settings.discord_guild_id]  # not @everyone
 
 
+def check_fixed_ids(settings: Settings) -> list[str]:
+    """Startup check (Review SEC-2): every id in ECHOVR_DISCORD_PREVIEW_ROLES gives the Console, so an id that is
+    neither a role nor a member of the server is most likely a typo (and would hand staff rights to whoever owns it).
+    Logged as warnings; returns the suspect ids. Needs the bot token; quiet when Discord cannot be asked."""
+    suspects: list[str] = []
+    if not settings.discord_bot_token or not settings.discord_preview_roles:
+        return suspects
+    try:
+        roles = {r["id"] for r in server_roles(settings)}
+    except (httpx.HTTPError, ValueError, KeyError) as e:
+        log.warning("ECHOVR_DISCORD_PREVIEW_ROLES not checked (Discord could not be asked): %s", e)
+        return suspects
+    for value in settings.discord_preview_roles:
+        if value in roles:
+            continue
+        if not is_discord_id(value):
+            log.warning("ECHOVR_DISCORD_PREVIEW_ROLES: %r is not a Discord id; it gives nobody access", value)
+            suspects.append(value)
+            continue
+        try:
+            r = _bot_get(settings, f"/guilds/{settings.discord_guild_id}/members/{value}")
+        except httpx.HTTPError:
+            continue
+        if r.status_code == 404:
+            log.warning("ECHOVR_DISCORD_PREVIEW_ROLES: %s is neither a role nor a member of the Discord server (a typo?): "
+                        "it gives the Console to nobody today, or to a stranger if they ever join", value)
+            suspects.append(value)
+    return suspects
+
+
 _names: dict[str, str] = {}  # discord user id -> display name (names rarely change; the list is short)
 
 
@@ -128,8 +158,11 @@ def avatar_url(settings: Settings, user_id: str, fresh: bool = False) -> str | N
                     with _avatar_lock:
                         _avatar_blocked_until = now + min(max(wait, 1.0), 600.0)
                     raise httpx.HTTPError("rate limited")
-                r.raise_for_status()
-                hit = (now + AVATAR_CHECK_S, r.json().get("avatar"))
+                if r.status_code == 404:  # no such account: remembered as "none" for the hour, not asked every 30 s (PERF-6)
+                    hit = (now + AVATAR_CHECK_S, None)
+                else:
+                    r.raise_for_status()
+                    hit = (now + AVATAR_CHECK_S, r.json().get("avatar"))
             except (httpx.HTTPError, ValueError) as e:
                 log.warning("Discord avatar of %s failed: %s", user_id, e)
                 hit = (now + ROLE_RETRY_S, hit[1]) if hit else None

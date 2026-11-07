@@ -7,6 +7,7 @@ from sqlalchemy import and_, case, func, select
 
 from .. import visibility
 from ..cache import cached, cached_response
+from ..stats import quality
 from ..duplicates import counted
 from ..errors import ApiError
 from ..gear import ORDNANCES, TACMODS, WEAPONS
@@ -24,7 +25,7 @@ STATS = {
     "wins": ("Wins", True, lambda r: r.wins),
     "win_rate": ("Win rate", True, lambda r: ratio(r.wins, (r.wins or 0) + (r.losses or 0))),
     "hours_played": ("Hours played", True, lambda r: round((r.play_time or 0) / 3600, 2)),
-    "deaths_per_game_est": ("Deaths per game (est.)", False, lambda r: ratio(r.deaths, r.games, 2)),
+    "deaths_per_game_est": ("Deaths per game (est.)", False, lambda r: ratio(r.deaths, r.counted, 2)),
     "avg_speed": ("Average speed", True, lambda r: ratio(r.speed_sum, r.in_bounds, 2)),
     "top_speed": ("Top speed", True, lambda r: round(r.top_speed or 0, 2)),
     "pct_stopped": ("Time idle", False, lambda r: ratio(r.stopped, r.in_bounds)),
@@ -38,19 +39,27 @@ STATS = {
 }
 
 
-def _aggregate(where):
+def _aggregate(where, strict: bool = True):
+    """One row per player. `games`, `play_time` and `emotes` count every match; everything averaged or rated counts
+    only matches that pass stats/quality.py (`strict`, Settings.counted_stats): `counted` is their number."""
     s = func.sum
     won = case((Match.winner == MatchPlayer.team, 1), else_=0)
     lost = case((and_(Match.winner.is_not(None), Match.winner != MatchPlayer.team), 1), else_=0)
+
+    def c(expr):
+        return quality.only_counted(Match, expr, strict)
+
+    ping = func.coalesce(MatchPlayer.ping_capped_sum, MatchPlayer.ping_sum)  # spikes capped once the replay was read again (DATA-5)
+    top = func.max(case((Match.counted_for_stats == 1, MatchPlayer.top_speed), else_=None)) if strict else func.max(MatchPlayer.top_speed)
     return (
         select(
-            MatchPlayer.player_id, func.count().label("games"), s(won).label("wins"), s(lost).label("losses"),
-            s(MatchPlayer.deaths_est).label("deaths"), s(MatchPlayer.play_time_s).label("play_time"),
-            s(MatchPlayer.speed_sum).label("speed_sum"), s(MatchPlayer.frames_in_bounds).label("in_bounds"),
-            func.max(MatchPlayer.top_speed).label("top_speed"),
-            s(MatchPlayer.ping_sum).label("ping_sum"), s(MatchPlayer.ping_frames).label("ping_frames"),
-            s(MatchPlayer.frames_stopped).label("stopped"), s(MatchPlayer.frames_upside_down).label("upside"),
-            s(MatchPlayer.frames_near_mate).label("mate"), s(MatchPlayer.frames_near_enemy).label("enemy"),
+            MatchPlayer.player_id, func.count().label("games"), s(c(1)).label("counted"), s(c(won)).label("wins"), s(c(lost)).label("losses"),
+            s(c(MatchPlayer.deaths_est)).label("deaths"), s(MatchPlayer.play_time_s).label("play_time"),
+            s(c(MatchPlayer.speed_sum)).label("speed_sum"), s(c(MatchPlayer.frames_in_bounds)).label("in_bounds"),
+            top.label("top_speed"),
+            s(c(ping)).label("ping_sum"), s(c(MatchPlayer.ping_frames)).label("ping_frames"),
+            s(c(MatchPlayer.frames_stopped)).label("stopped"), s(c(MatchPlayer.frames_upside_down)).label("upside"),
+            s(c(MatchPlayer.frames_near_mate)).label("mate"), s(c(MatchPlayer.frames_near_enemy)).label("enemy"),
             s(MatchPlayer.payload_push_s).label("push"), s(MatchPlayer.payload_block_s).label("block"),
             s(MatchPlayer.emote_count).label("emotes"),
         )
@@ -86,8 +95,9 @@ def _where(period, map, private, shift_days: int = 0):
 def _aggregate_rows(db, request, period, map, private, shift_days: int = 0):
     # one scan computes every stat: keep the rows per filter set so switching the stat (or asking for the rank
     # change arrows, or the per-player summary columns) does not scan the archive again
+    strict = request.app.state.settings.counted_stats
     return cached(request, "leaderboard-aggregate", (period, map, private, shift_days),
-                  lambda: db.execute(_aggregate(_where(period, map, private, shift_days))).all())
+                  lambda: db.execute(_aggregate(_where(period, map, private, shift_days), strict)).all())
 
 
 def _summary(r, wl: bool = True, player_shown: bool = True) -> dict:

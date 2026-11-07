@@ -149,7 +149,10 @@ export function ComparePage() {
               </tbody>
             </table>
           </TableWrap>
-          <p className="muted footnote">Best value per row is highlighted. * Estimated.</p>
+          <p className="muted footnote">
+            Best value per row is highlighted. * Estimated. Averages and win rates count games of 2+ minutes with 2+ players per team;
+            games without a recorded winner count for neither side.
+          </p>
 
           <h2>Head to head: {c.players[0].name} vs {c.players[1].name}</h2>
           <div className="cards">
