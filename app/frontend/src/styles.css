@@ -4086,6 +4086,23 @@ button.small {
 .tile:hover .tile-pop, .tile:focus-within .tile-pop, .tile.open .tile-pop { display: block; }
 .tile-pop .badge-card { background: var(--panel); border: 1px solid var(--line); }
 
+/* Achievements page (user, 2026-11-07): medal dots on compact tiles, "Your next medals" strip, Mega Prizes banner */
+.medal-dots { display: inline-flex; gap: 3px; margin-right: 6px; vertical-align: middle; }
+.medal-dots i { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid var(--tier); background: transparent; box-sizing: border-box; }
+.medal-dots i.full { background: var(--tier); }
+.medal-dots i.half { background: linear-gradient(90deg, var(--tier) 50%, transparent 50%); }
+.tile .badge-card.compact .tile-pct { display: inline-flex; align-items: center; justify-content: center; }
+.next-medals { margin: 4px 0 14px; }
+.next-medals h3 { margin: 0 0 4px; }
+.next-medals .strip-next { align-items: center; }
+.next-medals .strip-next .tile { width: 100%; }
+.next-medals .medal-chip { align-self: center; }
+.mega-banner { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.mega-banner h2 { margin: 0; }
+.mega-banner .mega-summary { flex: 1 1 320px; font-size: 0.9rem; }
+.mega-banner button { margin-left: auto; }
+.section.mega.closed { padding-bottom: 10px; }
+
 /* Player page: achievements progress above the tabs (user, 2026-11-06) */
 .ach-strip { margin: 12px 0; padding: 10px 12px; border-radius: 8px; background: var(--panel); }
 .ach-strip-head {

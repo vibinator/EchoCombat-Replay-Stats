@@ -18,6 +18,19 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.07.4 — 23:42
+
+### Achievements page (user, 2026-11-07; mock-ups approved before the change)
+- **Your next medals:** with a player selected, the page opens with the five challenges nearest to their next medal (closest
+  first): the tile, the medal being chased and what is missing ("4.7 % more to reach bronze (95 % of the way)").
+- **Medal dots on every tile:** four dots beside the percentage show the ladder (bronze, gold, platinum, crown): filled = earned,
+  half = the one being chased. The exact targets stay in the tile's card.
+- **Mega Prizes as a banner:** one line (period, the two prizes, the leader) with Show / Hide. Open by default only while the
+  prize period runs; a visitor's choice is remembered in their browser.
+- **Removed:** the theme chips under the period tabs (All / New / Original / Gear / Modes & wins / Other new / Combat) and the
+  "New only" box: no longer needed. The search box and the status / sort selects remain; "Jump to new challenges" scrolls to the tabs.
+
+
 ## 2026.11.07.3 — 23:31
 
 ### Counted games, decided games, ping cap (user, 2026-11-07, Review DATA-2 / DATA-3 / DATA-5)
