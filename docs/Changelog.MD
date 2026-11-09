@@ -18,6 +18,8 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.09.11 — 12:03
+
 ## 2026.11.09.10 — 11:25
 
 - **"More stats" and "Show more" are now panes in the card grid, not dropdowns under it.** On the player page a "More stats +13" card
