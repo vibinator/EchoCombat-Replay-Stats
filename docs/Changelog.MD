@@ -18,6 +18,13 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.09.7 — 11:09
+
+- **Player page, combat tab: the Awards block is now the first thing under "Combat stats", for every player.** All 16 awards with how
+  often each was won (0 when never), the line saying how many matches carry award data, and the "How the game's awards are earned"
+  guide. Before, it sat below the counters and only appeared once one of the player's matches had award data, so most players saw
+  nothing. The counters follow under a new "Game counters" heading. Nothing to restart or re-read.
+
 ## 2026.11.09.6 — 11:04
 
 ### Player page: easier to read

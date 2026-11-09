@@ -138,6 +138,33 @@ export function CombatSection({ userId, period, map }: { userId: string; period:
         From a separate source than the replay stats above, so numbers can differ. Only data collected from 4 November 2026
         onwards. <Link to="/leaderboard?board=combat">All combat stats</Link>
       </p>
+      {/* the game's award cards first, for every player: all 16 with a count (0 when never won), even before any of
+          their matches carries award data */}
+      <h3>
+        Awards
+        <InfoTip text="The game's own end-of-match award cards (MVP, Assassin, Guard...). Each goes to the top player of that stat in the match; there is no minimum." />
+      </h3>
+      <p className="muted footnote">
+        {data.awards
+          ? <>{int(data.awards.total)} award{data.awards.total === 1 ? "" : "s"} in {data.awards.matches} of {data.matches} match{data.matches === 1 ? "" : "es"}
+            {data.awards.matches < data.matches && " (matches recorded before 9 November 2026 do not carry awards)"}.</>
+          : <>None of these {int(data.matches)} match{data.matches === 1 ? "" : "es"} carry awards yet: the game&apos;s award cards are recorded from 9 November 2026 onwards.</>}
+      </p>
+      <div className="cards award-cards">
+        {awardCards.map((a) => (
+          <div key={a.key} className={`card award-card award-${a.key}${a.count === 0 ? " award-none" : ""}`} title={awardHint(a)}>
+            <span className="label">
+              {a.name}
+              <InfoTip text={awardHint(a)} />
+            </span>
+            <strong>{int(a.count)}</strong>
+            <span className="muted footnote award-stat">{a.stat || a.description}</span>
+          </div>
+        ))}
+      </div>
+      <AwardGuide />
+
+      <h3>Game counters</h3>
       <div className="cards">
         <Stat label="Matches" value={int(data.matches)} />
         <Stat label="Kills" value={int(s.kills)} hint="Kills of other players, as the game counts them. Self-kills are not included." />
@@ -155,32 +182,6 @@ export function CombatSection({ userId, period, map }: { userId: string; period:
         )}
       </div>
       <p className="muted footnote">Damage taken is not shown: the game does not give it to spectators.</p>
-
-      {data.awards && (
-        <>
-          <h3>
-            Awards
-            <InfoTip text="The game's own end-of-match award cards (MVP, Assassin, Guard...). Each goes to the top player of that stat in the match; there is no minimum." />
-          </h3>
-          <p className="muted footnote">
-            {int(data.awards.total)} award{data.awards.total === 1 ? "" : "s"} in {data.awards.matches} of {data.matches} match{data.matches === 1 ? "" : "es"}
-            {data.awards.matches < data.matches && " (older reports do not carry the awards)"}.
-          </p>
-          <div className="cards award-cards">
-            {awardCards.map((a) => (
-              <div key={a.key} className={`card award-card award-${a.key}${a.count === 0 ? " award-none" : ""}`} title={awardHint(a)}>
-                <span className="label">
-                  {a.name}
-                  <InfoTip text={awardHint(a)} />
-                </span>
-                <strong>{int(a.count)}</strong>
-                <span className="muted footnote award-stat">{a.stat || a.description}</span>
-              </div>
-            ))}
-          </div>
-          <AwardGuide />
-        </>
-      )}
 
       {e && (
         <>
