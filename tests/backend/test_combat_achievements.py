@@ -24,7 +24,7 @@ def results(games):
 
 def test_kept_apart_from_the_replay_rules():
     ids = {r.id for r in RULES_HERE}
-    assert ids == set(range(164, 179)) | set(range(198, 201)) | set(range(202, 222)) and not ids & {r.id for r in RULES}
+    assert ids == set(range(164, 179)) | set(range(198, 201)) | (set(range(202, 222)) - {211, 212, 216, 218}) and not ids & {r.id for r in RULES}
     assert all(r.group == "Combat" and r.new and not r.counted for r in RULES_HERE)
     # the module cannot read a replay table: it imports only the combat ones
     tree = ast.parse(Path(ca.__file__).read_text(encoding="utf-8"))
@@ -66,11 +66,11 @@ def test_second_set_one_game_and_one_day():
 
 
 def test_any_30_days_is_a_rolling_window():
-    games = [game(kills=30, deaths=1, started="2026-11-05T20:00:00"), game(kills=30, deaths=40, started="2026-12-04T19:00:00"),
-             game(kills=30, deaths=1, started="2026-12-05T21:00:00")]
+    games = [game(kills=70, deaths=1, started="2026-11-05T20:00:00"), game(kills=70, deaths=90, started="2026-12-04T19:00:00"),
+             game(kills=70, deaths=1, started="2026-12-05T21:00:00")]
     r = results(games)
-    assert r[209]["count"] == 60 and r[214]["count"] == 1  # 5 Nov + 4 Dec are inside 30 days, 5 Dec is not
-    assert r[173]["count"] == 90 and r[221]["count"] == 2  # all time keeps everything
+    assert r[209]["count"] == 140 and r[214]["count"] == 1  # 5 Nov + 4 Dec are inside 30 days, 5 Dec is not
+    assert r[173]["count"] == 210 and r[221]["count"] == 2  # all time keeps everything
     times = medal_times(games, RULES_HERE)
     assert times[209]["bronze"] == "2026-12-04T19:00:00"  # complete at the window's last game, like the 7 days
 

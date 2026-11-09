@@ -68,58 +68,59 @@ def _rule(id_: int, name: str, what: str, icon: str | None, value, levels: tuple
 
 
 COMBAT_RULES: list[Rule] = [
-    _rule(164, "Frag Out", "Get kills in one game", "deaths", lambda g: g.kills, (8, 11, 13, 15, 18), "game"),
+    _rule(164, "Chassis Crusher (Combat)", "Get kills in one game", "deaths", lambda g: g.kills, (8, 11, 13, 15, 18), "game"),
     _rule(165, "Wingbot", "Get assists in one game", "team_proximity", lambda g: g.assists, (10, 13, 15, 18, 21), "game"),
-    _rule(166, "Heavy Hitter", "Deal damage in one game", "enemy_proximity", lambda g: g.damage, (1300, 1750, 2050, 2400, 2800), "game"),
-    _rule(167, "Net Positive", "Finish one game with more kills than deaths (kills minus deaths)", "deaths", lambda g: max(0, g.kills - g.deaths), (3, 6, 8, 11, 13), "game"),
-    _rule(168, "Objective Threat", "Get objective eliminations in one game", None, lambda g: g.objective_eliminations, (8, 12, 14, 16, 18), "game"),
-    _rule(169, "On the Objective", "Spend time on the objective yourself in one game, in seconds", None, lambda g: g.objective_time, (115, 165, 195, 210, 225), "game", " s"),
-    Rule(170, "Flawless", "Get 10 or more kills in one game without dying", "game", "deaths", _total(lambda g: g.kills >= 10 and g.deaths == 0), new=True, group=GROUP, counted=False),
-    _rule(171, "Kill Spree", "Get kills in one day", "deaths", lambda g: g.kills, (15, 28, 35, 50, 75), "day"),
-    _rule(172, "Busy Hands", "Get assists in one day", "team_proximity", lambda g: g.assists, (18, 33, 42, 60, 90), "day"),
-    _rule(173, "Body Count", "Total kills", "deaths", lambda g: g.kills, (50, 150, 350, 700, 1200), "all"),
-    _rule(174, "Force Multiplier", "Total assists", "team_proximity", lambda g: g.assists, (60, 180, 420, 840, 1440), "all"),
-    _rule(175, "Demolition Crew", "Total damage dealt", "enemy_proximity", lambda g: g.damage, (8000, 25000, 60000, 120000, 200000), "all"),
-    _rule(176, "Top Fragger", "Games where you got the most kills in the match (a tie counts)", None, lambda g: g.top_fragger, (3, 12, 30, 60, 100), "all"),
-    _rule(177, "Triple Threat", "Games with at least 5 kills, 5 assists and 5 objective eliminations", None,
+    _rule(166, "Hull Breach (Combat)", "Deal damage in one game", "enemy_proximity", lambda g: g.damage, (1300, 1750, 2050, 2400, 2800), "game"),
+    _rule(167, "Net Positive Bot (Combat)", "Finish one game with more kills than deaths (kills minus deaths)", "deaths", lambda g: max(0, g.kills - g.deaths), (3, 6, 8, 11, 13), "game"),
+    _rule(168, "Point Denied (Combat)", "Get objective eliminations in one game", None, lambda g: g.objective_eliminations, (8, 12, 14, 16, 18), "game"),
+    _rule(169, "Parked on the Point (Combat)", "Spend time on the objective yourself in one game, in seconds", None, lambda g: g.objective_time, (115, 165, 195, 210, 225), "game", " s"),
+    Rule(170, "Flawless Chassis (Combat)", "Get 10 or more kills in one game without dying", "game", "deaths", _total(lambda g: g.kills >= 10 and g.deaths == 0), new=True, group=GROUP, counted=False),
+    _rule(171, "Kill Spree Bot (Combat)", "Get kills in one day", "deaths", lambda g: g.kills, (15, 28, 35, 50, 75), "day"),
+    _rule(172, "Helping Hands of Kronos II (Combat)", "Get assists in one day", "team_proximity", lambda g: g.assists, (18, 33, 42, 60, 90), "day"),
+    _rule(173, "Ring Debris (Combat)", "Total kills", "deaths", lambda g: g.kills, (50, 150, 350, 700, 1200), "all"),
+    _rule(174, "The Whole Echo Crew (Combat)", "Total assists", "team_proximity", lambda g: g.assists, (60, 180, 420, 840, 1440), "all"),
+    _rule(175, "Kronos II Salvage (Combat)", "Total damage dealt", "enemy_proximity", lambda g: g.damage, (8000, 25000, 60000, 120000, 200000), "all"),
+    _rule(176, "Top Bot (Combat)", "Games where you got the most kills in the match (a tie counts)", None, lambda g: g.top_fragger, (3, 12, 30, 60, 100), "all"),
+    _rule(177, "Saturn Trifecta (Combat)", "Games with at least 5 kills, 5 assists and 5 objective eliminations", None,
           lambda g: min(g.kills, g.assists, g.objective_eliminations) >= 5, (3, 10, 25, 50, 90), "all"),
-    _rule(178, "Selfless", "Games with at least 8 assists and at least twice as many assists as kills", "team_proximity",
+    _rule(178, "Service Android (Combat)", "Games with at least 8 assists and at least twice as many assists as kills", "team_proximity",
           lambda g: g.assists >= 8 and g.assists >= 2 * g.kills, (1, 5, 12, 25, 45), "all"),
-    _rule(198, "Siege Breaker", "Deal objective damage in one game", None, lambda g: g.objective_damage, (500, 900, 1300, 1700, 2000), "game"),
-    _rule(199, "Field Medic", "Use heal bubbles in one game", None, lambda g: g.heal_bubbles, (2, 4, 6, 7, 9), "game"),
-    _rule(200, "Shock Trooper", "Stun enemies in one game", None, lambda g: g.stuns_given, (1, 2, 3, 4, 5), "game"),
-    # Second set (user, 2026-11-09: new one game / one day / one month / all-time Combat challenges). Targets from 435 reports
-    # (4-9 Nov 2026, 1451 counted games, 251 players): one game and one day from the top 40 / 20 / 12 / 7.5 % up to ~1.3x the top 5 % (bests rise over time);
-    # 30 days and all time are estimates from that pace (only 6 days of reports so far), kept below the all-time ladders.
+    _rule(198, "Siege Breaker Bot (Combat)", "Deal objective damage in one game", None, lambda g: g.objective_damage, (500, 900, 1300, 1700, 2000), "game"),
+    _rule(199, "Repair Matrix Medic (Combat)", "Use heal bubbles in one game", None, lambda g: g.heal_bubbles, (2, 4, 6, 7, 9), "game"),
+    _rule(200, "Stun Field Trooper (Combat)", "Stun enemies in one game", None, lambda g: g.stuns_given, (1, 2, 3, 4, 5), "game"),
+    # Second set (user, 2026-11-09: new one game / one day / one month / all-time Combat challenges; "the top should be 10%
+    # achievable"). From 435 reports (4-9 Nov 2026), the 42 players with 10+ counted games (the site's rarity group): the crown is
+    # what the top 10 % of them reached in one game / one day, and their pace since their first game x30 (any 30 days) or x90
+    # (all time, ~3 months, as for gear Veteran). Lower medals keep the ladder's shape. Re-check as players' pace settles.
+    # Removed (user, 2026-11-09, too repetitive): 211 (30-day damage), 212 (30-day objective eliminations), 216 (all-time objective
+    # eliminations), 218 (all-time objective damage). Over 30+ days these totals move with kills / damage (0.98-0.99), so they
+    # added nothing. Their ids stay unused.
+    # Names (user, 2026-11-09): from Ready At Dawn, Lone Echo, Echo VR and Echo Combat (Jack, Captain Liv Rhodes, Kronos II, the maps).
     # In one game
-    _rule(202, "All-Rounder", "Get kills, assists and objective eliminations in one game (counts the lowest of the three)", None,
+    _rule(202, "Jack's Toolkit", "Get kills, assists and objective eliminations in one game (counts the lowest of the three)", None,
           lambda g: min(g.kills, g.assists, g.objective_eliminations), (6, 9, 11, 13, 15), "game"),
-    _rule(203, "Untouchable", "Get kills in one game while dying 3 times or fewer", "deaths",
-          lambda g: g.kills if g.deaths <= 3 else 0, (3, 6, 8, 10, 12), "game"),
+    _rule(203, "Ghost of Sparta", "Get kills in one game while dying 3 times or fewer", "deaths",
+          lambda g: g.kills if g.deaths <= 3 else 0, (4, 8, 10, 12, 15), "game"),
     # In one day
-    _rule(204, "Wrecking Ball", "Deal damage in one day", "enemy_proximity", lambda g: g.damage, (3000, 5000, 9000, 14000, 20000), "day"),
-    _rule(205, "Objective Grind", "Get objective eliminations in one day", None, lambda g: g.objective_eliminations, (18, 30, 50, 80, 110), "day"),
-    _rule(206, "Hold the Line", "Spend time on the objective yourself in one day, in minutes", None, lambda g: g.objective_time / 60,
-          (3, 5, 8, 14, 20), "day", " min"),
-    _rule(207, "Triage", "Use heal bubbles in one day", "repair_matrix", lambda g: g.heal_bubbles, (5, 10, 18, 28, 40), "day"),
-    _rule(208, "Hot Hand", "Games in one day where you got the most kills in the match (a tie counts)", None, lambda g: g.top_fragger,
+    _rule(204, "Wrath of Saturn", "Deal damage in one day", "enemy_proximity", lambda g: g.damage, (3000, 5000, 9000, 14000, 20000), "day"),
+    _rule(205, "Fission Reaction", "Get objective eliminations in one day", None, lambda g: g.objective_eliminations, (19, 31, 52, 84, 115), "day"),
+    _rule(206, "Camping Out on Dyson", "Spend time on the objective yourself in one day, in minutes", None, lambda g: g.objective_time / 60,
+          (2, 4, 6, 11, 16), "day", " min"),
+    _rule(207, "Keeping Liv Alive", "Use heal bubbles in one day", "repair_matrix", lambda g: g.heal_bubbles, (6, 12, 22, 35, 50), "day"),
+    _rule(208, "Spontaneous Combustion", "Games in one day where you got the most kills in the match (a tie counts)", None, lambda g: g.top_fragger,
           (1, 2, 3, 4, 5), "day"),
     # In any 30 days
-    _rule(209, "Campaign", "Get kills in any 30 days", "deaths", lambda g: g.kills, (40, 100, 200, 350, 500), "month"),
-    _rule(210, "Backbone", "Get assists in any 30 days", "team_proximity", lambda g: g.assists, (50, 120, 240, 420, 600), "month"),
-    _rule(211, "Artillery", "Deal damage in any 30 days", "enemy_proximity", lambda g: g.damage, (7000, 18000, 36000, 63000, 90000), "month"),
-    _rule(212, "Siege Season", "Get objective eliminations in any 30 days", None, lambda g: g.objective_eliminations, (40, 100, 200, 350, 500), "month"),
-    _rule(213, "Headliner", "Games in any 30 days where you got the most kills in the match (a tie counts)", None, lambda g: g.top_fragger,
-          (2, 5, 10, 18, 30), "month"),
-    _rule(214, "In the Green", "Games in any 30 days with more kills than deaths", "deaths", lambda g: g.kills > g.deaths, (3, 8, 15, 28, 45), "month"),
-    _rule(215, "Field Hospital", "Use heal bubbles in any 30 days", "repair_matrix", lambda g: g.heal_bubbles, (10, 30, 60, 100, 150), "month"),
+    _rule(209, "Power Surge", "Get kills in any 30 days", "deaths", lambda g: g.kills, (130, 320, 640, 1100, 1600), "month"),
+    _rule(210, "Captain Rhodes' Right Hand", "Get assists in any 30 days", "team_proximity", lambda g: g.assists, (150, 360, 720, 1300, 1800), "month"),
+    _rule(213, "Lobby Billboard", "Games in any 30 days where you got the most kills in the match (a tie counts)", None, lambda g: g.top_fragger,
+          (4, 10, 20, 36, 60), "month"),
+    _rule(214, "Above the Rings", "Games in any 30 days with more kills than deaths", "deaths", lambda g: g.kills > g.deaths, (9, 23, 43, 81, 130), "month"),
+    _rule(215, "Kronos II Medbay", "Use heal bubbles in any 30 days", "repair_matrix", lambda g: g.heal_bubbles, (33, 100, 200, 330, 500), "month"),
     # All time
-    _rule(216, "Objective Veteran", "Total objective eliminations", None, lambda g: g.objective_eliminations, (50, 150, 350, 700, 1200), "all"),
-    _rule(217, "Holding Ground", "Total time on the objective yourself, in minutes", None, lambda g: g.objective_time / 60, (5, 20, 50, 100, 180), "all", " min"),
-    _rule(218, "Siege Engine", "Total objective damage", None, lambda g: g.objective_damage, (4000, 12000, 30000, 60000, 100000), "all"),
-    _rule(219, "Lifeline", "Total heal bubbles used", "repair_matrix", lambda g: g.heal_bubbles, (20, 60, 150, 300, 500), "all"),
-    _rule(220, "Live Wire", "Total enemies stunned", "stun_field", lambda g: g.stuns_given, (3, 10, 25, 50, 90), "all"),
-    _rule(221, "Positive Record", "Games with more kills than deaths", "deaths", lambda g: g.kills > g.deaths, (5, 20, 50, 90, 150), "all"),
+    _rule(217, "The Anomaly Doesn't Move", "Total time on the objective yourself, in minutes", None, lambda g: g.objective_time / 60, (18, 72, 180, 360, 650), "all", " min"),
+    _rule(219, "Life Support Systems", "Total heal bubbles used", "repair_matrix", lambda g: g.heal_bubbles, (64, 190, 480, 960, 1600), "all"),
+    _rule(220, "Old Arena Habits", "Total enemies stunned", "stun_field", lambda g: g.stuns_given, (7, 22, 56, 110, 200), "all"),
+    _rule(221, "Ready At Dawn", "Games with more kills than deaths", "deaths", lambda g: g.kills > g.deaths, (13, 51, 130, 230, 380), "all"),
 ]
 
 

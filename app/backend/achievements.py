@@ -787,24 +787,24 @@ def _build_rules() -> list[Rule]:
              _all_used("ordnance", {c for c, _, _ in ORDNANCES}), new=True, group="Gear mastery"),
         Rule(89, "Tac Mod Tinkerer", "Use all 4 tac mods (Repair Matrix, Threat Scanner, Energy Barrier and Phase Shift) in one game", "game",
              "loadout", _all_used("tacmod", {c for c, _, _ in TACMODS}), new=True, group="Gear mastery"),
-        _ladder(90, "On a Roll", "Win games in a row (games with no result do not break the streak)", None, _v4(_win_streak), (2, 2, 3, 4, 5), new=True, group="Wins"),
+        _ladder(90, "Echo Streak (Wins)", "Win games in a row (games with no result do not break the streak)", None, _v4(_win_streak), (2, 2, 3, 4, 5), new=True, group="Wins"),
         # id 91 (Unstoppable, win games in a row) was removed on 2026-11-04: On a Roll is the same challenge (user)
-        _tiered(92, "Centurion", "Win games", None, lambda g: g.enough_players and g.won, (5, 10, 30, 100, 300), new=True, group="Wins"),
+        _tiered(92, "Centurion Bot (Wins)", "Win games", None, lambda g: g.enough_players and g.won, (5, 10, 30, 100, 300), new=True, group="Wins"),
         # the attacking team wins exactly when the payload reaches the end (stats/payload.py)
-        _tiered(93, "Clean Sweep", "Win Capture Point games without losing a round (2-0)", "capture_point",
+        _tiered(93, "Capture Point Clean Sweep (Capture Point)", "Win Capture Point games without losing a round (2-0)", "capture_point",
                 lambda g: g.enough_players and _capture(g) and g.won and g.rounds_lost == 0, (1, 5, 10, 25, 100), new=True, group="Capture Point"),
-        _tiered(94, "Special Delivery", "Deliver the payload to the end: win Payload games as the attacking team", "payload",
+        _tiered(94, "Payload Delivered (Payload)", "Deliver the payload to the end: win Payload games as the attacking team", "payload",
                 lambda g: g.enough_players and _payload(g) and g.won and g.attacking_team == g.team, (1, 5, 10, 25, 60), new=True, group="Payload"),
-        _tiered(95, "Hold the Line", "Win Payload games as the defending team (the other team does not get the payload to the end)", "payload",
+        _tiered(95, "Payload Shutout (Payload)", "Win Payload games as the defending team (the other team does not get the payload to the end)", "payload",
                 lambda g: g.enough_players and _payload(g) and g.won and g.attacking_team not in (None, g.team), (1, 5, 10, 25, 60), new=True, group="Payload"),  # left as is 2026-11-04 (user: only ease what is unrealistic): 1/6/12/39/94 wins, platinum reached by 29 players
-        _ladder(96, "Pedal to the Metal", "Longest time your team pushes the payload in one game, in seconds", "payload",
+        _ladder(96, "Payload Pedal to the Metal (Payload)", "Longest time your team pushes the payload in one game, in seconds", "payload",
                 _v4(lambda gs: gs[0].push_s), (40, 70, 100, 115, 154), "game", " s", estimated=True, new=True, group="Payload"),  # seconds, eased 2026-11-04 (user): 40/70/100/150/200 s; was 1-8 min
-        _ladder(97, "Immovable Object", "Longest time you block the payload in one game, in seconds", "payload",
+        _ladder(97, "Payload Roadblock (Payload)", "Longest time you block the payload in one game, in seconds", "payload",
                 _v4(lambda gs: gs[0].block_s), (15, 30, 45, 48, 62), "game", " s", estimated=True, new=True, group="Payload"),  # seconds, eased 2026-11-04 (user): 15/30/45/62/81 s; was 0.5-3.9 min
-        _ladder(98, "Freight Train", "Total time spent pushing the payload, in minutes", "payload",
+        _ladder(98, "Payload Freight Train (Payload)", "Total time spent pushing the payload, in minutes", "payload",
                 _v4(lambda gs: sum(g.push_s for g in gs) / 60), (5, 12, 25, 35, 54), "all", " min", raise_all_time=False, estimated=True, new=True, group="Payload"),  # eased 2026-11-04 (user): 5/12/25/46/70 min; was 12/36/72/234/468, platinum 0.3 % of players
         # id 99 (the first Showboat, emotes in any game) was removed on 2026-11-05: id 151, emotes in a won game, took its name (user)
-        _ladder(100, "Dance Floor Legend", "Use emotes (total across all games)", None, lambda gs: sum(g.emotes for g in gs), (40, 200, 800, 2000, 8000),  # x4 (user, 2026-11-03)
+        _ladder(100, "Lobby Dance Floor Legend (Emotes)", "Use emotes (total across all games)", None, lambda gs: sum(g.emotes for g in gs), (40, 200, 800, 2000, 8000),  # x4 (user, 2026-11-03)
                 new=True, group="Emotes"),
     ]
 
@@ -820,11 +820,11 @@ def _build_rules() -> list[Rule]:
                              GEAR_VETERAN,  # released 2026-10-30: the same ladder as the older gear (user, 2026-10-31)
                              new=True, group="Experimental gear"))
     rules += [
-        Rule(109, "Beam Me Up", "Use Translocator and Dot Field in one game", "game", "translocator",
+        Rule(109, "Beam Me Up, Translocator (Ordnance)", "Use Translocator and Dot Field in one game", "game", "translocator",
              _all_used("ordnance", {"loc", "dot"}), new=True, group="Experimental gear"),
-        Rule(110, "Arsenal Overload", "Use 5 different weapons in one game", "game", None,
+        Rule(110, "Kronos II Armory Raid (Weapon)", "Use 5 different weapons in one game", "game", None,
              lambda gs: len(gs[0].used("weapon")) / 5, new=True, group="Gear mastery"),
-        Rule(111, "Ordnance Overload", "Use 5 different ordnances in one game", "game", None,
+        Rule(111, "Bomb Bay Overload (Ordnance)", "Use 5 different ordnances in one game", "game", None,
              lambda gs: len(gs[0].used("ordnance")) / 5, new=True, group="Gear mastery"),
         _ladder(112, "Overclocked", "Play games using Overcharge (experimental tac mod)", None, _games_using("tacmod", "buff"), GEAR_VETERAN,
                 new=True, group="Experimental gear"),
@@ -832,22 +832,22 @@ def _build_rules() -> list[Rule]:
 
     # New challenges from the 2026-10-31 review (113+). Targets chosen from the archive (docs/Achievement-Tiers-Proposal.MD).
     rules += [
-        _ladder(114, "Regular", "Number of different days you played", None, lambda gs: len({g.day for g in gs}), (5, 15, 30, 60, 100), new=True, group="Activity"),
+        _ladder(114, "Lobby Regular (Activity)", "Number of different days you played", None, lambda gs: len({g.day for g in gs}), (5, 15, 30, 60, 100), new=True, group="Activity"),
         _ladder(115, "Loyal Bot", "Number of different weeks you played", None, lambda gs: len({g.week for g in gs}), (3, 6, 9, 12, 15), new=True, group="Activity"),
-        _ladder(116, "Daily Grind", "Days in a row with at least one game played", None, _day_streak, (3, 5, 7, 14, 30), new=True, group="Activity"),
-        _ladder(117, "Time Well Wasted", "Total hours played", None, lambda gs: sum(g.play_time_s for g in gs) / 3600, (1, 5, 20, 50, 80), "all", " h",
+        _ladder(116, "Ready Every Dawn (Activity)", "Days in a row with at least one game played", None, _day_streak, (3, 5, 7, 14, 30), new=True, group="Activity"),
+        _ladder(117, "Time Well Wasted on Kronos II (Activity)", "Total hours played", None, lambda gs: sum(g.play_time_s for g in gs) / 3600, (1, 5, 20, 50, 80), "all", " h",
                 new=True, group="Activity"),
-        _tiered(118, "Overtime", "Games of 10 minutes or longer", None, lambda g: g.play_time_s >= 600, (5, 20, 50, 100, 250), new=True, group="Activity"),
-        _tiered(119, "Hot Day", "Win games in one day", None, lambda g: g.enough_players and g.won, (3, 5, 8, 12, 18), "day", new=True, group="Wins"),
+        _tiered(118, "Overtime on Kronos II (Activity)", "Games of 10 minutes or longer", None, lambda g: g.play_time_s >= 600, (5, 20, 50, 100, 250), new=True, group="Activity"),
+        _tiered(119, "Hot Day Bot (Wins)", "Win games in one day", None, lambda g: g.enough_players and g.won, (3, 5, 8, 12, 18), "day", new=True, group="Wins"),
         _tiered(120, "Point Taker", "Win Capture Point games", "capture_point", lambda g: g.enough_players and _capture(g) and g.won, (5, 10, 30, 80, 150), new=True, group="Capture Point"),
-        _tiered(121, "Cargo Hauler", "Win Payload games", "payload", lambda g: g.enough_players and _payload(g) and g.won, (5, 10, 30, 80, 150), new=True, group="Payload"),
-        _ladder(122, "Grand Tour", "Win games on all 4 maps (your weakest map sets the count)", None, _v4(_fewest_wins), (1, 3, 6, 12, 20),
+        _tiered(121, "Payload Hauler (Payload)", "Win Payload games", "payload", lambda g: g.enough_players and _payload(g) and g.won, (5, 10, 30, 80, 150), new=True, group="Payload"),
+        _ladder(122, "Four-Map Tour (Map)", "Win games on all 4 maps (your weakest map sets the count)", None, _v4(_fewest_wins), (1, 3, 6, 12, 20),
                 raise_all_time=False, new=True, group="Wins"),  # eased 2026-11-04 (user): 1/3/6/16/26; was 1/4/10/39/117, platinum reached by ~10 players
-        _ladder(123, "Weapons Master", "Play games with your least-used weapon (of Pulsar, Nova, Comet and Meteor)", "loadout", _least_used("weapon", WEAPONS),
+        _ladder(123, "No Gun Left Behind (Weapon)", "Play games with your least-used weapon (of Pulsar, Nova, Comet and Meteor)", "loadout", _least_used("weapon", WEAPONS),
                 (1, 5, 15, 50, 100), new=True, group="Gear mastery"),
-        _ladder(124, "Loadout Scholar", "Play games with your least-used item (of all 12 weapons, ordnances and tac mods)", None, _least_used_equipable,
+        _ladder(124, "Loadout Scholar Bot (Loadout)", "Play games with your least-used item (of all 12 weapons, ordnances and tac mods)", None, _least_used_equipable,
                 (1, 5, 15, 50, 100), new=True, group="Gear mastery"),
-        _ladder(125, "Immovable Object", "Total time spent blocking the payload", "payload", lambda gs: sum(g.block_s for g in gs) / 60, (2, 10, 30, 60, 120),
+        _ladder(125, "Nothing Leaves Kronos II (Payload)", "Total time spent blocking the payload", "payload", lambda gs: sum(g.block_s for g in gs) / 60, (2, 10, 30, 60, 120),
                 "all", " min", estimated=True, new=True, group="Payload"),
         # Medal Collector counts the other rules' medals; filled in by evaluate() (meta)
         _ladder(126, "Medal Collector", "Earn gold or better on other challenges (each challenge counts once, Test Drives do not count)", None, lambda gs: 0.0, MEDAL_LEVELS,
@@ -886,34 +886,34 @@ def _build_rules() -> list[Rule]:
     # nearly every game), so there is no arm ladder, only "both arms". Glass Cannon (most deaths) was dropped by the user.
     rules += [
         # one medal, not a ladder (user, 2026-11-05): with 1 minute in bounds the most anyone has is 2 such wins
-        Rule(139, "Untouchable", "Win a game without dying once, with at least 1 minute in bounds", "game", "deaths",
+        Rule(139, "Untouchable Chassis (Wins)", "Win a game without dying once, with at least 1 minute in bounds", "game", "deaths",
              _v4(_full(_untouchable)), estimated=True, new=True, group="Survival"),
         _ladder(140, "Marathon Bot", "Play one very long game (your longest game counts)", None, _v4(lambda gs: gs[0].play_time_s / 60),
                 (12, 15, 18, 21, 26), "game", " min", new=True, group="Activity"),
-        _tiered(141, "Comeback Kid", "Win a Capture Point game after losing the first round (a 2-1 win)", "capture_point",
+        _tiered(141, "Capture Point Comeback (Capture Point)", "Win a Capture Point game after losing the first round (a 2-1 win)", "capture_point",
                 lambda g: g.enough_players and _capture(g) and g.won and g.rounds_lost == 1, (1, 5, 15, 40, 100), new=True, group="Capture Point"),
-        _ladder(142, "Statue", "Stand still (moving slower than 1 m/s) for part of one game, with at least 1 minute in bounds", None,
+        _ladder(142, "Space Statue (Movement)", "Stand still (moving slower than 1 m/s) for part of one game, with at least 1 minute in bounds", None,
                 _v4(_full(_if_on_the_map(_pct("stopped")))), (50, 60, 70, 80, 90), "game", "%", new=True, group="Movement"),
-        _ladder(143, "Lone Wolf", "Stay far from your teammates (more than 3.5 m away) for most of one game, with at least 1 minute in bounds",
+        _ladder(143, "Lone Echo (Movement)", "Stay far from your teammates (more than 3.5 m away) for most of one game, with at least 1 minute in bounds",
                 "team_proximity", _v4(_full(_away_from_mates)), (93.2, 95.8, 97.5, 98.7, 99.6), "game", "%", new=True, group="Movement"),
-        Rule(144, "Ambidextrous", "Play one game using both the left-arm and the right-arm setting, each for at least 40 % of the time", "game", None,
+        Rule(144, "Ambidextrous Bot (Movement)", "Play one game using both the left-arm and the right-arm setting, each for at least 40 % of the time", "game", None,
              _v4(_full(_both_arms)), new=True, group="Movement"),
-        _ladder(145, "Speed Demon", "Keep a high average speed through one whole game, with at least 1 minute in bounds", "speed",
+        _ladder(145, "Boost Junkie (Movement)", "Keep a high average speed through one whole game, with at least 1 minute in bounds", "speed",
                 _v4(_full(_if_on_the_map(_AvgValue("speed_sum", 1.0)))), (3.5, 4, 4.5, 5.5, 7), "game", " m/s", new=True, group="Movement"),
         _ladder(146, "Point Guard", "Spend time capturing the point in one Capture Point game (your team's capture progress is rising)",
                 "capture_point", _v4(lambda gs: gs[0].capture_s / 60 if _capture(gs[0]) else 0.0), (2, 3, 3.5, 4.2, 5), "game", " min",
                 new=True, group="Capture Point"),
-        _ladder(147, "Contested Ground", "Spend time in one Capture Point game with both teams on the point (contested)",
+        _ladder(147, "Contested Point (Capture Point)", "Spend time in one Capture Point game with both teams on the point (contested)",
                 "capture_point", _v4(lambda gs: gs[0].contested_s / 60 if _capture(gs[0]) else 0.0), (2, 3.5, 5, 6.5, 8), "game", " min",
                 new=True, group="Capture Point"),
-        _tiered(148, "One-Trick Pony", "Win a game using just one loadout (one weapon, one tac mod and one ordnance)",
+        _tiered(148, "One-Trick Pony (Loadout)", "Win a game using just one loadout (one weapon, one tac mod and one ordnance)",
                 "loadout", lambda g: g.enough_players and g.won and g.main_loadout() is not None, (1, 10, 18, 36, 70), new=True, group="Gear mastery"),
-        _ladder(149, "Loadout Roulette", "Use many different loadouts in one game (each must be used for at least 10 % of the game)",
+        _ladder(149, "Quick-Change Chassis (Loadout)", "Use many different loadouts in one game (each must be used for at least 10 % of the game)",
                 "loadout", _v4(lambda gs: gs[0].loadouts_played()), (4, 5, 6, 7, 8), "game", new=True, group="Gear mastery"),
-        _ladder(150, "Mime Troupe", "Use as many emotes as you can in one game without dying", None,
+        _ladder(150, "Lobby Mime Troupe (Emotes)", "Use as many emotes as you can in one game without dying", None,
                 _v4(lambda gs: gs[0].emotes if gs[0].play_time_s >= FULL_GAME_S and gs[0].deaths == 0 else 0), (4, 8, 12, 16, 20), "game",  # x4 (user, 2026-11-03)
                 estimated=True, new=True, group="Emotes"),
-        _ladder(151, "Showboat", "Use as many emotes as you can in a game your team wins", None,
+        _ladder(151, "Showbot (Emotes)", "Use as many emotes as you can in a game your team wins", None,
                 _v4(lambda gs: gs[0].emotes if gs[0].won else 0), (12, 24, 40, 60, 100), "game", new=True, group="Emotes"),
     ]
     # "Nothing but <item>" (one game using only an item, ids 152-163) was removed on 2026-11-04: the daily "One with the <item>" ladders
@@ -933,7 +933,7 @@ def _build_rules() -> list[Rule]:
             i += 1
     # Both Hands (user, 2026-11-06): the arm is a setting (0 or 100 % in nearly every game), so both arms in ONE game is rare (Ambidextrous);
     # games on each arm over any 7 days is open to every player. Id 201: 152-163 were removed earlier and 198-200 are Combat.
-    rules.append(_ladder(201, "Both Hands", "Switch your arm setting between games: in any 7 days, play this many games "
+    rules.append(_ladder(201, "Two-Handed Bot (Movement)", "Switch your arm setting between games: in any 7 days, play this many games "
                          "with your left arm AND this many with your right arm", None, _v4(_switch_hitter),
                          (1, 2, 3, 4, 6), "week", " games each", new=True, group="Movement"))
     return rules

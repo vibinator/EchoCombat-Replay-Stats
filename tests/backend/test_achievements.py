@@ -28,7 +28,7 @@ def test_catalogue():
     removed = {91, 99, 80, 81, 82, 83, 84, 85, 113}  # Unstoppable, the first Showboat, and the duplicates removed on 2026-11-05
     expected = [i for i in range(5, 152) if i not in removed] + list(range(179, 198)) + [201]  # 75 original + 63 new + 19 Test Drive + Switch Hitter; Combat has its own list (combat_achievements); the Mega Prize is not in RULES
     assert ids == expected and len(set(ids)) == 158
-    assert next(r for r in RULES if r.id == 151).name == "Showboat" and sum(r.name == "Showboat" for r in RULES) == 1
+    assert next(r for r in RULES if r.id == 151).name == "Showbot (Emotes)" and sum(r.name == "Showbot (Emotes)" for r in RULES) == 1
     assert [r.id for r in RULES if r.new] == [i for i in expected if i >= 80]
     assert all(r.counted for r in RULES)
     assert icon_file(next(r for r in RULES if r.id == 7)) == "comet_daily.png"

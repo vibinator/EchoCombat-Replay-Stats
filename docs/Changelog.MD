@@ -18,11 +18,41 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.09.16 — 13:13
+
+- **51 challenges renamed (user's picks, 2026-11-09).** Every name now carries an Echo Combat word and ends with its category in
+  brackets, like (Payload), (Combat) or (Weapon). The two challenges both called Immovable Object now have different names. Only the
+  shown name changed: ids, progress and medals are the same. Nothing to restart or re-read.
+  On a Roll → Echo Streak (Wins); Centurion → Centurion Bot (Wins); Clean Sweep → Capture Point Clean Sweep (Capture Point); Special Delivery → Payload Delivered (Payload); Hold the Line → Payload Shutout (Payload); Pedal to the Metal → Payload Pedal to the Metal (Payload); Immovable Object → Payload Roadblock (Payload); Freight Train → Payload Freight Train (Payload); Dance Floor Legend → Lobby Dance Floor Legend (Emotes); Beam Me Up → Beam Me Up, Translocator (Ordnance); Arsenal Overload → Kronos II Armory Raid (Weapon); Ordnance Overload → Bomb Bay Overload (Ordnance); Regular → Lobby Regular (Activity); Daily Grind → Ready Every Dawn (Activity); Time Well Wasted → Time Well Wasted on Kronos II (Activity); Overtime → Overtime on Kronos II (Activity); Hot Day → Hot Day Bot (Wins); Cargo Hauler → Payload Hauler (Payload); Grand Tour → Four-Map Tour (Map); Weapons Master → No Gun Left Behind (Weapon); Loadout Scholar → Loadout Scholar Bot (Loadout); Immovable Object → Nothing Leaves Kronos II (Payload); Untouchable → Untouchable Chassis (Wins); Comeback Kid → Capture Point Comeback (Capture Point); Statue → Space Statue (Movement); Lone Wolf → Lone Echo (Movement); Ambidextrous → Ambidextrous Bot (Movement); Speed Demon → Boost Junkie (Movement); Contested Ground → Contested Point (Capture Point); One-Trick Pony → One-Trick Pony (Loadout); Loadout Roulette → Quick-Change Chassis (Loadout); Mime Troupe → Lobby Mime Troupe (Emotes); Showboat → Showbot (Emotes); Frag Out → Chassis Crusher (Combat); Heavy Hitter → Hull Breach (Combat); Net Positive → Net Positive Bot (Combat); Objective Threat → Point Denied (Combat); On the Objective → Parked on the Point (Combat); Flawless → Flawless Chassis (Combat); Kill Spree → Kill Spree Bot (Combat); Busy Hands → Helping Hands of Kronos II (Combat); Body Count → Ring Debris (Combat); Force Multiplier → The Whole Echo Crew (Combat); Demolition Crew → Kronos II Salvage (Combat); Top Fragger → Top Bot (Combat); Triple Threat → Saturn Trifecta (Combat); Selfless → Service Android (Combat); Siege Breaker → Siege Breaker Bot (Combat); Field Medic → Repair Matrix Medic (Combat); Shock Trooper → Stun Field Trooper (Combat); Both Hands → Two-Handed Bot (Movement).
+
+## 2026.11.09.15 — 12:56
+
+- **Four of the new Combat challenges are removed as too repetitive:** Kronos II Mining Quota (damage in any 30 days), No Cargo Leaves
+  Saturn (objective eliminations in any 30 days), Defender of Kronos II (total objective eliminations) and Strip Miner (total objective
+  damage). Over 30 days or more these totals rise almost exactly with kills and damage, which other challenges already count. 16 new
+  Combat challenges remain. Nothing to restart or re-read.
+
+## 2026.11.09.14 — 12:48
+
+- **The 20 new Combat challenges have new names from Ready At Dawn, Lone Echo, Echo VR and Echo Combat.** One game: Jack's Toolkit
+  (was All-Rounder), Ghost of Sparta (Untouchable). One day: Wrath of Saturn (Wrecking Ball), Fission Reaction (Objective Grind),
+  Camping Out on Dyson (Hold the Line), Keeping Liv Alive (Triage), Spontaneous Combustion (Hot Hand). Any 30 days: Power Surge
+  (Campaign), Captain Rhodes' Right Hand (Backbone), Kronos II Mining Quota (Artillery), No Cargo Leaves Saturn (Siege Season),
+  Lobby Billboard (Headliner), Above the Rings (In the Green), Kronos II Medbay (Field Hospital). All time: Defender of Kronos II
+  (Objective Veteran), The Anomaly Doesn't Move (Holding Ground), Strip Miner (Siege Engine), Life Support Systems (Lifeline),
+  Old Arena Habits (Live Wire), Ready At Dawn (Positive Record). Targets are unchanged. Nothing to restart or re-read.
+
+## 2026.11.09.13 — 12:43
+
+- **The new Combat challenges' crowns are now set so about the top 10 % of regular players (10+ counted games) can reach them.** One game
+  and one day: what the top 10 % have reached. Any 30 days and all time: the top 10 %'s pace so far over 30 days and over about 3 months
+  (the challenge period). Lower medals moved with the crown. "Any 30 days" stays a rolling window. Nothing to restart or re-read.
+
 ## 2026.11.09.12 — 12:40
 
 - **20 new Combat challenges, and a new "Month" page on the Achievements page.** All come from the recorder's match reports only, like
   the other Combat challenges, and like them they don't count toward overall progress, totals or Medal Collector. Targets are
-  provisional, set from 435 reports (4-9 Nov, 1451 counted games).
+  provisional, set from 435 reports (4-9 Nov, 1451 counted games); see the next entry for the top-10 % crowns.
   - In one game: All-Rounder (kills, assists and objective eliminations, the lowest of the three counts), Untouchable (kills while dying 3 times or fewer).
   - In one day: Wrecking Ball (damage), Objective Grind (objective eliminations), Hold the Line (minutes on the objective), Triage
     (heal bubbles), Hot Hand (top-fragger games).
