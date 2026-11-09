@@ -25,8 +25,8 @@ lines and CRLF.
 ### `app/frontend/src/components/charts.tsx` (303 lines)
 - exports: BarDatum:7, BarChart:40, StackSeries:116, StackDatum:122, StackedBarChart:129, LinePoint:222, LineChart:228
 
-### `app/frontend/src/components/CombatView.tsx` (380 lines)
-- exports: awardHint:9, AwardBadge:14, AwardBadges:24, AwardGuide:34, WeaponList:76, EventCards:102, CombatSection:120, CombatMatchBody:280, MatchCombatSection:366
+### `app/frontend/src/components/CombatView.tsx` (396 lines)
+- exports: awardHint:9, AwardBadge:14, AwardBadges:24, AwardGuide:52, WeaponList:94, EventCards:120, CombatSection:138, CombatMatchBody:296, MatchCombatSection:382
 - api.ts calls: getCombatMatch, getCombatPlayer
 
 ### `app/frontend/src/components/common.tsx` (176 lines)

@@ -27,6 +27,24 @@ export function AwardBadges({ awards }: { awards: CombatAwardsWon | undefined })
   return <span className="award-badges">{awards.map((a) => <AwardBadge key={a.key} award={a} />)}</span>;
 }
 
+/** Award cards with the number of times won; a 0 card is dimmed. */
+function AwardCards({ cards }: { cards: CombatAwardCount[] }) {
+  return (
+    <div className="cards award-cards">
+      {cards.map((a) => (
+        <div key={a.key} className={`card award-card award-${a.key}${a.count === 0 ? " award-none" : ""}`} title={awardHint(a)}>
+          <span className="label">
+            {a.name}
+            <InfoTip text={awardHint(a)} />
+          </span>
+          <strong>{int(a.count)}</strong>
+          <span className="muted footnote award-stat">{a.stat || a.description}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /**
  * The list of every award the game can hand out and how it is earned (from /api/combat/awards). There are no thresholds:
  * the top player of the stat gets the card, so the same number can win one match and not the next.
@@ -73,7 +91,7 @@ function Stat({ label, value, hint }: { label: string; value: string; hint?: str
 }
 
 /** A top-N list of weapons with a bar relative to the biggest one. */
-export function WeaponList({ heading, items, hint }: { heading: string; items: CombatWeapon[]; hint?: string }) {
+export function WeaponList({ heading, items, hint, limit = 5 }: { heading: string; items: CombatWeapon[]; hint?: string; limit?: number }) {
   const top = items[0]?.count || 1;
   return (
     <div className="combat-weapons">
@@ -85,7 +103,7 @@ export function WeaponList({ heading, items, hint }: { heading: string; items: C
         <p className="muted">None recorded.</p>
       ) : (
         <ul className="plain">
-          {items.slice(0, 8).map((w) => (
+          {items.slice(0, limit).map((w) => (
             <li key={w.code} title={w.code}>
               <span className="share-cell">
                 <span className="share-track"><span className="share-fill" style={{ width: `${Math.max(2, (w.count / top) * 100)}%` }} /></span>
@@ -130,6 +148,8 @@ export function CombatSection({ userId, period, map }: { userId: string; period:
     ...(guide ?? []).map((a) => ({ ...a, count: won.get(a.key) ?? 0 })),
     ...(data.awards?.items ?? []).filter((a) => !guide?.some((g) => g.key === a.key)),
   ].sort((a, b) => b.count - a.count);
+  const wonCards = awardCards.filter((a) => a.count > 0);
+  const zeroCards = awardCards.filter((a) => a.count === 0);
   return (
     <>
       <h2>Combat stats</h2>
@@ -150,18 +170,14 @@ export function CombatSection({ userId, period, map }: { userId: string; period:
             {data.awards.matches < data.matches && " (matches recorded before 9 November 2026 do not carry awards)"}.</>
           : <>None of these {int(data.matches)} match{data.matches === 1 ? "" : "es"} carry awards yet: the game&apos;s award cards are recorded from 9 November 2026 onwards.</>}
       </p>
-      <div className="cards award-cards">
-        {awardCards.map((a) => (
-          <div key={a.key} className={`card award-card award-${a.key}${a.count === 0 ? " award-none" : ""}`} title={awardHint(a)}>
-            <span className="label">
-              {a.name}
-              <InfoTip text={awardHint(a)} />
-            </span>
-            <strong>{int(a.count)}</strong>
-            <span className="muted footnote award-stat">{a.stat || a.description}</span>
-          </div>
-        ))}
-      </div>
+      {wonCards.length > 0 ? <AwardCards cards={wonCards} /> : <p className="muted">No awards won yet.</p>}
+      {/* awards never won (0) are folded away so the ones that were won stand out */}
+      {zeroCards.length > 0 && (
+        <details className="more-stats">
+          <summary>Show more ({zeroCards.length} not won yet)</summary>
+          <AwardCards cards={zeroCards} />
+        </details>
+      )}
       <AwardGuide />
 
       <h3>Game counters</h3>

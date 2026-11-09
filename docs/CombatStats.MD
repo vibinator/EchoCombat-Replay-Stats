@@ -93,7 +93,8 @@ makes no difference). A match that ended empty hands out none.
 | `immovable_object` | Immovable Object | hill defends |
 
 Where it shows: `GET /api/combat/awards` (the guide: key, name, stat, description); player page Combat tab ("Awards" first under
-"Combat stats", always shown: all 16 cards with counts, 0 when never won, an "Awards" column in Recent combat matches, the guide folded under it); `/combat/:id` and the match page's
+"Combat stats", always shown: the cards won, the ones never won folded under
+"Show more", an "Awards" column in Recent combat matches, the guide folded under it); `/combat/:id` and the match page's
 Combat tab (the cards as the game showed them: winner, value; badges beside the player names); Leaderboard → Combat: stats
 "Awards" and "MVP awards", an "Awards" column, and the guide under the table. Awards are **not** achievements: no medal
 uses them yet (one match with award data on 2026-11-09; see "Ideas for later").

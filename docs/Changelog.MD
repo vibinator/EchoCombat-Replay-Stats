@@ -18,6 +18,16 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.09.9 — 11:16
+
+- **Player page, combat tab: only the awards a player has won are shown as cards.** The ones never won (0) are folded under
+  "Show more (N not won yet)"; a player with none sees "No awards won yet." and the fold. Nothing to restart or re-read.
+
+## 2026.11.09.8 — 11:14
+
+- **Combat stats: "Kills by weapon", "Deaths by weapon" and "Shots by weapon" show the top 5 weapons** (was 8), on the player page and
+  per player on a combat match. Nothing to restart or re-read.
+
 ## 2026.11.09.7 — 11:09
 
 - **Player page, combat tab: the Awards block is now the first thing under "Combat stats", for every player.** All 16 awards with how
