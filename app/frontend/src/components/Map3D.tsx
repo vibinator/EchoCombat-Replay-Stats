@@ -942,9 +942,13 @@ function Stage(props: Map3DProps & { data: Playback3D }) {
     engine.current?.setCamera(props.camera);
   }, [props.camera]);
 
-  // follow / first person need someone to look from: the first player on the map
+  // follow / first person need someone to look from: the first player on the map. Only when the camera is switched to
+  // one of them: letting go of the player while riding (Esc, the roster) puts the camera back, and must not pick someone else
+  const lastCamera = useRef<Camera3D | null>(null);
   useEffect(() => {
-    if ((props.camera === "follow" || props.camera === "first") && !props.follow) {
+    const switched = lastCamera.current !== props.camera;
+    lastCamera.current = props.camera;
+    if (switched && (props.camera === "follow" || props.camera === "first") && !props.follow) {
       const s = Math.floor(props.second * props.data.hz);
       const p = props.data.players.find((q) => q.team[s]) ?? props.data.players[0];
       if (p) props.onPick(p.user_id);

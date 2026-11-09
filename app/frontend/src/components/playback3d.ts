@@ -43,6 +43,8 @@ export const CONTROL_HELP: { keys: string; does: string; only?: "free" | "follow
   { keys: "Esc", does: "let go of the picked player" },
   { keys: "Space", does: "play / pause" },
   { keys: "← →", does: "back / forward 5 s (Shift: 30 s)" },
+  { keys: ", .", does: "one recorded position back / forward" },
+  { keys: "Home / End", does: "start / end of the match" },
   { keys: "[ ]", does: "slower / faster" },
   { keys: "N / P", does: "next / previous fight" },
   { keys: "?", does: "show or hide this list" },

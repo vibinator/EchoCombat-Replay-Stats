@@ -197,6 +197,8 @@ def match_detail(request: Request, match_id: int) -> dict:
         copies = db.scalars(select(DuplicateMatch.match_id).where(DuplicateMatch.counted_match_id == root)).all()
         also = sorted({root, *copies} - {match_id})
         repaired = repair_note(db.scalar(select(Replay.warnings).where(Replay.id == match.replay_id)))
+        source_path = db.scalar(select(Replay.source_path).where(Replay.id == match.replay_id)) or ""
+        replay_name = source_path.rsplit("/", 1)[-1].rsplit(".", 1)[0] or None  # the replay file's name = its match id
 
         picks = gear_use.picks_in_match(db, match_id)
         teams: dict[str, list] = {"blue": [], "orange": []}
@@ -222,6 +224,7 @@ def match_detail(request: Request, match_id: int) -> dict:
             "also_recorded_in": list(also),
             "duplicate_of": duplicate_of,  # another recording of this match counts in the stats instead (D13)
             "repaired": repaired,
+            "replay_name": replay_name,
             # the recorder's combat report exists: the page shows the Combat tab and asks for it only then (Review BUG-7)
             "has_combat": db.scalar(select(CombatMatch.id).where(CombatMatch.session_id == match.session_id).limit(1)) is not None,
         }

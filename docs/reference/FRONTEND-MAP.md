@@ -46,7 +46,7 @@ lines and CRLF.
 - exports: IMG:6, GENERIC_ICON:7, IconEditor:10
 - api.ts calls: forgetResponses, setIcon, uploadIcon
 
-### `app/frontend/src/components/Map3D.tsx` (1004 lines)
+### `app/frontend/src/components/Map3D.tsx` (1008 lines)
 - exports: Map3DProps:48, Map3D:84
 - api.ts calls: getPlayback3d
 
@@ -57,11 +57,11 @@ lines and CRLF.
 - exports: MatchCards:29
 - api.ts calls: getMatchThumbnails
 
-### `app/frontend/src/components/playback3d.ts` (52 lines)
-- exports: Camera3D:3, CameraGroup:5, CAMERAS:7, isCamera:17, isFreeCamera:22, CONTROL_HELP:27, TEAM_COLORS:51
+### `app/frontend/src/components/playback3d.ts` (54 lines)
+- exports: Camera3D:3, CameraGroup:5, CAMERAS:7, isCamera:17, isFreeCamera:22, CONTROL_HELP:27, TEAM_COLORS:53
 
-### `app/frontend/src/components/PlaybackView.tsx` (1042 lines)
-- exports: Clock:25, useClock:35, PlaybackView:207, PlaybackCompare:983
+### `app/frontend/src/components/PlaybackView.tsx` (1111 lines)
+- exports: Clock:25, useClock:35, PlaybackView:207, PlaybackCompare:1052
 
 ### `app/frontend/src/components/PlayerBio.tsx` (142 lines)
 - exports: PlayerAvatar:12, usePlayerBio:31, PlayerBio:40

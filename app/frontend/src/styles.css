@@ -1802,7 +1802,7 @@ td.best {
   grid-template-areas: "icon text" "icon desc" "icon date";
   column-gap: 8px;
   align-items: center;
-  padding: 8px 10px;
+  padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--panel);
@@ -1859,6 +1859,11 @@ td.best {
 .ach-duo .recent-unlocks .who, .ach-duo .recent-unlocks .medal-chip { vertical-align: middle; }
 .ach-duo .recent-unlocks .medal-chip { line-height: 1.4; }
 .ach-duo .top-players li, .ach-duo .recent-unlocks li { flex: none; min-width: 0; overflow: hidden; }
+/* every card in both panes the same height (user, 2026-11-09); the Recent medals text is centred in its card */
+.ach-duo .top-players li, .ach-duo .recent-unlocks li { min-height: var(--ach-card-h, 19rem); box-sizing: border-box; }
+.ach-duo .top-players li { gap: 1px; padding: 8px 12px; }
+@media (max-width: 700px) { .ach-duo { grid-template-columns: 1fr; } .ach-duo .top-players li, .ach-duo .recent-unlocks li { min-height: 0; } }
+.ach-duo .recent-unlocks li { align-content: center; }
 @media (max-width: 900px) { .ach-duo { grid-template-columns: 1fr; } }
 .medal-chip {
   display: inline-block;
@@ -2669,9 +2674,19 @@ td.best {
   width: 2px;
   height: 6px;
   padding: 0;
+  border: 0;
   border-radius: 1px;
   background: var(--muted);
   transform: translateX(-1px);
+}
+.pb-tick.death {
+  pointer-events: auto;
+  cursor: pointer;
+}
+.pb-tick.death::after { /* a wider target than the 2 px line */
+  content: "";
+  position: absolute;
+  inset: -4px -4px -8px;
 }
 .pb-tick.death.blue { background: var(--blue); }
 .pb-tick.death.orange { background: var(--orange); }
@@ -2853,6 +2868,11 @@ td.best {
 @media (max-width: 900px) {
   .pb-compare-grid { grid-template-columns: 1fr; }
   .pb-sumrow { grid-template-columns: 110px 70px 20px 1fr; }
+}
+@media (max-width: 640px) {
+  /* phones: name, bar and count on one line, the death times wrapping underneath (not one chip per line) */
+  .pb-sumrow { grid-template-columns: minmax(0, 1fr) 90px 24px; }
+  .pb-sumtimes { grid-column: 1 / -1; }
 }
 
 /* Timeline tab */
@@ -3459,6 +3479,23 @@ button.small {
   text-align: center;
   pointer-events: none;
   animation: pb-banner-in 0.25s ease-out;
+}
+
+/* the 3D stage is dark in both themes (its own sky): everything drawn over it (camera bar, controls card, "?" list, hint,
+   notes, the full-screen play controls) uses the dark theme's colours, or the light theme would put dark text on it */
+.pb3d {
+  --text: #e6e8eb;
+  --muted: #8b919c;
+  --panel: #1f2228;
+  --line: #30343c;
+  --surface-2: #262a31;
+  --bg: #16181c;
+  --blue: #19d9fc;
+  --orange: #ea7924;
+  color-scheme: dark;
+}
+@media (max-width: 640px) {
+  .pb3d-bar { flex-wrap: wrap; } /* phones: two rows instead of a scroll with no sign that more cameras are to the right */
 }
 
 /* always-visible controls card for mouse and keyboard users (components/Map3D.tsx) */

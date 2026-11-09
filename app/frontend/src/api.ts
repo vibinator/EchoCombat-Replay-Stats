@@ -356,6 +356,7 @@ export interface MatchDetail extends MatchSummary {
   teams: Record<Team, MatchPlayer[]>;
   also_recorded_in: number[]; // other recordings of the same match
   duplicate_of: number | null; // set: that recording counts in the stats, this one does not
+  replay_name: string | null; // the replay file's name (its match id), shown in the page heading
   repaired: { aggressive: boolean; frames: number | null } | null; // read from a damaged file by a repair
   has_combat: boolean; // the recorder sent a combat report for this match (Combat tab); false = do not ask for it
 }

@@ -321,7 +321,7 @@ function BadMatchAddress() {
 function MatchContent({ id }: { id: number }) {
   const match = useApi(() => getMatch(id), String(id));
   const m = match.data;
-  usePageTitle(m ? `${title(m.map)} #${m.id}` : `Match #${id}`);
+  usePageTitle(m ? `${title(m.map)} ${m.replay_name ?? `#${m.id}`}` : `Match #${id}`);
   const [params, setParams] = useSearchParams();
   // an unknown ?tab= (an old link, a typo) shows the players, not an empty page (Review BUG-6)
   const wanted = params.get("tab");
@@ -349,7 +349,7 @@ function MatchContent({ id }: { id: number }) {
         <>
           <div className="section-head">
             <h1>
-              {title(m.map)} <span className="muted">· {modeLabel(m.mode)} · #{m.id}</span>
+              {title(m.map)} <span className="muted">· {modeLabel(m.mode)} · {m.replay_name ?? `#${m.id}`}</span>
             </h1>
           </div>
           <p className="muted">

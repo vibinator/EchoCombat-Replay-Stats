@@ -1,10 +1,10 @@
-import { Component, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Component, lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router";
 import type { MatchEvent, Playback } from "../api";
 import { duration, num } from "../format";
 import { useFullscreen } from "../useFullscreen";
 import { GearLabel } from "./common";
-import { CAMERAS, isCamera, TEAM_COLORS, type Camera3D } from "./playback3d";
+import { CAMERAS, isCamera, isFreeCamera, TEAM_COLORS, type Camera3D } from "./playback3d";
 
 const Map3D = lazy(() => import("./Map3D")); // three.js: only downloaded when someone opens the 3D view
 const SPEEDS = [0.5, 1, 2, 4, 8, 16];
@@ -239,7 +239,17 @@ export function PlaybackView({ playback, clock, compact = false, label, matchId,
       return next;
     }, { replace: true });
   }, [setParams]);
-  const pick = useCallback((userId: string | null) => setFollow((f) => (f === userId ? null : userId)), []);
+  // letting go of the picked player while Follow / First person rides with them also puts the camera back (from the
+  // ref: the address updates later, and until then the 3D view would pick someone else to ride with)
+  const choose = useCallback((userId: string | null) => {
+    if (userId == null && !isFreeCamera(cameraNow.current)) {
+      if (!linked) return; // compare mode: the camera is shared by both sides, so the ride goes on
+      cameraNow.current = "orbit";
+      setParam({ cam: null });
+    }
+    setFollow(userId);
+  }, [setParam, linked]);
+  const pick = useCallback((userId: string | null) => choose(follow === userId ? null : userId), [choose, follow]);
 
   const second = Math.min(c.t, end / hz);
   const t = Math.min(end, second * hz); // sample index (float)
@@ -252,8 +262,17 @@ export function PlaybackView({ playback, clock, compact = false, label, matchId,
     startAt.current = 0;
   }, [c, end, hz]);
   useEffect(() => {
-    if (until > 0 && c.playing && second >= until) c.setPlaying(false);
-  }, [until, c, second]);
+    if (until > 0 && c.playing && second >= until) {
+      c.setPlaying(false);
+      setParam({ until: null }); // the clip is over: Play carries on with the rest of the match
+    }
+  }, [until, c, second, setParam]);
+  // when each player is first and last on the map (the roster says "not arrived yet" / "left" instead of "off the map")
+  const presence = useMemo(() => new Map(playback.players.map((p) => {
+    let first = -1, last = -1;
+    p.points.forEach((q, k) => { if (q) { if (first < 0) first = k; last = k; } });
+    return [p.user_id, [first, last] as const];
+  })), [playback.players]);
 
   const deaths = useMemo(() => playback.events.filter((e) => e.type === "death_est"), [playback.events]);
   const moments = useMemo(() => playback.events.filter((e) => e.type === "round_won" || e.type === "payload_checkpoint"), [playback.events]);
@@ -280,11 +299,18 @@ export function PlaybackView({ playback, clock, compact = false, label, matchId,
     [checkpoints, playback.series.payload_distance, hz],
   );
 
-  const seek = useCallback((seconds: number) => c.setT((v) => Math.min(end / hz, Math.max(0, v + seconds))), [c, end, hz]);
+  const clockNow = useRef(c);
+  clockNow.current = c;
+  const seek = useCallback((seconds: number) => clockNow.current.setT((v) => Math.min(end / hz, Math.max(0, v + seconds))), [end, hz]);
   const jump = useCallback((seconds: number) => {
+    clockNow.current.setPlaying(false);
+    clockNow.current.setT(Math.min(end / hz, Math.max(0, seconds)));
+  }, [end, hz]);
+  const scrub = (sample: number) => c.setT(Math.min(end / hz, Math.max(0, sample / hz))); // the slider: keeps playing if it was
+  const step = (samples: number) => { // one recorded position back / forward, paused
     c.setPlaying(false);
-    c.setT(Math.min(end / hz, Math.max(0, seconds)));
-  }, [c, end, hz]);
+    c.setT((v) => Math.min(end / hz, Math.max(0, (Math.round(v * hz) + samples) / hz)));
+  };
   const toggle = useCallback(() => {
     if (second >= end / hz) {
       c.setT(0);
@@ -303,8 +329,8 @@ export function PlaybackView({ playback, clock, compact = false, label, matchId,
   // roster order (blue, then orange): keys 1-9, 0 pick a player
   const order = useMemo(() => [1, 2].flatMap((team) => playback.players.filter((p) => (p.points.find((q) => q)?.[2] ?? 0) === team)), [playback.players]);
 
-  // keyboard: space play / pause, arrows ±5 s (shift ±30 s), [ ] speed, N / P next / previous fight, 1-0 pick a player,
-  // Esc let go; in 3D also C next camera
+  // keyboard: space play / pause, arrows ±5 s (shift ±30 s), , . one position back / forward, Home / End, [ ] speed,
+  // N / P next / previous fight, 1-0 pick a player, Esc let go; in 3D also C next camera
   function onKey(e: React.KeyboardEvent) {
     const tag = (e.target as HTMLElement).tagName;
     if (tag === "SELECT" || tag === "INPUT" || compact) return;
@@ -312,8 +338,7 @@ export function PlaybackView({ playback, clock, compact = false, label, matchId,
       const p = order[(Number(e.key) + 9) % 10];
       if (p) setFollow(p.user_id);
     } else if (e.key === "Escape") {
-      setFollow(null);
-      if (view === "3d" && (camera === "follow" || camera === "first")) setParam({ cam: null });
+      choose(null);
     } else if ((e.key === "c" || e.key === "C") && view === "3d") {
       // from a ref, not the render's value: quick presses (before the address updates) each move one camera on
       const list = CAMERAS.filter((x) => x.value !== "objective" || hasObjective(playback));
@@ -326,6 +351,10 @@ export function PlaybackView({ playback, clock, compact = false, label, matchId,
       toggle();
     } else if (e.key === "ArrowRight") seek(e.shiftKey ? 30 : 5);
     else if (e.key === "ArrowLeft") seek(e.shiftKey ? -30 : -5);
+    else if (e.key === ".") step(1);
+    else if (e.key === ",") step(-1);
+    else if (e.key === "Home") jump(0);
+    else if (e.key === "End") jump(end / hz);
     else if (e.key === "]") c.setSpeed((s) => SPEEDS[Math.min(SPEEDS.length - 1, SPEEDS.indexOf(s) + 1)]);
     else if (e.key === "[") c.setSpeed((s) => SPEEDS[Math.max(0, SPEEDS.indexOf(s) - 1)]);
     else if (e.key === "n" || e.key === "N") nextFight();
@@ -352,10 +381,12 @@ export function PlaybackView({ playback, clock, compact = false, label, matchId,
     const el = canvas.current;
     if (!el) return;
     const box = el.getBoundingClientRect();
-    el.width = box.width * devicePixelRatio;
-    el.height = box.height * devicePixelRatio;
+    // the backing store is only resized when the element's size changed: setting width / height throws the canvas away
+    // and makes a new one, which cost more than the drawing itself when it ran sixty times a second
+    const w = Math.round(box.width * devicePixelRatio), h = Math.round(box.height * devicePixelRatio);
+    if (el.width !== w || el.height !== h) { el.width = w; el.height = h; }
     const ctx = el.getContext("2d")!;
-    ctx.scale(devicePixelRatio, devicePixelRatio);
+    ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
     ctx.clearRect(0, 0, box.width, box.height);
     const W = box.width;
     const H = box.height;
@@ -563,6 +594,24 @@ export function PlaybackView({ playback, clock, compact = false, label, matchId,
     }
   }, [t, i, second, playback, names, trail, trailColor, follow, deaths, changes, swaps, payload, bluePts, orangePts, checkpoints, checkpointDistances, attackerColor, view, canvasSize]);
 
+  /** A click on the 2D map picks the player whose dot is under the pointer (within a few pixels). */
+  function onCanvasClick(e: React.MouseEvent<HTMLCanvasElement>) {
+    const box = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - box.left, y = e.clientY - box.top, f = t - i;
+    let best: string | null = null, bestD = 14;
+    for (const p of playback.players) {
+      const a = p.points[i];
+      if (!a) continue;
+      const b = p.points[i + 1];
+      const lerp = b && Math.hypot(b[0] - a[0], b[1] - a[1]) < 0.08;
+      const u = lerp ? a[0] + (b[0] - a[0]) * f : a[0];
+      const v = lerp ? a[1] + (b[1] - a[1]) * f : a[1];
+      const d = Math.hypot(u * box.width - x, v * box.height - y);
+      if (d < bestD) { bestD = d; best = p.user_id; }
+    }
+    if (best) pick(best);
+  }
+
   // loadout swap labels shown now (3D labels; the 2D canvas works them out itself)
   const swapLabels = useMemo(
     () => new Map(swaps ? changes.filter((e) => second >= e.t_s && second - e.t_s < SWAP_S && e.user_id).map((e) => [e.user_id!, swapText(e)]) : []),
@@ -644,7 +693,7 @@ export function PlaybackView({ playback, clock, compact = false, label, matchId,
   const pos = (s: number) => `${(s / total) * 100}%`;
 
   return (
-    <div className={`playback pb-fs${screen.fakeClass}${screen.full ? " is-full" : ""}`} ref={root} tabIndex={0} onKeyDown={onKey} aria-label="Match playback (space: play / pause, arrow keys: skip, [ ]: speed, N / P: next / previous fight)">
+    <div className={`playback pb-fs${screen.fakeClass}${screen.full ? " is-full" : ""}`} ref={root} tabIndex={0} onKeyDown={onKey} aria-label="Match playback (space: play / pause, arrow keys: skip, , .: one step, Home / End, [ ]: speed, N / P: next / previous fight)">
       {label && <h3 className="pb-label">{label}</h3>}
       <div className="pb-score">
         <div className="pb-team blue">
@@ -659,7 +708,7 @@ export function PlaybackView({ playback, clock, compact = false, label, matchId,
           <span className="muted">
             {playback.mode === "payload"
               ? `Payload ${payload != null ? `${num(payload, 0)} m` : "–"} · checkpoint ${checkpointsDone}/${Math.max(3, checkpoints.length)}`
-              : `Round ${Math.min(roundsSoFar.length + 1, 2)}${bluePts != null || orangePts != null ? ` · capture ${Math.round(bluePts ?? 0)}% – ${Math.round(orangePts ?? 0)}%` : ""}`}
+              : `${blueRounds >= 2 || orangeRounds >= 2 ? `${blueRounds > orangeRounds ? "Blue" : "Orange"} wins ${blueRounds} – ${orangeRounds}` : `Round ${roundsSoFar.length + 1}`}${bluePts != null || orangePts != null ? ` · capture ${Math.round(bluePts ?? 0)}% – ${Math.round(orangePts ?? 0)}%` : ""}`}
           </span>
           {inFight && <span className="pb-fight">⚔ Fight · {inFight.deaths} deaths</span>}
         </div>
@@ -763,14 +812,14 @@ export function PlaybackView({ playback, clock, compact = false, label, matchId,
             step={0.5}
             value={t}
             aria-label="Match time"
-            onChange={(e) => jump(Number(e.target.value) / hz)}
+            onChange={(e) => scrub(Number(e.target.value))}
           />
           <div className="pb-markers" aria-hidden="true">
             {fights.map((f, k) => (
               <span key={`f${k}`} className="pb-fightband" style={{ left: pos(f.start), width: `max(6px, ${((f.end - f.start) / total) * 100}%)` }} />
             ))}
             {deaths.map((e, k) => (
-              <span key={`d${k}`} className={`pb-tick death ${e.team ?? ""}`} style={{ left: pos(e.t_s) }} />
+              <button key={`d${k}`} type="button" className={`pb-tick death ${e.team ?? ""}`} style={{ left: pos(e.t_s) }} title={`${duration(e.t_s)} · ${eventLabel(e)}`} onClick={() => jump(e.t_s - 2)} />
             ))}
             {moments.map((e, k) => (
               <button key={`m${k}`} type="button" className="pb-tick moment" style={{ left: pos(e.t_s) }} title={`${duration(e.t_s)} · ${eventLabel(e)}`} onClick={() => jump(e.t_s)} />
@@ -816,13 +865,13 @@ export function PlaybackView({ playback, clock, compact = false, label, matchId,
                       </ul>
                       <div className="pb-track">
                         <input className="scrubber" type="range" min={0} max={end} step={0.5} value={t} aria-label="Match time"
-                          onChange={(e) => jump(Number(e.target.value) / hz)} />
+                          onChange={(e) => scrub(Number(e.target.value))} />
                         <div className="pb-markers" aria-hidden="true">
                           {fights.map((f, k) => (
                             <span key={`f${k}`} className="pb-fightband" style={{ left: pos(f.start), width: `max(6px, ${((f.end - f.start) / total) * 100}%)` }} />
                           ))}
                           {deaths.map((e, k) => (
-                            <span key={`d${k}`} className={`pb-tick death ${e.team ?? ""}`} style={{ left: pos(e.t_s) }} />
+                            <button key={`d${k}`} type="button" className={`pb-tick death ${e.team ?? ""}`} style={{ left: pos(e.t_s) }} title={`${duration(e.t_s)} · ${eventLabel(e)}`} onClick={() => jump(e.t_s - 2)} />
                           ))}
                         </div>
                       </div>
@@ -845,7 +894,7 @@ export function PlaybackView({ playback, clock, compact = false, label, matchId,
                         <label className="inline-check"><input type="checkbox" checked={hands} onChange={(e) => setHands(e.target.checked)} /> Hands</label>
                         <label>
                           Player
-                          <select value={follow ?? ""} onChange={(e) => setFollow(e.target.value || null)} title="Highlight a player; Follow and First person ride with them">
+                          <select value={follow ?? ""} onChange={(e) => choose(e.target.value || null)} title="Highlight a player; Follow and First person ride with them">
                             <option value="">None</option>
                             {playback.players.map((p) => <option key={p.user_id} value={p.user_id}>{p.name}</option>)}
                           </select>
@@ -867,7 +916,7 @@ export function PlaybackView({ playback, clock, compact = false, label, matchId,
           ) : (
             <div className="heatmap-inner">
               <img src={playback.image} alt={`${playback.map} minimap`} />
-              <canvas ref={canvas} className="playback-canvas" />
+              <canvas ref={canvas} className="playback-canvas" onClick={onCanvasClick} />
             </div>
           )}
           {banner && <div className="pb-banner" aria-live="polite">{eventLabel(banner)}</div>}
@@ -883,7 +932,7 @@ export function PlaybackView({ playback, clock, compact = false, label, matchId,
                     key={p.user_id}
                     type="button"
                     className={`pb-player ${follow === p.user_id ? "picked" : ""} ${here ? "" : "gone"} ${died ? "died" : ""}`}
-                    onClick={() => setFollow(follow === p.user_id ? null : p.user_id)}
+                    onClick={() => pick(p.user_id)}
                     title="Click to highlight this player"
                   >
                     <span className="pb-name">{died && <img className="pb-skull" src="/icons/death.png" alt="died" />}{p.name}</span>
@@ -892,8 +941,12 @@ export function PlaybackView({ playback, clock, compact = false, label, matchId,
                         <>
                           <GearLabel name={weapon} /> · <GearLabel name={ordnance} /> · <GearLabel name={tacmod} />
                         </>
+                      ) : i < (presence.get(p.user_id)?.[0] ?? 0) ? (
+                        "not arrived yet"
+                      ) : i > (presence.get(p.user_id)?.[1] ?? end) ? (
+                        "left"
                       ) : (
-                        "off the map / left"
+                        "off the map (spawn room)"
                       )}
                     </span>
                     <span className="pb-nums">
@@ -919,54 +972,16 @@ export function PlaybackView({ playback, clock, compact = false, label, matchId,
         ))}
       </ul>
 
-      {!compact && (
-        <>
-          <h3 className="pb-sub">Deaths (estimated)</h3>
-          <div className="pb-summary">
-            <p className="muted">
-              {deaths.length} deaths{firstDeath ? <> · first: <button type="button" className="link" onClick={() => jump(firstDeath.t_s - 2)}>{firstDeath.name} at {duration(firstDeath.t_s)}</button></> : ""}
-              {fights.length > 0 && ` · ${fights.length} team fight${fights.length === 1 ? "" : "s"} (${FIGHT_MIN_DEATHS}+ deaths within ${FIGHT_GAP_S} s)`}
-            </p>
-            {summary.map(({ p, team, mine }) => (
-              <div key={p.user_id} className={`pb-sumrow ${follow === p.user_id ? "picked" : ""}`}>
-                <button type="button" className={`link pb-sumname ${team === 1 ? "blue" : "orange"}`} onClick={() => setFollow(follow === p.user_id ? null : p.user_id)}>
-                  {p.name}
-                </button>
-                <span className="pb-sumbar">
-                  <span className={team === 1 ? "bluefill" : "orangefill"} style={{ width: `${(mine.length / maxDeaths) * 100}%` }} />
-                </span>
-                <span className="pb-sumcount">{mine.length}</span>
-                <span className="pb-sumtimes">
-                  {mine.slice(0, 10).map((d, k) => (
-                    <button key={k} type="button" className="chip" onClick={() => jump(d.t_s - 2)} title="Jump to this death">{duration(d.t_s)}</button>
-                  ))}
-                  {mine.length > 10 && <span className="muted">+{mine.length - 10}</span>}
-                </span>
-              </div>
-            ))}
-          </div>
-          {fights.length > 0 && (
-            <>
-              <h3 className="pb-sub">Team fights</h3>
-              <div className="pb-fights">
-                {fights.map((f, k) => (
-                  <button key={k} type="button" className="chip big" onClick={() => jump(Math.max(0, f.start - 2))}>
-                    {duration(f.start)} · {f.deaths} deaths <span className="blue">{f.blue}</span>/<span className="orange">{f.orange}</span>
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
-        </>
-      )}
+      {!compact && <DeathSummary summary={summary} maxDeaths={maxDeaths} total={deaths.length} firstDeath={firstDeath} fights={fights} follow={follow} jump={jump} pick={pick} />}
 
       <p className="muted footnote">
         {playback.objects.route ? "Payload route and cart are drawn from the recorded payload distance. " : ""}
         {playback.objects.point ? "The capture point is drawn where players stand while capture progress rises (size is approximate). " : ""}
-        Positions are recorded twice per second; dots glide between them. Players off the map image (spawn rooms) are hidden. Click a player to
-        highlight them; keys: space play / pause, ← → skip 5 s (shift 30 s), [ ] speed, N / P next / previous fight, 1–9 and 0 pick a player,
-        Esc let go{view === "3d" ? ", C next camera" : ""}. Ticks under the slider are estimated deaths (small), round / checkpoint moments (dots,
-        click to jump) and fights (red bands). * Estimated. Speed is measured between recorded positions.
+        Positions are recorded twice per second; dots glide between them. Players off the map image (spawn rooms) are hidden. Click a player
+        (a dot or a name) to highlight them; keys: space play / pause, ← → skip 5 s (shift 30 s), , . one position back / forward, Home / End,
+        [ ] speed, N / P next / previous fight, 1–9 and 0 pick a player, Esc let go{view === "3d" ? ", C next camera" : ""}. Ticks under the
+        slider are estimated deaths (small, click to jump), round / checkpoint moments (dots, click to jump) and fights (red bands). * Estimated.
+        Speed is measured between recorded positions.
         {view === "3d" && (
           <>
             {" "}3D: head positions and where each player looks, five times per second; the cone points where they look. Click a player to pick
@@ -978,6 +993,60 @@ export function PlaybackView({ playback, clock, compact = false, label, matchId,
     </div>
   );
 }
+
+interface SummaryRow {
+  p: Player;
+  team: number;
+  mine: MatchEvent[];
+}
+
+/** Deaths per player (whole match) and the team fights. Memoised: the clock changes sixty times a second while playing and
+ *  none of this depends on it (`jump` and `pick` keep their identity; `summary` / `fights` are memoised upstream). */
+const DeathSummary = memo(function DeathSummary({ summary, maxDeaths, total, firstDeath, fights, follow, jump, pick }: {
+  summary: SummaryRow[]; maxDeaths: number; total: number; firstDeath: MatchEvent | null; fights: Fight[]; follow: string | null;
+  jump: (seconds: number) => void; pick: (userId: string) => void;
+}) {
+  return (
+    <>
+      <h3 className="pb-sub">Deaths (estimated)</h3>
+      <div className="pb-summary">
+        <p className="muted">
+          {total} deaths{firstDeath ? <> · first: <button type="button" className="link" onClick={() => jump(firstDeath.t_s - 2)}>{firstDeath.name} at {duration(firstDeath.t_s)}</button></> : ""}
+          {fights.length > 0 && ` · ${fights.length} team fight${fights.length === 1 ? "" : "s"} (${FIGHT_MIN_DEATHS}+ deaths within ${FIGHT_GAP_S} s)`}
+        </p>
+        {summary.map(({ p, team, mine }) => (
+          <div key={p.user_id} className={`pb-sumrow ${follow === p.user_id ? "picked" : ""}`}>
+            <button type="button" className={`link pb-sumname ${team === 1 ? "blue" : "orange"}`} onClick={() => pick(p.user_id)}>
+              {p.name}
+            </button>
+            <span className="pb-sumbar">
+              <span className={team === 1 ? "bluefill" : "orangefill"} style={{ width: `${(mine.length / maxDeaths) * 100}%` }} />
+            </span>
+            <span className="pb-sumcount">{mine.length}</span>
+            <span className="pb-sumtimes">
+              {mine.slice(0, 10).map((d, k) => (
+                <button key={k} type="button" className="chip" onClick={() => jump(d.t_s - 2)} title="Jump to this death">{duration(d.t_s)}</button>
+              ))}
+              {mine.length > 10 && <span className="muted">+{mine.length - 10}</span>}
+            </span>
+          </div>
+        ))}
+      </div>
+      {fights.length > 0 && (
+        <>
+          <h3 className="pb-sub">Team fights</h3>
+          <div className="pb-fights">
+            {fights.map((f, k) => (
+              <button key={k} type="button" className="chip big" onClick={() => jump(Math.max(0, f.start - 2))}>
+                {duration(f.start)} · {f.deaths} deaths <span className="blue">{f.blue}</span>/<span className="orange">{f.orange}</span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </>
+  );
+});
 
 /** Two matches side by side on one shared clock (both start at 0:00), as 2D maps or both in 3D (?view=3d&cam=). */
 export function PlaybackCompare({ a, b, aId, bId }: { a: Playback; b: Playback; aId?: number; bId?: number }) {
@@ -1031,7 +1100,7 @@ export function PlaybackCompare({ a, b, aId, bId }: { a: Playback; b: Playback; 
         )}
       </div>
       <input className="scrubber" type="range" min={0} max={longest} step={0.5} value={clock.t} aria-label="Shared match time"
-        onChange={(e) => { clock.setPlaying(false); clock.setT(Number(e.target.value)); }} />
+        onChange={(e) => clock.setT(Number(e.target.value))} />
       <div className="pb-compare-grid">
         <PlaybackView playback={a} clock={clock} compact label={`${a.map} (left)`} matchId={aId} view3d={view3d} camera3d={camera} />
         <PlaybackView playback={b} clock={clock} compact label={`${b.map} (right)`} matchId={bId} view3d={view3d} camera3d={camera} />

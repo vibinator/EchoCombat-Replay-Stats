@@ -50,6 +50,13 @@ Visits every page at 1400 px and the main ones at 390 px, in light and dark, wit
 console errors (Twitch embed noise filtered), failed requests, horizontal-overflow check, slowest API call per page,
 and a `report.json`. Read the screenshots with the image viewer; grep the JSON for `"errors": [` that are not empty.
 
+## 4b. Driving the Replay Viewer headless (2026-11-08)
+The 3D view needs WebGL: launch Chromium with `args=["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"]`
+(software rendering; CPU numbers are not representative). Deep links do most of the setup: `/matches/<id>?tab=playback&view=3d&cam=follow&t=120`.
+Set the slider from script (`Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set` + an `input` event), focus
+`.playback` for the keys, and shim `navigator.clipboard.writeText` to read what Copy link / Copy clip produce. Scroll the map into view
+before clicking a dot (a click below the viewport lands nowhere). CDP `Performance.getMetrics` (TaskDuration deltas) compares paused vs playing.
+
 ## 5. What to look at by hand afterwards
 - `docs/Review-2026-11-07.MD` for the open findings and whether they still reproduce.
 - Server log: `database is locked`, `Saving replay … failed`, `Exception in ASGI application`.

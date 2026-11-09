@@ -18,6 +18,35 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.09.1 — 01:53
+
+## 2026.11.08.1 — 00:10
+
+### Replay viewer: fixes and small features (full test of the 2D and 3D playback, 2026-11-08)
+- **Capture point scoreboard:** the third round was labelled "Round 2"; it now counts up to Round 3 and, once a team has its two rounds,
+  says "Blue wins 2 – 1" (the capture percentages stay beside it).
+- **Letting go of a player while riding with them works (3D):** Esc, clicking the highlighted name or choosing "None" while the camera was
+  Follow or First person used to pick another player at once. Now the camera goes back to Orbit and nobody is highlighted. In compare
+  mode (one camera for both sides) the ride simply goes on.
+- **Clip links:** after a shared clip (`?until=`) had played, Play did nothing. The stop now applies once; Play carries on with the rest
+  of the match.
+- **Scrubbing keeps playing:** dragging the slider while the match plays no longer pauses it (the moment ticks, death chips and fight
+  buttons still pause, so the moment can be looked at). Same in compare mode.
+- **Click a dot on the 2D map** to highlight that player (within a few pixels; click again to let go). Before, only the roster could.
+- **Death ticks under the slider** say who died when (hover) and jump there when clicked, like the round / checkpoint dots.
+- **New keys:** `,` / `.` step one recorded position back / forward (half a second, paused), Home / End jump to the start / end.
+  Listed in the footnote and the 3D "?" list.
+- **Roster:** a player who is not on the map now reads "not arrived yet", "off the map (spawn room)" or "left" instead of
+  "off the map / left" for all three.
+- **Light theme, 3D view:** the camera bar, the controls card, the "?" list and the full-screen play controls were dark text on the
+  dark stage; they now use the dark theme's colours on both themes.
+- **Phones:** the deaths summary no longer stacks one time chip per line (the chips wrap under the name); the 3D camera bar wraps to
+  two rows instead of scrolling out of sight.
+- Housekeeping (2D): the map canvas was thrown away and made again on every frame; it is only resized when its size changes. The
+  deaths / team fights section is no longer re-rendered on every tick of the clock.
+- Nothing to do after updating; no replay is re-read.
+
+
 ## 2026.11.07.4 — 23:42
 
 ### Achievements page (user, 2026-11-07; mock-ups approved before the change)
