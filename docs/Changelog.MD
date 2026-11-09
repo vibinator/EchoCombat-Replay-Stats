@@ -18,6 +18,10 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.09.5 — 10:53
+- **Player page, Combat tab: the Awards block now lists all 16 of the game's awards**, with 0 (dimmed) for the ones the player has
+  not won yet, most-won first. Before, only the awards won were listed. Nothing to restart or re-read.
+
 ## 2026.11.09.4 — 10:41
 - **Combat stats: the game's end-of-match awards.** The recorder now writes the award cards the game shows on the scoreboard (MVP,
   Assassin, Cannoneer, Super Star, Hot Shot, Sniper, Renegade, Specialist, Shock Trooper, Medic, Tank, Guard, Defender, Controller,

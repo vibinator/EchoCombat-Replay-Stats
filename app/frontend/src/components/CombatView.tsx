@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import { getCombatAwards, getCombatMatch, getCombatPlayer, type CombatAward, type CombatAwardsWon, type CombatEvents, type CombatMatchDetail, type CombatMatchPlayer, type CombatWeapon, type Period } from "../api";
+import { getCombatAwards, getCombatMatch, getCombatPlayer, type CombatAward, type CombatAwardCount, type CombatAwardsWon, type CombatEvents, type CombatMatchDetail, type CombatMatchPlayer, type CombatWeapon, type Period } from "../api";
 import { LocalTime, TableWrap, TeamBadge } from "./common";
 import { InfoTip } from "./ui";
 import { duration, hoursMinutes, int, num, playerPath, title } from "../format";
@@ -119,9 +119,17 @@ export function EventCards({ e, matches }: { e: Pick<CombatEvents, "shots" | "ta
  */
 export function CombatSection({ userId, period, map }: { userId: string; period: Period; map: string }) {
   const { data } = useApi(() => getCombatPlayer(userId, period, map || undefined), `combat|${userId}|${period}|${map}`);
+  const guide = useApi(getCombatAwards, "combat-awards").data; // every award the game can give, so the ones not won show 0
   if (!data || !data.matches || !data.stats) return null;
   const s = data.stats;
   const e = data.events;
+  // all awards with this player's count (0 when never won), most won first, then the game's order; an award the guide does
+  // not know (a new one) is kept
+  const won = new Map((data.awards?.items ?? []).map((a) => [a.key, a.count]));
+  const awardCards: CombatAwardCount[] = [
+    ...(guide ?? []).map((a) => ({ ...a, count: won.get(a.key) ?? 0 })),
+    ...(data.awards?.items ?? []).filter((a) => !guide?.some((g) => g.key === a.key)),
+  ].sort((a, b) => b.count - a.count);
   return (
     <>
       <h2>Combat stats</h2>
@@ -158,22 +166,18 @@ export function CombatSection({ userId, period, map }: { userId: string; period:
             {int(data.awards.total)} award{data.awards.total === 1 ? "" : "s"} in {data.awards.matches} of {data.matches} match{data.matches === 1 ? "" : "es"}
             {data.awards.matches < data.matches && " (older reports do not carry the awards)"}.
           </p>
-          {data.awards.items.length === 0 ? (
-            <p className="muted">None yet.</p>
-          ) : (
-            <div className="cards award-cards">
-              {data.awards.items.map((a) => (
-                <div key={a.key} className={`card award-card award-${a.key}`} title={awardHint(a)}>
-                  <span className="label">
-                    {a.name}
-                    <InfoTip text={awardHint(a)} />
-                  </span>
-                  <strong>{int(a.count)}</strong>
-                  <span className="muted footnote award-stat">{a.stat || a.description}</span>
-                </div>
-              ))}
-            </div>
-          )}
+          <div className="cards award-cards">
+            {awardCards.map((a) => (
+              <div key={a.key} className={`card award-card award-${a.key}${a.count === 0 ? " award-none" : ""}`} title={awardHint(a)}>
+                <span className="label">
+                  {a.name}
+                  <InfoTip text={awardHint(a)} />
+                </span>
+                <strong>{int(a.count)}</strong>
+                <span className="muted footnote award-stat">{a.stat || a.description}</span>
+              </div>
+            ))}
+          </div>
           <AwardGuide />
         </>
       )}

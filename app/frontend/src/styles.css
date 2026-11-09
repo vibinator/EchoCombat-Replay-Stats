@@ -4082,6 +4082,7 @@ button.small {
 .award-cards .award-card .label { font-weight: 600; }
 .award-cards .award-card.award-mvp { border-color: rgba(234, 179, 8, 0.6); }
 .award-cards .award-stat { display: block; margin-top: 2px; }
+.award-cards .award-card.award-none { opacity: 0.55; } /* an award this player has not won yet (count 0) */
 .award-guide { margin: 0.5rem 0 1rem; }
 .award-guide > summary { cursor: pointer; padding: 0.3rem 0; font-weight: 600; }
 .award-list { list-style: none; margin: 0.5rem 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 0.4rem 1.5rem; }
