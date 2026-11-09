@@ -12,6 +12,7 @@ from fastapi import APIRouter, Path, Query, Request
 from sqlalchemy import case, func, select
 
 from ..aliases import ids_of
+from ..combat import AWARDS, award_name
 from ..errors import ApiError
 from ..gear import ORDNANCES, WEAPONS
 from ..models import CombatMatch, CombatPlayer, Match, PlayerAlias
@@ -37,8 +38,25 @@ STATS: dict[str, tuple[str, bool, str]] = {
     "kd": ("Kills / deaths", True, "Kills divided by deaths."),
     "kills_per_min": ("Kills per minute", True, "Kills per minute played."),
     "damage_per_min": ("Damage per minute", True, "Damage dealt per minute played."),
+    "awards": ("Awards", True, "End-of-match award cards won (MVP, Assassin, Guard...). The game gives each card to the top player "
+                                "of that stat; only matches recorded since 9 November 2026 have them."),
+    "mvp": ("MVP awards", True, "Times the game named this player MVP: the highest score in the match. Only matches recorded since "
+                                 "9 November 2026 have award data."),
     "matches": ("Matches", True, ""),
 }
+
+
+def award_info(symbol: str) -> dict:
+    name, stat, description = AWARDS.get(symbol) or (award_name(symbol), "", "One of the game's end-of-match awards; what it is based on is not known yet.")
+    return {"key": symbol, "name": name, "stat": stat, "description": description}
+
+
+def _list(text: str | None) -> list:
+    try:
+        value = json.loads(text) if text else []
+    except ValueError:
+        return []
+    return value if isinstance(value, list) else []
 
 
 def weapon_name(code: str) -> str:
@@ -103,6 +121,12 @@ def stat_options():
     return [{"key": k, "label": label, "higher_is_better": better, "hint": hint} for k, (label, better, hint) in STATS.items()]
 
 
+@router.get("/awards")
+def award_options():
+    """The game's end-of-match awards and how each is earned (no thresholds: the top player of the stat gets the card)."""
+    return [award_info(symbol) for symbol in AWARDS]
+
+
 @router.get("/players/{user_id}")
 def player(request: Request, user_id: str = USER_PATH, period: str = Query("all", pattern=PERIOD_PATTERN),
            map: str | None = Query(None, pattern=MAP_PATTERN)):
@@ -150,14 +174,28 @@ def player(request: Request, user_id: str = USER_PATH, period: str = Query("all"
             events = {"matches": ev["matches"], "events_incomplete": ev["incomplete"], **sums,
                       "shots_by_weapon": _weapons(shots), "kills_by_weapon": _weapons(kills), "deaths_by_weapon": _weapons(deaths)}
 
+        # the game's award cards: only matches whose report knows them (reports since 2026-11-09); null = none of them do
+        won: Counter = Counter()
+        award_matches = 0
+        for text in db.scalars(select(CombatPlayer.awards).join(CombatMatch, CombatMatch.id == CombatPlayer.match_id)
+                               .where(*where, CombatPlayer.awards.is_not(None))):
+            award_matches += 1
+            won.update(_list(text))
+        awards = None
+        if award_matches:
+            awards = {"matches": award_matches, "total": sum(won.values()),
+                      "items": [award_info(a) | {"count": n} for a, n in won.most_common()]}
+
         recent = [{"session_id": m.session_id, "map": m.map, "started_at": m.started_at, "duration_s": m.duration_s,
                    "team": p.team, "kills": p.kills, "deaths": p.deaths, "assists": p.assists, "damage": round(p.damage, 1),
-                   "objective_damage": round(p.objective_damage, 1)}
+                   "objective_damage": round(p.objective_damage, 1),
+                   "awards": [award_info(a) for a in _list(p.awards)] if p.awards is not None else None}
                   for p, m in db.execute(select(CombatPlayer, CombatMatch).join(CombatMatch, CombatMatch.id == CombatPlayer.match_id)
                                          .where(*where).order_by(CombatMatch.started_at.desc()).limit(RECENT_MATCHES))]
         name = db.scalar(select(CombatPlayer.name).join(CombatMatch, CombatMatch.id == CombatPlayer.match_id)
                          .where(CombatPlayer.user_id.in_(ids_of(db, main))).order_by(CombatMatch.started_at.desc()).limit(1))
-    return {"user_id": main, "name": name, "matches": games, "stats": stats, "by_map": by_map, "events": events, "recent": recent}
+    return {"user_id": main, "name": name, "matches": games, "stats": stats, "by_map": by_map, "events": events, "awards": awards,
+            "recent": recent}
 
 
 @router.get("/leaderboard")
@@ -185,12 +223,20 @@ def leaderboard(request: Request, stat: str = Query("kills", pattern="^(" + "|".
             main = aliases.get(uid, uid)
             g = groups.setdefault(main, {"user_id": main, "name": name, "last": last, "matches": 0, "present_s": 0.0, "kills": 0,
                                          "assists": 0, "deaths": 0, "eliminations": 0, "damage": 0.0, "objective_damage": 0.0,
-                                         "objective_time": 0.0})
+                                         "objective_time": 0.0, "awards": 0, "mvp": 0})
             if last >= g["last"]:
                 g["name"], g["last"] = name, last
             g["matches"] += n
             for k, v in zip(("present_s", "kills", "assists", "deaths", "eliminations", "damage", "objective_damage", "objective_time"), vals):
                 g[k] += v or 0
+        # award cards are a short JSON list per row (a few per match at most), counted here
+        for uid, text in db.execute(select(CombatPlayer.user_id, CombatPlayer.awards)
+                                    .join(CombatMatch, CombatMatch.id == CombatPlayer.match_id)
+                                    .where(*where, CombatPlayer.awards.is_not(None))):
+            if g := groups.get(aliases.get(uid, uid)):
+                cards = _list(text)
+                g["awards"] += len(cards)
+                g["mvp"] += cards.count("mvp")
     rows = [_rates(g) for g in groups.values() if g["matches"] >= min_games]
     better = STATS[stat][1]
     rows = [r for r in rows if r.get(stat) is not None]
@@ -198,7 +244,8 @@ def leaderboard(request: Request, stat: str = Query("kills", pattern="^(" + "|".
     rows.sort(key=lambda r: r[stat], reverse=better)  # stable: ties stay in name order
     total = len(rows)
     items = [{"rank": offset + i + 1, "user_id": r["user_id"], "name": r["name"], "matches": r["matches"], "value": round(r[stat], 3) if isinstance(r[stat], float) else r[stat],
-              "kills": r["kills"], "deaths": r["deaths"], "assists": r["assists"], "damage": round(r["damage"], 1), "kd": r["kd"]}
+              "kills": r["kills"], "deaths": r["deaths"], "assists": r["assists"], "damage": round(r["damage"], 1), "kd": r["kd"],
+              "awards": r["awards"], "mvp": r["mvp"]}
              for i, r in enumerate(rows[offset: offset + limit])]
     return {"stat": stat, "label": STATS[stat][0], "higher_is_better": better, "items": items, "total": total}
 
@@ -249,6 +296,14 @@ def match(request: Request, session_id: str = SESSION_PATH):
                         "objective_time": round(p.objective_time, 1), "hill_captures": p.hill_captures, "hill_defends": p.hill_defends,
                         "weapons": [weapon_name(w) for w in loadouts.get("weapons", [])],
                         "tacmods": loadouts.get("tacmods", []), "ordnance": [weapon_name(w) for w in loadouts.get("ordnance", [])],
-                        "events": events})
+                        "events": events,
+                        "awards": [award_info(a) for a in _list(p.awards)] if p.awards is not None else None})
+    # the award cards as the game showed them on the scoreboard; null = this report predates the awards (unknown)
+    awards = None
+    if m.awards is not None:
+        awards = [award_info(c.get("award", "")) | {"value": c.get("value"), "user_id": c.get("user_id"), "winner": c.get("name"),
+                                                     "team": c.get("team")}
+                  for c in _list(m.awards) if isinstance(c, dict)]
     return {"session_id": m.session_id, "map": m.map, "started_at": m.started_at, "ended_at": m.ended_at, "duration_s": m.duration_s,
-            "has_events": m.has_events, "events_complete": m.events_complete, "replay_match_id": replay_match_id, "teams": _json(m.teams), "players": players}
+            "has_events": m.has_events, "events_complete": m.events_complete, "replay_match_id": replay_match_id, "teams": _json(m.teams),
+            "awards": awards, "players": players}

@@ -351,6 +351,9 @@ class CombatMatch(Base):
     has_events: Mapped[bool]  # the event log (shots, weapons...) was available for this match
     events_complete: Mapped[bool | None]  # False = event counts of this match are too low
     teams: Mapped[str | None]  # JSON {"blue": {...stats}, "orange": {...}}
+    # the game's end-of-match award cards: JSON [{"award", "stat", "value", "user_id", "name", "team"}]; NULL = unknown
+    # (report or events file older than 2026-11-09), [] = the match handed out none
+    awards: Mapped[str | None]
 
 
 class CombatPlayer(Base):
@@ -386,3 +389,4 @@ class CombatPlayer(Base):
     shots_by_weapon: Mapped[str | None]  # JSON {weapon: count}
     kills_by_weapon: Mapped[str | None]
     deaths_by_weapon: Mapped[str | None]
+    awards: Mapped[str | None]  # JSON ["mvp", "guard", ...] of the game's award cards; NULL = unknown, "[]" = none

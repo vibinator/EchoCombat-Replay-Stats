@@ -1,6 +1,6 @@
 import { Link, useParams, useSearchParams } from "react-router";
 import { getCombatBoard, getCombatMatch, getCombatStats, getCombatSummary, listCombatMatches, type CombatBoardRow, type Period } from "../api";
-import { CombatMatchBody } from "../components/CombatView";
+import { AwardGuide, CombatMatchBody } from "../components/CombatView";
 import { LocalTime, NotFoundBox, Status, TableWrap, isNotFound } from "../components/common";
 import { Skeleton } from "../components/ui";
 import { Avatar, useAvatars } from "../components/Avatar";
@@ -18,6 +18,7 @@ const COLUMNS: [string, string, (r: CombatBoardRow) => string][] = [
   ["kd", "K/D", (r) => num(r.kd, 2)],
   ["assists", "Assists", (r) => int(r.assists)],
   ["damage", "Damage", (r) => int(r.damage)],
+  ["awards", "Awards", (r) => int(r.awards)],
 ];
 
 /** Combat stats: the game's own counters from the recorder's match reports. Separate from the replay-derived stats. */
@@ -117,6 +118,13 @@ export function CombatBoard() {
           <button className="secondary" disabled={offset + PAGE_SIZE >= total} onClick={() => set("offset", String(offset + PAGE_SIZE))}>Next</button>
         </p>
       )}
+
+      <h2>Awards</h2>
+      <p className="muted">
+        The game&apos;s own end-of-match award cards: MVP, Assassin, Cannoneer, Super Star and the rest. Pick <strong>Awards</strong> or{" "}
+        <strong>MVP awards</strong> as the stat above to rank players by them; a player&apos;s page lists the cards they won.
+      </p>
+      <AwardGuide open={stat === "awards" || stat === "mvp"} />
 
       <h2>Latest combat matches</h2>
       {matches.data && matches.data.items.length === 0 && <p className="muted">No combat matches yet.</p>}

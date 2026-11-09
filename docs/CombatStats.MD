@@ -1,6 +1,6 @@
 # Combat stats
 
-Last updated: 2026-11-05. Code: `app/backend/combat.py` (reader), `app/backend/api/combat.py` (endpoints),
+Last updated: 2026-11-09. Code: `app/backend/combat.py` (reader), `app/backend/api/combat.py` (endpoints),
 `app/frontend/src/components/CombatView.tsx` (player page section), `app/frontend/src/pages/CombatPage.tsx` (`/combat`,
 `/combat/:id`). Tests: `tests/backend/test_combat.py`.
 
@@ -57,7 +57,46 @@ a report exists). Neither is labelled beta (user, 2026-11-05). `/combat` and `/c
 ## Stats on the site
 Game counters: kills, deaths, assists, eliminations, damage, objective eliminations / damage / time, hill captures / defends,
 time played. Event-log: shots (and by weapon), kills / deaths by weapon, tac mod activations, heal bubbles, stuns given /
-received, self-kills. Derived: K/D, kills per minute, damage per minute, per-map splits, leaderboards.
+received, self-kills. Derived: K/D, kills per minute, damage per minute, per-map splits, leaderboards. Awards: see below.
+
+## Awards (the game's end-of-match cards, added 2026-11-09)
+The recorder decodes the game's `R15NetTopAwardsMsg` (sent once when the scoreboard appears) and writes it into the report as
+`awards` (match level: award, stat, value, winner) and `players[].awards` (list of award symbols). Reader: `combat.py`
+(`AWARDS`, `_match_awards`, `_player_awards`), stored as JSON in `combat_matches.awards` and `combat_players.awards`
+(`COMBAT_VERSION` "2"). **NULL = unknown** (report or events file older than 2026-11-09; the site says "older reports do not
+carry the awards"), `[]` = the match handed out none. Only the symbol is stored; names and descriptions live in `AWARDS` so
+wording changes need no re-read. An unknown symbol (new award, or a raw `0x...` hash) is kept and shown as written.
+
+**How they are earned (this text is the spec, shown on the site):** there are no thresholds. The game gives **MVP** to the
+highest score and up to three more cards, each to the player with the *highest* value of that stat in the match (310 of 317
+checks against the replay in the recorder's own test; winners with a value of 1 occur). Which three extra categories appear
+is the game's own pick among the stats anyone scored in (looks like a weighted random choice; the lead over second place
+makes no difference). A match that ended empty hands out none.
+
+| Symbol | Name | Based on |
+|---|---|---|
+| `mvp` | MVP | score |
+| `assassin` | Assassin | kills |
+| `cannoneer` | Cannoneer | damage |
+| `super_star` | Super Star | eliminations |
+| `hot_shot` | Hot Shot | best elimination streak |
+| `sniper` | Sniper | headshot kills |
+| `renegade` | Renegade | solo kills |
+| `specialist` | Specialist | assists |
+| `shock_trooper` | Shock Trooper | stuns |
+| `medic` | Medic | healing |
+| `tank` | Tank | damage absorbed |
+| `guard` | Guard | objective time |
+| `defender` | Defender | objective eliminations |
+| `controller` | Controller | objective damage |
+| `infiltrator` | Infiltrator | hill captures |
+| `immovable_object` | Immovable Object | hill defends |
+
+Where it shows: `GET /api/combat/awards` (the guide: key, name, stat, description); player page Combat tab ("Awards" cards
+with counts, an "Awards" column in Recent combat matches, the guide folded under it); `/combat/:id` and the match page's
+Combat tab (the cards as the game showed them: winner, value; badges beside the player names); Leaderboard → Combat: stats
+"Awards" and "MVP awards", an "Awards" column, and the guide under the table. Awards are **not** achievements: no medal
+uses them yet (one match with award data on 2026-11-09; see "Ideas for later").
 
 ## Achievements
 The Combat section of the Achievements page (ids 164-178 and 198-200, `combat_achievements.py`) is built only from `combat_matches` and
@@ -84,13 +123,15 @@ Left out, from the review of the same reports:
 - **Objective fields:** described as payload-only, but Dyson has the most objective time, so they probably cover Capture Point too (reports have no mode field to confirm it).
 
 ## API
-`GET /api/combat/summary`, `/stats`, `/players/{user_id}` (`period`, `map`), `/leaderboard` (`stat`, `period`, `map`,
-`min_games` default 3, paging), `/matches`, `/matches/{session_id}`. A merged (alias) id answers with its main player and the
+`GET /api/combat/summary`, `/stats`, `/awards`, `/players/{user_id}` (`period`, `map`; `awards` = counts per card, null when
+no match has award data), `/leaderboard` (`stat` incl. `awards` / `mvp`, `period`, `map`, `min_games` default 3, paging),
+`/matches`, `/matches/{session_id}` (`awards` cards with winner and value, `players[].awards`). A merged (alias) id answers with its main player and the
 aliases' matches are added up (`player_aliases`). Answers are not stamp-cached (the cache stamp follows replays); the
 Cloudflare edge cache (`ECHOVR_EDGE_CACHE_S`) still applies.
 
 ## Ideas for later (not built)
 The data these need is already stored unless noted.
+- Award challenges on the Achievements page (MVP N times, one of each card...): wait until a few weeks of reports carry awards.
 - Accuracy-style stats per weapon (kills per 100 shots, shots per death) for matches with events.
 - Personal bests and "best match" cards (most kills / damage in one match) with a link to the match.
 - Role profile: damage vs objective share, heal bubbles + assists as a support score, stun use.

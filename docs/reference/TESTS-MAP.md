@@ -33,9 +33,9 @@ Answer caches and who may keep a copy (D53): ETag / 304, stale-while-revalidate,
 check_cloudflare.bat's verdicts (app/cloudflare_check.py), from made-up Cloudflare answers: no network.
 - test_a_correct_setup_passes, test_no_cache_rule_yet, test_login_answer_from_the_cache_is_flagged_as_dangerous, test_old_server_and_browser_ttl_override, test_cached_answers_without_the_site_header, test_not_through_cloudflare_or_challenged
 
-### `tests/backend/test_combat.py` (14 tests)
+### `tests/backend/test_combat.py` (17 tests)
 Combat stats (combat.py, api/combat.py): the recorder's match reports, kept apart from the replay data.
-- test_report_is_read_and_ids_stay_text, test_nothing_is_read_twice_and_a_changed_file_is_read_again, test_recently_written_file_waits, test_no_event_log_means_unknown_not_zero, test_bad_files_are_failed_not_fatal, test_players_without_a_valid_text_id_are_skipped_and_numbers_become_text, test_combat_is_separate_from_replay_data, test_changed_combat_tables_do_not_drop_the_replay_tables, test_player_endpoint_totals_and_weapons, test_merged_player_ids_are_added_up, test_leaderboard_orders_and_respects_min_games, test_match_endpoints, test_combat_match_links_to_the_replay_match_with_the_same_id, test_combat_folder_default_follows_where_matches_is
+- test_report_is_read_and_ids_stay_text, test_nothing_is_read_twice_and_a_changed_file_is_read_again, test_recently_written_file_waits, test_no_event_log_means_unknown_not_zero, test_bad_files_are_failed_not_fatal, test_players_without_a_valid_text_id_are_skipped_and_numbers_become_text, test_combat_is_separate_from_replay_data, test_changed_combat_tables_do_not_drop_the_replay_tables, test_player_endpoint_totals_and_weapons, test_merged_player_ids_are_added_up, test_leaderboard_orders_and_respects_min_games, test_match_endpoints, test_combat_match_links_to_the_replay_match_with_the_same_id, test_combat_folder_default_follows_where_matches_is, test_awards_are_read_counted_and_described, test_reports_without_awards_say_unknown_not_none, test_player_award_lists_without_match_cards_still_make_cards
 
 ### `tests/backend/test_combat_achievements.py` (9 tests)
 The Combat achievements (combat_achievements.py): only the recorder's reports, apart from the replay rules, on the same page.

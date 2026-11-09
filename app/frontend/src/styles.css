@@ -4062,6 +4062,33 @@ button.small {
 .combat-player-events { margin: 0.4rem 0; }
 .combat-player-events > summary { cursor: pointer; padding: 0.3rem 0; }
 
+/* The game's end-of-match award cards (MVP, Assassin, Guard...): badges in tables, cards on the player / match pages, the guide */
+.award-badges { display: inline-flex; flex-wrap: wrap; gap: 4px; vertical-align: middle; }
+.award-badge {
+  display: inline-block;
+  padding: 1px 7px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--line);
+  color: var(--text);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.5;
+  white-space: nowrap;
+  cursor: help;
+}
+.award-badge.award-mvp { background: rgba(234, 179, 8, 0.22); border-color: rgba(234, 179, 8, 0.6); }
+.award-count { margin-left: 4px; font-weight: 400; color: var(--muted); }
+.award-cards .award-card .label { font-weight: 600; }
+.award-cards .award-card.award-mvp { border-color: rgba(234, 179, 8, 0.6); }
+.award-cards .award-stat { display: block; margin-top: 2px; }
+.award-guide { margin: 0.5rem 0 1rem; }
+.award-guide > summary { cursor: pointer; padding: 0.3rem 0; font-weight: 600; }
+.award-list { list-style: none; margin: 0.5rem 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 0.4rem 1.5rem; }
+.award-list li { display: flex; align-items: baseline; gap: 8px; }
+.award-list .award-badge { flex: none; min-width: 7.5rem; text-align: center; }
+.award-list .award-desc { font-size: 0.9rem; }
+
 /* Achievements as tabs (full page) and the per-tab tiles on a player's summary */
 .ach-hint { margin: 12px 0 4px; }
 .ach-tabs { margin-top: 12px; }

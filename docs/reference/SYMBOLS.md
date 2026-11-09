@@ -44,9 +44,9 @@ Discord login for achievement previews (D41). Only GET requests: the website sta
 Small Discord pictures for the name lists (user, 2026-11-06): Players, Leaderboard, Achievements.
 - `MAX_IDS`:22 / pictures:25 / get_avatars:82
 
-### `app/backend/api/combat.py` (255 lines)
+### `app/backend/api/combat.py` (310 lines)
 Combat stats endpoints (user, 2026-11-04): the game's own counters and the event-log numbers from the recorder's match
-- `PERIOD_PATTERN`:22 / `USER_PATH`:23 / `SESSION_PATH`:24 / `RECENT_MATCHES`:25 / `MIN_GAMES_DEFAULT`:26 / weapon_name:44 / _weapons:58 / _main_user:62 / _where:67 / _json:76 / _rates:84 / summary:93 / stat_options:102 / player:107 / leaderboard:164 / matches:207 / match:227
+- `PERIOD_PATTERN`:23 / `USER_PATH`:24 / `SESSION_PATH`:25 / `RECENT_MATCHES`:26 / `MIN_GAMES_DEFAULT`:27 / award_info:49 / _list:54 / weapon_name:62 / _weapons:76 / _main_user:80 / _where:85 / _json:94 / _rates:102 / summary:111 / stat_options:120 / award_options:125 / player:131 / leaderboard:202 / matches:254 / match:274
 
 ### `app/backend/api/console.py` (261 lines)
 Console page (D45): admin.bat on the website, for Discord members with a role from ECHOVR_DISCORD_PREVIEW_ROLES.
@@ -105,9 +105,9 @@ Discord login, only for previewing achievements before their launch date (D41). 
 Caches for answers built from the archive: home page, leaderboard, profiles, heatmaps, match views (D53). Keyed on
 - `STAMP_TTL_S`:37 / `MAX_VALUES`:38 / `MAX_RESPONSES`:39 / `MAX_RESPONSE_BYTES`:40 / `GZIP_LEVEL`:41 / `STATUS_HEADER`:42 / bump_generation:47 / data_stamp:52 / current_stamp:61 / **class Entry**:76 / **class Store**:85 [get:96, put:103, drop:113] / _store:122 / _run:140 / _used:154 / _build_now:165 / _refresh:183 / _lookup:206 / cached:224 / cached_response:230 / etag_matches:245 / reply:253
 
-### `app/backend/combat.py` (271 lines)
+### `app/backend/combat.py` (340 lines)
 Combat stats from the recorder's match reports (user, 2026-11-04). Completely separate from the replay data: own tables
-- `COMBAT_VERSION`:33 / `FOLDER`:34 / `MAX_BYTES`:35 / `MAX_PLAYERS`:36 / `SESSION_ID`:37 / `USER_ID`:38 / `MAPS`:39 / `INT_STATS`:41 / `FLOAT_STATS`:42 / `EVENT_COUNTS`:43 / `WEAPON_MAPS`:44 / **class CombatFileError**:47 / **class CombatState**:52 / _number:62 / _count:70 / _weapon_counts:74 / _names:80 / parse_report:84 / save_report:142 / _process:152 / sync_once:192 / **class CombatIngest**:234 [start:246, stop:250, _run:255]
+- `COMBAT_VERSION`:33 / `FOLDER`:34 / `MAX_BYTES`:35 / `MAX_PLAYERS`:36 / `SESSION_ID`:37 / `USER_ID`:38 / `MAPS`:39 / `INT_STATS`:41 / `FLOAT_STATS`:42 / `EVENT_COUNTS`:43 / `WEAPON_MAPS`:44 / `MAX_AWARDS`:45 / award_name:70 / _award_symbol:77 / _player_awards:82 / _match_awards:90 / **class CombatFileError**:108 / **class CombatState**:113 / _number:123 / _count:131 / _weapon_counts:135 / _names:141 / parse_report:145 / save_report:211 / _process:221 / sync_once:261 / **class CombatIngest**:303 [start:315, stop:319, _run:324]
 
 ### `app/backend/combat_achievements.py` (208 lines)
 Combat achievements (user, 2026-11-05): built only from the recorder's match reports (combat_matches, combat_players), kept
@@ -170,9 +170,9 @@ Merge suggestions for the Console (D34 merges): player records that used the sam
 Every request and answer of the site in one pure ASGI layer (it replaces four @app.middleware layers that cost
 - `PER_VISITOR`:25 / `WRITES`:26 / `BOT`:27 / `STATIC_MAX_AGE_S`:28 / `EDGE_STALE_IF_ERROR_S`:29 / _refusal:32 / _api_cache:46 / _versioned:58 / _static_cache:63 / **class SiteMiddleware**:77
 
-### `app/backend/models.py` (389 lines)
+### `app/backend/models.py` (393 lines)
 Tables as specified in docs/DataModel.MD.
-- **class Replay**:9 / **class Match**:33 / **class DuplicateMatch**:68 / **class Player**:78 / **class MatchPlayer**:88 / **class MatchPlayerLoadout**:125 / **class Event**:138 / **class AppSetting**:152 / **class PlayerProfile**:162 / **class DiscordProfile**:177 / **class NakamaAccount**:190 / **class PlayerAlias**:207 / **class RepairRequest**:217 / **class AggressiveRepair**:226 / **class PriorityReplay**:236 / **class HiddenReplay**:244 / **class ConsoleLog**:254 / **class ArenaPlayer**:271 / **class ArenaCounted**:285 / **class NakamaCombatPlayer**:295 / **class NakamaCombatCounted**:309 / **class CombatFile**:325 / **class CombatMatch**:341 / **class CombatPlayer**:356
+- **class Replay**:9 / **class Match**:33 / **class DuplicateMatch**:68 / **class Player**:78 / **class MatchPlayer**:88 / **class MatchPlayerLoadout**:125 / **class Event**:138 / **class AppSetting**:152 / **class PlayerProfile**:162 / **class DiscordProfile**:177 / **class NakamaAccount**:190 / **class PlayerAlias**:207 / **class RepairRequest**:217 / **class AggressiveRepair**:226 / **class PriorityReplay**:236 / **class HiddenReplay**:244 / **class ConsoleLog**:254 / **class ArenaPlayer**:271 / **class ArenaCounted**:285 / **class NakamaCombatPlayer**:295 / **class NakamaCombatCounted**:309 / **class CombatFile**:325 / **class CombatMatch**:341 / **class CombatPlayer**:359
 
 ### `app/backend/persist.py` (101 lines)
 MatchStats -> database rows. Callers commit, so a match is stored completely or not at all.

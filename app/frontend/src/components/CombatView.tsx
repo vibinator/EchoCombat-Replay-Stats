@@ -1,9 +1,63 @@
 import { Link } from "react-router";
-import { getCombatMatch, getCombatPlayer, type CombatEvents, type CombatMatchDetail, type CombatMatchPlayer, type CombatWeapon, type Period } from "../api";
+import { getCombatAwards, getCombatMatch, getCombatPlayer, type CombatAward, type CombatAwardsWon, type CombatEvents, type CombatMatchDetail, type CombatMatchPlayer, type CombatWeapon, type Period } from "../api";
 import { LocalTime, TableWrap, TeamBadge } from "./common";
 import { InfoTip } from "./ui";
 import { duration, hoursMinutes, int, num, playerPath, title } from "../format";
 import { useApi } from "../useApi";
+
+/** How an award is earned, for a tooltip: "Guard · Objective time: the most time spent on the objective." */
+export function awardHint(a: CombatAward): string {
+  return a.stat ? `${a.name} · ${a.stat}: ${a.description}` : `${a.name}: ${a.description}`;
+}
+
+/** One of the game's end-of-match award cards as a small badge; hover / focus tells how it is earned. */
+export function AwardBadge({ award, count }: { award: CombatAward; count?: number }) {
+  return (
+    <span className={`award-badge award-${award.key}`} title={awardHint(award)} aria-label={awardHint(award)} tabIndex={0}>
+      {award.name}
+      {count != null && count > 1 && <span className="award-count">×{int(count)}</span>}
+    </span>
+  );
+}
+
+/** The award badges a player won in one match: "–" for none, nothing at all when the report does not know them. */
+export function AwardBadges({ awards }: { awards: CombatAwardsWon | undefined }) {
+  if (awards == null) return null;
+  if (awards.length === 0) return <span className="muted">–</span>;
+  return <span className="award-badges">{awards.map((a) => <AwardBadge key={a.key} award={a} />)}</span>;
+}
+
+/**
+ * The list of every award the game can hand out and how it is earned (from /api/combat/awards). There are no thresholds:
+ * the top player of the stat gets the card, so the same number can win one match and not the next.
+ */
+export function AwardGuide({ open }: { open?: boolean }) {
+  const { data } = useApi(getCombatAwards, "combat-awards");
+  return (
+    <details className="award-guide" open={open}>
+      <summary>How the game&apos;s awards are earned</summary>
+      <p className="muted footnote">
+        At the end of a match the game shows award cards on the scoreboard: <strong>MVP</strong> for the highest score, plus up to
+        three more. Each card goes to the player with the <em>highest</em> value of that stat in the match; there is no minimum, so
+        a single kill can win Assassin in a quiet match. Which three extra cards appear is the game&apos;s own pick among the stats
+        that anyone scored in. A match that ended empty hands out none. Recorded since 9 November 2026.
+      </p>
+      {data && (
+        <ul className="award-list">
+          {data.map((a) => (
+            <li key={a.key}>
+              <AwardBadge award={a} />
+              <span className="award-desc">
+                {a.stat && <span className="muted">{a.stat} · </span>}
+                {a.description}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </details>
+  );
+}
 
 /** One labelled number in the card grid. */
 function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
@@ -94,6 +148,36 @@ export function CombatSection({ userId, period, map }: { userId: string; period:
       </div>
       <p className="muted footnote">Damage taken is not shown: the game does not give it to spectators.</p>
 
+      {data.awards && (
+        <>
+          <h3>
+            Awards
+            <InfoTip text="The game's own end-of-match award cards (MVP, Assassin, Guard...). Each goes to the top player of that stat in the match; there is no minimum." />
+          </h3>
+          <p className="muted footnote">
+            {int(data.awards.total)} award{data.awards.total === 1 ? "" : "s"} in {data.awards.matches} of {data.matches} match{data.matches === 1 ? "" : "es"}
+            {data.awards.matches < data.matches && " (older reports do not carry the awards)"}.
+          </p>
+          {data.awards.items.length === 0 ? (
+            <p className="muted">None yet.</p>
+          ) : (
+            <div className="cards award-cards">
+              {data.awards.items.map((a) => (
+                <div key={a.key} className={`card award-card award-${a.key}`} title={awardHint(a)}>
+                  <span className="label">
+                    {a.name}
+                    <InfoTip text={awardHint(a)} />
+                  </span>
+                  <strong>{int(a.count)}</strong>
+                  <span className="muted footnote award-stat">{a.stat || a.description}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          <AwardGuide />
+        </>
+      )}
+
       {e && (
         <>
           <h3>
@@ -145,7 +229,7 @@ export function CombatSection({ userId, period, map }: { userId: string; period:
           <TableWrap>
             <table className="stack">
               <thead>
-                <tr><th>Played</th><th>Map</th><th>Team</th><th className="num">K</th><th className="num">D</th><th className="num">A</th><th className="num">Damage</th><th className="num">Length</th></tr>
+                <tr><th>Played</th><th>Map</th><th>Team</th><th className="num">K</th><th className="num">D</th><th className="num">A</th><th className="num">Damage</th><th className="num">Length</th>{data.awards && <th>Awards</th>}</tr>
               </thead>
               <tbody>
                 {data.recent.map((m) => (
@@ -158,6 +242,7 @@ export function CombatSection({ userId, period, map }: { userId: string; period:
                     <td data-label="A" className="num">{m.assists}</td>
                     <td data-label="Damage" className="num">{int(m.damage)}</td>
                     <td data-label="Length" className="num">{duration(m.duration_s)}</td>
+                    {data.awards && <td data-label="Awards">{m.awards == null ? <span className="muted">unknown</span> : <AwardBadges awards={m.awards} />}</td>}
                   </tr>
                 ))}
               </tbody>
@@ -196,6 +281,33 @@ export function CombatMatchBody({ m }: { m: CombatMatchDetail }) {
         {m.events_complete === false && "The event log ended early: shot and weapon counts are too low. "}
         Damage taken is not available (spectators do not get it).
       </p>
+      {m.awards && (
+        <>
+          <h3>
+            Awards
+            <InfoTip text="The award cards the game showed on the scoreboard. Each goes to the top player of that stat in this match; there is no minimum." />
+          </h3>
+          {m.awards.length === 0 ? (
+            <p className="muted">The game handed out no awards for this match (it ended empty).</p>
+          ) : (
+            <div className="cards award-cards">
+              {m.awards.map((a, i) => (
+                <div key={`${a.key}-${i}`} className={`card award-card award-${a.key}`} title={awardHint(a)}>
+                  <span className="label">
+                    {a.name}
+                    <InfoTip text={awardHint(a)} />
+                  </span>
+                  <strong>{a.user_id ? <Link to={playerPath(a.user_id, a.winner || "")}>{a.winner}</Link> : a.winner || "Unknown"}</strong>
+                  <span className="muted footnote award-stat">
+                    <TeamBadge team={a.team} />
+                    {a.value != null && ` ${a.stat || "value"}: ${Number.isInteger(a.value) ? int(a.value) : num(a.value, 1)}`}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
       {(["blue", "orange"] as const).map((team) => {
         const players = m.players.filter((p) => p.team === team);
         if (players.length === 0) return null;
@@ -214,7 +326,7 @@ export function CombatMatchBody({ m }: { m: CombatMatchDetail }) {
                 <tbody>
                   {players.map((p) => (
                     <tr key={p.user_id}>
-                      <td data-label="Player"><Link to={playerPath(p.user_id, p.name)}>{p.name}</Link></td>
+                      <td data-label="Player"><Link to={playerPath(p.user_id, p.name)}>{p.name}</Link>{p.awards && p.awards.length > 0 && <> <AwardBadges awards={p.awards} /></>}</td>
                       <td data-label="K" className="num">{p.kills}</td>
                       <td data-label="D" className="num">{p.deaths}</td>
                       <td data-label="A" className="num">{p.assists}</td>

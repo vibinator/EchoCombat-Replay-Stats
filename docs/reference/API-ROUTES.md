@@ -38,12 +38,13 @@ path is in middleware.WRITES / BOT. Console routes need auth.has_console; profil
 | POST | `/api/bot/lookup` | bot_lookup | app/backend/api/profiles.py:318 | Which player a Discord account is linked to (or which account a player is linked to). POST so the secret |
 | POST | `/api/bot/unlink` | bot_unlink | app/backend/api/profiles.py:302 | Remove a link (by Discord account or by player); the bio goes with it. |
 | GET | `/api/challenges` | get_challenges | app/backend/api/achievements.py:65 | The Flamingo Challenge period: only matches inside it count. No start date = not launched yet. |
-| GET | `/api/combat/leaderboard` | leaderboard | app/backend/api/combat.py:163 |  |
-| GET | `/api/combat/matches` | matches | app/backend/api/combat.py:206 |  |
-| GET | `/api/combat/matches/{session_id}` | match | app/backend/api/combat.py:226 |  |
-| GET | `/api/combat/players/{user_id}` | player | app/backend/api/combat.py:106 |  |
-| GET | `/api/combat/stats` | stat_options | app/backend/api/combat.py:101 |  |
-| GET | `/api/combat/summary` | summary | app/backend/api/combat.py:92 |  |
+| GET | `/api/combat/awards` | award_options | app/backend/api/combat.py:124 | The game's end-of-match awards and how each is earned (no thresholds: the top player of the stat gets the card |
+| GET | `/api/combat/leaderboard` | leaderboard | app/backend/api/combat.py:201 |  |
+| GET | `/api/combat/matches` | matches | app/backend/api/combat.py:253 |  |
+| GET | `/api/combat/matches/{session_id}` | match | app/backend/api/combat.py:273 |  |
+| GET | `/api/combat/players/{user_id}` | player | app/backend/api/combat.py:130 |  |
+| GET | `/api/combat/stats` | stat_options | app/backend/api/combat.py:119 |  |
+| GET | `/api/combat/summary` | summary | app/backend/api/combat.py:110 |  |
 | GET | `/api/health` | health | app/backend/main.py:114 |  |
 | GET | `/api/import` | import_status | app/backend/api/imports.py:24 | Import progress, broken down by what each replay produces. |
 | GET | `/api/leaderboard` | leaderboard | app/backend/api/leaderboard.py:173 |  |

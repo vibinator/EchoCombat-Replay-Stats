@@ -1273,6 +1273,21 @@ export interface CombatEvents {
   deaths_by_weapon: CombatWeapon[];
 }
 
+/** One of the game's end-of-match award cards (MVP, Assassin, Guard...) and how it is earned: the top player of `stat` gets it. */
+export interface CombatAward {
+  key: string; // the game's symbol: mvp, super_star, immovable_object...
+  name: string; // as shown in game: MVP, Super Star, Immovable Object
+  stat: string; // the stat it is based on, as a label ("" when unknown)
+  description: string;
+}
+
+export interface CombatAwardCount extends CombatAward {
+  count: number;
+}
+
+/** Null = the report predates the awards (unknown), [] = none in that match. */
+export type CombatAwardsWon = CombatAward[] | null;
+
 export interface CombatRecent {
   session_id: string;
   map: string;
@@ -1284,6 +1299,7 @@ export interface CombatRecent {
   assists: number;
   damage: number;
   objective_damage: number;
+  awards: CombatAwardsWon;
 }
 
 export interface CombatPlayerStats {
@@ -1293,6 +1309,7 @@ export interface CombatPlayerStats {
   stats?: CombatTotals;
   by_map?: { map: string; matches: number; kills: number; deaths: number; assists: number; damage: number; objective_damage: number }[];
   events?: CombatEvents | null;
+  awards?: { matches: number; total: number; items: CombatAwardCount[] } | null; // null = no match with award data
   recent?: CombatRecent[];
 }
 
@@ -1307,6 +1324,8 @@ export interface CombatBoardRow {
   assists: number;
   damage: number;
   kd: number | null;
+  awards: number;
+  mvp: number;
 }
 
 export interface CombatBoard {
@@ -1361,6 +1380,15 @@ export interface CombatMatchPlayer {
   tacmods: string[];
   ordnance: string[];
   events: (Omit<CombatEvents, "matches" | "events_incomplete">) | null;
+  awards: CombatAwardsWon;
+}
+
+/** An award card as the game showed it on the scoreboard: who won it and with what value. */
+export interface CombatMatchAward extends CombatAward {
+  value: number | null;
+  user_id: string | null;
+  winner: string | null; // the player who won the card
+  team: Team | null;
 }
 
 export interface CombatMatchDetail {
@@ -1373,6 +1401,7 @@ export interface CombatMatchDetail {
   events_complete: boolean | null;
   replay_match_id: number | null;
   teams: Partial<Record<Team, Record<string, number>>>;
+  awards: CombatMatchAward[] | null; // null = the report predates the awards
   players: CombatMatchPlayer[];
 }
 
@@ -1383,6 +1412,7 @@ export const getCombatBoard = (q: { stat: string; period: Period; map?: string; 
   request<CombatBoard>(`/api/combat/leaderboard${query({ ...q })}`);
 
 export const getCombatStats = () => request<CombatStatOption[]>("/api/combat/stats");
+export const getCombatAwards = () => request<CombatAward[]>("/api/combat/awards");
 export const getCombatSummary = () => request<CombatSummary>("/api/combat/summary");
 export const listCombatMatches = (limit = 30, offset = 0, map?: string) =>
   request<Page<CombatMatchItem>>(`/api/combat/matches${query({ limit, offset, map })}`);

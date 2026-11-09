@@ -18,6 +18,23 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.09.4 — 10:41
+- **Combat stats: the game's end-of-match awards.** The recorder now writes the award cards the game shows on the scoreboard (MVP,
+  Assassin, Cannoneer, Super Star, Hot Shot, Sniper, Renegade, Specialist, Shock Trooper, Medic, Tank, Guard, Defender, Controller,
+  Infiltrator, Immovable Object), and the site shows them:
+  - Player page → Combat tab: an "Awards" block with one card per award won and how often, an "Awards" column in "Recent combat
+    matches", and a fold-out guide that explains how every award is earned.
+  - Combat match page (and the match page's Combat tab): the cards as the game handed them out, with the winner and the value that
+    won it; badges beside the player names in the scoreboard.
+  - Leaderboard → Combat: two new stats, "Awards" and "MVP awards", an "Awards" column, and the same guide under the table.
+  - How they are earned (also on the site): there are no thresholds. MVP goes to the highest score; each other card goes to the player
+    with the highest value of that stat in the match, and the game picks up to three of those categories to show. A match that ended
+    empty hands out none.
+- Only reports written since 9 November 2026 carry the awards; older ones show "older reports do not carry the awards" / no award
+  column. Awards are not achievements (no medal uses them yet).
+- After updating: the combat tables are rebuilt and every match report is read again (`COMBAT_VERSION` 2); that takes under a
+  minute. Replays are not touched.
+
 ## 2026.11.09.3 — 02:09
 - **Achievements page: "Recent medals" cards now look like the "Top players" cards.** Same layout, top-aligned: date, avatar and
   name, the medal icon with the challenge name in large type, then "earned <tier>" and the rule text in muted lines. Nothing to

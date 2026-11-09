@@ -230,3 +230,70 @@ def test_combat_folder_default_follows_where_matches_is(tmp_path):
     (share / "matches").mkdir()
     assert s.combat_dir == share  # NAS layout: the whole recorder folder is the share
     assert replace(s, combat_source_dir=tmp_path).combat_dir == tmp_path
+
+
+# ---- the game's end-of-match awards (reports since 2026-11-09) --------------------------------------------------------
+AWARDS = [{"award": "mvp", "stat": "score", "value": 4689, "userid": BIG_ID, "name": "Likare", "player": 4, "team": "blue", "time": "x"},
+          {"award": "guard", "stat": "CombatObjectiveTime", "value": 131, "userid": "7", "name": "Orange", "player": 1, "team": "orange", "time": "x"},
+          {"award": "super_star", "stat": "CombatEliminations", "value": 10, "userid": BIG_ID, "name": "Likare", "player": 4, "team": "blue", "time": "x"},
+          {"award": "0x0f642a34f8d049ab", "stat": "?", "value": 1, "userid": "7", "name": "Orange", "player": 1, "team": "orange", "time": "x"}]
+
+
+def test_awards_are_read_counted_and_described(settings):
+    players = [player() | {"awards": ["mvp", "super_star", "super_star"]},
+               player(user_id="7", name="Orange", team="orange", events=None) | {"awards": ["guard", "0x0f642a34f8d049ab"]},
+               player(user_id="8", name="Nobody", team="orange", events=None) | {"awards": []}]
+    put(settings, f"{SESSION}.json", report(players=players, awards=AWARDS))
+    put(settings, f"{SESSION_2}.json", report(session=SESSION_2, started="2026-11-04T19:00:00", players=[player() | {"awards": ["mvp"]}], awards=AWARDS[:1]))
+    with app_client(settings) as client:
+        sync(client)
+        with client.app.state.sessionmaker() as db:
+            rows = {p.user_id: json.loads(p.awards) for p in db.query(CombatPlayer).filter_by(match_id=db.query(CombatMatch).filter_by(session_id=SESSION).one().id)}
+        assert rows == {BIG_ID: ["mvp", "super_star"], "7": ["guard", "0x0f642a34f8d049ab"], "8": []}  # one card per award
+
+        guide = client.get("/api/combat/awards").json()
+        assert len(guide) == 16 and guide[0]["key"] == "mvp" and guide[0]["name"] == "MVP"
+        by_key = {a["key"]: a for a in guide}
+        assert by_key["super_star"]["name"] == "Super Star" and by_key["super_star"]["stat"] == "Eliminations"
+        assert "most" in by_key["immovable_object"]["description"].lower() and all(a["description"] for a in guide)
+
+        me = client.get(f"/api/combat/players/{BIG_ID}").json()
+        assert me["awards"]["matches"] == 2 and me["awards"]["total"] == 3
+        assert [(a["key"], a["count"]) for a in me["awards"]["items"]] == [("mvp", 2), ("super_star", 1)]
+        assert me["recent"][0]["awards"][0]["name"] == "MVP"
+        assert client.get("/api/combat/players/8").json()["awards"] == {"matches": 1, "total": 0, "items": []}
+
+        detail = client.get(f"/api/combat/matches/{SESSION}").json()
+        assert [a["name"] for a in detail["awards"]] == ["MVP", "Guard", "Super Star", "0x0f642a34f8d049ab"]
+        assert (detail["awards"][1]["value"], detail["awards"][1]["user_id"], detail["awards"][1]["winner"]) == (131, "7", "Orange")
+        assert detail["awards"][0]["description"].startswith("The highest score")
+        blue = next(p for p in detail["players"] if p["user_id"] == BIG_ID)
+        assert [a["key"] for a in blue["awards"]] == ["mvp", "super_star"]
+        assert next(p for p in detail["players"] if p["user_id"] == "8")["awards"] == []
+
+        get = lambda **q: client.get("/api/combat/leaderboard", params={"min_games": 1} | q).json()
+        board = get(stat="awards")
+        assert board["label"] == "Awards" and [(r["name"], r["value"]) for r in board["items"]] == [("Likare", 3), ("Orange", 2), ("Nobody", 0)]
+        assert [(r["name"], r["value"]) for r in get(stat="mvp")["items"]][0] == ("Likare", 2)
+        assert board["items"][0]["mvp"] == 2 and board["items"][1]["awards"] == 2
+
+
+def test_reports_without_awards_say_unknown_not_none(settings):
+    put(settings, f"{SESSION}.json", report(players=[player(), player(user_id="7", name="Orange", team="orange")]))
+    with app_client(settings) as client:
+        sync(client)
+        with client.app.state.sessionmaker() as db:
+            assert db.query(CombatMatch).one().awards is None and {p.awards for p in db.query(CombatPlayer)} == {None}
+        assert client.get(f"/api/combat/players/{BIG_ID}").json()["awards"] is None
+        detail = client.get(f"/api/combat/matches/{SESSION}").json()
+        assert detail["awards"] is None and detail["players"][0]["awards"] is None
+        assert client.get("/api/combat/leaderboard", params={"min_games": 1, "stat": "awards"}).json()["items"][0]["value"] == 0
+
+
+def test_player_award_lists_without_match_cards_still_make_cards(settings):
+    # an events file that knows the awards but a report shape that only lists them per player: the match cards are rebuilt
+    put(settings, f"{SESSION}.json", report(players=[player() | {"awards": ["mvp"]}], awards=None))
+    with app_client(settings) as client:
+        sync(client)
+        detail = client.get(f"/api/combat/matches/{SESSION}").json()
+    assert [(a["key"], a["user_id"], a["value"]) for a in detail["awards"]] == [("mvp", BIG_ID, None)]

@@ -30,7 +30,7 @@ from .models import CombatFile, CombatMatch, CombatPlayer
 
 log = logging.getLogger(__name__)
 
-COMBAT_VERSION = "1"  # raise when this module reads more or differently: every report is read again
+COMBAT_VERSION = "2"  # raise when this module reads more or differently: every report is read again ("2": awards)
 FOLDER = "matches"
 MAX_BYTES = 5_000_000
 MAX_PLAYERS = 64
@@ -42,6 +42,67 @@ INT_STATS = ("kills", "assists", "deaths", "eliminations", "objective_eliminatio
 FLOAT_STATS = ("damage", "objective_damage", "objective_time")
 EVENT_COUNTS = ("shots", "tacmod_activations", "heal_bubbles", "stuns_given", "stuns_received", "self_kills")
 WEAPON_MAPS = ("shots_by_weapon", "kills_by_weapon", "deaths_by_weapon")
+MAX_AWARDS = 32
+
+# The game's own end-of-match awards (reports since 2026-11-09, FORMATS.md): symbol -> (name shown in game, the stat it is
+# based on, how it is earned). There are no thresholds: the game hands each card to the top player of that stat. Every
+# match gets MVP plus up to three more cards, picked by the game among the categories whose top value is above 0.
+AWARDS: dict[str, tuple[str, str, str]] = {
+    "mvp": ("MVP", "Score", "The highest score in the match. Given in every match that was played out."),
+    "assassin": ("Assassin", "Kills", "The most kills of other players."),
+    "cannoneer": ("Cannoneer", "Damage", "The most damage dealt."),
+    "super_star": ("Super Star", "Eliminations", "The most eliminations (kills and assists together)."),
+    "hot_shot": ("Hot Shot", "Best elimination streak", "The longest run of eliminations without dying."),
+    "sniper": ("Sniper", "Headshot kills", "The most headshot kills."),
+    "renegade": ("Renegade", "Solo kills", "The most kills made without a teammate's help."),
+    "specialist": ("Specialist", "Assists", "The most assists."),
+    "shock_trooper": ("Shock Trooper", "Stuns", "The most enemies stunned."),
+    "medic": ("Medic", "Healing", "The most healing done."),
+    "tank": ("Tank", "Damage absorbed", "The most damage absorbed."),
+    "guard": ("Guard", "Objective time", "The most time spent on the objective."),
+    "defender": ("Defender", "Objective eliminations", "The most eliminations of enemies on the objective."),
+    "controller": ("Controller", "Objective damage", "The most damage to enemies on the objective."),
+    "infiltrator": ("Infiltrator", "Hill captures", "The most hill captures (point-capture maps)."),
+    "immovable_object": ("Immovable Object", "Hill defends", "The most hill defends (point-capture maps)."),
+}
+
+
+def award_name(symbol: str) -> str:
+    """The in-game name of an award symbol; an unknown symbol is tidied up (a raw 0x... hash stays as it is)."""
+    if symbol in AWARDS:
+        return AWARDS[symbol][0]
+    return symbol if symbol.startswith("0x") else symbol.replace("_", " ").title()
+
+
+def _award_symbol(value) -> str | None:
+    symbol = str(value or "").strip().lower()[:64]
+    return symbol or None
+
+
+def _player_awards(value) -> list[str] | None:
+    """The award symbols of one player, or None when the report does not know them (older events file, no events)."""
+    if not isinstance(value, list):
+        return None
+    symbols = [s for s in (_award_symbol(v) for v in value[:MAX_AWARDS]) if s]
+    return list(dict.fromkeys(symbols))  # one card per award, in the game's order
+
+
+def _match_awards(value) -> list[dict] | None:
+    """The match's award cards (who won what, with the game's value), or None when unknown."""
+    if not isinstance(value, list):
+        return None
+    cards = []
+    for entry in value[:MAX_AWARDS]:
+        if not isinstance(entry, dict):
+            continue
+        symbol = _award_symbol(entry.get("award"))
+        if not symbol:
+            continue
+        user_id = str(entry.get("userid") or "")
+        cards.append({"award": symbol, "stat": str(entry.get("stat") or "")[:64], "value": round(_number(entry.get("value")), 3),
+                      "user_id": user_id if USER_ID.match(user_id) else None, "name": str(entry.get("name") or "Unknown")[:64],
+                      "team": entry.get("team") if entry.get("team") in ("blue", "orange") else None})
+    return cards
 
 
 class CombatFileError(Exception):
@@ -118,6 +179,8 @@ def parse_report(path: Path) -> dict:
         for k in WEAPON_MAPS:
             counts = _weapon_counts(events.get(k)) if events else None
             row[k] = json.dumps(counts) if counts is not None else None
+        awards = _player_awards(p.get("awards"))
+        row["awards"] = json.dumps(awards) if awards is not None else None
         players.append(row)
     if len({p["user_id"] for p in players}) != len(players):
         seen, unique = set(), []
@@ -128,6 +191,11 @@ def parse_report(path: Path) -> dict:
         players = unique
     teams = data.get("teams") if isinstance(data.get("teams"), dict) else {}
     complete = data.get("events_complete")
+    match_awards = _match_awards(data.get("awards"))
+    if match_awards is None and any(p["awards"] is not None for p in players):
+        # only the players carry the award list (an older report shape): rebuild the cards from it, without values
+        match_awards = [{"award": a, "stat": "", "value": None, "user_id": p["user_id"], "name": p["name"], "team": p["team"]}
+                        for p in players for a in json.loads(p["awards"])]
     return {
         "session_id": session_id.upper(), "map": MAPS.get(raw_map, raw_map.removeprefix("mpl_combat_") or "unknown"),
         "started_at": started, "ended_at": ended or started, "duration_s": _number(data.get("duration_s")),
@@ -135,6 +203,7 @@ def parse_report(path: Path) -> dict:
         "events_complete": complete if isinstance(complete, bool) else None,
         "teams": json.dumps({t: {k: _number(v) for k, v in teams[t].items() if isinstance(v, (int, float))}
                              for t in ("blue", "orange") if isinstance(teams.get(t), dict)}),
+        "awards": json.dumps(match_awards) if match_awards is not None else None,
         "players": players,
     }
 
