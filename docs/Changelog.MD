@@ -18,6 +18,17 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.09.3 — 02:09
+- **Achievements page: "Recent medals" cards now look like the "Top players" cards.** Same layout, top-aligned: date, avatar and
+  name, the medal icon with the challenge name in large type, then "earned <tier>" and the rule text in muted lines. Nothing to
+  restart or re-read.
+
+## 2026.11.09.2 — 02:05
+- **Home page "Latest matches" (and "Recently played") update within about a minute.** They used to come with the overview, which is
+  rebuilt in the background only once it is 5 minutes old, so a new match could take 6–8 minutes to appear. The list is now asked on its
+  own (`GET /api/overview/latest`, a few rows via the `started_at` index, no archive-wide queries) every minute while the tab is
+  visible. Nothing to restart or re-read.
+
 ## 2026.11.09.1 — 01:53
 
 ## 2026.11.08.1 — 00:10

@@ -1036,6 +1036,9 @@ export const getOverview = () => request<Overview>("/api/overview");
 export const getProcessing = () => send<{ pending: number }>("/api/overview/processing");
 /** Newest match end time for the home page. Polled: never reused from the cache (Cloudflare may answer it). */
 export const getLastMatch = () => send<{ last_match_at: string | null }>("/api/overview/last-match");
+/** The newest matches for the home page's list, same rows as the overview's `latest` but not held back by the
+ * overview's rebuild interval. Polled: never reused from the cache (Cloudflare may answer it). */
+export const getLatestMatches = () => send<MatchSummary[]>("/api/overview/latest");
 /** Is a game being played now (the spectator bot is live on Twitch; live null = could not tell)? Never cached
  * anywhere: no-store for the browser and Cloudflare, and send() keeps no copy. */
 export const getLive = () => send<{ live: boolean | null; since: string | null }>("/api/overview/live");

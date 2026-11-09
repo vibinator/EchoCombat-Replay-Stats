@@ -67,12 +67,12 @@ File-download responses for exports (CSV / JSON). Built in memory: exports are s
 Leaderboard (D15): the profile aggregates grouped by player, ranked by one stat.
 - `WIN_LOSS_STATS`:21 / `STATS`:23 / _aggregate:42 / _where:71 / _aggregate_rows:95 / _summary:103 / _values:114 / _rank:138 / `SORTS`:144 / _resort:147 / list_stats:164 / leaderboard:174 / _leaderboard:209 / achievers:257 / list_gear:271
 
-### `app/backend/api/matches.py` (615 lines)
-- player_counts:33 / list_matches:41 / _list_matches:60 / `MAX_THUMBNAILS`:106 / get_thumbnails:111 / _thumbnails:120 / _thumbnail:131 / _thumbnail_for:140 / player_row:146 / get_match:179 / match_detail:183 / repair_note:230 / get_events:243 / _event_data:262 / _match_or_404:270 / _tracks:277 / get_timeline:285 / _timeline:290 / `MATCH_HEATMAP_MODES`:299 / get_match_heatmap:303 / _match_heatmap:317 / get_match_heatmap3d:340 / _match_heatmap3d:352 / `EXPORT_COLUMNS`:376 / export_rows:383 / export_match:396 / get_playback:406 / _playback:412 / `PLAYBACK_EVENTS`:448 / `MAPS_3D`:450 / `PAYLOAD_MODEL_MAPS`:451 / `BUILD_WAIT_S`:452 / `MAX_BUILD_WAITERS`:453 / `FAILED_TTL_S`:454 / _recently_failed:461 / _remember_failure:466 / _tracks3d:475 / get_playback3d:537 / _playback3d:544 / _map_objects:571 / _gear_names:588 / _speeds:592 / _loadout_runs:605
+### `app/backend/api/matches.py` (618 lines)
+- player_counts:33 / list_matches:41 / _list_matches:60 / `MAX_THUMBNAILS`:106 / get_thumbnails:111 / _thumbnails:120 / _thumbnail:131 / _thumbnail_for:140 / player_row:146 / get_match:179 / match_detail:183 / repair_note:233 / get_events:246 / _event_data:265 / _match_or_404:273 / _tracks:280 / get_timeline:288 / _timeline:293 / `MATCH_HEATMAP_MODES`:302 / get_match_heatmap:306 / _match_heatmap:320 / get_match_heatmap3d:343 / _match_heatmap3d:355 / `EXPORT_COLUMNS`:379 / export_rows:386 / export_match:399 / get_playback:409 / _playback:415 / `PLAYBACK_EVENTS`:451 / `MAPS_3D`:453 / `PAYLOAD_MODEL_MAPS`:454 / `BUILD_WAIT_S`:455 / `MAX_BUILD_WAITERS`:456 / `FAILED_TTL_S`:457 / _recently_failed:464 / _remember_failure:469 / _tracks3d:478 / get_playback3d:540 / _playback3d:547 / _map_objects:574 / _gear_names:591 / _speeds:595 / _loadout_runs:608
 
-### `app/backend/api/overview.py` (302 lines)
+### `app/backend/api/overview.py` (319 lines)
 Home dashboard, archive activity and global search.
-- overview:20 / _overview:26 / processing:69 / last_match:77 / `LIVE_HEADERS`:85 / live:89 / _last_ended:97 / activity:105 / `DAY_WINDOW`:112 / _activity:115 / search:147 / _search:153 / _top_gear:169 / `TEAM_WIN_KEYS`:190 / _global_stats:193 / `RANGES`:241 / players_seen:245 / _players_seen:253 / warm:291
+- overview:20 / _overview:26 / `LATEST_MATCHES`:68 / _latest_matches:71 / latest_matches:77 / processing:86 / last_match:94 / `LIVE_HEADERS`:102 / live:106 / _last_ended:114 / activity:122 / `DAY_WINDOW`:129 / _activity:132 / search:164 / _search:170 / _top_gear:186 / `TEAM_WIN_KEYS`:207 / _global_stats:210 / `RANGES`:258 / players_seen:262 / _players_seen:270 / warm:308
 
 ### `app/backend/api/permissions.py` (87 lines)
 Permissions page (user, 2026-10-30): console users give or take away Admin (the Status page), the Console and the Preview,

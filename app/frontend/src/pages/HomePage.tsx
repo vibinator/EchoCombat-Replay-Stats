@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
-import { getActivity, getLastMatch, getLive, getOverview, getPlayersSeen, type GearShare, type MatchSummary, type PlayersSeen } from "../api";
+import { getActivity, getLastMatch, getLatestMatches, getLive, getOverview, getPlayersSeen, type GearShare, type MatchSummary, type PlayersSeen } from "../api";
 import { BarChart, StackedBarChart } from "../components/charts";
 import { MatchCards } from "../components/MatchCards";
 import { EmptyState, FitText, Skeleton } from "../components/ui";
@@ -236,6 +236,14 @@ export function HomePage() {
   }, []);
   const o = overview.data;
   const g = o?.global;
+  // the newest matches are asked separately: the overview is rebuilt only every few minutes
+  const [polled, setPolled] = useState<MatchSummary[] | null>(null);
+  useWhileVisible(() => {
+    getLatestMatches()
+      .then(setPolled)
+      .catch(() => undefined); // keep what is shown
+  }, LAST_MATCH_POLL_MS);
+  const latest = polled ?? o?.latest ?? [];
 
   return (
     <section>
@@ -264,7 +272,7 @@ export function HomePage() {
                 <div className="card"><span className="label">Matches today</span><strong>{o.today.toLocaleString()}</strong></div>
                 <div className="card"><span className="label">This week</span><strong>{o.this_week.toLocaleString()}</strong></div>
                 <LastMatchCard fromOverview={o.last_match_at} />
-                <RecentlyPlayedCard latest={o.latest[0]} />
+                <RecentlyPlayedCard latest={latest[0]} />
               </div>
 
               {/* live video left, the newest matches right (compact, scrolls within the video's height); stacked on
@@ -287,7 +295,7 @@ export function HomePage() {
                     </span>
                   </div>
                   <div className="live-latest-matches">
-                    <MatchCards matches={o.latest} compact />
+                    <MatchCards matches={latest} compact />
                   </div>
                 </div>
               </div>

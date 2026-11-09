@@ -87,7 +87,7 @@ def main() -> int:
         "/api/leaderboard/stats", "/api/leaderboard/gear", "/api/leaderboard/achievers",
         "/api/achievements", f"/api/achievements?player={uid}", "/api/achievements/recent", "/api/challenges",
         "/api/overview", "/api/overview/activity?bucket=day", "/api/overview/activity?bucket=month", "/api/overview/players-seen",
-        "/api/overview/processing", "/api/overview/last-match", "/api/overview/live", "/api/search?q=a", f"/api/search?q=%23{mid}",
+        "/api/overview/processing", "/api/overview/last-match", "/api/overview/latest", "/api/overview/live", "/api/search?q=a", f"/api/search?q=%23{mid}",
         "/api/combat/summary", "/api/combat/stats", "/api/combat/stats?map=surge", "/api/combat/leaderboard",
         "/api/combat/leaderboard?stat=kills&period=month", "/api/combat/matches", f"/api/combat/players/{uid}",
         "/api/arena/visible", "/api/arena/progress", "/api/arena/search?q=a", f"/api/avatars?ids={uid}",

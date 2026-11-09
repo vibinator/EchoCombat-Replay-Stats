@@ -56,6 +56,11 @@ def test_processing_is_zero_once_everything_is_read(client):
     assert client.get("/api/overview/processing").json() == {"pending": 0}
 
 
+def test_latest_matches_are_the_overviews(client):
+    latest = client.get("/api/overview/latest").json()
+    assert latest and latest == client.get("/api/overview").json()["latest"]
+
+
 def test_last_match_matches_the_overview(client):
     last = client.get("/api/overview/last-match").json()["last_match_at"]
     assert last and last == client.get("/api/overview").json()["last_match_at"]

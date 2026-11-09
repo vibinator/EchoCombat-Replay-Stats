@@ -43,7 +43,7 @@ def _overview(request: Request, v: visibility.View = visibility.ALL_SHOWN) -> di
             .where(Match.started_at >= week, m).group_by(Player.id)
             .order_by(func.count().desc(), *([func.sum(won).desc()] if wl else []), Player.id).limit(5)
         ).all()
-        latest = db.scalars(select(Match).where(m).order_by(Match.started_at.desc()).limit(8)).all()
+        latest = _latest_matches(db)
         globals_ = _global_stats(db)
         if not wl:  # team win rates too (user, 2026-11-02)
             globals_ = visibility.without(globals_, TEAM_WIN_KEYS)
@@ -63,6 +63,23 @@ def _overview(request: Request, v: visibility.View = visibility.ALL_SHOWN) -> di
                           for u, n, g, w in top_week],
         "latest": [match_summary(m) for m in latest],
     }
+
+
+LATEST_MATCHES = 8  # how many the home page's "Latest matches" list shows
+
+
+def _latest_matches(db) -> list[Match]:
+    """The newest matches (duplicate recordings left out), via the started_at index."""
+    return list(db.scalars(select(Match).where(counted(Match.id)).order_by(Match.started_at.desc()).limit(LATEST_MATCHES)))
+
+
+@router.get("/api/overview/latest")
+def latest_matches(request: Request):
+    """The home page's "Latest matches" list on its own: the overview is rebuilt at most every cache_refresh_s (it is
+    archive-wide and slow), this reads a handful of rows via an index, so a new match shows within a minute
+    (Cloudflare keeps it ECHOVR_EDGE_CACHE_S). Same rows as overview["latest"]."""
+    with request.app.state.sessionmaker() as db:
+        return [match_summary(m) for m in _latest_matches(db)]
 
 
 @router.get("/api/overview/processing")

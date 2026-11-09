@@ -1796,12 +1796,10 @@ td.best {
   scroll-snap-type: x proximity;
 }
 .recent-unlocks li {
-  flex: 0 0 min(230px, 75vw);
-  display: grid;
-  grid-template-columns: 28px 1fr;
-  grid-template-areas: "icon text" "icon desc" "icon date";
-  column-gap: 8px;
-  align-items: center;
+  flex: 0 0 min(250px, 80vw);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -1809,8 +1807,27 @@ td.best {
   scroll-snap-align: start;
   font-size: 0.85rem;
 }
+.recent-unlocks .rank {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.recent-unlocks .name {
+  font-weight: 700;
+  font-size: 1rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.recent-unlocks .big {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.1rem;
+  line-height: 1.3;
+}
 .recent-unlocks .recent-glyph {
-  grid-area: icon;
+  flex: none;
   display: block;
   width: 28px;
   height: 28px;
@@ -1825,26 +1842,9 @@ td.best {
 .recent-unlocks .recent-glyph.t-platinum { --tier: var(--tier-platinum); }
 .recent-unlocks .recent-glyph.t-crown { --tier: var(--tier-crown); }
 .recent-unlocks img {
-  grid-area: icon;
+  flex: none;
   width: 28px;
   height: 28px;
-}
-.recent-unlocks li > span:first-of-type {
-  grid-area: text;
-  min-width: 0;
-}
-/* the inline-flex name sat on the text baseline of its own box, pushing "earned" lower than the name */
-.recent-unlocks .who { vertical-align: middle; }
-.recent-unlocks .desc {
-  grid-area: desc;
-  min-width: 0;
-  font-size: 0.75rem;
-  color: var(--muted);
-  margin: 2px 0;
-}
-.recent-unlocks .muted {
-  grid-area: date;
-  font-size: 0.75rem;
 }
 /* Top players and Recent medals share the row 50:50 (user, 2026-11-06): each pane shows only as many cards as fit its half
    (extra grid rows are 0 high and clipped), so nothing scrolls sideways */
@@ -1855,15 +1855,11 @@ td.best {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); grid-template-rows: auto; grid-auto-rows: 0; gap: 0 8px; overflow: hidden; padding: 0; margin-bottom: 8px;
 }
 /* no bottom padding on the clipped grid: the top edges of the hidden rows' cards showed through it as a stripe under the cards */
-.ach-duo .recent-unlocks li > span:first-of-type { line-height: 1.7; }
-.ach-duo .recent-unlocks .who, .ach-duo .recent-unlocks .medal-chip { vertical-align: middle; }
-.ach-duo .recent-unlocks .medal-chip { line-height: 1.4; }
 .ach-duo .top-players li, .ach-duo .recent-unlocks li { flex: none; min-width: 0; overflow: hidden; }
 /* every card in both panes the same height (user, 2026-11-09); the Recent medals text is centred in its card */
 .ach-duo .top-players li, .ach-duo .recent-unlocks li { min-height: var(--ach-card-h, 19rem); box-sizing: border-box; }
-.ach-duo .top-players li { gap: 1px; padding: 8px 12px; }
+.ach-duo .top-players li, .ach-duo .recent-unlocks li { gap: 1px; padding: 8px 12px; }
 @media (max-width: 700px) { .ach-duo { grid-template-columns: 1fr; } .ach-duo .top-players li, .ach-duo .recent-unlocks li { min-height: 0; } }
-.ach-duo .recent-unlocks li { align-content: center; }
 @media (max-width: 900px) { .ach-duo { grid-template-columns: 1fr; } }
 .medal-chip {
   display: inline-block;

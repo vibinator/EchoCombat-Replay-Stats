@@ -103,13 +103,11 @@ function RecentUnlocks() {
       <ul className="recent-unlocks" tabIndex={0} aria-label="Recent medals, scroll sideways">
         {recent.data.map((e, i) => (
           <li key={`${e.user_id}-${e.id}-${i}`}>
-            <RecentIcon icon={e.icon} medal={e.medal} />
-            <span>
-              <span className="who"><Avatar name={e.name} url={avatars[e.user_id]} size={20} /><Link to={achievementsPath(e.user_id, e.name)}>{e.name}</Link></span> earned{" "}
-              <span className={`medal-chip ${e.medal ?? "gold"}`}>{e.medal ?? "completed"}</span> in <strong>{e.achievement}</strong>
-            </span>
-            <span className="desc">{medalRuleText(e.description, e.medal)}</span>
-            <span className="muted">{dateTime(e.at)}</span>
+            <span className="rank">{dateTime(e.at)}</span>
+            <span className="who"><Avatar name={e.name} url={avatars[e.user_id]} size={32} /><Link to={achievementsPath(e.user_id, e.name)} className="name">{e.name}</Link></span>
+            <strong className="big"><RecentIcon icon={e.icon} medal={e.medal} />{e.achievement}</strong>
+            <span className="muted">earned <span className={`medal-chip ${e.medal ?? "gold"}`}>{e.medal ?? "completed"}</span></span>
+            <span className="muted">{medalRuleText(e.description, e.medal)}</span>
           </li>
         ))}
       </ul>
