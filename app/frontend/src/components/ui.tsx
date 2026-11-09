@@ -47,6 +47,22 @@ export function InfoTip({ text }: { text?: string }) {
   );
 }
 
+/**
+ * A pane in a card grid that shows / hides the extra cards of that grid (user, 2026-11-09: a square pane like the cards
+ * beside it, not a dropdown under them). Used by the player page's "More stats" and the combat tab's awards not won yet.
+ */
+export function MoreCard({ open, count, onToggle, label = "More stats", detail }: {
+  open: boolean; count: number; onToggle: () => void; label?: string; detail?: string;
+}) {
+  return (
+    <button type="button" className="card more-card" aria-expanded={open} onClick={onToggle}>
+      <span className="label">{open ? "Show less" : label}</span>
+      <strong>{open ? "Hide" : `+${count}`}</strong>
+      {detail && <span className="muted footnote">{detail}</span>}
+    </button>
+  );
+}
+
 export function Skeleton({ lines = 3, cards = 0 }: { lines?: number; cards?: number }) {
   return (
     <div className="skeleton" aria-busy="true" aria-label="Loading">

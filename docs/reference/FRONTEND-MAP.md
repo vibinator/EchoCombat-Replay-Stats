@@ -25,8 +25,8 @@ lines and CRLF.
 ### `app/frontend/src/components/charts.tsx` (303 lines)
 - exports: BarDatum:7, BarChart:40, StackSeries:116, StackDatum:122, StackedBarChart:129, LinePoint:222, LineChart:228
 
-### `app/frontend/src/components/CombatView.tsx` (396 lines)
-- exports: awardHint:9, AwardBadge:14, AwardBadges:24, AwardGuide:52, WeaponList:94, EventCards:120, CombatSection:138, CombatMatchBody:296, MatchCombatSection:382
+### `app/frontend/src/components/CombatView.tsx` (399 lines)
+- exports: awardHint:10, AwardBadge:15, AwardBadges:25, AwardGuide:54, WeaponList:96, EventCards:122, CombatSection:140, CombatMatchBody:299, MatchCombatSection:385
 - api.ts calls: getCombatMatch, getCombatPlayer
 
 ### `app/frontend/src/components/common.tsx` (176 lines)
@@ -82,8 +82,8 @@ lines and CRLF.
 ### `app/frontend/src/components/TimelineView.tsx` (372 lines)
 - exports: TimelineView:50
 
-### `app/frontend/src/components/ui.tsx` (146 lines)
-- exports: WhenVisible:5, STAT_HELP:24, InfoTip:41, Skeleton:50, useActiveTabInView:69, FitText:86, EmptyState:116, ErrorBoundary:127
+### `app/frontend/src/components/ui.tsx` (162 lines)
+- exports: WhenVisible:5, STAT_HELP:24, InfoTip:41, MoreCard:54, Skeleton:66, useActiveTabInView:85, FitText:102, EmptyState:132, ErrorBoundary:143
 
 ### `app/frontend/src/format.ts` (155 lines)
 - exports: MAPS:3, MAP_MODE:6, nameSlug:9, achievementsPath:15, playerPath:21, duration:26, pct:35, num:40, int:45, hoursMinutes:50, instant:69, dateTime:80, ukDateTime:88, viewerZone:96, periodLabel:105, title:116, modeLabel:120, teamLabel:124, scoreText:128, ruleText:137, medalRuleText:143
@@ -128,8 +128,8 @@ lines and CRLF.
 - exports: PermissionsPage:21, Permissions:26
 - api.ts calls: changePermission, getPermissions
 
-### `app/frontend/src/pages/PlayerPage.tsx` (642 lines)
-- exports: PlayerPage:488
+### `app/frontend/src/pages/PlayerPage.tsx` (641 lines)
+- exports: PlayerPage:487
 - api.ts calls: getCombatPlayer, getCompanions, getPlayer, getPlayerHeatmap3d, getPlayerHeatmapBy, getTrends
 
 ### `app/frontend/src/pages/PlayersPage.tsx` (56 lines)

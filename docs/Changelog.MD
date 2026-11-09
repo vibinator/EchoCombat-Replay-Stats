@@ -18,6 +18,13 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.09.10 — 11:25
+
+- **"More stats" and "Show more" are now panes in the card grid, not dropdowns under it.** On the player page a "More stats +13" card
+  sits after the six headline cards; on the combat tab a "Show more +N" card sits after the awards won. Each is the same size and shape
+  as the cards beside it, opens the extra cards in the same grid, and turns into "Show less / Hide" to close them again. Nothing to
+  restart or re-read.
+
 ## 2026.11.09.9 — 11:16
 
 - **Player page, combat tab: only the awards a player has won are shown as cards.** The ones never won (0) are folded under

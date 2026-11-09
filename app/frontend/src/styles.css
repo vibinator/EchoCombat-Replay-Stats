@@ -1691,10 +1691,17 @@ section > .skeleton:first-child {
   text-underline-offset: 2px;
   cursor: pointer;
 }
-/* Player page: the cards past the headline six, folded */
-.more-stats { margin: 0.25rem 0 0.5rem; }
-.more-stats > summary { cursor: pointer; padding: 0.3rem 0; font-weight: 600; color: var(--muted); }
-.more-stats[open] > summary { margin-bottom: 0.5rem; }
+/* Player page: the "More stats" card that opens / closes the cards past the headline six, in the same grid */
+.card.more-card {
+  border: 1px solid transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.card.more-card strong { color: var(--blue); }
+.card.more-card:hover, .card.more-card:focus-visible { border-color: var(--blue); }
+.card.more-card .footnote { margin: 0; }
 /* what the period / map filter applies to, right under it */
 .filter-scope { margin: -4px 0 10px; }
 .profile-actions {

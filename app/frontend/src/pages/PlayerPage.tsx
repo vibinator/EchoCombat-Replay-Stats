@@ -11,7 +11,7 @@ import { LineChart } from "../components/charts";
 import { GearName, MatchTable, NotFoundBox, Status, TableWrap, TeamBadge, isNotFound } from "../components/common";
 import { HEATMAP_CELL_M, HEATMAP_MODES, HeatmapView } from "../components/HeatmapView";
 import { PlayerAvatar, PlayerBio, usePlayerBio } from "../components/PlayerBio";
-import { InfoTip, Skeleton, useActiveTabInView } from "../components/ui";
+import { InfoTip, MoreCard, Skeleton, useActiveTabInView } from "../components/ui";
 import { MAPS, dateTime, hoursMinutes, int, nameSlug, num, pct, periodLabel, playerPath, title } from "../format";
 import { useApi } from "../useApi";
 import { usePageTitle } from "../usePageTitle";
@@ -88,39 +88,38 @@ type Averages = NonNullable<PlayerProfile["site_avg"]>;
 const HEADLINE = ["Games", "Win rate", "Hours played", "Top speed", "Average speed", "Wins – losses", "Deaths / game*"];
 const HEADLINE_SIZE = 6;
 
-function StatCards({ rows }: { rows: CardRow[] }) {
+function StatCard({ row: [label, value, hint, under] }: { row: CardRow }) {
   return (
-    <div className="cards">
-      {rows.map(([label, value, hint, under]) => (
-        <div className="card" key={label}>
-          <span className="label">
-            {label}
-            <InfoTip text={hint} />
-          </span>
-          {typeof value === "string" ? <strong>{value}</strong> : value}
-          {under}
-        </div>
-      ))}
+    <div className="card">
+      <span className="label">
+        {label}
+        <InfoTip text={hint} />
+      </span>
+      {typeof value === "string" ? <strong>{value}</strong> : value}
+      {under}
     </div>
   );
 }
 
-/** A handful of headline cards, the rest folded under "More stats" so the tabs are not pushed far down the page. */
+/**
+ * A handful of headline cards; the rest open from a "More stats" card in the same grid (user, 2026-11-09: a pane, not a
+ * dropdown under the cards), so the tabs are not pushed far down the page. The same card closes them again.
+ */
 function ProfileCards({ rows }: { rows: CardRow[] }) {
+  const [open, setOpen] = useState(false);
   const headline = HEADLINE.map((label) => rows.find(([l]) => l === label)).filter((r): r is CardRow => !!r).slice(0, HEADLINE_SIZE);
   const rest = rows.filter((r) => !headline.includes(r));
-  const estimated = (list: CardRow[]) => list.some(([label]) => label.endsWith("*"));
+  const shown = open ? [...headline, ...rest] : headline;
   return (
     <>
-      <StatCards rows={headline} />
-      {rest.length > 0 && (
-        <details className="more-stats">
-          <summary>More stats ({rest.length})</summary>
-          <StatCards rows={rest} />
-          {estimated(rest) && !estimated(headline) && <p className="muted footnote">* Estimated.</p>}
-        </details>
-      )}
-      {estimated(headline) && <p className="muted footnote">* Estimated.</p>}
+      <div className="cards">
+        {shown.map((row) => <StatCard key={row[0]} row={row} />)}
+        {rest.length > 0 && (
+          <MoreCard open={open} count={rest.length} onToggle={() => setOpen(!open)}
+            detail={open ? `Back to the top ${headline.length}` : "Movement, positioning, connection…"} />
+        )}
+      </div>
+      {shown.some(([label]) => label.endsWith("*")) && <p className="muted footnote">* Estimated.</p>}
     </>
   );
 }

@@ -1,7 +1,8 @@
+import { useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import { getCombatAwards, getCombatMatch, getCombatPlayer, type CombatAward, type CombatAwardCount, type CombatAwardsWon, type CombatEvents, type CombatMatchDetail, type CombatMatchPlayer, type CombatWeapon, type Period } from "../api";
 import { LocalTime, TableWrap, TeamBadge } from "./common";
-import { InfoTip } from "./ui";
+import { InfoTip, MoreCard } from "./ui";
 import { duration, hoursMinutes, int, num, playerPath, title } from "../format";
 import { useApi } from "../useApi";
 
@@ -28,7 +29,7 @@ export function AwardBadges({ awards }: { awards: CombatAwardsWon | undefined })
 }
 
 /** Award cards with the number of times won; a 0 card is dimmed. */
-function AwardCards({ cards }: { cards: CombatAwardCount[] }) {
+function AwardCards({ cards, children }: { cards: CombatAwardCount[]; children?: ReactNode }) {
   return (
     <div className="cards award-cards">
       {cards.map((a) => (
@@ -41,6 +42,7 @@ function AwardCards({ cards }: { cards: CombatAwardCount[] }) {
           <span className="muted footnote award-stat">{a.stat || a.description}</span>
         </div>
       ))}
+      {children}
     </div>
   );
 }
@@ -137,7 +139,8 @@ export function EventCards({ e, matches }: { e: Pick<CombatEvents, "shots" | "ta
  */
 export function CombatSection({ userId, period, map }: { userId: string; period: Period; map: string }) {
   const { data } = useApi(() => getCombatPlayer(userId, period, map || undefined), `combat|${userId}|${period}|${map}`);
-  const guide = useApi(getCombatAwards, "combat-awards").data; // every award the game can give, so the ones not won show 0
+  const guide = useApi(getCombatAwards, "combat-awards").data;
+  const [showZero, setShowZero] = useState(false); // every award the game can give, so the ones not won show 0
   if (!data || !data.matches || !data.stats) return null;
   const s = data.stats;
   const e = data.events;
@@ -170,14 +173,14 @@ export function CombatSection({ userId, period, map }: { userId: string; period:
             {data.awards.matches < data.matches && " (matches recorded before 9 November 2026 do not carry awards)"}.</>
           : <>None of these {int(data.matches)} match{data.matches === 1 ? "" : "es"} carry awards yet: the game&apos;s award cards are recorded from 9 November 2026 onwards.</>}
       </p>
-      {wonCards.length > 0 ? <AwardCards cards={wonCards} /> : <p className="muted">No awards won yet.</p>}
-      {/* awards never won (0) are folded away so the ones that were won stand out */}
-      {zeroCards.length > 0 && (
-        <details className="more-stats">
-          <summary>Show more ({zeroCards.length} not won yet)</summary>
-          <AwardCards cards={zeroCards} />
-        </details>
-      )}
+      {wonCards.length === 0 && <p className="muted">No awards won yet.</p>}
+      {/* awards never won (0) open from a "Show more" pane in the same grid, so the ones that were won stand out */}
+      <AwardCards cards={showZero ? awardCards : wonCards}>
+        {zeroCards.length > 0 && (
+          <MoreCard open={showZero} count={zeroCards.length} onToggle={() => setShowZero(!showZero)} label="Show more"
+            detail={showZero ? "Hide the awards not won" : "Awards not won yet"} />
+        )}
+      </AwardCards>
       <AwardGuide />
 
       <h3>Game counters</h3>
