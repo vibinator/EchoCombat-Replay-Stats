@@ -128,8 +128,8 @@ lines and CRLF.
 - exports: PermissionsPage:21, Permissions:26
 - api.ts calls: changePermission, getPermissions
 
-### `app/frontend/src/pages/PlayerPage.tsx` (573 lines)
-- exports: PlayerPage:410
+### `app/frontend/src/pages/PlayerPage.tsx` (642 lines)
+- exports: PlayerPage:488
 - api.ts calls: getCombatPlayer, getCompanions, getPlayer, getPlayerHeatmap3d, getPlayerHeatmapBy, getTrends
 
 ### `app/frontend/src/pages/PlayersPage.tsx` (56 lines)

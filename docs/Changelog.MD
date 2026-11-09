@@ -18,6 +18,19 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.09.6 — 11:04
+
+### Player page: easier to read
+- **Six headline cards, the rest under "More stats".** Games, win rate, hours played, top speed, average speed and wins – losses stay
+  at the top. The other cards (ping, packet loss, idle, inverted, near a teammate / enemy, emotes, arm, modes...) are folded under a
+  "More stats (N)" line, so the tabs are no longer pushed far down the page, especially on phones.
+- **A line under the period / map filter says what it changes.** It names the stats and the open tab when they follow it, and says
+  so when a tab has its own time choice (Trends, Played with), always counts all time (Achievements) or has its own map picker
+  (Heatmap).
+- **"From the game" in the header:** K/D, kills, MVPs and awards from the game's own counters, all time, with an ⓘ saying it is a
+  separate source from the replay stats. Clicking it opens the combat tab. Shown only for players with recorder reports.
+- Nothing to restart or re-read.
+
 ## 2026.11.09.5 — 10:53
 - **Player page, Combat tab: the Awards block now lists all 16 of the game's awards**, with 0 (dimmed) for the ones the player has
   not won yet, most-won first. Before, only the awards won were listed. Nothing to restart or re-read.

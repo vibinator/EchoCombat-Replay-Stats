@@ -2,7 +2,7 @@ import { type ReactNode, useState } from "react";
 import { Link, Navigate, useParams, useSearchParams } from "react-router";
 import {
   getCombatPlayer, getCompanions, getPlayer, getPlayerHeatmap3d, getPlayerHeatmapBy, getTrends,
-  type Companion, type CompanionWindow, type GearUse, type GearUseSet, type HeatmapLayerMode, type Period, type PlayerProfile, type PlayerStats, type TrendPoint,
+  type CombatPlayerStats, type Companion, type CompanionWindow, type GearUse, type GearUseSet, type HeatmapLayerMode, type Period, type PlayerProfile, type PlayerStats, type TrendPoint,
 } from "../api";
 import { AchievementsStrip, AchievementsSummary } from "../components/AchievementsView";
 import { CombatSection } from "../components/CombatView";
@@ -84,6 +84,47 @@ type CardRow = [string, ReactNode, string?, ReactNode?];
 
 type Averages = NonNullable<PlayerProfile["site_avg"]>;
 
+// the cards always shown at the top (the first HEADLINE_SIZE of these that exist); every other card is under "More stats"
+const HEADLINE = ["Games", "Win rate", "Hours played", "Top speed", "Average speed", "Wins – losses", "Deaths / game*"];
+const HEADLINE_SIZE = 6;
+
+function StatCards({ rows }: { rows: CardRow[] }) {
+  return (
+    <div className="cards">
+      {rows.map(([label, value, hint, under]) => (
+        <div className="card" key={label}>
+          <span className="label">
+            {label}
+            <InfoTip text={hint} />
+          </span>
+          {typeof value === "string" ? <strong>{value}</strong> : value}
+          {under}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** A handful of headline cards, the rest folded under "More stats" so the tabs are not pushed far down the page. */
+function ProfileCards({ rows }: { rows: CardRow[] }) {
+  const headline = HEADLINE.map((label) => rows.find(([l]) => l === label)).filter((r): r is CardRow => !!r).slice(0, HEADLINE_SIZE);
+  const rest = rows.filter((r) => !headline.includes(r));
+  const estimated = (list: CardRow[]) => list.some(([label]) => label.endsWith("*"));
+  return (
+    <>
+      <StatCards rows={headline} />
+      {rest.length > 0 && (
+        <details className="more-stats">
+          <summary>More stats ({rest.length})</summary>
+          <StatCards rows={rest} />
+          {estimated(rest) && !estimated(headline) && <p className="muted footnote">* Estimated.</p>}
+        </details>
+      )}
+      {estimated(headline) && <p className="muted footnote">* Estimated.</p>}
+    </>
+  );
+}
+
 /** Per month, all time: the line under a card. */
 function trend(items: TrendPoint[] | undefined, key: "games" | "avg_speed" | "deaths_per_game_est" | "avg_ping", label: string): ReactNode {
   if (!items || items.length < 2) return undefined;
@@ -127,7 +168,29 @@ function cards(s: PlayerStats, avg: Averages = {}, months?: TrendPoint[]): CardR
   return list;
 }
 
-function ProfileHeader({ p }: { p: PlayerProfile }) {
+/**
+ * The game's own numbers in the header (all time), from the recorder's match reports: a separate source from the replay
+ * stats, labelled as such. Opens the Combat tab. Nothing when the player has no reports.
+ */
+function GameFacts({ c, onOpen }: { c: CombatPlayerStats | null; onOpen: () => void }) {
+  if (!c?.matches || !c.stats) return null;
+  const mvp = c.awards?.items.find((a) => a.key === "mvp")?.count ?? 0;
+  const parts = [
+    `K/D ${c.stats.kd == null ? "–" : num(c.stats.kd, 2)}`,
+    `${int(c.stats.kills)} kills`,
+    ...(c.awards ? [`${int(mvp)} MVP${mvp === 1 ? "" : "s"}`, `${int(c.awards.total)} award${c.awards.total === 1 ? "" : "s"}`] : []),
+  ];
+  return (
+    <span className="game-facts">
+      <span className="muted">From the game</span>
+      <InfoTip text={`The game's own counters from ${int(c.matches)} recorded match${c.matches === 1 ? "" : "es"}, all time. A separate source from the replay stats on this page, so numbers can differ.`} />
+      {": "}
+      <button type="button" className="link-button" onClick={onOpen}>{parts.join(" · ")}</button>
+    </span>
+  );
+}
+
+function ProfileHeader({ p, combat, onOpenCombat }: { p: PlayerProfile; combat: CombatPlayerStats | null; onOpenCombat: () => void }) {
   const main = p.loadouts[0];
   // no `result` while win-loss stats are hidden from players: no form strip then
   const form = p.recent_matches.slice(0, 10).filter((m) => m.result !== undefined);
@@ -146,6 +209,7 @@ function ProfileHeader({ p }: { p: PlayerProfile }) {
           {p.merged_ids.length > 0 && ` · merged with ${p.merged_ids.length} other ID${p.merged_ids.length > 1 ? "s" : ""}`}
         </p>
         <div className="profile-facts">
+          <GameFacts c={combat} onOpen={onOpenCombat} />
           {main && (
             <span>
               Main loadout: <GearName item={main.weapon} /> · <GearName item={main.ordnance} /> · <GearName item={main.tacmod} />
@@ -398,6 +462,20 @@ const PLAYER_TABS: [PlayerTab, string, string][] = [
   ["heatmap", "Heatmap", "Where they spend the match"],
 ];
 
+/** Which parts of the page the period / map filter changes, for the line under it (it used to look like it set every tab). */
+function filterScope(tab: PlayerTab): string {
+  const base = "The period and map apply to the stats below";
+  switch (tab) {
+    case "overview": return `${base} and the recent matches.`;
+    case "combat": return `${base} and the combat stats in this tab.`;
+    case "gear": return `${base} and the loadouts in this tab.`;
+    case "heatmap": return `${base}. The heatmap follows the period; choose its map in the heatmap itself.`;
+    case "trends": return `${base} only. Trends always cover all time, by week, month or year.`;
+    case "companions": return `${base} only. Played with has its own time window.`;
+    case "achievements": return `${base} only. Achievements always count all time.`;
+  }
+}
+
 function PlayerNotFound() {
   usePageTitle("Player not found");
   return (
@@ -421,6 +499,8 @@ export function PlayerPage() {
   // the combat tab only exists when there is combat data for this player (the same cached request the tab itself makes)
   const combat = useApi(() => getCombatPlayer(userId, period, map || undefined), `combat|${userId}|${period}|${map}`);
   const hasCombat = !!combat.data?.matches && !!combat.data.stats;
+  // the header's "From the game" line is all time: the same cached request as the tab when no filter is set
+  const combatAll = useApi(() => getCombatPlayer(userId, "all"), `combat|${userId}|all|`);
   const tabs = PLAYER_TABS.filter(([t]) => (t !== "combat" || hasCombat) && (hasGames || t === "overview" || t === "achievements" || t === "combat"));
   const asked = params.get("tab") === "beta" ? "combat" : params.get("tab"); // ?tab=beta: older links to this tab
   const tab = tabs.some(([t]) => t === asked) ? (asked as PlayerTab) : "overview";
@@ -452,7 +532,7 @@ export function PlayerPage() {
       {isNotFound(profile.error) ? <PlayerNotFound /> : <Status loading={false} error={profile.error} />}
       {p && (
         <>
-          <ProfileHeader p={p} />
+          <ProfileHeader p={p} combat={combatAll.data} onOpenCombat={() => setTab("combat")} />
 
           {tab !== "achievements" && <AchievementsStrip userId={p.user_id} onOpen={() => setTab("achievements")} />}
 
@@ -472,24 +552,13 @@ export function PlayerPage() {
               </select>
             </label>
           </div>
+          <p className="muted footnote filter-scope">{filterScope(tab)}</p>
 
           {p.stats.games === 0 ? (
             <p className="muted">No matches in this period.</p>
           ) : (
             <>
-              <div className="cards">
-                {cards(p.stats, p.site_avg, months.data?.items).map(([label, value, hint, under]) => (
-                  <div className="card" key={label}>
-                    <span className="label">
-                      {label}
-                      <InfoTip text={hint} />
-                    </span>
-                    {typeof value === "string" ? <strong>{value}</strong> : value}
-                    {under}
-                  </div>
-                ))}
-              </div>
-              <p className="muted footnote">* Estimated.</p>
+              <ProfileCards rows={cards(p.stats, p.site_avg, months.data?.items)} />
             </>
           )}
 

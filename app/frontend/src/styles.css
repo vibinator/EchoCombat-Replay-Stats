@@ -1678,6 +1678,25 @@ section > .skeleton:first-child {
   gap: 6px 18px;
   font-size: 0.9rem;
 }
+.profile-facts .game-facts { flex-basis: 100%; }
+/* a button that reads as a link (the header's "From the game" numbers open the Combat tab) */
+.link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--blue);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+/* Player page: the cards past the headline six, folded */
+.more-stats { margin: 0.25rem 0 0.5rem; }
+.more-stats > summary { cursor: pointer; padding: 0.3rem 0; font-weight: 600; color: var(--muted); }
+.more-stats[open] > summary { margin-bottom: 0.5rem; }
+/* what the period / map filter applies to, right under it */
+.filter-scope { margin: -4px 0 10px; }
 .profile-actions {
   display: flex;
   flex-wrap: wrap;
