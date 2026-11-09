@@ -618,7 +618,7 @@ export interface AchievementRule {
   name: string;
   description: string;
   rules?: string[]; // how it is counted (best game / day / 7 days, minimum length, 3v3+, "only" share)
-  period: "game" | "day" | "week" | "all";
+  period: "game" | "day" | "week" | "month" | "all";
   icon: string | null;
   estimated: boolean;
   counted: boolean; // false: the Combat section, from the recorder's reports: earns medals, out of overall %, totals and Medal Collector

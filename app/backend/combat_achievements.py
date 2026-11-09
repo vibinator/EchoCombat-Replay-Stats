@@ -88,6 +88,38 @@ COMBAT_RULES: list[Rule] = [
     _rule(198, "Siege Breaker", "Deal objective damage in one game", None, lambda g: g.objective_damage, (500, 900, 1300, 1700, 2000), "game"),
     _rule(199, "Field Medic", "Use heal bubbles in one game", None, lambda g: g.heal_bubbles, (2, 4, 6, 7, 9), "game"),
     _rule(200, "Shock Trooper", "Stun enemies in one game", None, lambda g: g.stuns_given, (1, 2, 3, 4, 5), "game"),
+    # Second set (user, 2026-11-09: new one game / one day / one month / all-time Combat challenges). Targets from 435 reports
+    # (4-9 Nov 2026, 1451 counted games, 251 players): one game and one day from the top 40 / 20 / 12 / 7.5 % up to ~1.3x the top 5 % (bests rise over time);
+    # 30 days and all time are estimates from that pace (only 6 days of reports so far), kept below the all-time ladders.
+    # In one game
+    _rule(202, "All-Rounder", "Get kills, assists and objective eliminations in one game (counts the lowest of the three)", None,
+          lambda g: min(g.kills, g.assists, g.objective_eliminations), (6, 9, 11, 13, 15), "game"),
+    _rule(203, "Untouchable", "Get kills in one game while dying 3 times or fewer", "deaths",
+          lambda g: g.kills if g.deaths <= 3 else 0, (3, 6, 8, 10, 12), "game"),
+    # In one day
+    _rule(204, "Wrecking Ball", "Deal damage in one day", "enemy_proximity", lambda g: g.damage, (3000, 5000, 9000, 14000, 20000), "day"),
+    _rule(205, "Objective Grind", "Get objective eliminations in one day", None, lambda g: g.objective_eliminations, (18, 30, 50, 80, 110), "day"),
+    _rule(206, "Hold the Line", "Spend time on the objective yourself in one day, in minutes", None, lambda g: g.objective_time / 60,
+          (3, 5, 8, 14, 20), "day", " min"),
+    _rule(207, "Triage", "Use heal bubbles in one day", "repair_matrix", lambda g: g.heal_bubbles, (5, 10, 18, 28, 40), "day"),
+    _rule(208, "Hot Hand", "Games in one day where you got the most kills in the match (a tie counts)", None, lambda g: g.top_fragger,
+          (1, 2, 3, 4, 5), "day"),
+    # In any 30 days
+    _rule(209, "Campaign", "Get kills in any 30 days", "deaths", lambda g: g.kills, (40, 100, 200, 350, 500), "month"),
+    _rule(210, "Backbone", "Get assists in any 30 days", "team_proximity", lambda g: g.assists, (50, 120, 240, 420, 600), "month"),
+    _rule(211, "Artillery", "Deal damage in any 30 days", "enemy_proximity", lambda g: g.damage, (7000, 18000, 36000, 63000, 90000), "month"),
+    _rule(212, "Siege Season", "Get objective eliminations in any 30 days", None, lambda g: g.objective_eliminations, (40, 100, 200, 350, 500), "month"),
+    _rule(213, "Headliner", "Games in any 30 days where you got the most kills in the match (a tie counts)", None, lambda g: g.top_fragger,
+          (2, 5, 10, 18, 30), "month"),
+    _rule(214, "In the Green", "Games in any 30 days with more kills than deaths", "deaths", lambda g: g.kills > g.deaths, (3, 8, 15, 28, 45), "month"),
+    _rule(215, "Field Hospital", "Use heal bubbles in any 30 days", "repair_matrix", lambda g: g.heal_bubbles, (10, 30, 60, 100, 150), "month"),
+    # All time
+    _rule(216, "Objective Veteran", "Total objective eliminations", None, lambda g: g.objective_eliminations, (50, 150, 350, 700, 1200), "all"),
+    _rule(217, "Holding Ground", "Total time on the objective yourself, in minutes", None, lambda g: g.objective_time / 60, (5, 20, 50, 100, 180), "all", " min"),
+    _rule(218, "Siege Engine", "Total objective damage", None, lambda g: g.objective_damage, (4000, 12000, 30000, 60000, 100000), "all"),
+    _rule(219, "Lifeline", "Total heal bubbles used", "repair_matrix", lambda g: g.heal_bubbles, (20, 60, 150, 300, 500), "all"),
+    _rule(220, "Live Wire", "Total enemies stunned", "stun_field", lambda g: g.stuns_given, (3, 10, 25, 50, 90), "all"),
+    _rule(221, "Positive Record", "Games with more kills than deaths", "deaths", lambda g: g.kills > g.deaths, (5, 20, 50, 90, 150), "all"),
 ]
 
 

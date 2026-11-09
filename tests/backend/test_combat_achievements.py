@@ -24,7 +24,7 @@ def results(games):
 
 def test_kept_apart_from_the_replay_rules():
     ids = {r.id for r in RULES_HERE}
-    assert ids == set(range(164, 179)) | {198, 199, 200} and not ids & {r.id for r in RULES}
+    assert ids == set(range(164, 179)) | set(range(198, 201)) | set(range(202, 222)) and not ids & {r.id for r in RULES}
     assert all(r.group == "Combat" and r.new and not r.counted for r in RULES_HERE)
     # the module cannot read a replay table: it imports only the combat ones
     tree = ast.parse(Path(ca.__file__).read_text(encoding="utf-8"))
@@ -53,8 +53,26 @@ def test_days_and_all_time():
 
 def test_assists_are_above_kills_at_every_medal():
     levels = {r.id: r.levels for r in RULES_HERE}
-    for kills, assists in ((164, 165), (171, 172), (173, 174)):
+    for kills, assists in ((164, 165), (171, 172), (209, 210), (173, 174)):
         assert all(a > k for k, a in zip(levels[kills], levels[assists]))
+
+
+def test_second_set_one_game_and_one_day():
+    r = results([game(kills=9, assists=7, deaths=3, objective=8, top=True), game(kills=12, deaths=4, damage=5000.0, time_s=300.0, top=True)])
+    assert r[202]["count"] == 7  # the lowest of kills / assists / objective eliminations in the best game
+    assert r[203]["count"] == 9  # 12 kills with 4 deaths do not count
+    assert r[204]["count"] == 5000 and r[206]["count"] == 5 and r[208]["count"] == 2  # one day: 300 s = 5 min, two top-fragger games
+    assert rule_notes(next(x for x in RULES_HERE if x.id == 209))[0] == "Best 30 days"
+
+
+def test_any_30_days_is_a_rolling_window():
+    games = [game(kills=30, deaths=1, started="2026-11-05T20:00:00"), game(kills=30, deaths=40, started="2026-12-04T19:00:00"),
+             game(kills=30, deaths=1, started="2026-12-05T21:00:00")]
+    r = results(games)
+    assert r[209]["count"] == 60 and r[214]["count"] == 1  # 5 Nov + 4 Dec are inside 30 days, 5 Dec is not
+    assert r[173]["count"] == 90 and r[221]["count"] == 2  # all time keeps everything
+    times = medal_times(games, RULES_HERE)
+    assert times[209]["bronze"] == "2026-12-04T19:00:00"  # complete at the window's last game, like the 7 days
 
 
 def test_medal_dates():

@@ -18,6 +18,20 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.09.12 — 12:40
+
+- **20 new Combat challenges, and a new "Month" page on the Achievements page.** All come from the recorder's match reports only, like
+  the other Combat challenges, and like them they don't count toward overall progress, totals or Medal Collector. Targets are
+  provisional, set from 435 reports (4-9 Nov, 1451 counted games).
+  - In one game: All-Rounder (kills, assists and objective eliminations, the lowest of the three counts), Untouchable (kills while dying 3 times or fewer).
+  - In one day: Wrecking Ball (damage), Objective Grind (objective eliminations), Hold the Line (minutes on the objective), Triage
+    (heal bubbles), Hot Hand (top-fragger games).
+  - In any 30 days (new period, rolling like "any 7 days"): Campaign (kills), Backbone (assists), Artillery (damage), Siege Season
+    (objective eliminations), Headliner (top-fragger games), In the Green (games with more kills than deaths), Field Hospital (heal bubbles).
+  - All time: Objective Veteran (objective eliminations), Holding Ground (minutes on the objective), Siege Engine (objective damage),
+    Lifeline (heal bubbles), Live Wire (stuns), Positive Record (games with more kills than deaths).
+  Nothing to restart or re-read: the cards appear when the new version runs.
+
 ## 2026.11.09.11 — 12:03
 
 ## 2026.11.09.10 — 11:25

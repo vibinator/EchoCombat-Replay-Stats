@@ -100,7 +100,7 @@ Combat tab (the cards as the game showed them: winner, value; badges beside the 
 uses them yet (one match with award data on 2026-11-09; see "Ideas for later").
 
 ## Achievements
-The Combat section of the Achievements page (ids 164-178 and 198-200, `combat_achievements.py`) is built only from `combat_matches` and
+The Combat section of the Achievements page (ids 164-178, 198-200 and 202-221, `combat_achievements.py`) is built only from `combat_matches` and
 `combat_players`, plus `player_aliases` so merged accounts add up. It reuses the medal engine but keeps its own rule list,
 `COMBAT_RULES`, which is not in `RULES`, so replay-based overall %, totals, rankings and Medal Collector never include it. The
 `/api/players/{id}/achievements`, `/api/achievements` and `/api/achievements/recent` answers add its cards after the replay ones.
@@ -116,6 +116,12 @@ Targets are provisional and will be re-tuned as data comes in. All-time targets 
 Calibration data (`E:\ECRanked\matches`, 4 Nov 15:17 to 5 Nov 14:15): 90 matches, 83 of them 4+ minutes, 38 with 3+ players per team,
 551 player-games, 264 counted, 140 players, 92 with a counted game. All-time targets are estimates. Assists stay above kills at
 every medal (user, 2026-11-05; tested).
+
+Second set (user, 2026-11-09, ids 202-221): one game, one day, any 30 days and all time. The "any 30 days" period (`month`) is new in the
+medal engine, a rolling window like "any 7 days" (complete at the window's last game), and so far only Combat uses it; the site shows it
+as the "Month" page. Calibration: 435 reports (4-9 Nov 2026), 1451 counted games, 251 players. One-game and one-day targets run from the
+top 40 / 20 / 12 / 7.5 % up to about 1.3x the top 5 %; 30-day and all-time targets are estimates (only 6 days of reports), kept below
+the matching all-time ladders. Heal bubble and stun targets use complete event logs only, as before.
 
 Left out, from the review of the same reports:
 - **Eliminations:** always exactly kills + assists (551 of 551 rows), although FORMATS.md calls it a separate counter.

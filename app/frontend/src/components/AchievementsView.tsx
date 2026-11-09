@@ -14,6 +14,7 @@ export const GROUPS: [Achievement["period"], string][] = [
   ["game", "In one game"],
   ["day", "In one day"],
   ["week", "In any 7 days"],
+  ["month", "In any 30 days"], // Combat only so far (user, 2026-11-09); an empty page is hidden
   ["all", "All time"],
 ];
 
@@ -49,7 +50,7 @@ export function themeOf(a: { new: boolean; group: string | null; period: string 
 }
 
 /** The four pages (user, 2026-11-06): in one game, day, week, cumulative (= all time). */
-const PAGE_LABELS: Record<string, string> = { game: "In one Game", day: "Day", week: "Week", all: "Cumulative" };
+const PAGE_LABELS: Record<string, string> = { game: "In one Game", day: "Day", week: "Week", month: "Month", all: "Cumulative" };
 const PAGES = GROUPS;
 
 type Filter = "done" | "open" | "new";

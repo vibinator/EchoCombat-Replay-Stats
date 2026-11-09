@@ -143,7 +143,7 @@ class Rule:
     id: int
     name: str
     description: str
-    period: str  # game | day | week | all
+    period: str  # game | day | week | month (any 30 days, Combat only so far) | all
     icon: str | None  # base name in app/images; daily / weekly variants added by period
     score: Callable[[list[Game]], float]  # games of one period -> progress (0..1+)
     estimated: bool = False
@@ -950,7 +950,7 @@ def rule_notes(rule: Rule) -> list[str]:
         return []
     fn = rule.count or rule.score
     # Short tags (user, 2026-11-04): the site shows them on one line, "Best game · 4+ min · 3+ players per team · "Only" = 90%+"
-    notes = [{"game": "Best game", "day": "Best day", "week": "Best 7 days"}.get(rule.period)]
+    notes = [{"game": "Best game", "day": "Best day", "week": "Best 7 days", "month": "Best 30 days"}.get(rule.period)]
     if rule.period == "all":
         need = getattr(rule.count, "min_games", 0)
         notes = [f"Average, {need}+ games" if need else "All-time total"]
@@ -1001,17 +1001,19 @@ def tier(progress: float) -> str | None:
 
 
 WEEK = timedelta(days=7)
+MONTH = timedelta(days=30)  # "any 30 days" (user, 2026-11-09: one-month Combat challenges), rolling like the 7 days
+ROLLING = ("week", "month")  # periods counted over a rolling window, complete at the window's last game
 
 
-def _rolling_weeks(games: list[Game], maximal: bool) -> list[list[Game]]:
-    """Every 7-day window that starts at one of the player's games (any 7 days can be slid to start at its first game).
+def _rolling_weeks(games: list[Game], maximal: bool, length: timedelta = WEEK) -> list[list[Game]]:
+    """Every 7-day (or `length`) window that starts at one of the player's games (any 7 days can be slid to start at its first game).
     `maximal`: skip windows that are a part of the one before (same last game), for rules where more games can
     never lower the value (counts); averages and ratios need every window."""
     ordered = sorted(games, key=lambda g: g.start_dt)
     out: list[list[Game]] = []
     end = prev_end = 0
     for i, g in enumerate(ordered):
-        limit = g.start_dt + WEEK
+        limit = g.start_dt + length
         end = max(end, i + 1)
         while end < len(ordered) and ordered[end].start_dt < limit:
             end += 1
@@ -1028,9 +1030,14 @@ def _monotone(rule: "Rule") -> bool:
 
 
 def _week_key(rule: "Rule") -> str:
-    if rule.period != "week":
+    if rule.period not in ROLLING:
         return rule.period
-    return "week" if _monotone(rule) else "week_all"
+    return rule.period if _monotone(rule) else f"{rule.period}_all"
+
+
+def _used_periods(rules: list["Rule"]) -> set[str]:
+    """The period groups the rules need (only those are built: 30-day windows cost as much as the 7-day ones)."""
+    return {_week_key(r) for r in rules if not r.meta}
 
 
 def _groups(games: list[Game], period: str) -> list[list[Game]]:
@@ -1040,6 +1047,8 @@ def _groups(games: list[Game], period: str) -> list[list[Game]]:
         return [[g] for g in games]
     if period in ("week", "week_all"):
         return _rolling_weeks(games, maximal=period == "week")
+    if period in ("month", "month_all"):
+        return _rolling_weeks(games, maximal=period == "month", length=MONTH)
     key = lambda g: g.day
     groups = defaultdict(list)
     for g in games:
@@ -1054,7 +1063,7 @@ def _reached_gold(entry: dict, rule: Rule) -> bool:
 
 def evaluate(games: list, rules: list[Rule] = RULES) -> list[dict]:
     """Progress per rule: best period, capped at 1. Ladders also report the best count per period group."""
-    groups = {p: _groups(games, p) for p in ("game", "day", "week", "week_all", "all")}
+    groups = {p: _groups(games, p) for p in _used_periods(rules) | {"all"}}
     entries: dict[int, dict] = {}
     for rule in rules:
         if rule.meta:
@@ -1087,7 +1096,7 @@ def evaluate(games: list, rules: list[Rule] = RULES) -> list[dict]:
     return [entries[rule.id] for rule in rules]
 
 
-PERIOD_SECTIONS = {"game": "In one game", "day": "In one day", "week": "In any 7 days", "all": "All time"}
+PERIOD_SECTIONS = {"game": "In one game", "day": "In one day", "week": "In any 7 days", "month": "In any 30 days", "all": "All time"}
 SECTION_MIN_RULES = 4  # a section needs this many challenges to be somebody's "strongest" (not a lone rule)
 
 
@@ -1142,7 +1151,7 @@ def unlock_dates(games: list, rules: list[Rule] = RULES) -> dict[int, str]:
     reached it; all-time rules: the first game at which the running total reached it (averages: scanned in
     order, they can go down again; counts only grow, so a binary search finds it)."""
     ordered = sorted(games, key=lambda g: g.started_at)
-    groups = {p: _groups(ordered, p) for p in ("game", "day", "week", "week_all")}
+    groups = {p: _groups(ordered, p) for p in _used_periods(rules) - {"all"}}
     out: dict[int, str] = {}
     for rule in rules:
         if rule.meta:
@@ -1163,7 +1172,7 @@ def unlock_dates(games: list, rules: list[Rule] = RULES) -> dict[int, str]:
             out[rule.id] = ordered[lo - 1].started_at[:10]
         else:
             # a rolling week is complete at its last game, a day / game at its first (as before)
-            pick = max if rule.period == "week" else min
+            pick = max if rule.period in ROLLING else min
             done = [pick(g.started_at for g in group) for group in groups[_week_key(rule)] if group and rule.score(group) >= 1]
             if done:
                 out[rule.id] = min(done)[:10]
@@ -1176,7 +1185,7 @@ def medal_times(games: list, rules: list[Rule] = RULES) -> dict[int, dict[str | 
     Same rules as unlock_dates (a rolling week is complete at its last game, a day / game at its first), but for
     every medal and with the full time, not just the date."""
     ordered = sorted(games, key=lambda g: g.started_at)
-    groups = {p: _groups(ordered, p) for p in ("game", "day", "week", "week_all")}
+    groups = {p: _groups(ordered, p) for p in _used_periods(rules) - {"all"}}
     out: dict[int, dict[str | None, str]] = {}
     eps = 1e-9
     for rule in rules:
@@ -1206,7 +1215,7 @@ def medal_times(games: list, rules: list[Rule] = RULES) -> dict[int, dict[str | 
                         lo = mid + 1
                 found[medal] = ordered[lo - 1].started_at
         else:
-            pick = max if rule.period == "week" else min
+            pick = max if rule.period in ROLLING else min
             for group in groups[_week_key(rule)]:
                 if not group:
                     continue
