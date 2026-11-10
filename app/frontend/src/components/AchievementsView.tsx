@@ -11,11 +11,11 @@ import { EmptyState } from "./ui";
 const IMG = "/achievements/";
 const GENERIC_ICON = "happy_cubesat.png";
 export const GROUPS: [Achievement["period"], string][] = [
-  ["game", "In one game"],
-  ["day", "In one day"],
-  ["week", "In any 7 days"],
-  ["month", "In any 30 days"], // Combat only so far (user, 2026-11-09); an empty page is hidden
-  ["all", "All time"],
+  ["game", "One Match"],
+  ["day", "One Day"],
+  ["week", "One Week"],
+  ["month", "One Month"], // no challenge uses it now (user, 2026-11-10); an empty page is hidden
+  ["all", "Cumulative"],
 ];
 
 // New achievements (not on the original site) get their own sections, in this order. Merged (user, 2026-11-04): each section lists
@@ -39,7 +39,7 @@ type AnyBadge = Parameters<typeof Badge>[0]["a"];
 
 /** Which section (tab) a challenge sits in: its period, or the theme section of a new one. */
 export function sectionId(a: { new: boolean; group: string | null; period: string }): string {
-  // Four pages (user, 2026-11-06): In one Game, Day, Week, Cumulative; the theme is a filter inside the page, see themeOf.
+  // Four pages (user, 2026-11-06, renamed 2026-11-10): One Match, One Day, One Week, Cumulative; the theme is a filter inside the page, see themeOf.
   return `p-${a.period}`;
 }
 
@@ -50,7 +50,7 @@ export function themeOf(a: { new: boolean; group: string | null; period: string 
 }
 
 /** The four pages (user, 2026-11-06): in one game, day, week, cumulative (= all time). */
-const PAGE_LABELS: Record<string, string> = { game: "In one Game", day: "Day", week: "Week", month: "Month", all: "Cumulative" };
+const PAGE_LABELS: Record<string, string> = Object.fromEntries(GROUPS); // One Match, One Day, One Week, Cumulative (user, 2026-11-10)
 const PAGES = GROUPS;
 
 type Filter = "done" | "open" | "new";
@@ -729,6 +729,14 @@ export function useAchievementsAccess(): AchievementsAccess {
   };
 }
 
+const PEEK_HYPE: Record<string, string> = {
+  game: "Peak performance, one game",
+  day: "Own the day",
+  week: "Seven days of glory",
+  month: "A month of mastery",
+  all: "The long game: build a legend",
+};
+
 /** Before the launch: how many achievements per section, a few shown in full and a few more as hidden badges. */
 function SneakPeek({ peek }: { peek: AchievementPeek }) {
   const total = Object.values(peek.periods).reduce((a, b) => a + (b ?? 0), 0);
@@ -760,18 +768,19 @@ function SneakPeek({ peek }: { peek: AchievementPeek }) {
       </div>
       {peek.one_game > 0 && (
         <p className="muted">
-          <strong>{peek.one_game}</strong> “In one game” challenges — every one needs at least 3 players on each team.
+          <strong>{peek.one_game}</strong> One Match challenges: one game, everything on the line. Every one needs at least 3 players on each team.
         </p>
       )}
       <h3>
-        Challenges <span className="muted hint">· {total}</span>
+        <strong>{total}</strong> challenges to conquer
       </h3>
-      <p className="muted">More being developed.</p>
+      <p className="muted">Land the perfect match, own the day, rule the week, and build a legacy. More being forged.</p>
       <div className="cards">
         {GROUPS.filter(([period]) => peek.periods[period]).map(([period, label]) => (
           <div key={period} className="card">
             <span className="label">{label}</span>
             <strong>{peek.periods[period]}</strong>
+            <span className="muted">{PEEK_HYPE[period]}</span>
           </div>
         ))}
       </div>

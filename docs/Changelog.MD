@@ -18,6 +18,12 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.10.24 — 18:16
+
+- **One set of period names everywhere: One Match, One Day, One Week, Cumulative** (the Achievements tabs and the
+  "Coming soon" page used different wording). The "Coming soon" page also gets some hype: "N challenges to conquer", a
+  line under each period card ("Own the day", "Seven days of glory" ...) and a more excited One Match line.
+
 ## 2026.11.10.23 — 18:14
 
 - **"Coming soon" sneak peek: one list of challenges.** The "Classic challenges" and "New challenges" sections are merged
