@@ -18,6 +18,17 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.10.34 — 22:01
+
+- **Home page heatmaps are no longer faded.** Since the finer 0.3 m cells, the brightness was set by a handful of
+  spots where somebody stood parked (30 to 280 times a usual cell), which left everything else at 10-20 % strength;
+  Combustion was almost grey. The scale now ends at the busiest 1 % of cells instead of the busiest 0.1 %: a usual
+  visible spot is drawn at 25-38 % instead of 9-22 %, the main routes at 54-70 % instead of 22-44 %.
+- "Teams": quieter routes show more, and the busiest places keep their team colour instead of turning white.
+- A gear's "Everywhere" view uses the same scale and is brighter too; "Favoured spots" did not change.
+- Nothing is counted again: only the drawing changed.
+- **To do after updating:** restart the server.
+
 ## 2026.11.10.33 — 21:37
 
 - **Home page heatmaps are finer: 0.3 m cells instead of 0.5 m** (2.8 times as many), most visible in the large

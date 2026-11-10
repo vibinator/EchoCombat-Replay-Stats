@@ -118,14 +118,16 @@ def add_keys(counts: np.ndarray, keys: list[np.ndarray], sign: int = 1) -> None:
 # -- drawing ----------------------------------------------------------------------------------------------------------
 # Over the whole archive every reachable cell has been visited, so a log scale (as a single match uses) would paint
 # the map evenly. Here the strength rises with the square root of the count, up to the PEAK_QUANTILE busiest cell (the
-# spawn rooms would otherwise set the scale and leave the rest faint).
-PEAK_QUANTILE = 0.999
+# spawn rooms would otherwise set the scale and leave the rest faint). 0.99 since 2026-11-10 (was 0.999): with 0.3 m
+# cells the 99.9 % cell is a spot somebody stood parked on, 30 to 280 times a usual cell, and the maps looked faded
+# (user; Combustion's usual cell was drawn at 9 % strength).
+PEAK_QUANTILE = 0.99
 # Teams (reviewed 2026-11-10: the first version was a grey wash over the whole map). The floor everybody drifts over
 # stays clear (below TEAM_FLOOR), a cell takes the colour of the team that is there most (the share is stretched by
 # TEAM_CONTRAST, so only a really even cell is neutral), and the busiest cells turn towards white.
 TEAM_RGB = {"blue": (0x38, 0xB6, 0xFF), "orange": (0xFF, 0x8A, 0x1E)}
-TEAM_FLOOR, TEAM_GAMMA, TEAM_MAX_ALPHA = 0.08, 0.85, 0.95
-TEAM_CONTRAST, TEAM_WHITE = 2.2, 0.55
+TEAM_FLOOR, TEAM_GAMMA, TEAM_MAX_ALPHA = 0.08, 0.7, 0.95  # gamma 0.7 (was 0.85): the quieter routes show
+TEAM_CONTRAST, TEAM_WHITE = 2.2, 0.4  # white 0.4 (was 0.55): more cells reach the top now, they keep their team colour
 SHARE_STEPS, ALPHA_STEPS = 8, 31  # 8 x 31 + 1 (clear) = 249 palette entries
 # Gear: one ramp for every piece of gear (dark violet -> magenta -> pale yellow), so two layers compare by shape and a
 # busy spot reads the same whatever is selected; apart from both team colours on the dimmed minimap.
