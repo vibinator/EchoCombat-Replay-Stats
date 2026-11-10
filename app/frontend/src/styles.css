@@ -4337,9 +4337,6 @@ button.small {
   gap: 8px;
   margin: 6px 0 2px;
 }
-.upload-drop:has(.cloud-upload-buttons) {
-  cursor: default;
-}
 .cloud-name {
   overflow-wrap: anywhere;
 }

@@ -74,7 +74,10 @@ services:
     image: cloudflare/cloudflared:2026.10.7   # pinned; to upgrade, change the tag (hub.docker.com/r/cloudflare/cloudflared/tags)
     container_name: echovr-cloudflared
     restart: unless-stopped
-    command: tunnel --no-autoupdate run
+    # http2 (TCP) instead of the default QUIC (UDP): home routers forget an idle UDP connection after ~30 s, so the first
+    # request after a quiet spell waited ~4 s while the tunnel reconnected (measured 2026-11-10: 20 s idle 0.1 s, 45 s idle
+    # 4.3 s). Routers keep TCP connections far longer
+    command: tunnel --no-autoupdate --protocol http2 run
     environment:
       TUNNEL_TOKEN: YOUR_CLOUDFLARE_TUNNEL_TOKEN   # Cloudflare Zero Trust > Networks > Tunnels (the long "eyJ..." value)
     depends_on:

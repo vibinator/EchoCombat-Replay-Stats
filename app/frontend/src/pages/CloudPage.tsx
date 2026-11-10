@@ -181,8 +181,22 @@ function CloudBrowser() {
           <div className="cloud-actions">
             <button className="secondary" disabled={busy} onClick={newFolder}>New folder</button>
           </div>
-          <div className={`upload-drop${dragging ? " dragging" : ""}`}>
-            <span className="upload-drop-title">{reading ? "Reading the folder…" : "Drop files or folders anywhere on this page"}</span>
+          <div
+            className={`upload-drop${dragging ? " dragging" : ""}`}
+            role="button"
+            tabIndex={0}
+            aria-label="Upload files: opens the file dialog"
+            // the whole box opens the file dialog, as before. Its buttons do their own thing, and so do its hidden inputs: a
+            // button "clicks" its input, and that click bubbles up here (it opened the file dialog over the folder one)
+            onClick={(e) => (e.target as HTMLElement).closest("button, input") || filesInput.current?.click()}
+            onKeyDown={(e) => {
+              if ((e.key === "Enter" || e.key === " ") && e.target === e.currentTarget) {
+                e.preventDefault();
+                filesInput.current?.click();
+              }
+            }}
+          >
+            <span className="upload-drop-title">{reading ? "Reading the folder…" : "Click to choose files, or drop files and folders anywhere on this page"}</span>
             <span className="cloud-upload-buttons">
               {/* both open the system's own file dialog (Windows Explorer on a PC) */}
               <button type="button" onClick={() => filesInput.current?.click()}>Upload files</button>

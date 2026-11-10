@@ -37,6 +37,28 @@ def _main_id(db, user_id: str) -> str:
     return alias.main_user_id if alias is not None else user_id
 
 
+def _seen_discord(db, user_id: str) -> str | None:
+    """The Discord account seen with this replay player (or one of its merged ids) on the Echo match list, newest first."""
+    ids = [user_id, *db.scalars(select(PlayerAlias.alias_user_id).where(PlayerAlias.main_user_id == user_id))]
+    return db.scalar(select(NakamaAccount.discord_id).where(NakamaAccount.replay_user_id.in_(ids),
+                                                          NakamaAccount.discord_id.is_not(None))
+                     .order_by(NakamaAccount.last_seen_at.desc()).limit(1))
+
+
+def _replay_player_of(db, discord_id: str) -> str | None:
+    """The replay player page of a Discord account: bot link, a replay id that IS the Discord id, else the player its Echo
+    account was seen with on the match list (merged ids mean their main player)."""
+    linked = db.scalar(select(PlayerProfile.user_id).where(PlayerProfile.discord_id == discord_id))
+    if linked:
+        return linked
+    if db.scalar(select(Player.id).where(Player.user_id == discord_id)):
+        return discord_id
+    seen = db.scalar(select(NakamaAccount.replay_user_id).where(NakamaAccount.discord_id == discord_id,
+                                                              NakamaAccount.replay_user_id.is_not(None))
+                     .order_by(NakamaAccount.last_seen_at.desc()).limit(1))
+    return _main_id(db, seen) if seen else None
+
+
 def clean_bio(text: str | None) -> str | None:
     """Plain text: control and invisible format characters removed (newlines kept), blank lines squeezed, cut to
     BIO_MAX characters and BIO_MAX_LINES lines. Empty -> None. Shown as text, never as HTML."""
@@ -153,6 +175,11 @@ def get_profile(request: Request, user_id: str):
             # recent replays carry the Discord id as the player id: the Discord-keyed profile is this player's profile
             if db.get(DiscordProfile, main) is not None or (viewer and viewer["id"] == main) or account is not None:
                 return _discord_public(request, db, main, viewer) | {"account": account}
+        if profile is None:  # the Discord account seen with this player on the Echo match list: its bio (My profile)
+            seen = _seen_discord(db, main)
+            if seen and db.scalar(select(PlayerProfile.user_id).where(PlayerProfile.discord_id == seen)) is None:
+                if db.get(DiscordProfile, seen) is not None or (viewer and hmac.compare_digest(viewer["id"], seen)):
+                    return _discord_public(request, db, seen, viewer) | {"account": account, "user_id": main}
         name_avatar = None
         if profile is None:
             name_avatar = _seen_avatar(request, db, main) or _id_avatar(request, db, main) or _name_match_avatar(request, db, main)
@@ -179,8 +206,9 @@ def _discord_public(request: Request, db, discord_id: str, viewer: dict | None) 
     return {"linked": True, "bio": row.bio if row is not None else None, "show_avatar": show,
             "avatar_url": auth.avatar_url(request.app.state.settings, discord_id) if show else None,
             "editable": bool(viewer and hmac.compare_digest(viewer["id"], discord_id)),
-            # the replay player page, when there is one: bot-linked, or a recent replay player whose id IS the Discord id
-            "user_id": linked.user_id if linked is not None else (discord_id if db.scalar(select(Player.id).where(Player.user_id == discord_id)) else None),
+            # the replay player page, when there is one: bot-linked, a replay player whose id IS the Discord id, or the
+            # player its Echo account was seen with on the match list
+            "user_id": _replay_player_of(db, discord_id),
             "account": _own_account(db, discord_id)}
 
 
@@ -239,6 +267,11 @@ def edit_profile(request: Request, user_id: str, edit: ProfileEdit):
         profile = db.get(PlayerProfile, main)
         if profile is None and auth.is_discord_id(main) and hmac.compare_digest(main, viewer["id"]):
             return edit_discord_profile(request, main, edit)  # the replay id is the viewer's own Discord id
+        if profile is None:
+            seen = _seen_discord(db, main)  # the viewer's Echo account was seen with this player on the match list
+            if seen and hmac.compare_digest(seen, viewer["id"]) and \
+                    db.scalar(select(PlayerProfile.user_id).where(PlayerProfile.discord_id == seen)) is None:
+                return edit_discord_profile(request, seen, edit) | {"user_id": main}
         if profile is None or not hmac.compare_digest(profile.discord_id, viewer["id"]):
             raise ApiError(403, "not_your_profile", "Only the Discord account linked to this player can edit it")
         profile.bio = clean_bio(edit.bio)

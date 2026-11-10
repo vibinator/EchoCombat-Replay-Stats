@@ -18,6 +18,19 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.10.11 — 15:34
+
+- **Fix: a bio written on My profile now shows on the player's page.** When a Discord account was connected to its player
+  only through the Echo account seen on the match list (no bot link, and an older player id that is not the Discord id), the
+  bio was saved but the player page did not look for it, and its editor refused the owner. The player page now finds that
+  account's bio (the same way it already found the picture), the owner can edit it there, and My profile links to it.
+- **Cloud: clicking anywhere on the upload box opens the file dialog again** (as before the folder buttons), Enter / Space
+  too. Fixed on the way: the "Upload folder" button could open the file dialog instead of the folder dialog.
+- **Faster first response after a quiet spell (NAS YAML).** Measured: after 45 s or more without visitors, the next request
+  waited 1.6-4.3 s (after 20 s: 0.1 s) while the Cloudflare tunnel's UDP (QUIC) connection, dropped by the home router, came
+  back. The tunnel now uses HTTP/2 over TCP (`--protocol http2` on the cloudflared service), which routers keep open.
+  To do: paste the new YAML (only the cloudflared `command:` line changed; keep your secrets), Recreate.
+
 ## 2026.11.10.10 — 15:15
 
 - **NAS YAML tuned for 31 GB of RAM (user, 2026-11-10).** `ECHOVR_TRACK_CACHE_MB` 512 -> 3072 (every match's position data
