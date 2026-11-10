@@ -35,7 +35,7 @@ services:
       # Combat stats (combat.py): the recorder's matches/ folder is inside the same share as the replays
       # (/share/ECRanked/ECRanked on the NAS), so the /replays mount below already holds it
       ECHOVR_COMBAT_SOURCE: /replays
-      ECHOVR_CLOUD_QUOTA_GB: "50"    # Open Cloud page (Setup.MD, Open Cloud): at most this much in data/cloud; 0 = no limit (5 GB stay free)
+      ECHOVR_CLOUD_QUOTA_GB: "250"   # Open Cloud page (Setup.MD, Open Cloud): at most this much in data/cloud; 0 = no limit (5 GB stay free)
       ECHOVR_DISCORD_PREVIEW_ROLES: YOUR_PREVIEW_ROLE_ID   # role and / or user id(s), comma-separated: preview + Console page (admin.bat on the website)
     volumes:
       # Replay folder on the NAS (File Station: ECRanked > ECRanked), read-only; subfolders are scanned too

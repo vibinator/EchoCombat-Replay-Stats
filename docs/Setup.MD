@@ -39,7 +39,7 @@ npm install
 | `ECHOVR_TRACK_CACHE_MB` | `512` | RAM cache (D49): decoded position files (heatmaps, playback), ~70 KB per match. App memory: lower it on a NAS with little RAM. `0` = off |
 | `ECHOVR_CACHE_REFRESH_S` | `300` | Answer cache (D53): a page whose data changed is still answered at once and recalculated in the background at most this often (pages are at most about this far behind new replays). Lower = fresher, more CPU while importing. `0` = recalculate before answering (slow while importing) |
 | `ECHOVR_EDGE_CACHE_S` | `60` | Cloudflare may keep public data answers this many seconds, so repeats never reach the NAS (needs the Cache Rule, see Cloudflare cache). Login answers and errors are never kept. `0` = Cloudflare never keeps them |
-| `ECHOVR_CLOUD_QUOTA_GB` | `50` | Open Cloud (D60): at most this many GB of files in `<data>/cloud`. `0` = no limit (an upload still never leaves less than 5 GB free on the disk) |
+| `ECHOVR_CLOUD_QUOTA_GB` | `250` | Open Cloud (D60): at most this many GB of files in `<data>/cloud`. `0` = no limit (an upload still never leaves less than 5 GB free on the disk) |
 | `ECHOVR_DISCORD_CLIENT_ID` / `_GUILD_ID` | `1214456381466222683` / `779349159852769310` | Bot application and EchoVR Combat server |
 
 ## Admin console
@@ -208,7 +208,7 @@ The **Cloud** tab (`https://echocombat.com/cloud`) shows only to people logged i
 permission. Give it on Console > Permissions: **Cloud view** = see and download files, **Cloud edit** = also upload,
 make folders, rename and delete. Console users have both. Files are kept on the NAS in the data folder
 (`/share/Container/echovr-replay-stats/data/cloud`), so they survive app updates; File Station can also reach them
-there. Space: `ECHOVR_CLOUD_QUOTA_GB` (50 GB by default). Big files are sent in 16 MB pieces, so Cloudflare's
+there. Space: `ECHOVR_CLOUD_QUOTA_GB` (250 GB by default, for everyone together). Big files are sent in 16 MB pieces, so Cloudflare's
 100 MB limit does not apply; uploads and changes are written to the container log with who did them.
 
 ## Run (single server)

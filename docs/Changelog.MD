@@ -18,6 +18,11 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.10.2 — 12:50
+
+- **Open Cloud space raised to 250 GB** (was 50 GB). It is one total for all files together, not per file or per person.
+  To do: nothing, unless the NAS YAML sets `ECHOVR_CLOUD_QUOTA_GB` (then set it to `"250"` there).
+
 ## 2026.11.10.1 — 12:41
 
 - **New: Open Cloud file storage (D60).** A **Cloud** tab for people logged in with Discord who have one of two new
