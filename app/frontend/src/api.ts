@@ -817,7 +817,7 @@ export interface Me {
   /** Discord login is set up on this server */
   enabled: boolean;
   /** console: a role from ECHOVR_DISCORD_PREVIEW_ROLES, the Console page (admin.bat on the website, D45) */
-  user: { name: string; preview: boolean; admin: boolean; console: boolean } | null;
+  user: { name: string; preview: boolean; admin: boolean; console: boolean; cloud: CloudAccess } | null;
 }
 
 // Writes (icons, Console, Permissions): X-EchoVR marks this site's own pages.
@@ -987,7 +987,7 @@ export interface ProcessingStatus {
 export const getProcessingStatus = () => send<ProcessingStatus>("/api/admin/status");
 
 /** Permissions page: who gets Admin, the Console and the Preview, by Discord role or user id. */
-export type Permission = "admin" | "console" | "preview";
+export type Permission = "admin" | "console" | "preview" | "cloud_view" | "cloud_edit";
 export interface DiscordEntry {
   id: string;
   name: string;
@@ -1417,3 +1417,82 @@ export const getCombatSummary = () => request<CombatSummary>("/api/combat/summar
 export const listCombatMatches = (limit = 30, offset = 0, map?: string) =>
   request<Page<CombatMatchItem>>(`/api/combat/matches${query({ limit, offset, map })}`);
 export const getCombatMatch = (id: string) => request<CombatMatchDetail>(`/api/combat/matches/${encodeURIComponent(id)}`);
+
+// ---- Open Cloud (backend/cloud.py): files for people with Cloud view (download) / Cloud edit (also change) ----------
+export type CloudAccess = "view" | "edit" | null;
+export interface CloudEntry {
+  name: string;
+  dir: boolean;
+  size: number | null;
+  modified: number; // unix seconds
+}
+export interface CloudListing {
+  path: string;
+  entries: CloudEntry[];
+  can_edit: boolean;
+  used_bytes: number;
+  quota_bytes: number; // 0 = no limit
+}
+const cloudPost = <T>(action: string, body: { path: string; name?: string }) =>
+  send<T>(`/api/cloud/${action}`, {
+    method: "POST",
+    headers: { ...ADMIN_WRITE, "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+export const getCloud = (path: string) => send<CloudListing>(`/api/cloud/list?${new URLSearchParams({ path })}`);
+/** Opened by the browser itself (a link): no header needed, the login cookie decides. */
+export const cloudDownloadUrl = (path: string) => `/api/cloud/download?${new URLSearchParams({ path })}`;
+export const makeCloudFolder = (path: string, name: string) => cloudPost<{ path: string }>("folder", { path, name });
+export const renameCloud = (path: string, name: string) => cloudPost<{ path: string }>("rename", { path, name });
+export const deleteCloud = (path: string) => cloudPost<{ ok: boolean }>("delete", { path });
+
+// Cloudflare refuses bodies over 100 MB: files go up in chunks (the server allows 90 MB; smaller = finer progress and
+// less to send again after a dropped connection).
+const CLOUD_CHUNK = 16 * 1024 * 1024;
+
+function sendChunk(url: string, body: Blob, onProgress: (sent: number) => void): Promise<void> {
+  return new Promise((done, fail) => {
+    const xhr = new XMLHttpRequest(); // fetch() cannot report upload progress
+    xhr.open("POST", url);
+    xhr.setRequestHeader("X-EchoVR", "1");
+    xhr.setRequestHeader("Content-Type", "application/octet-stream");
+    xhr.upload.onprogress = (e) => onProgress(e.loaded);
+    xhr.onload = () => {
+      if (xhr.status === 200) return done();
+      let message = `Upload failed (${xhr.status})`;
+      try {
+        message = JSON.parse(xhr.responseText).message ?? message;
+      } catch {
+        /* not JSON */
+      }
+      fail(Object.assign(new Error(message), { status: xhr.status }));
+    };
+    xhr.onerror = () => fail(Object.assign(new Error("Could not reach the server. Check your connection and try again."), { status: 0 }));
+    xhr.send(body);
+  });
+}
+
+/** Uploads one file into folder `path`; `onProgress` gets the bytes sent so far. A chunk that fails on the network or
+ * with a 5xx is sent once more before giving up. */
+export async function uploadCloudFile(path: string, file: File, overwrite: boolean, onProgress: (sent: number) => void): Promise<void> {
+  const upload = Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, "0")).join("");
+  for (let offset = 0; offset < file.size || offset === 0; offset += CLOUD_CHUNK) {
+    const params = new URLSearchParams({
+      path, name: file.name, upload, offset: String(offset), total: String(file.size), overwrite: String(overwrite),
+    });
+    const body = file.slice(offset, offset + CLOUD_CHUNK);
+    for (let attempt = 0; ; attempt++) {
+      try {
+        await sendChunk(`/api/cloud/upload?${params}`, body, (sent) => onProgress(offset + sent));
+        break;
+      } catch (e) {
+        const status = (e as { status?: number }).status ?? 0;
+        if (attempt > 0 || (status !== 0 && status < 500)) throw e;
+        await pause(RETRY_MS);
+      }
+    }
+    if (file.size === 0) break;
+  }
+  onProgress(file.size);
+}
+

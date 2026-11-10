@@ -11,7 +11,7 @@ from starlette.exceptions import HTTPException
 from parser import PARSER_VERSION
 
 from . import arena, auth, combat, discord_names, guard, icons, tracks
-from .api import achievements, admin, avatars, arena as arena_api, auth as auth_api, combat as combat_api, console, imports, profiles, leaderboard, matches, overview, permissions, players, remote_worker, replays
+from .api import achievements, admin, avatars, arena as arena_api, auth as auth_api, cloud as cloud_api, combat as combat_api, console, imports, profiles, leaderboard, matches, overview, permissions, players, remote_worker, replays
 from .config import PROJECT_ROOT, Settings
 from .db import open_db, warm
 from fastapi.exceptions import RequestValidationError
@@ -110,6 +110,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(permissions.router)
     app.include_router(arena_api.router)
     app.include_router(combat_api.router)
+    app.include_router(cloud_api.router)
 
     @app.get("/api/health")
     def health():

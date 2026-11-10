@@ -2,7 +2,7 @@
 ~0.6 ms per request, static files included).
 
 Requests, in this order: replay files are refused (404), changes are refused (405: the website is read-only, D38,
-except the icon / Console / Permissions writes with the X-EchoVR header), bots and floods are turned away (D48,
+except the icon / Console / Permissions / Open Cloud writes with the X-EchoVR header), bots and floods are turned away (D48,
 guard.py).
 
 Answers get the security headers, and say who may keep a copy (D53, user 2026-11-01):
@@ -22,8 +22,8 @@ from starlette.requests import Request
 from . import guard
 from .cache import STATUS_HEADER
 
-PER_VISITOR = ("/api/auth", "/api/admin", "/api/arena", "/api/profiles", "/api/bot", "/api/worker")
-WRITES = ("/api/admin/achievements/", "/api/admin/console/", "/api/admin/permissions", "/api/profiles/")
+PER_VISITOR = ("/api/auth", "/api/admin", "/api/arena", "/api/profiles", "/api/bot", "/api/worker", "/api/cloud")
+WRITES = ("/api/admin/achievements/", "/api/admin/console/", "/api/admin/permissions", "/api/profiles/", "/api/cloud/")
 BOT = ("/api/bot/", "/api/worker/")  # the Discord bot and the remote processing PC: POST with their shared secret (checked by the endpoint), no X-EchoVR header
 STATIC_MAX_AGE_S = 4 * 3600
 EDGE_STALE_IF_ERROR_S = 600

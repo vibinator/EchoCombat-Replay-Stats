@@ -27,9 +27,9 @@ SCRIPT_AGENTS = re.compile(
     re.IGNORECASE,
 )
 # Opened by the browser itself (address bar, <a href>, Discord redirect): no custom header possible.
-HEADER_EXEMPT = ("/api/auth/", "/api/health")
+HEADER_EXEMPT = ("/api/auth/", "/api/health", "/api/cloud/download")
 HEADER_EXEMPT_SUFFIXES = ("/export", ".csv", ".xlsx")
-HEAVY = ("/heatmap", "/playback", "/export", "/compare/", ".csv", ".xlsx")
+HEAVY = ("/heatmap", "/playback", "/export", "/compare/", ".csv", ".xlsx", "/api/cloud/download")
 HEAVY_COST = 5
 
 

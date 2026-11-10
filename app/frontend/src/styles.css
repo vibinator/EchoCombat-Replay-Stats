@@ -4291,3 +4291,40 @@ button.small {
   .mega-card .mega-photos { height: 12rem; }
   .mega-card .mega-body { min-width: 0; }
 }
+
+/* Open Cloud page: folder path, upload progress, file actions */
+.cloud-crumbs {
+  margin: 4px 0 8px;
+  overflow-wrap: anywhere;
+}
+.cloud-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 0;
+}
+.cloud-uploads {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+}
+.cloud-uploads .progress {
+  height: 22px;
+  margin: 4px 0 0;
+}
+.cloud-name {
+  overflow-wrap: anywhere;
+}
+.cloud-name .tag {
+  margin-left: 0;
+}
+.cloud-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px 12px;
+  white-space: nowrap;
+}

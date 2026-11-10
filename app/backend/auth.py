@@ -325,9 +325,14 @@ def viewer(request: Request) -> dict | None:
 
 
 def allowed(settings: Settings, db, user_id: str, kind: str, roles: Callable[[], frozenset[str]]) -> bool:
-    """Whether a person has permission `kind` ("admin" / "console" / "preview"): by their user id or one of their
-    Discord roles (Permissions page). ECHOVR_DISCORD_PREVIEW_ROLES ids (YAML) always give the console. Admins and
-    console users also get the preview. `roles` is only called when an id does not settle it."""
+    """Whether a person has permission `kind` ("admin" / "console" / "preview" / "cloud_view" / "cloud_edit"): by
+    their user id or one of their Discord roles (Permissions page). ECHOVR_DISCORD_PREVIEW_ROLES ids (YAML) always give
+    the console. Admins and console users also get the preview; console users get Cloud edit, and Cloud edit includes
+    Cloud view. `roles` is only called when an id does not settle it."""
+    if kind == "cloud_view" and allowed(settings, db, user_id, "cloud_edit", roles):
+        return True
+    if kind == "cloud_edit" and allowed(settings, db, user_id, "console", roles):
+        return True
     if kind == "preview" and (allowed(settings, db, user_id, "admin", roles) or allowed(settings, db, user_id, "console", roles)):
         return True
     ids = set(settings.discord_preview_roles) if kind == "console" else set()
@@ -363,3 +368,10 @@ def has_console(request: Request, fresh: bool = False) -> bool:
     """The Console and Permissions pages (D45). Every command asks with fresh=True: a removed role stops working
     at once."""
     return _has(request, "console", fresh)
+
+
+def cloud_access(request: Request, fresh: bool = False) -> str | None:
+    """Open Cloud (cloud.py): "edit", "view" or None. fresh: ask Discord now (deleting, renaming, starting an upload)."""
+    if _has(request, "cloud_edit", fresh):
+        return "edit"
+    return "view" if _has(request, "cloud_view") else None

@@ -15,6 +15,12 @@ const PERMISSIONS: { key: Permission; title: string; gives: string }[] = [
     gives: "The Console and this Permissions page: every admin.bat command on the website. Includes the Preview.",
   },
   { key: "preview", title: "Preview", gives: "Achievements and challenges before the launch date." },
+  { key: "cloud_view", title: "Cloud view", gives: "The Cloud page: see and download the files. Console users have it too." },
+  {
+    key: "cloud_edit",
+    title: "Cloud edit",
+    gives: "The Cloud page with changes: upload, new folder, rename and delete. Includes Cloud view. Console users have it too.",
+  },
 ];
 
 /** Old /permissions address: the panel now lives on the Console page, which does the access check. */

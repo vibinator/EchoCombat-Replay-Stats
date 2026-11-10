@@ -79,7 +79,7 @@ def test_preview_role_sees_achievements_before_launch(tmp_path, discord):
         done = login(client, MEMBER)
         assert done.status_code == 303 and done.headers["location"] == "/achievements"
         assert client.get("/api/auth/me").json()["user"] == {"name": f"user{MEMBER}", "preview": True, "admin": False,
-                                                                    "console": True}
+                                                                    "console": True, "cloud": "edit"}
         assert client.get("/api/challenges").json()["preview"] is True
         a = client.get(f"/api/players/{BLUE}/achievements").json()
         assert a["games"] == 1 and a["window"] == {"start": None, "end": None}  # whole archive before launch
@@ -97,7 +97,7 @@ def test_without_the_role_it_stays_coming_soon(tmp_path, discord, user_id):
     with app_client(settings(tmp_path)) as client:
         login(client, user_id)
         assert client.get("/api/auth/me").json()["user"] == {"name": f"user{user_id}", "preview": False, "admin": False,
-                                                                    "console": False}
+                                                                    "console": False, "cloud": None}
         assert client.get("/api/achievements").status_code == 403
 
 
@@ -186,7 +186,7 @@ def test_admin_role_gets_status_not_the_old_admin_tab(tmp_path, discord):
         sessions = console.open_sessions(client.app.state.settings)
         console.cmd_discord_roles(sessions, client.app.state.settings, "admin", add=DB_ROLE)
         assert client.get("/api/auth/me").json()["user"] == {"name": f"user{DB_MEMBER}", "preview": True, "admin": True,
-                                                                       "console": False}
+                                                                       "console": False, "cloud": None}
         assert client.get("/api/admin/status").status_code == 200
         for gone in ("/api/admin/achievements", "/api/admin/achievements.xlsx"):  # Admin tab removed
             assert client.get(gone).status_code == 404
@@ -320,7 +320,7 @@ def test_admin_users_by_discord_id(tmp_path, discord):
         console.cmd_admin_users(sessions, st, add=uid)
         login(client, uid)  # not in the server at all: a named admin needs no role
         assert client.get("/api/auth/me").json()["user"] == {"name": f"user{uid}", "preview": True, "admin": True,
-                                                                "console": False}
+                                                                "console": False, "cloud": None}
         assert client.get("/api/admin/status").status_code == 200
         console.cmd_admin_users(sessions, st, remove=uid)
         assert client.get("/api/auth/me").json()["user"]["admin"] is False
@@ -341,7 +341,7 @@ def test_console_page_for_yaml_preview_roles_only(tmp_path, discord):
 
         login(client, MEMBER)  # role from ECHOVR_DISCORD_PREVIEW_ROLES
         assert client.get("/api/auth/me").json()["user"] == {"name": f"user{MEMBER}", "preview": True, "admin": False,
-                                                            "console": True}
+                                                            "console": True, "cloud": "edit"}
         assert client.post("/api/admin/console/status", json={}).status_code == 405  # no X-EchoVR: read-only
         r = client.post("/api/admin/console/status", json={}, headers=CONSOLE).json()
         assert r["ok"] and "Replays: done 1" in r["output"]

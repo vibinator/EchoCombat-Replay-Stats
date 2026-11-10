@@ -59,6 +59,8 @@ class Settings:
     # Averages, rates and win rates on profiles / trends / compare / leaderboard count only games of 2+ minutes with 2+
     # players per team (stats/quality.py, user 2026-11-07); totals count everything. Tests switch it off
     counted_stats: bool = True
+    # Open Cloud (cloud.py): at most this many GB of files in <data>/cloud; 0 = no limit (the disk still keeps 5 GB free)
+    cloud_quota_gb: float = 50.0
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -86,6 +88,7 @@ class Settings:
             twitch_channel=env("ECHOVR_TWITCH_CHANNEL", "combat_stream_bot"),
             bot_link_secret=_secret(env("ECHOVR_BOT_LINK_SECRET")),
             remote_worker_secret=_secret(env("ECHOVR_REMOTE_WORKER_SECRET")),
+            cloud_quota_gb=float(env("ECHOVR_CLOUD_QUOTA_GB", 50)),
             discord_preview_roles=tuple(r.strip() for r in _secret(env("ECHOVR_DISCORD_PREVIEW_ROLES")).split(",") if r.strip()),
         )
 

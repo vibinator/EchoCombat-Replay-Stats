@@ -18,6 +18,16 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.10.1 — 12:41
+
+- **New: Open Cloud file storage (D60).** A **Cloud** tab for people logged in with Discord who have one of two new
+  permissions on Console > Permissions: **Cloud view** (see and download files) or **Cloud edit** (also upload, make
+  folders, rename and delete). Console users have both. Files are kept in the data folder on the NAS (`data/cloud`),
+  up to 50 GB (`ECHOVR_CLOUD_QUOTA_GB`). Files of any size upload in 16 MB pieces with a progress bar; drag and drop
+  works. Downloaded files never open as a page on the site. Every change is logged with who made it.
+  To do: nothing to restart beyond the normal update. Give Cloud view / Cloud edit to the right roles or people on
+  the Permissions tab. Optional: add `ECHOVR_CLOUD_QUOTA_GB` to the NAS YAML to change the 50 GB limit.
+
 ## 2026.11.09.16 — 13:13
 
 - **51 challenges renamed (user's picks, 2026-11-09).** Every name now carries an Echo Combat word and ends with its category in

@@ -37,7 +37,7 @@ def me(request: Request):
     user = auth.viewer(request)
     return {"enabled": auth.enabled(request.app.state.settings),
             "user": user and {"name": user["name"], "preview": auth.has_preview(request), "admin": auth.is_admin(request),
-                              "console": auth.has_console(request)}}
+                              "console": auth.has_console(request), "cloud": auth.cloud_access(request)}}
 
 
 @router.get("/login")
