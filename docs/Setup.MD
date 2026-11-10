@@ -39,6 +39,7 @@ npm install
 | `ECHOVR_TRACK_CACHE_MB` | `512` | RAM cache (D49): decoded position files (heatmaps, playback), ~70 KB per match. App memory: lower it on a NAS with little RAM. `0` = off |
 | `ECHOVR_CACHE_REFRESH_S` | `300` | Answer cache (D53): a page whose data changed is still answered at once and recalculated in the background at most this often (pages are at most about this far behind new replays). Lower = fresher, more CPU while importing. `0` = recalculate before answering (slow while importing) |
 | `ECHOVR_EDGE_CACHE_S` | `60` | Cloudflare may keep public data answers this many seconds, so repeats never reach the NAS (needs the Cache Rule, see Cloudflare cache). Login answers and errors are never kept. `0` = Cloudflare never keeps them |
+| `ECHOVR_DISCORD_NAME_PICTURES` | `1` | Player pictures matched by name from the Discord server's member list. Needs the bot's **Server Members intent** (Developer Portal > Bot > Privileged Gateway Intents; no approval needed while the bot is in fewer than 100 servers). Without it Discord's refusal is logged once per start and nothing else changes. `0` = never ask for the member list. Pictures of linked players and known Discord ids need no intent either way |
 | `ECHOVR_CLOUD_QUOTA_GB` | `250` | Open Cloud (D60): at most this many GB of files in `<data>/cloud`. `0` = no limit (an upload still never leaves less than 5 GB free on the disk) |
 | `ECHOVR_DISCORD_CLIENT_ID` / `_GUILD_ID` | `1214456381466222683` / `779349159852769310` | Bot application and EchoVR Combat server |
 
@@ -199,6 +200,11 @@ console (option 14, or `admin.bat preview-roles`).
    to add it, `-` + number to remove it. Kept across database rebuilds. The bot must be in the server (no
    permissions needed). Without the bot token on that computer, enter the role id instead (Discord: Developer
    Mode on, Server Settings > Roles > right-click the role > Copy Role ID).
+
+Player pictures: looked up one person at a time with the bot (no special permission), only when someone opens that
+player's profile page (lists show saved pictures and never ask Discord), remembered 24 hours in
+`data/discord-avatars.json` so restarts and updates do not ask Discord again; a player saving their profile refreshes theirs at once.
+Matching pictures to unlinked players by name also needs the bot's Server Members intent (see `ECHOVR_DISCORD_NAME_PICTURES`).
 
 Giving or removing the role in Discord takes effect within 5 minutes. A login lasts 30 days; deleting
 `data/session.key` logs everyone out.

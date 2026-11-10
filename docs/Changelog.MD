@@ -18,6 +18,25 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.10.5 — 13:44
+
+- **Player pictures are fetched only when someone opens that player's profile page.** The Players list, Leaderboard,
+  Achievements and search show the pictures the site already has (even older than a day) and never ask Discord; a player
+  whose profile nobody has opened yet has no picture there until someone does. Nothing is fetched at startup or in the
+  background any more. Profile pages also now find the picture of a player whose id is their Discord id, as the lists did.
+  To do: nothing. Pictures appear in lists as people open profiles.
+
+## 2026.11.10.4 — 13:39
+
+- **Discord pictures with fewer Discord requests.** A player picture looked up from Discord is now remembered for 24 hours
+  (was 1 hour) and saved in the data folder (`data/discord-avatars.json`), so restarts and updates no longer ask Discord for
+  every picture again. Saving your profile still updates your picture at once.
+- **No more repeating Discord warning.** Matching pictures to unlinked players by name needs the bot's Server Members intent.
+  Without it, Discord's refusal is now logged once per start instead of every 10 minutes, and list pages stop re-asking for
+  pictures every 20 seconds. All other pictures (linked players, known Discord ids) need no special permission and keep
+  working. New setting `ECHOVR_DISCORD_NAME_PICTURES` (default on; `0` = never ask for the member list).
+  To do: nothing. For name-matched pictures, turn on the bot's Server Members intent (Developer Portal > Bot).
+
 ## 2026.11.10.3 — 13:16
 
 - **Open Cloud audit log.** Console > Audit log > **Cloud audit log** lists every upload, download, new folder, rename and

@@ -81,7 +81,20 @@ def _seen_avatar(request: Request, db, user_id: str) -> str | None:
     if row is not None and not row.show_avatar:
         return None
     settings = request.app.state.settings
-    return discord_names.avatar_for_id(settings, acc.discord_id, 256) or auth.avatar_url(settings, acc.discord_id)
+    return discord_names.avatar_for_id(settings, acc.discord_id, 256, ask=True) or auth.avatar_url(settings, acc.discord_id)
+
+
+def _id_avatar(request: Request, db, user_id: str) -> str | None:
+    """A player whose id IS a Discord id (recent replays): that account's picture, as on the list pages (api/avatars.py),
+    respecting its own show_avatar choice; no default picture. The profile page is where it is fetched (user, 2026-11-10:
+    pictures only when a profile is opened), so the lists can show it afterwards."""
+    if not auth.is_discord_id(user_id):
+        return None
+    row = db.get(DiscordProfile, user_id)
+    if row is not None and not row.show_avatar:
+        return None
+    url = auth.avatar_url(request.app.state.settings, user_id)
+    return url if url and "/embed/avatars/" not in url else None
 
 
 def _account(db, user_id: str) -> dict | None:
@@ -142,7 +155,7 @@ def get_profile(request: Request, user_id: str):
                 return _discord_public(request, db, main, viewer) | {"account": account}
         name_avatar = None
         if profile is None:
-            name_avatar = _seen_avatar(request, db, main) or _name_match_avatar(request, db, main)
+            name_avatar = _seen_avatar(request, db, main) or _id_avatar(request, db, main) or _name_match_avatar(request, db, main)
         return _public(request, profile, viewer, name_avatar) | {"account": account}
 
 

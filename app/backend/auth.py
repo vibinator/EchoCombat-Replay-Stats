@@ -115,9 +115,12 @@ def user_name(settings: Settings, user_id: str) -> str:
         return "?"
 
 
-AVATAR_CHECK_S = 3600  # a changed Discord avatar shows within an hour (or at once when the player saves their profile)
+AVATAR_CHECK_S = 24 * 3600  # a changed Discord avatar shows within a day (at once when the player saves their profile)
 AVATAR_MAX_PER_MIN = 20  # at most this many /users/{id} requests per minute for all visitors together (Discord allows far more)
-_avatars: dict[str, tuple[float, str | None]] = {}  # discord user id -> (valid until, avatar hash or None)
+AVATAR_FILE = "discord-avatars.json"  # in the data folder: the answers survive restarts and updates (user, 2026-11-10)
+AVATAR_KEEP_S = 30 * 86400  # an entry nobody needed for this long is dropped from the file
+_avatars: dict[str, tuple[float, str | None]] = {}  # discord user id -> (valid until, unix time; avatar hash or None)
+_avatars_loaded: set[str] = set()  # data folders whose saved answers were read
 _avatar_lock = threading.Lock()
 _avatar_calls: list[float] = []  # monotonic times of the requests made in the last minute
 _avatar_blocked_until = 0.0  # Discord said 429: no request before this
@@ -135,19 +138,65 @@ def _avatar_budget(now: float) -> bool:
         return True
 
 
-def avatar_url(settings: Settings, user_id: str, fresh: bool = False) -> str | None:
+def _avatar_path(settings: Settings):
+    return settings.data_dir / AVATAR_FILE
+
+
+def _load_avatars(settings: Settings) -> None:
+    """Once per data folder: the answers saved by the last run (no Discord request for them after a restart)."""
+    key = str(settings.data_dir)
+    with _avatar_lock:
+        if key in _avatars_loaded:
+            return
+        _avatars_loaded.add(key)
+        try:
+            saved = json.loads(_avatar_path(settings).read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return
+        entries = saved.get("avatars") if isinstance(saved, dict) else None
+        for uid, entry in (entries or {}).items():
+            try:
+                until, avatar = float(entry[0]), entry[1]
+            except (TypeError, ValueError, IndexError):
+                continue
+            if is_discord_id(uid) and (avatar is None or (isinstance(avatar, str) and avatar.replace("a_", "", 1).isalnum())):
+                _avatars.setdefault(uid, (until, avatar))
+
+
+def _save_avatars(settings: Settings) -> None:
+    """Written after each Discord answer (at most AVATAR_MAX_PER_MIN a minute): a small file, replaced in one step."""
+    cutoff = time.time() - AVATAR_KEEP_S
+    with _avatar_lock:
+        data = {"avatars": {uid: [until, avatar] for uid, (until, avatar) in _avatars.items() if until > cutoff}}
+    path = _avatar_path(settings)
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_suffix(".tmp")
+        tmp.write_text(json.dumps(data, separators=(",", ":")), encoding="utf-8")
+        tmp.replace(path)
+    except OSError as e:
+        log.warning("Discord avatar cache not saved: %s", e)
+
+
+def avatar_url(settings: Settings, user_id: str, fresh: bool = False, ask: bool = True) -> str | None:
     """Discord avatar of a user (asked via the bot, remembered AVATAR_CHECK_S), Discord's default one when they have
     none, or None when Discord cannot be asked. Requests are budgeted (AVATAR_MAX_PER_MIN, and a 429 is obeyed): over
-    the budget the last known picture is kept and asked again later."""
+    the budget the last known picture is kept and asked again later.
+    ask=False (list pages, user 2026-11-10): never asks Discord; the saved picture however old, or None. Only opening a
+    player's profile page (and saving one's own profile) asks."""
     global _avatar_blocked_until
     if not is_discord_id(user_id):
         return None
-    now = time.monotonic()
+    _load_avatars(settings)
+    now, mono = time.time(), time.monotonic()  # wall clock for the saved expiry times, monotonic for the request budget
     hit = _avatars.get(user_id)
-    if not hit or hit[0] <= now or fresh:
+    if not ask:
+        if not hit:
+            return None
+    elif not hit or hit[0] <= now or fresh:
         if not settings.discord_bot_token:
             return None
-        if _avatar_budget(now):
+        if _avatar_budget(mono):
             try:
                 r = _bot_get(settings, f"/users/{user_id}")
                 if r.status_code == 429:
@@ -156,7 +205,7 @@ def avatar_url(settings: Settings, user_id: str, fresh: bool = False) -> str | N
                     except (ValueError, TypeError):
                         wait = 60.0
                     with _avatar_lock:
-                        _avatar_blocked_until = now + min(max(wait, 1.0), 600.0)
+                        _avatar_blocked_until = mono + min(max(wait, 1.0), 600.0)
                     raise httpx.HTTPError("rate limited")
                 if r.status_code == 404:  # no such account: remembered as "none" for the hour, not asked every 30 s (PERF-6)
                     hit = (now + AVATAR_CHECK_S, None)
@@ -171,6 +220,8 @@ def avatar_url(settings: Settings, user_id: str, fresh: bool = False) -> str | N
         if hit is None:
             return None
         _avatars[user_id] = hit
+        if hit[0] - now > ROLE_RETRY_S:  # a real answer from Discord (not a retry-soon placeholder): keep it across restarts
+            _save_avatars(settings)
     avatar = hit[1]
     if avatar and avatar.replace("a_", "", 1).isalnum():
         return f"https://cdn.discordapp.com/avatars/{user_id}/{avatar}.png?size=256"

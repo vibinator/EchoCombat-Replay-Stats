@@ -107,6 +107,8 @@ def members(monkeypatch, avatars):
     ]
 
     def handle(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith(f"/users/{BLUE}"):  # BLUE's id has a Discord id's shape: no such account, so the
+            return httpx.Response(404)                   # profile page falls back to the name match
         if request.url.path.endswith("/members"):
             return httpx.Response(200, json=listed if request.url.params["after"] == "0" else [])
         with inner() as c:

@@ -59,6 +59,11 @@ class Settings:
     # Averages, rates and win rates on profiles / trends / compare / leaderboard count only games of 2+ minutes with 2+
     # players per team (stats/quality.py, user 2026-11-07); totals count everything. Tests switch it off
     counted_stats: bool = True
+    # Player pictures matched by name from the Discord server's member list (discord_names.py, user 2026-11-10). Needs the
+    # bot's Server Members intent; without it Discord's refusal is logged once per start and the list is not asked again.
+    # Off = the member list is never asked for. Linked players and people whose Discord id is known get their picture
+    # either way, looked up one by one (auth.avatar_url), which needs no privileged intent
+    discord_name_pictures: bool = True
     # Open Cloud (cloud.py): at most this many GB of files in <data>/cloud; 0 = no limit (the disk still keeps 5 GB free)
     cloud_quota_gb: float = 250.0
 
@@ -88,6 +93,7 @@ class Settings:
             twitch_channel=env("ECHOVR_TWITCH_CHANNEL", "combat_stream_bot"),
             bot_link_secret=_secret(env("ECHOVR_BOT_LINK_SECRET")),
             remote_worker_secret=_secret(env("ECHOVR_REMOTE_WORKER_SECRET")),
+            discord_name_pictures=env("ECHOVR_DISCORD_NAME_PICTURES", "1").strip().lower() in ("1", "true", "yes", "on"),
             cloud_quota_gb=float(env("ECHOVR_CLOUD_QUOTA_GB", 250)),
             discord_preview_roles=tuple(r.strip() for r in _secret(env("ECHOVR_DISCORD_PREVIEW_ROLES")).split(",") if r.strip()),
         )

@@ -3,11 +3,11 @@
 GET /api/avatars?ids=<player id>,<player id>... (at most MAX_IDS) -> {player id: picture URL}, only for players who have one.
 - It is its own request, never part of the cached list answers, so a player who switches their picture off in their profile
   disappears at once (Cache-Control: private, short).
-- No Discord request per row: the pictures come from the server member list the site already reads in the background
-  (discord_names.py). A player's Discord account is found the same ways as on their page: the bot link, an Echo account
+- No Discord request at all (user, 2026-11-10: pictures are fetched only when a player's profile page is opened): the
+  pictures come from what the site already has, the member list a profile page read (discord_names.py) or the saved
+  one-by-one lookups (auth.avatar_url, however old). A player whose profile nobody opened yet has no picture here. A player's Discord account is found the same ways as on their page: the bot link, an Echo account
   seen on the match list, a player id that IS the Discord id, or the one member with the player's exact name (as on a
-  profile page, done for the whole list at once). Their own show_avatar choice always wins. A member missing from the
-  member list is asked from Discord one by one, within auth.py's request budget (the rest fill in on the next visits).
+  profile page, done for the whole list at once). Their own show_avatar choice always wins.
 - The picture is Discord's CDN URL, loaded by the visitor's browser: no image traffic on this server.
 """
 
@@ -70,9 +70,9 @@ def pictures(settings, db, user_ids: list[str]) -> dict[str, str]:
             continue
         show = linked[u].show_avatar if u in linked else choice.get(d, True)
         url = discord_names.avatar_for_id(settings, d) if show else None
-        if show and not url:  # not in the member list (yet): ask Discord, budgeted + cached (auth.avatar_url); no default pictures
-            fresh = auth.avatar_url(settings, d)
-            url = fresh if fresh and "/embed/avatars/" not in fresh else None
+        if show and not url:  # not in the member list: the saved lookup, never a Discord request; no default pictures
+            saved = auth.avatar_url(settings, d, ask=False)
+            url = saved if saved and "/embed/avatars/" not in saved else None
         if url:
             out[original] = url
     return out
@@ -83,6 +83,5 @@ def get_avatars(request: Request, ids: str = Query("", max_length=4000)):
     wanted = [i.strip() for i in ids.split(",") if i.strip()][:MAX_IDS]
     with request.app.state.sessionmaker() as db:
         data = pictures(request.app.state.settings, db, wanted)
-    # member list not read yet / lookups still filling in: ask again soon instead of keeping a thin answer for 5 minutes
-    ttl = 300 if discord_names.loaded() else 20
+    ttl = 300  # nothing fills in by itself: pictures only change when someone opens a profile page
     return JSONResponse(data, headers={"Cache-Control": f"private, max-age={ttl}"})

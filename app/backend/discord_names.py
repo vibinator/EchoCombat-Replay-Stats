@@ -9,6 +9,10 @@ member of the Discord server and no other player has that name, that member's av
   server. Members without their own avatar give no picture (Discord's default one says nothing).
 - The member list is read with the bot (needs the Server Members intent in the Discord developer portal), in the
   background, at most every REFRESH_S. Until it is loaded, or when Discord cannot be asked, there are no matches.
+- Read only when a player's profile page needs a name match (user, 2026-11-10: pictures only when a profile is opened),
+  at most every REFRESH_S; never at startup, never for list pages (they use what was read).
+- Discord refusing the list (403: the bot's Server Members intent is off) is logged once and not asked again until the
+  next start; other failures are retried after RETRY_S. ECHOVR_DISCORD_NAME_PICTURES=0 never asks (user, 2026-11-10).
 """
 
 import logging
@@ -32,6 +36,7 @@ _by_name: dict[str, tuple[str, str]] = {}  # normalised name -> (discord id, ava
 _by_id: dict[str, str] = {}  # discord id -> avatar hash, every member with their own picture (list pages: no request per row)
 _next_refresh = 0.0
 _loading = False
+_refused = [False]  # Discord said 403 (no Server Members intent): nothing will come until the next start
 
 
 def normalise(name: str | None) -> str:
@@ -84,6 +89,16 @@ def _refresh(settings: Settings) -> None:
         with _lock:
             _by_name, _by_id, _next_refresh = by_name, by_id, time.monotonic() + REFRESH_S
         log.info("Discord members read: %d names usable for player pictures", len(by_name))
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 403:  # the Server Members intent is off: asking again cannot help
+            log.warning("Discord member list refused (403): turn on the bot's Server Members intent or set "
+                        "ECHOVR_DISCORD_NAME_PICTURES=0. Player pictures by name stay off until the next start.")
+            with _lock:
+                _next_refresh, _refused[0] = float("inf"), True
+        else:
+            log.warning("Discord member list not read (player pictures by name): %s", e)
+            with _lock:
+                _next_refresh = time.monotonic() + RETRY_S
     except (httpx.HTTPError, ValueError, KeyError, TypeError) as e:
         log.warning("Discord member list not read (player pictures by name): %s", e)
         with _lock:
@@ -96,7 +111,7 @@ def _refresh(settings: Settings) -> None:
 def refresh_soon(settings: Settings) -> None:
     """Read the member list in the background if it is due (never blocks a request)."""
     global _loading
-    if not (settings.discord_bot_token and settings.discord_guild_id):
+    if not (settings.discord_name_pictures and settings.discord_bot_token and settings.discord_guild_id):
         return
     with _lock:
         if _loading or time.monotonic() < _next_refresh:
@@ -117,8 +132,8 @@ def match(settings: Settings, name: str) -> tuple[str, str] | None:
 
 
 def by_name(settings: Settings, names: list[str]) -> dict[str, tuple[str, str]]:
-    """normalised name -> (discord id, avatar hash) for those of the names that belong to exactly one member (lists: one lock)."""
-    refresh_soon(settings)
+    """normalised name -> (discord id, avatar hash) for those of the names that belong to exactly one member (lists: one
+    lock). Lists never start a read of the member list: only what a profile page already caused."""
     with _lock:
         return {n: _by_name[n] for n in (normalise(x) for x in names) if n in _by_name}
 
@@ -128,9 +143,11 @@ def loaded() -> bool:
         return _next_refresh > 0 and bool(_by_id or _by_name)
 
 
-def avatar_for_id(settings: Settings, discord_id: str, size: int = 64) -> str | None:
-    """Discord CDN URL of this member's own picture, from the member list (None: not a member, no picture, or not read yet)."""
-    refresh_soon(settings)
+def avatar_for_id(settings: Settings, discord_id: str, size: int = 64, ask: bool = False) -> str | None:
+    """Discord CDN URL of this member's own picture, from the member list (None: not a member, no picture, or not read yet).
+    ask: a profile page, which may start a read of the member list when it is due."""
+    if ask:
+        refresh_soon(settings)
     with _lock:
         avatar = _by_id.get(discord_id)
     return f"https://cdn.discordapp.com/avatars/{discord_id}/{avatar}.png?size={size}" if avatar else None
@@ -141,3 +158,4 @@ def clear() -> None:
     global _by_name, _by_id, _next_refresh, _loading
     with _lock:
         _by_name, _by_id, _next_refresh, _loading = {}, {}, 0.0, False
+        _refused[0] = False
