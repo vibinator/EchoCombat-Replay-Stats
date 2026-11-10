@@ -1429,6 +1429,10 @@ section > .skeleton:first-child {
   grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
   gap: 8px;
 }
+.map-cards {
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); /* a little larger than a match card (user, 2026-11-10) */
+  gap: 10px;
+}
 .map-card,
 .match-card {
   display: flex;
@@ -1441,13 +1445,155 @@ section > .skeleton:first-child {
   text-decoration: none;
 }
 .map-card {
-  padding: 8px;
+  padding: 10px;
 }
-.map-card img {
+.map-card strong {
+  font-size: 1.05rem;
+}
+/* map card picture: the minimap with the all-time heat PNG laid exactly over it (same box, same object-fit), as a
+   match card's thumbnail does */
+.map-card-thumb {
+  position: relative;
+  display: block;
   width: 100%;
-  height: 90px;
-  object-fit: contain;
+  height: 150px;
+  flex-shrink: 0;
+  padding: 0;
+  overflow: hidden;
+  border-radius: 6px;
   background: #101216;
+  cursor: zoom-in;
+}
+.map-card.open .map-card-thumb {
+  cursor: zoom-out;
+}
+.map-card.open {
+  outline: 2px solid var(--blue);
+}
+.map-card-thumb:hover,
+.map-card-thumb:focus-visible {
+  outline: 2px solid var(--blue);
+}
+/* "+" in the corner: the picture opens large */
+.map-card-zoom {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(16, 18, 22, 0.75);
+  color: #e6e8eb;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 22px;
+  text-align: center;
+  opacity: 0.6;
+}
+.map-card-thumb:hover .map-card-zoom,
+.map-card.open .map-card-zoom {
+  opacity: 1;
+}
+.map-card-name {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--text);
+  text-decoration: none;
+}
+.map-card-name:hover strong {
+  color: var(--blue);
+}
+/* the opened map, large: the full minimap sets the size (as tall as the window allows), the heat PNG is laid
+   exactly over it */
+.map-heat-big {
+  margin-top: 10px;
+}
+.map-heat-big h3 {
+  margin: 0;
+}
+.map-heat-close {
+  margin-left: 12px;
+  padding: 4px 12px;
+}
+.map-heat-big-stage {
+  margin-top: 8px;
+  border-radius: 6px;
+  background: #101216;
+  text-align: center;
+  line-height: 0;
+}
+.map-heat-big-inner {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+}
+.map-heat-big-inner img:first-child {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  max-height: 62vh;
+}
+.map-heat-big-inner.has-heat img:first-child {
+  filter: saturate(0.4) brightness(0.7);
+}
+.map-heat-big-inner .map-card-heat {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.map-card-thumb img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.map-card-thumb.has-heat img:first-child {
+  filter: saturate(0.4) brightness(0.7);
+}
+.map-card-heat {
+  pointer-events: none;
+  animation: match-heat-in 0.3s ease-out;
+}
+.map-heat-head {
+  justify-content: flex-start; /* the choice sits beside the title, above the cards, not at the far edge of a wide window */
+  align-items: center;
+  margin-top: 2rem;
+}
+.map-heat-head h2 {
+  margin: 0;
+}
+.map-heat-head + .map-cards {
+  margin-top: 10px;
+}
+.map-heat-gear .chip {
+  font-size: 0.85rem;
+}
+.map-heat-gear {
+  align-items: center;
+}
+.map-heat-view {
+  margin-left: 12px;
+}
+.map-heat-view .tab {
+  padding: 3px 10px;
+  font-size: 0.8rem;
+}
+.map-heat-note {
+  margin-top: 6px;
+  font-size: 0.8rem;
+}
+/* the gear heat's ramp (map_heat.GEAR_RAMP), low to high */
+.map-heat-scale {
+  display: inline-block;
+  width: 56px;
+  height: 8px;
+  margin-right: 2px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #3b0f70, #8c2981 30%, #de4968 55%, #fe9f6d 80%, #fcfdbf);
 }
 /* match card thumbnail: the minimap, with the team heat PNG laid exactly over it (same box, same object-fit) */
 .match-card-thumb {
@@ -1476,9 +1622,8 @@ section > .skeleton:first-child {
   from { opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .match-card-heat { animation: none; }
+  .match-card-heat, .map-card-heat { animation: none; }
 }
-.map-card:hover,
 .match-card:hover {
   outline: 2px solid var(--blue);
 }

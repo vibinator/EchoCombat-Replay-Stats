@@ -118,6 +118,18 @@ def _densify(x: np.ndarray, z: np.ndarray, lengths: np.ndarray, cell_m: float,
     return along(x, dx), along(z, dz), None if y is None else along(y, dy)
 
 
+def cells_of(layout: HeatmapLayout, xs: np.ndarray, zs: np.ndarray, cell_m: float) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """(col, row, inside): the cell of every point (metres) inside the layout, and which points those are (points
+    outside are left out of col / row). to_cell for arrays."""
+    x_min, x_max, z_min, z_max, swap, u_min, u_max, v_min, v_max, u_flip, v_flip, last_col, last_row =         _geometry(layout, cell_m)
+    keep = (x_min <= xs) & (xs <= x_max) & (z_min <= zs) & (zs <= z_max)
+    xs, zs = xs[keep], zs[keep]
+    u, v = (zs, xs) if swap else (xs, zs)
+    col = np.minimum((((u_max - u) if u_flip else (u - u_min)) / cell_m).astype(np.int64), last_col)
+    row = np.minimum((((v - v_min) if v_flip else (v_max - v)) / cell_m).astype(np.int64), last_row)
+    return col, row, keep
+
+
 def _rasterise_arrays(layout: HeatmapLayout, x: np.ndarray, z: np.ndarray, lengths: np.ndarray,
                       cell_m: float = CELL_M) -> Counter:
     """Cell counts for paths given as flat x / z arrays (metres) cut into `lengths` (numpy: the 1000-match player
@@ -126,13 +138,8 @@ def _rasterise_arrays(layout: HeatmapLayout, x: np.ndarray, z: np.ndarray, lengt
     if len(x) == 0:
         return Counter()
     xs, zs, _ = _densify(x, z, lengths, cell_m)
-
-    x_min, x_max, z_min, z_max, swap, u_min, u_max, v_min, v_max, u_flip, v_flip, last_col, last_row =         _geometry(layout, cell_m)
-    keep = (x_min <= xs) & (xs <= x_max) & (z_min <= zs) & (zs <= z_max)
-    xs, zs = xs[keep], zs[keep]
-    u, v = (zs, xs) if swap else (xs, zs)
-    col = np.minimum((((u_max - u) if u_flip else (u - u_min)) / cell_m).astype(np.int64), last_col)
-    row = np.minimum((((v - v_min) if v_flip else (v_max - v)) / cell_m).astype(np.int64), last_row)
+    col, row, _ = cells_of(layout, xs, zs, cell_m)
+    last_col, last_row = _geometry(layout, cell_m)[-2:]
     counts = np.bincount(col * (last_row + 1) + row, minlength=(last_col + 1) * (last_row + 1))
     cells = np.flatnonzero(counts)
     cols, rows = np.divmod(cells, last_row + 1)
@@ -338,6 +345,9 @@ THUMB_CELL_M = 1.0
 TEAM_RGB = {"blue": (0x19, 0xD9, 0xFC), "orange": (0xEA, 0x79, 0x24)}
 
 
+PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
+
+
 def _png(rgba: np.ndarray) -> bytes:
     """Minimal 8-bit RGBA PNG (no filters) from a rows x cols x 4 uint8 array."""
     height, width, _ = rgba.shape
@@ -347,7 +357,22 @@ def _png(rgba: np.ndarray) -> bytes:
         return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data))
 
     header = struct.pack(">IIBBBBB", width, height, 8, 6, 0, 0, 0)  # 8 bits, RGBA
-    return b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", header) + chunk(b"IDAT", zlib.compress(raw, 9)) + chunk(b"IEND", b"")
+    return PNG_SIGNATURE + chunk(b"IHDR", header) + chunk(b"IDAT", zlib.compress(raw, 9)) + chunk(b"IEND", b"")
+
+
+def png_indexed(index: np.ndarray, palette: np.ndarray) -> bytes:
+    """8-bit palette PNG from a rows x cols uint8 array of palette entries and a (up to 256) x 4 RGBA palette: one
+    byte per pixel instead of four, a quarter to a third of the RGBA file for a heat overlay."""
+    height, width = index.shape
+    raw = np.concatenate([np.zeros((height, 1), np.uint8), index], axis=1).tobytes()
+
+    def chunk(kind: bytes, data: bytes) -> bytes:
+        return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data))
+
+    palette = np.asarray(palette, dtype=np.uint8)
+    header = struct.pack(">IIBBBBB", width, height, 8, 3, 0, 0, 0)  # 8 bits, palette
+    return (PNG_SIGNATURE + chunk(b"IHDR", header) + chunk(b"PLTE", palette[:, :3].tobytes())
+            + chunk(b"tRNS", palette[:, 3].tobytes()) + chunk(b"IDAT", zlib.compress(raw, 9)) + chunk(b"IEND", b""))
 
 
 def thumbnail_png(layout: HeatmapLayout, decoded: tuple[dict, dict]) -> bytes | None:

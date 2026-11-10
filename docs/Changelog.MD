@@ -18,6 +18,49 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.10.31 — 21:22
+
+- **Home page, "Matches per map": click a map's picture to see its heatmap large.** It opens under the four cards,
+  over the full-size minimap, and follows the same tabs (Teams / Weapon / Ordnance / Tac mod, the gear row, Favoured
+  spots / Everywhere). Click the picture again, press Esc or use Close to shut it. The map's name and match count
+  still lead to that map's matches; the picture no longer does.
+- A lone player parked beside the map (Surge had one) no longer shows as a bright dot in a gear's favoured spots.
+- **To do after updating:** restart the server.
+
+## 2026.11.10.30 — 20:57
+
+- **Home page heatmaps reviewed and reworked** ("Matches per map").
+- **Gear heatmaps now show each item's favoured spots**: where a weapon, ordnance or tac mod is held more often than
+  on the map as a whole. Before, every piece of gear looked the same (the objective and the payload's route, where
+  everybody is). Now each has its own picture: the Comet's sniper perches, the Stun Field on the flanks, the Arc Mine
+  around Dyson's centre. A "Favoured spots / Everywhere" switch beside the gear brings the old picture back.
+- **Team heatmap is clearer**: the grey wash over the whole map is gone, each spot takes the colour of the team that
+  is there most, and the busiest spots turn towards white.
+- Gear held less than 0.5 % of the time (Blazar, Dot Field, Attack Drone, Overcharge, Umbral Veil, Neutron) is no
+  longer offered: too little data to draw.
+- One spot where somebody stood for hours no longer lights a square on the map (Surge had one).
+- A colour scale beside the note under the cards; the choice of view sits beside the gear, next to the title.
+- Pictures are smaller (5-30 KB per map). Nothing is counted again: the same saved counts are drawn differently.
+- `GET /api/overview/map-heat` takes `view=favoured|all` (gear only).
+- **To do after updating:** restart the server.
+
+## 2026.11.10.29 — 20:21
+
+- **Home page, "Matches per map": the map cards are a little larger and each shows an all-time heatmap** over its
+  minimap: where players have been in every counted match (duplicate recordings left out), blue and orange team,
+  brighter where they are most.
+- **Heatmaps per weapon, ordnance and tac mod.** The tabs beside the title (Teams / Weapon / Ordnance / Tac mod) and
+  the row of gear under them switch all four cards to where players were while holding that piece of gear (dark violet
+  = rarely, pale yellow = most). Gear is listed most held first; gear nobody ever held is not offered.
+- **Counted once a month** (first visit of a new month), in the background: only matches added since the last count
+  are read, and the cards keep showing the previous picture meanwhile. The line under the cards says when it was last
+  updated. The very first count reads the whole archive (57 s on the development PC for 29,817 matches; expect some
+  minutes on the NAS) and the cards fill in as it goes.
+- Kept light: the counts live in one small file (`data/database/map-heat.npz`, about 3 MB; delete it to count again from
+  nothing) and about 25 MB of memory; a choice is one request of about 90 KB for the four maps, answered from the cache.
+- New: `GET /api/overview/map-heat?layer=team|weapon:<code>|ordnance:<code>|tacmod:<code>`.
+- **To do after updating:** restart the server.
+
 ## 2026.11.10.28 — 18:23
 
 - **The 22 Experimental gear challenges now end in their item type: "(Weapon)", "(Ordnance)" or "(Tac Mod)"**, like the Gear

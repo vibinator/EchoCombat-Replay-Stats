@@ -4,7 +4,11 @@ Run: `.venv\Scripts\python -m pytest -q` (about 1 min). One file per feature; th
 pinned down, so a change can be matched to the tests that cover it.
 
 ### `tests/backend/test_achievements.py` (46 tests)
-- test_catalogue, test_tiers, test_daily_only_weapon_takes_best_day, test_weekly_is_a_rolling_seven_days, test_phasers_switching_weapons_keeps_progress, test_per_game_rules_ignore_short_appearances, test_all_time_and_overall, test_old_replays_without_loadouts, test_api_and_leaderboard, test_coming_soon_until_the_start_date, test_logic_follows_the_text, test_gearhead_counts_long_full_games_only, test_average_unlock_date_is_when_first_reached, test_teammate_proximity_targets, test_new_gear_challenges, test_now_public_gear_challenges, test_new_result_challenges, test_tiered_achievements, test_ladders_with_units_and_periods, test_new_activity_challenges, test_versatile_bot_counts_days, test_grand_tour_and_medal_collector, test_hex_gear_codes_are_normalised, test_ranking_only_re_evaluates_changed_players, test_new_gear_matches_the_older_gear, test_one_game_challenges_need_enough_players, test_lone_wolf_uses_its_own_distance, test_untouchable_is_one_medal_and_needs_a_minute_in_bounds, test_lone_wolf_has_no_value_before_the_replay_is_read_again, test_seven_day_upside_down_needs_three_days_and_ten_minutes_in_bounds, test_speed_demon_needs_a_minute_in_bounds, test_seven_day_speed_needs_three_days_and_ten_minutes_in_bounds, test_seven_day_enemy_share_needs_three_days_and_ten_minutes_in_bounds, test_can_we_talk_needs_a_minute_in_bounds, test_seven_day_teammate_share_needs_three_days_and_ten_minutes_in_bounds, test_statue_needs_a_minute_in_bounds, test_full_team_salvo_needs_a_minute_in_bounds, test_one_day_targets, test_impossible_top_medals_were_lowered, test_seven_day_map_and_mode_targets, test_seven_day_gear_needs_three_days_from_gold, test_all_gear_shares_one_ladder_per_kind, test_victory_lap_needs_a_win, test_achiever_facts_and_endpoint, test_test_drive_one_challenge_per_released_item, test_test_drive_counts_the_time_in_one_game
+- test_catalogue, test_tiers, test_daily_only_weapon_takes_best_day, test_weekly_is_a_rolling_seven_days, test_phasers_switching_weapons_keeps_progress, test_per_game_rules_ignore_short_appearances, test_all_time_and_overall, test_old_replays_without_loadouts, test_api_and_leaderboard, test_coming_soon_until_the_start_date, test_logic_follows_the_text, test_gearhead_counts_long_full_games_only, test_average_unlock_date_is_when_first_reached, test_teammate_proximity_targets, test_new_gear_challenges, test_now_public_gear_challenges, test_new_result_challenges, test_tiered_achievements, test_ladders_with_units_and_periods, test_new_activity_challenges, test_versatile_bot_counts_days, test_grand_tour_and_medal_collector, test_hex_gear_codes_are_normalised, test_ranking_only_re_evaluates_changed_players, test_new_gear_matches_the_older_gear, test_one_game_challenges_need_enough_players, test_lone_wolf_uses_its_own_distance, test_untouchable_is_one_medal_and_needs_a_minute_in_bounds, test_lone_wolf_has_no_value_before_the_replay_is_read_again, test_seven_day_upside_down_needs_three_days_and_ten_minutes_in_bounds, test_speed_demon_needs_a_minute_in_bounds, test_seven_day_speed_needs_three_days_and_ten_minutes_in_bounds, test_seven_day_enemy_share_needs_three_days_and_ten_minutes_in_bounds, test_can_we_talk_needs_a_minute_in_bounds, test_seven_day_teammate_share_needs_three_days_and_ten_minutes_in_bounds, test_statue_needs_a_minute_in_bounds, test_full_team_salvo_needs_a_minute_in_bounds, test_one_day_targets, test_impossible_top_medals_were_lowered, test_seven_day_map_and_mode_targets, test_seven_day_gear_needs_three_days_from_silver, test_all_gear_shares_one_ladder_per_kind, test_victory_lap_needs_a_win, test_achiever_facts_and_endpoint, test_test_drive_one_challenge_per_released_item, test_test_drive_counts_the_time_in_one_game
+
+### `tests/backend/test_achievements_offload.py` (6 tests)
+Achievement calculations outside the web server's threads (api/achievements.py, helper processes; 2026-11-10):
+- test_helper_process_gives_the_same_answers, test_helper_that_fails_falls_back_to_this_process, test_ranking_still_being_built_says_try_again, test_saved_results_survive_a_new_version_and_keep_medal_times, test_every_api_answer_names_its_version, test_ranking_is_refreshed_at_most_every_ranking_refresh_s
 
 ### `tests/backend/test_admin.py` (14 tests)
 Player merges, challenge period, reprocess: run from the admin console (backend.admin_actions); the website
@@ -13,6 +17,10 @@ Player merges, challenge period, reprocess: run from the admin console (backend.
 ### `tests/backend/test_admin_console.py` (8 tests)
 The admin console (app/admin_console.py) works on the database directly; a running server's worker picks up
 - test_merge_and_undo, test_merge_refusals, test_ambiguous_name_needs_an_id, test_challenge_period, test_missing_database, test_hide_replays_that_cannot_be_repaired, test_rescan_and_reprocess_everything, test_admin_links_a_player_to_a_discord_account_and_reports
+
+### `tests/backend/test_antivirus.py` (10 tests)
+Virus scanning of cloud uploads (user, 2026-11-10): ClamAV before a file can be downloaded, VirusTotal fingerprint check
+- test_a_clean_upload_is_held_until_scanned_then_downloadable, test_a_virus_goes_to_the_quarantine_console_users_decide, test_files_wait_while_the_scanner_is_down, test_a_replaced_file_stays_available_until_the_new_one_is_clean, test_files_over_the_scan_limit_are_labelled_not_scanned, test_scan_all_existing_files, test_virustotal_fingerprint_check, test_virustotal_bad_key_stops_lookups, test_no_scanning_configured_changes_nothing, test_many_uploads_finishing_at_once_all_land_inside_the_cloud
 
 ### `tests/backend/test_api.py` (5 tests)
 - test_list_and_filter_matches, test_match_detail, test_match_events_and_404, test_player_search_and_profile, test_period_start
@@ -29,6 +37,10 @@ Small Discord pictures for the name lists (user, 2026-11-06): GET /api/avatars a
 Answer caches and who may keep a copy (D53): ETag / 304, stale-while-revalidate, cache headers per kind of answer.
 - test_answers_carry_an_etag_and_repeat_as_304, test_out_of_date_answer_is_sent_at_once_and_rebuilt_in_the_background, test_a_page_nobody_asked_for_yet_is_built_for_the_visitor, test_cache_headers, test_answers_that_depend_on_the_visitor_are_never_shared, test_guard_refusals_are_never_kept, test_static_cache_headers, test_map_models_are_kept_for_good_only_with_a_version, test_page_addresses_fall_back_to_the_site, test_stamp_is_read_at_most_every_couple_of_seconds, test_store_keeps_the_most_recent_within_its_limits, test_answer_built_from_an_older_cached_answer_is_as_old_as_it
 
+### `tests/backend/test_cloud.py` (14 tests)
+Open Cloud (cloud.py): only Discord members with Cloud view / Cloud edit (or the console) reach the files.
+- test_cloud_needs_login_and_permission, test_view_downloads_only_edit_changes, test_writes_need_the_site_header, test_chunked_upload_rename_delete, test_upload_out_of_order_or_too_long_is_refused, test_paths_stay_inside_the_cloud_folder, test_quota, test_audit_log, test_upload_chunks_skip_the_rate_limit_when_logged_in, test_folder_uploads_make_their_folders, test_an_interrupted_upload_resumes_where_it_stopped, test_recycle_bin, test_recycle_bin_items_go_after_the_days_set, test_a_link_planted_on_the_nas_is_never_followed
+
 ### `tests/backend/test_cloudflare_check.py` (6 tests)
 check_cloudflare.bat's verdicts (app/cloudflare_check.py), from made-up Cloudflare answers: no network.
 - test_a_correct_setup_passes, test_no_cache_rule_yet, test_login_answer_from_the_cache_is_flagged_as_dangerous, test_old_server_and_browser_ttl_override, test_cached_answers_without_the_site_header, test_not_through_cloudflare_or_challenged
@@ -37,13 +49,21 @@ check_cloudflare.bat's verdicts (app/cloudflare_check.py), from made-up Cloudfla
 Combat stats (combat.py, api/combat.py): the recorder's match reports, kept apart from the replay data.
 - test_report_is_read_and_ids_stay_text, test_nothing_is_read_twice_and_a_changed_file_is_read_again, test_recently_written_file_waits, test_no_event_log_means_unknown_not_zero, test_bad_files_are_failed_not_fatal, test_players_without_a_valid_text_id_are_skipped_and_numbers_become_text, test_combat_is_separate_from_replay_data, test_changed_combat_tables_do_not_drop_the_replay_tables, test_player_endpoint_totals_and_weapons, test_merged_player_ids_are_added_up, test_leaderboard_orders_and_respects_min_games, test_match_endpoints, test_combat_match_links_to_the_replay_match_with_the_same_id, test_combat_folder_default_follows_where_matches_is, test_awards_are_read_counted_and_described, test_reports_without_awards_say_unknown_not_none, test_player_award_lists_without_match_cards_still_make_cards
 
-### `tests/backend/test_combat_achievements.py` (9 tests)
+### `tests/backend/test_combat_achievements.py` (12 tests)
 The Combat achievements (combat_achievements.py): only the recorder's reports, apart from the replay rules, on the same page.
-- test_kept_apart_from_the_replay_rules, test_one_game_ladders, test_days_and_all_time, test_assists_are_above_kills_at_every_medal, test_medal_dates, test_objective_damage_heals_and_stuns, test_reports_alone_count_on_the_same_page, test_challenge_period_applies, test_icons_and_sheet_know_them
+- test_kept_apart_from_the_replay_rules, test_one_game_ladders, test_days_and_all_time, test_assists_are_above_kills_at_every_medal, test_second_set_one_game_and_one_day, test_any_7_days_is_a_rolling_window, test_award_cards, test_medal_dates, test_objective_damage_heals_and_stuns, test_reports_alone_count_on_the_same_page, test_challenge_period_applies, test_icons_and_sheet_know_them
 
 ### `tests/backend/test_db_in_place_column.py` (2 tests)
 D57: a derived column can be added without dropping the match tables, so the site keeps its stats during a re-read.
 - test_in_place_columns_are_nullable, test_old_database_keeps_its_rows_and_gets_the_column
+
+### `tests/backend/test_discord_limits.py` (6 tests)
+One limiter for every Discord request (user, 2026-11-10): far below Discord's 50/s per bot, a 429 pauses everything,
+- test_never_more_than_the_sites_own_rate, test_a_request_never_waits_long_it_fails_like_an_unreachable_discord, test_a_429_pauses_every_discord_request, test_many_refusals_stop_all_discord_requests, test_server_roles_are_remembered, test_login_goes_through_the_limiter
+
+### `tests/backend/test_discord_pictures.py` (6 tests)
+Discord pictures with the least Discord permission (user, 2026-11-10): the member list (needs the Server Members intent)
+- test_member_list_refusal_is_logged_once_and_not_asked_again, test_other_failures_are_retried, test_name_pictures_off_never_asks_for_the_member_list, test_picture_lookups_are_kept_a_day_and_survive_a_restart, test_a_damaged_cache_file_is_ignored, test_lists_never_ask_discord_only_a_profile_page_does
 
 ### `tests/backend/test_discord_preview.py` (24 tests)
 Discord login gives preview access to achievements before their launch date (D41). Discord is mocked.
@@ -77,12 +97,20 @@ Win-loss stats hidden from players (Console: Hide stats from players): left out 
 ### `tests/backend/test_import.py` (24 tests)
 - test_scan_imports_files_in_map_folders, test_share_is_never_modified, test_rescan_only_queues_new_or_changed, test_recently_modified_files_wait_to_settle, test_copied_in_file_waits_to_settle_even_with_old_modified_time, test_settling_file_sets_when_to_scan_again, test_new_file_changes_the_folder_snapshot, test_scanner_picks_up_new_file_without_waiting_for_the_interval, test_unreachable_share_keeps_existing_data, test_bad_files_fail_with_reason, test_newest_files_are_processed_first, test_new_match_jumps_a_large_backlog, test_priority_replays_newest_match_first, test_no_download, test_no_upload_or_delete, test_reprocess_and_busy, test_get_missing_uses_error_format, test_process_pool_mode, test_restart_does_not_reprocess, test_import_status_breaks_down_processing, test_indexes_added_to_an_existing_database, test_replays_with_hex_gear_codes_are_reread_once, test_import_status_shows_redo_progress, test_scan_skips_a_folder_that_vanishes
 
+### `tests/backend/test_map_heat.py` (7 tests)
+All-time heat on the home page's map cards (map_heat.py, /api/overview/map-heat).
+- test_team_heat_covers_the_minimap, test_gear_layers, test_favoured_view_shows_where_gear_is_held_more_than_usual, test_rare_gear_is_not_offered, test_bad_layer, test_counted_once_a_month_and_kept_on_disk, test_a_replay_that_stops_counting_is_taken_out
+
 ### `tests/backend/test_mega_prizes_security.py` (10 tests)
 Mega Prizes security (user, 2026-11-04): the prize data is Preview-only, the winners report Console-only, and nothing about
 - test_nobody_without_the_preview_role_gets_anything, test_preview_role_sees_the_prizes_but_not_the_winners_report, test_console_role_gets_the_winners_report, test_nothing_about_the_prizes_is_in_a_public_answer, test_csv_cannot_run_a_formula, test_the_prize_rule_is_not_part_of_the_public_rule_list, test_console_overview_carries_the_saved_visibility, test_prize_pictures_load_with_the_scraper_guard_on, test_mega_prizes_have_their_own_period, test_mega_prizes_visible_to
 
 ### `tests/backend/test_phase7.py` (16 tests)
 - test_tracks_round_trip, test_tracks_ram_cache, test_recorder_pads_gaps_and_absence, test_cells_follow_verified_orientation, test_rasterise_draws_lines_but_not_jumps, test_rasterise_matches_to_cell_on_every_map, test_build_layers_matches_per_sample_reference, test_match_heatmap, test_match_heatmap_per_player, test_timeline, test_capture_time_packet_loss_and_emotes, test_player_heatmap, test_player_heatmap_validation, test_player_heatmap_cache_refreshes_after_import, test_leaderboard, test_match_export
+
+### `tests/backend/test_profile_bio.py` (2 tests)
+A bio written on My profile shows on the player's own page (user, 2026-11-10: "it doesn't show up on their profile page").
+- test_bio_from_my_profile_shows_on_the_player_page, test_the_owner_can_edit_the_bio_on_the_player_page
 
 ### `tests/backend/test_profiles.py` (6 tests)
 Discord-linked player profiles (user, 2026-11-02): the bot links, the linked person edits only bio + avatar.

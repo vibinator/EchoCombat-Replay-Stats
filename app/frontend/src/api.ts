@@ -1112,6 +1112,28 @@ export const getActivity = (bucket: "day" | "week" | "month" | "year") =>
   request<{ bucket: string; items: { period: string; matches: number; hours: number; maps: Record<string, number> }[] }>(`/api/overview/activity?bucket=${bucket}`);
 export const getPlayersSeen = (range: PlayersSeen["range"], anchor: PlayersSeen["anchor"]) =>
   request<PlayersSeen>(`/api/overview/players-seen?range=${range}&anchor=${anchor}`);
+
+/** All-time heat for the home page's map cards (map_heat.py): one transparent PNG per map, covering its minimap. */
+export interface MapHeatLayer {
+  key: string; // "team", or "weapon:assault", "ordnance:det", "tacmod:heal", ...
+  group: "team" | "weapon" | "ordnance" | "tacmod";
+  label: string;
+  code?: string;
+  cut?: boolean;
+  share?: number; // of the time any gear of its group was held
+}
+export interface MapHeat {
+  layer: string;
+  view: "teams" | MapHeatView;
+  maps: Record<string, { image: string; matches: number }>; // a map with nothing to draw for this choice is left out
+  layers: MapHeatLayer[]; // "team" first, then per group the most held first; gear hardly ever held is left out
+  building: boolean; // the monthly count is running: the images show what has been added so far
+  updated_on: string | null; // day the last complete count finished
+}
+/** Gear only: "favoured" = where it is held more often than on the map as a whole, "all" = everywhere it was held. */
+export type MapHeatView = "favoured" | "all";
+export const getMapHeat = (layer: string, view: MapHeatView) =>
+  request<MapHeat>(`/api/overview/map-heat${query(layer === "team" ? { layer } : { layer, view })}`);
 export const search = (q: string) => request<SearchResult>(`/api/search${query({ q })}`);
 /** A server that has not been restarted after an update answers the older, smaller playback: fill in what is missing. */
 export const getPlayback = (id: number) =>

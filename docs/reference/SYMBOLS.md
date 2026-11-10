@@ -10,23 +10,27 @@ Architecture.MD / DataModel.MD explain the why.
 Every achievement / Flamingo Challenge with the rule to win it, for the Console page's export (D45). Built from
 - name_and_rule:11 / csv_bytes:17
 
-### `app/backend/achievements.py` (1223 lines)
+### `app/backend/achievements.py` (1233 lines)
 Achievements (D17): 5-79 from the old ECRanked stat.js comments, thresholds from the rule text; 80+ are new
-- `WEAPONS`:16 / `ORDNANCES`:17 / `TACMODS`:18 / `SLOTS`:19 / `MEDAL_LEVELS`:22 / `MAPS`:23 / `UNRELEASED_WEAPONS`:24 / `GEAR_ICONS`:27 / `ONLY_SHARE`:29 / `USED_SHARE`:30 / `FULL_GAME_S`:31 / `WEEK_MIN_IN_BOUNDS_S`:32 / `WEEK_MIN_DAYS`:33 / `MIN_IN_BOUNDS_S`:34 / `LOADOUT_USED_S`:35 / `SEASON_MIN_GAMES`:36 / `SPEED_MIN_GAMES`:37 / `GEAR_VETERAN`:40 / `GEAR_DAY`:41 / `GEAR_WEEK`:42 / `WEEK_GEAR_FREE`:43 / `TIERS`:44 / **class Game**:48 [won:82, day:86, start_dt:90, week:94, _shares:98, _only:109, share:113, seconds_used:116, _used:122, used:125, loadouts_played:128, main_loadout:133] / **class Rule**:142 / `LEVELS`:163 / four_medals:166 / _levelled:172 / level_tier:184 / unlock_threshold:189 / _num:194 / `HARDER_TOP`:198 / _harder:201 / `ALL_TIME_RAISE`:215 / _all_time:218 / `PLATINUM_EASIER`:231 / _easier_platinum:234 / `VETERAN_HARDER`:243 / `VETERAN_TOP`:246 / _scaled:249 / _ladder:374 / _tiered:391 / clamp:396 / ratio:400 / _only:404 / _count:411 / **class _AvgValue**:415 [_value:424, first_reached:434] / _full:449 / _gearhead_run:457 / `PEW_PEW_MIN_S`:476 / `PEW_PEW_MAX_DEATHS`:477 / _pew_pew_proof:480 / `TEST_DRIVE_S`:499 / `ONE_GAME_GEAR`:500 / _test_drive:503 / _released_gear:512 / _loadouts_tried:519 / _loadouts_used:529 / loadouts_to_try:534 / `LOADOUT_RULE_ID`:545 / `RELEASED`:546 / _equipables_used:549 / _days_all_equipables:557 / _games_using:562 / _only_games:566 / _all_used:578 / _win_streak:583 / _day_streak:594 / _fewest_wins:604 / _least_used:609 / _least_used_equipable:613 / _v4:617 / _on_the_map:627 / _away_from_mates:631 / _untouchable:639 / _if_on_the_map:644 / _both_arms:649 / `ARM_SHARE`:654 / _arm_game:657 / _switch_hitter:664 / _capture:669 / _payload:673 / _pub:677 / _pct:681 / _week_average:685 / _build_rules:689 / `_NOTE_MIN_IDS`:942 / `_NOTE_4V4_IDS`:943 / `_NOTE_ONLY_IDS`:944 / rule_notes:947 / _tuned:970 / `RULES`:981 / `MEGA_COMBAT`:986 / icon_file:991 / tier:999 / `WEEK`:1003 / _rolling_weeks:1006 / _monotone:1025 / _week_key:1030 / _groups:1036 / _reached_gold:1050 / evaluate:1055 / `PERIOD_SECTIONS`:1090 / `SECTION_MIN_RULES`:1091 / section_of:1094 / achiever_facts:1103 / overall:1124 / mega_combat_games:1128 / in_window:1134 / unlock_dates:1140 / medal_times:1173
+- `WEAPONS`:16 / `ORDNANCES`:17 / `TACMODS`:18 / `SLOTS`:19 / `MEDAL_LEVELS`:22 / `MAPS`:23 / `UNRELEASED_WEAPONS`:24 / `GEAR_ICONS`:27 / `ONLY_SHARE`:29 / `USED_SHARE`:30 / `FULL_GAME_S`:31 / `WEEK_MIN_IN_BOUNDS_S`:32 / `WEEK_MIN_DAYS`:33 / `MIN_IN_BOUNDS_S`:34 / `LOADOUT_USED_S`:35 / `SEASON_MIN_GAMES`:36 / `SPEED_MIN_GAMES`:37 / `GEAR_VETERAN`:40 / `GEAR_DAY`:41 / `GEAR_WEEK`:42 / `WEEK_GEAR_FREE`:43 / `TIERS`:44 / **class Game**:48 [won:82, day:86, start_dt:90, week:94, _shares:98, _only:109, share:113, seconds_used:116, _used:122, used:125, loadouts_played:128, main_loadout:133] / **class Rule**:142 / `LEVELS`:163 / four_medals:166 / _levelled:172 / level_tier:184 / unlock_threshold:189 / _num:194 / `HARDER_TOP`:198 / _harder:201 / `ALL_TIME_RAISE`:215 / _all_time:218 / `PLATINUM_EASIER`:231 / _easier_platinum:234 / `VETERAN_HARDER`:243 / `VETERAN_TOP`:246 / _scaled:249 / _ladder:374 / _tiered:391 / clamp:396 / ratio:400 / _only:404 / _count:411 / **class _AvgValue**:415 [_value:424, first_reached:434] / _full:449 / _gearhead_run:457 / `PEW_PEW_MIN_S`:476 / `PEW_PEW_MAX_DEATHS`:477 / _pew_pew_proof:480 / `TEST_DRIVE_S`:499 / `ONE_GAME_GEAR`:500 / _test_drive:503 / _released_gear:512 / _loadouts_tried:519 / _loadouts_used:529 / loadouts_to_try:534 / `LOADOUT_RULE_ID`:545 / `RELEASED`:546 / _equipables_used:549 / _days_all_equipables:557 / _games_using:562 / _only_games:566 / _all_used:578 / _win_streak:583 / _day_streak:594 / _fewest_wins:604 / _least_used:609 / _least_used_equipable:613 / _v4:617 / _on_the_map:627 / _away_from_mates:631 / _untouchable:639 / _if_on_the_map:644 / _both_arms:649 / `ARM_SHARE`:654 / _arm_game:657 / _switch_hitter:664 / _capture:669 / _payload:673 / _pub:677 / _pct:681 / _week_average:685 / _build_rules:689 / `_NOTE_MIN_IDS`:943 / `_NOTE_4V4_IDS`:944 / `_NOTE_ONLY_IDS`:945 / rule_notes:948 / _tuned:971 / `RULES`:982 / `MEGA_COMBAT`:987 / icon_file:992 / tier:1000 / `WEEK`:1004 / `MONTH`:1005 / `ROLLING`:1006 / _rolling_weeks:1009 / _monotone:1028 / _week_key:1033 / _used_periods:1039 / _groups:1044 / _reached_gold:1060 / evaluate:1065 / `PERIOD_SECTIONS`:1100 / `SECTION_MIN_RULES`:1101 / section_of:1104 / achiever_facts:1113 / overall:1134 / mega_combat_games:1138 / in_window:1144 / unlock_dates:1150 / medal_times:1183
 
-### `app/backend/admin_actions.py` (520 lines)
+### `app/backend/admin_actions.py` (525 lines)
 Everything that changes data. The website is read-only (user, 2026-10-30): these run from the admin console
-- `REPAIRABLE`:17 / `AGGRESSIVE_REPAIRABLE`:19 / `WINDOW_KEYS`:20 / `MEGA_WINDOW_KEYS`:21 / `PERMISSIONS`:25 / `ROLE_KEYS`:26 / `ROLE_LABELS`:29 / **class AdminError**:33 / hidden_failure:39 / unrepairable:44 / prioritise:57 / _replay:63 / reprocess:72 / _request_repair:81 / repair:86 / repairable_failures:99 / repair_all_failed:107 / repair_aggressive:116 / _request_aggressive:130 / aggressive_failures:137 / repair_aggressive_all_failed:146 / reprocess_all:155 / queue_missing:163 / scan:181 / missing_replays:192 / forget_missing:203 / hide_unrepairable:220 / unhide:229 / merge_players:244 / unmerge_player:265 / challenge_window:277 / mega_window_own:282 / mega_window:288 / discord_roles:295 / _role_id:301 / add_discord_role:308 / remove_discord_role:316 / _save_discord_roles:323 / `VISIBILITY_KEY`:329 / `VISIBILITY`:330 / achievements_visibility:337 / set_achievements_visibility:342 / `MEGA_VISIBILITY_KEY`:350 / mega_visibility:353 / set_mega_visibility:360 / mega_visible:368 / achievements_started:380 / achievements_started_for:386 / achievements_launched:391 / previews_can_see:398 / achievements_counting:403 / set_challenge_window:408 / set_mega_window:425 / `HIDDEN_STATS_KEY`:445 / `STAT_GROUPS`:448 / hidden_stats:454 / set_stats_hidden:459 / _players_key:468 / hidden_players:472 / set_player_stats_hidden:478 / `LOG_OUTPUT_MAX`:498 / log_command:501 / command_log:511
+- `REPAIRABLE`:17 / `AGGRESSIVE_REPAIRABLE`:19 / `WINDOW_KEYS`:20 / `MEGA_WINDOW_KEYS`:21 / `PERMISSIONS`:26 / `ROLE_KEYS`:27 / `ROLE_LABELS`:32 / **class AdminError**:38 / hidden_failure:44 / unrepairable:49 / prioritise:62 / _replay:68 / reprocess:77 / _request_repair:86 / repair:91 / repairable_failures:104 / repair_all_failed:112 / repair_aggressive:121 / _request_aggressive:135 / aggressive_failures:142 / repair_aggressive_all_failed:151 / reprocess_all:160 / queue_missing:168 / scan:186 / missing_replays:197 / forget_missing:208 / hide_unrepairable:225 / unhide:234 / merge_players:249 / unmerge_player:270 / challenge_window:282 / mega_window_own:287 / mega_window:293 / discord_roles:300 / _role_id:306 / add_discord_role:313 / remove_discord_role:321 / _save_discord_roles:328 / `VISIBILITY_KEY`:334 / `VISIBILITY`:335 / achievements_visibility:342 / set_achievements_visibility:347 / `MEGA_VISIBILITY_KEY`:355 / mega_visibility:358 / set_mega_visibility:365 / mega_visible:373 / achievements_started:385 / achievements_started_for:391 / achievements_launched:396 / previews_can_see:403 / achievements_counting:408 / set_challenge_window:413 / set_mega_window:430 / `HIDDEN_STATS_KEY`:450 / `STAT_GROUPS`:453 / hidden_stats:459 / set_stats_hidden:464 / _players_key:473 / hidden_players:477 / set_player_stats_hidden:483 / `LOG_OUTPUT_MAX`:503 / log_command:506 / command_log:516
 
 ### `app/backend/aliases.py` (150 lines)
 Player merges (D34): an admin declares that alias user ids belong to a main user id.
 - alias_map:18 / ids_of:23 / _replays_of:29 / _requeue:36 / **class MergeResult**:42 / merge:47 / _group_by_pid:103 / _chunks:110 / _keep_first_seen:115 / _touch_main_player:125 / _requeue_list:134 / unmerge:140
 
+### `app/backend/antivirus.py` (463 lines)
+Virus / malware scanning of Open Cloud uploads (user, 2026-11-10: ClamAV on upload, files held until scanned).
+- `RETRY_S`:43 / `TIMEOUT_S`:44 / `PENDING_ID`:45 / `VT_URL`:48 / `VT_MAX_BYTES`:49 / `VT_SPACING_S`:50 / `VT_PER_DAY`:51 / **class ScannerDown**:54 / vt_client:58 / enabled:63 / max_bytes:67 / scannable:71 / pending_root:75 / quarantine_root:81 / _ask:89 / scan_file:106 / status:116 / _info:129 / hold:137 / pending_in:144 / pending_count:156 / quarantine_items:162 / _quarantine_box:175 / quarantine_delete:184 / quarantine_release:193 / _to_quarantine:207 / **class Scanner**:213 [start:227, stop:230, notify:234, scan_existing:237, _run:253, _one_pending:273, _quarantine:308, _one_existing:314] / **class VirusTotal**:349 [start:363, stop:366, enqueue:370, status:374, _wait_turn:381, _run:395, _check:408]
+
 ### `app/backend/api/__init__.py` (1 lines)
 
-### `app/backend/api/achievements.py` (461 lines)
+### `app/backend/api/achievements.py` (561 lines)
 Achievements / Flamingo Challenges per player, rarity, recent unlocks, the achievement ranking, and the
-- `RARITY_MIN_GAMES`:30 / `RECENT_DAYS`:31 / _window_info:36 / visible:45 / require_launched:52 / counted_window:58 / get_challenges:66 / `REVEALED_IDS`:79 / _peek:82 / `PEEK`:102 / `FINGERPRINT_MASK`:107 / _stable_hash:110 / _games:115 / player_achievements:168 / _player_achievements:179 / `REUSE_WHILE_IMPORTING_S`:206 / _cache_file:217 / _signature:225 / _load_results:231 / _save_results:242 / _collector_paused:260 / _compute:278 / _compute_ranking:283 / _recent:313 / _store:340 / _refresh_in_background:351 / ranking_state:367 / _key:378 / warm:385 / _everyone:393 / _ready_or_start:412 / achievement_ranking:422 / achievement_progress:426 / list_achievements:432 / recent_unlocks:452
+- `RARITY_MIN_GAMES`:37 / `RECENT_DAYS`:38 / _window_info:43 / visible:52 / require_launched:59 / counted_window:65 / get_challenges:73 / `REVEALED_IDS`:86 / _peek:89 / `PEEK`:106 / `FINGERPRINT_MASK`:111 / _stable_hash:114 / _games:120 / player_achievements:174 / `OFFLOAD_MIN_GAMES`:185 / _player_achievements:188 / _player_result:204 / `REUSE_WHILE_IMPORTING_S`:232 / `FIRST_WAIT_S`:233 / _cache_file:244 / _code_signature:253 / _signature:263 / _load_results:272 / _save_results:283 / _collector_paused:303 / _compute:321 / offload:335 / stop_offload:340 / _ranking_job:344 / _player_job:349 / _elsewhere:353 / _compute_ranking:367 / _recent:399 / _store:426 / _refresh_in_background:437 / ranking_state:453 / _key:464 / warm:471 / _everyone:479 / _ready_or_start:512 / achievement_ranking:522 / achievement_progress:526 / list_achievements:532 / recent_unlocks:552
 
 ### `app/backend/api/admin.py` (75 lines)
 Staff endpoints under /api/admin: the Status page (admins and console users) and achievement icons (D43, changed
@@ -40,9 +44,13 @@ Mega Prizes tab data (Preview role only; Arena counting is separate from Combat,
 Discord login for achievement previews (D41). Only GET requests: the website stays read-only (D38).
 - _safe_next:20 / _settings:27 / me:35 / login:44 / _why:58 / _exchange_failure:63 / callback:76 / logout:104
 
-### `app/backend/api/avatars.py` (89 lines)
+### `app/backend/api/avatars.py` (88 lines)
 Small Discord pictures for the name lists (user, 2026-11-06): Players, Leaderboard, Achievements.
 - `MAX_IDS`:22 / pictures:25 / get_avatars:82
+
+### `app/backend/api/cloud.py` (326 lines)
+Open Cloud endpoints (cloud.py): Discord login + the Cloud view / Cloud edit permission (Permissions page).
+- `WRITE_BLOCK`:22 / **class BigBlockFileResponse**:25 / _audit:29 / _require:36 / _fail:48 / listing:54 / download:63 / **class Target**:83 / make_folder:90 / rename:102 / delete:113 / _require_console:125 / trash:136 / **class TrashChoice**:146 / trash_restore:152 / trash_purge:163 / upload_status:179 / upload:191 / quarantine:269 / quarantine_delete:279 / quarantine_release:290 / scan_all:303 / audit_log:320
 
 ### `app/backend/api/combat.py` (310 lines)
 Combat stats endpoints (user, 2026-11-04): the game's own counters and the event-log numbers from the recorder's match
@@ -70,9 +78,9 @@ Leaderboard (D15): the profile aggregates grouped by player, ranked by one stat.
 ### `app/backend/api/matches.py` (618 lines)
 - player_counts:33 / list_matches:41 / _list_matches:60 / `MAX_THUMBNAILS`:106 / get_thumbnails:111 / _thumbnails:120 / _thumbnail:131 / _thumbnail_for:140 / player_row:146 / get_match:179 / match_detail:183 / repair_note:233 / get_events:246 / _event_data:265 / _match_or_404:273 / _tracks:280 / get_timeline:288 / _timeline:293 / `MATCH_HEATMAP_MODES`:302 / get_match_heatmap:306 / _match_heatmap:320 / get_match_heatmap3d:343 / _match_heatmap3d:355 / `EXPORT_COLUMNS`:379 / export_rows:386 / export_match:399 / get_playback:409 / _playback:415 / `PLAYBACK_EVENTS`:451 / `MAPS_3D`:453 / `PAYLOAD_MODEL_MAPS`:454 / `BUILD_WAIT_S`:455 / `MAX_BUILD_WAITERS`:456 / `FAILED_TTL_S`:457 / _recently_failed:464 / _remember_failure:469 / _tracks3d:478 / get_playback3d:540 / _playback3d:547 / _map_objects:574 / _gear_names:591 / _speeds:595 / _loadout_runs:608
 
-### `app/backend/api/overview.py` (319 lines)
+### `app/backend/api/overview.py` (345 lines)
 Home dashboard, archive activity and global search.
-- overview:20 / _overview:26 / `LATEST_MATCHES`:68 / _latest_matches:71 / latest_matches:77 / processing:86 / last_match:94 / `LIVE_HEADERS`:102 / live:106 / _last_ended:114 / activity:122 / `DAY_WINDOW`:129 / _activity:132 / search:164 / _search:170 / _top_gear:186 / `TEAM_WIN_KEYS`:207 / _global_stats:210 / `RANGES`:258 / players_seen:262 / _players_seen:270 / warm:308
+- overview:21 / _overview:27 / `LATEST_MATCHES`:69 / _latest_matches:72 / latest_matches:78 / processing:87 / last_match:95 / map_heat_cards:104 / _map_heat:120 / `LIVE_HEADERS`:127 / live:131 / _last_ended:139 / activity:147 / `DAY_WINDOW`:154 / _activity:157 / search:189 / _search:195 / _top_gear:211 / `TEAM_WIN_KEYS`:232 / _global_stats:235 / `RANGES`:283 / players_seen:287 / _players_seen:295 / warm:333
 
 ### `app/backend/api/permissions.py` (87 lines)
 Permissions page (user, 2026-10-30): console users give or take away Admin (the Status page), the Console and the Preview,
@@ -81,9 +89,9 @@ Permissions page (user, 2026-10-30): console users give or take away Admin (the 
 ### `app/backend/api/players.py` (477 lines)
 - `RECENT_MATCHES`:25 / games_of:28 / search_players:35 / _search_players:45 / _filters:71 / _profile:80 / _site_averages:147 / compare_players:177 / _compare_players:183 / get_player:210 / _get_player:221 / `HEATMAP_MODES`:283 / _player_heatmap:286 / get_player_heatmap:319 / `HEATMAP3D_MODES`:334 / _player_heatmap3d:337 / get_player_heatmap3d:357 / get_trends:371 / _get_trends:376 / `COMPANION_WINDOWS`:413 / _mine:417 / _together:427 / get_companions:439 / _get_companions:447
 
-### `app/backend/api/profiles.py` (331 lines)
+### `app/backend/api/profiles.py` (377 lines)
 Player profiles linked to Discord (user, 2026-11-02).
-- `BIO_MAX`:26 / `BIO_MAX_LINES`:27 / _now:30 / _main_id:34 / clean_bio:40 / _name_match_avatar:56 / _seen_avatar:73 / _account:87 / _public:94 / my_profile:111 / edit_my_profile:124 / get_profile:132 / _known_discord:151 / _own_account:157 / _discord_public:162 / get_discord_profile:175 / edit_discord_profile:186 / **class ProfileEdit**:211 / edit_profile:217 / _require_bot:242 / _discord_id:251 / _link_info:258 / **class Link**:266 / bot_link:272 / **class Unlink**:297 / bot_unlink:303 / bot_lookup:319
+- `BIO_MAX`:26 / `BIO_MAX_LINES`:27 / _now:30 / _main_id:34 / _seen_discord:40 / _replay_player_of:48 / clean_bio:62 / _name_match_avatar:78 / _seen_avatar:95 / _id_avatar:109 / _account:122 / _public:129 / my_profile:146 / edit_my_profile:159 / get_profile:167 / _known_discord:191 / _own_account:197 / _discord_public:202 / get_discord_profile:216 / edit_discord_profile:227 / **class ProfileEdit**:252 / edit_profile:258 / _require_bot:288 / _discord_id:297 / _link_info:304 / **class Link**:312 / bot_link:318 / **class Unlink**:343 / bot_unlink:349 / bot_lookup:365
 
 ### `app/backend/api/remote_worker.py` (147 lines)
 The remote PC's side of "Process replays on another PC" (remote.py): claim queued replays, send results, give back what
@@ -97,31 +105,35 @@ Replays found in the share (D25). Read-only: files are added by the scanner; rep
 Public Echo Arena matches per player, counted from the live Nakama match list (user, 2026-11-04). Completely
 - `URL`:21 / `MIN_PRESENT_S`:22 / `MIN_TEAM`:23 / `MIN_SEEN`:24 / `TIMEOUT_S`:25 / `MAX_BYTES`:26 / `MAX_BACKOFF_S`:27 / `KEEP_COUNTED_S`:28 / `PRUNE_EVERY_S`:29 / `ACCOUNT_REFRESH_S`:30 / `WINDOW_CHECK_S`:31 / `NON_PLAYER_TEAMS`:32 / `STATUS_OK_POLLS`:33 / _stamp:37 / is_public_arena:42 / is_public_combat:47 / **class _Kind**:52 / **class Tracker**:70 [start:86, stop:90, _fetch:94, _run:101, _in_period:113, poll:123, _collect_accounts:135, _link:166, _poll_kind:177, status:227, _purge:248, _save:259]
 
-### `app/backend/auth.py` (366 lines)
+### `app/backend/auth.py` (518 lines)
 Discord login, only for previewing achievements before their launch date (D41). Login = OAuth2 "identify" (who
-- `API`:23 / `AUTHORIZE_URL`:24 / `SESSION_COOKIE`:25 / `STATE_COOKIE`:26 / `SESSION_DAYS`:27 / `STATE_S`:28 / `ROLE_CHECK_S`:29 / `ROLE_RETRY_S`:30 / http_client:37 / enabled:42 / is_discord_id:48 / _bot_get:54 / server_roles:59 / check_fixed_ids:68 / user_name:101 / `AVATAR_CHECK_S`:118 / `AVATAR_MAX_PER_MIN`:119 / _avatar_budget:126 / avatar_url:138 / redirect_uri:180 / secure_cookies:184 / _key:190 / _b64:199 / _unb64:203 / sign:207 / unsign:212 / authorize_url:228 / user_from_code:235 / forget_roles:257 / _ask_roles:263 / member_roles:284 / viewer:313 / allowed:327 / _has:340 / has_preview:352 / is_admin:357 / has_console:362
+- `API`:23 / `AUTHORIZE_URL`:24 / `SESSION_COOKIE`:25 / `STATE_COOKIE`:26 / `SESSION_DAYS`:27 / `STATE_S`:28 / `ROLE_CHECK_S`:29 / `ROLE_RETRY_S`:30 / `DISCORD_PER_S`:40 / `DISCORD_BURST`:41 / `DISCORD_WAIT_S`:42 / `DISCORD_PAUSE_MAX_S`:43 / `INVALID_WINDOW_S`:44 / `INVALID_MAX`:45 / **class DiscordPaused**:48 / **class DiscordLimiter**:53 [reset:58, acquire:63, record:81] / _send:109 / http_client:117 / enabled:122 / is_discord_id:128 / _bot_get:134 / `SERVER_ROLES_S`:139 / server_roles:143 / check_fixed_ids:157 / user_name:190 / `AVATAR_CHECK_S`:207 / `AVATAR_MAX_PER_MIN`:208 / `AVATAR_FILE`:209 / `AVATAR_KEEP_S`:210 / _avatar_budget:218 / _avatar_path:230 / _load_avatars:234 / _save_avatars:255 / avatar_url:270 / redirect_uri:320 / secure_cookies:324 / _key:330 / _b64:339 / _unb64:343 / sign:347 / unsign:352 / authorize_url:368 / user_from_code:375 / forget_roles:397 / _ask_roles:403 / member_roles:424 / viewer:453 / allowed:467 / _has:485 / has_preview:497 / is_admin:502 / has_console:507 / cloud_access:513
 
 ### `app/backend/cache.py` (260 lines)
 Caches for answers built from the archive: home page, leaderboard, profiles, heatmaps, match views (D53). Keyed on
 - `STAMP_TTL_S`:37 / `MAX_VALUES`:38 / `MAX_RESPONSES`:39 / `MAX_RESPONSE_BYTES`:40 / `GZIP_LEVEL`:41 / `STATUS_HEADER`:42 / bump_generation:47 / data_stamp:52 / current_stamp:61 / **class Entry**:76 / **class Store**:85 [get:96, put:103, drop:113] / _store:122 / _run:140 / _used:154 / _build_now:165 / _refresh:183 / _lookup:206 / cached:224 / cached_response:230 / etag_matches:245 / reply:253
 
+### `app/backend/cloud.py` (472 lines)
+Open Cloud (user, 2026-11-10): file storage on the website for Discord members with the Cloud permission. Two
+- `CHUNK_MAX`:33 / `RESERVE_BYTES`:34 / `STALE_PART_S`:35 / `USAGE_RECOUNT_S`:36 / `TRASH_ID`:37 / `UPLOAD_ID`:38 / `BAD_CHARS`:39 / `MAX_DEPTH`:40 / `WINDOWS_NAMES`:41 / **class CloudError**:48 / root:54 / trash_root:60 / uploads:66 / check_name:72 / resolve:86 / relative_join:103 / make_box:108 / _walk_size:125 / relative:149 / _forget_usage:153 / used_bytes:159 / _adjust_usage:173 / quota_bytes:180 / listing:184 / file_for_download:210 / _make_parents:217 / make_folder:225 / rename:239 / delete:253 / _box:268 / _info:277 / trash_items:285 / _free_name:302 / restore:318 / purge:332 / purge_all:342 / purge_expired:353 / _clean_stale_parts:369 / part_path:379 / _reserved:387 / upload_target:399 / start_upload:414 / finish_upload:432 / log:441 / log_rows:456
+
 ### `app/backend/combat.py` (340 lines)
 Combat stats from the recorder's match reports (user, 2026-11-04). Completely separate from the replay data: own tables
 - `COMBAT_VERSION`:33 / `FOLDER`:34 / `MAX_BYTES`:35 / `MAX_PLAYERS`:36 / `SESSION_ID`:37 / `USER_ID`:38 / `MAPS`:39 / `INT_STATS`:41 / `FLOAT_STATS`:42 / `EVENT_COUNTS`:43 / `WEAPON_MAPS`:44 / `MAX_AWARDS`:45 / award_name:70 / _award_symbol:77 / _player_awards:82 / _match_awards:90 / **class CombatFileError**:108 / **class CombatState**:113 / _number:123 / _count:131 / _weapon_counts:135 / _names:141 / parse_report:145 / save_report:211 / _process:221 / sync_once:261 / **class CombatIngest**:303 [start:315, stop:319, _run:324]
 
-### `app/backend/combat_achievements.py` (208 lines)
+### `app/backend/combat_achievements.py` (293 lines)
 Combat achievements (user, 2026-11-05): built only from the recorder's match reports (combat_matches, combat_players), kept
-- `GROUP`:27 / `MIN_PER_TEAM`:28 / `RARITY_MIN_GAMES`:29 / `RECENT_DAYS`:30 / **class CombatGame**:34 [day:50, start_dt:54] / _total:58 / _rule:66 / load_games:94 / _player:127 / `_EMPTY`:137 / _everyone:140 / player_items:164 / player_name:170 / catalogue:176 / recent:190
+- `GROUP`:28 / `MIN_PER_TEAM`:29 / `RARITY_MIN_GAMES`:30 / `RECENT_DAYS`:31 / **class CombatGame**:35 [day:52, start_dt:56] / _total:60 / _awards:68 / _rule:73 / _card_list:168 / load_games:177 / _player:212 / `_EMPTY`:222 / _everyone:225 / player_items:249 / player_name:255 / catalogue:261 / recent:275
 
-### `app/backend/config.py` (107 lines)
-- `PROJECT_ROOT`:5 / `DEFAULT_SOURCE`:6 / `DISCORD_CLIENT_ID`:8 / `DISCORD_GUILD_ID`:9 / _secret:12 / **class Settings**:18 [from_env:64, processed_dir:93, db_path:97, combat_dir:101]
+### `app/backend/config.py` (134 lines)
+- `PROJECT_ROOT`:5 / `DEFAULT_SOURCE`:6 / `DISCORD_CLIENT_ID`:8 / `DISCORD_GUILD_ID`:9 / _secret:12 / **class Settings**:18 [from_env:83, processed_dir:120, db_path:124, combat_dir:128]
 
-### `app/backend/db.py` (154 lines)
-- **class Base**:9 / `BUSY_TIMEOUT_S`:13 / utcnow:16 / open_db:20 / warm:51 / _add_missing_columns:65 / _add_missing_indexes:81 / `DERIVED_TABLES`:91 / `PRESERVED_TABLES`:93 / `COMBAT_TABLES`:97 / `IN_PLACE_COLUMNS`:102 / _backfill_counted:105 / _add_columns_in_place:112 / _stale:126 / _rebuild_stale_tables:132
+### `app/backend/db.py` (180 lines)
+- **class Base**:9 / `BUSY_TIMEOUT_S`:13 / utcnow:16 / open_db:20 / open_reader:54 / warm:77 / _add_missing_columns:91 / _add_missing_indexes:107 / `DERIVED_TABLES`:117 / `PRESERVED_TABLES`:119 / `COMBAT_TABLES`:123 / `IN_PLACE_COLUMNS`:128 / _backfill_counted:131 / _add_columns_in_place:138 / _stale:152 / _rebuild_stale_tables:158
 
-### `app/backend/discord_names.py` (144 lines)
+### `app/backend/discord_names.py` (162 lines)
 Discord avatars for players not linked by the bot (user, 2026-11-02): when a player's name matches exactly one
-- `REFRESH_S`:26 / `RETRY_S`:27 / `PAGE`:28 / normalise:37 / _read_members:41 / names_of:53 / _refresh:76 / refresh_soon:96 / match:108 / by_name:119 / loaded:126 / avatar_for_id:131 / clear:139
+- `REFRESH_S`:30 / `RETRY_S`:31 / `PAGE`:32 / normalise:42 / _read_members:46 / names_of:58 / _refresh:81 / refresh_soon:111 / match:123 / by_name:134 / loaded:141 / avatar_for_id:146 / clear:156
 
 ### `app/backend/duplicates.py` (82 lines)
 Duplicate recordings (D13, revised 2026-10-31): the same match saved in more than one file. The copies share a
@@ -139,13 +151,13 @@ Loadout API codes -> in-game names (source: docs/reference/gear-table.json).
 Gear use per player: how many times each weapon / ordnance / tac mod was picked, in how many games, and its share
 - `KINDS`:22 / count_picks:25 / _picks:38 / picks_in_match:50 / picks_of_player:55 / summarize:60
 
-### `app/backend/guard.py` (136 lines)
+### `app/backend/guard.py` (137 lines)
 Scraper protection for the public site (D48). Cloudflare's own bot and rate rules come first (Setup.MD); this is
 - `AI_CRAWLERS`:17 / `SCRIPT_AGENTS`:23 / `HEADER_EXEMPT`:30 / `HEADER_EXEMPT_SUFFIXES`:31 / `HEAVY`:32 / `HEAVY_COST`:33 / `REPLAY_FILE`:36 / `CONTENT_SECURITY_POLICY`:37 / `SECURITY_HEADERS`:42 / asks_for_replay_file:49 / is_https:54 / _from_inside:59 / client_ip:68 / **class RateLimiter**:78 [take:89, _prune:102] / _refuse:109 / check:113
 
-### `app/backend/heatmaps.py` (375 lines)
+### `app/backend/heatmaps.py` (400 lines)
 Heatmap grids in minimap image space (D18). Cells are `cell_m` metres (0.1 m, user 2026-11-01); consecutive
-- `CELL_M`:16 / `HEATMAP_CELL_M`:17 / `CELL_SIZES`:18 / `MAX_STEP_M`:19 / `NO_GEAR`:20 / grid_size:23 / _geometry:30 / cell_mapper:39 / to_cell:54 / rasterise:58 / rasterise_many:72 / _densify:80 / _rasterise_arrays:121 / `SPEED_BANDS`:142 / `GEAR_FIELDS`:146 / `_SPEED_LIMITS`:147 / _sample_keys:150 / key_value:174 / layer_paths:183 / layer_runs:192 / _merge:220 / layer_label:224 / `MAX_LOADOUT_LAYERS`:243 / fold_layers:246 / player_layers:259 / pack_cells:268 / unpack_cells:284 / response:291 / `TRACK_MODES`:312 / build_layers:315 / `THUMB_CELL_M`:337 / `TEAM_RGB`:338 / _png:341 / thumbnail_png:353
+- `CELL_M`:16 / `HEATMAP_CELL_M`:17 / `CELL_SIZES`:18 / `MAX_STEP_M`:19 / `NO_GEAR`:20 / grid_size:23 / _geometry:30 / cell_mapper:39 / to_cell:54 / rasterise:58 / rasterise_many:72 / _densify:80 / cells_of:121 / _rasterise_arrays:133 / `SPEED_BANDS`:149 / `GEAR_FIELDS`:153 / `_SPEED_LIMITS`:154 / _sample_keys:157 / key_value:181 / layer_paths:190 / layer_runs:199 / _merge:227 / layer_label:231 / `MAX_LOADOUT_LAYERS`:250 / fold_layers:253 / player_layers:266 / pack_cells:275 / unpack_cells:291 / response:298 / `TRACK_MODES`:319 / build_layers:322 / `THUMB_CELL_M`:344 / `TEAM_RGB`:345 / `PNG_SIGNATURE`:348 / _png:351 / png_indexed:363 / thumbnail_png:378
 
 ### `app/backend/heatmaps3d.py` (205 lines)
 3D heatmaps: the heat of heatmaps.py in world-space voxels (VOX_M cubes), for the 3D view of a heatmap.
@@ -155,8 +167,12 @@ Heatmap grids in minimap image space (D18). Cells are `cell_m` metres (0.1 m, us
 Achievement icons chosen on the Console page (D43): an existing badge image or an uploaded PNG. The choice is
 - `KEY`:20 / `CUSTOM`:21 / `CUSTOM_NAME`:22 / `MAX_BYTES`:23 / `MAX_SIDE`:24 / `PNG`:25 / `BUILT_IN_DIRS`:27 / `NOT_ICONS`:28 / `ALL_RULES`:29 / `RULE_IDS`:30 / **class IconError**:33 / overrides:37 / apply:42 / custom_dir:48 / built_in:52 / available:57 / default:64 / set_icon:68 / save_upload:85
 
-### `app/backend/main.py` (134 lines)
+### `app/backend/main.py` (149 lines)
 - `FRONTEND_DIST`:26 / **class SinglePageApp**:29 [get_response:32] / create_app:44
+
+### `app/backend/map_heat.py` (457 lines)
+All-time heat per map for the home page's "Matches per map" cards: where players have been over every counted
+- `FORMAT`:49 / `CELL_M`:50 / `TEAMS`:51 / `TEAM_LAYER`:52 / `GEAR_GROUPS`:54 / `LAYERS`:56 / `LAYER_INDEX`:57 / `BATCH`:58 / `READ_CHUNK`:59 / `FLUSH_SAMPLES`:60 / `FILE_NAME`:61 / `RETRY_S`:62 / _shape:65 / _gear_layers:70 / sample_keys:78 / add_keys:102 / `PEAK_QUANTILE`:117 / `TEAM_RGB`:121 / `GEAR_RAMP`:127 / `GEAR_ALPHA`:129 / `GEAR_STEPS`:130 / `VIEWS`:138 / `FAVOURED_BLUR`:139 / `FAVOURED_MIN_EXPECTED`:140 / `FAVOURED_FROM`:141 / `FAVOURED_QUANTILE`:142 / `FAVOURED_TOP`:143 / `FAVOURED_ALPHA`:144 / `FAVOURED_CAP_QUANTILE`:145 / `FAVOURED_SPIKE`:146 / `MIN_LAYER_SHARE`:148 / _strength:151 / _team_palette:159 / _gear_palette:172 / render_teams:185 / render_gear:200 / _blur:209 / render_favoured:222 / **class MapHeat**:246 [_empty:266, _load:271, _save:292, _wanted:309, update:314, _apply:338, due:377, ensure:381, answer:408] / _read:448
 
 ### `app/backend/mega_prizes.py` (51 lines)
 Mega Prize winners report for the Console (user, 2026-11-04): the prizes are handed out by hand, so this lists who has
@@ -166,13 +182,13 @@ Mega Prize winners report for the Console (user, 2026-11-04): the prizes are han
 Merge suggestions for the Console (D34 merges): player records that used the same name, which is how one person
 - `MIN_KEY_CHARS`:18 / `MAX_GROUPS`:19 / `_NOT_ALNUM`:20 / name_key:23 / suggestions:27
 
-### `app/backend/middleware.py` (111 lines)
+### `app/backend/middleware.py` (120 lines)
 Every request and answer of the site in one pure ASGI layer (it replaces four @app.middleware layers that cost
-- `PER_VISITOR`:25 / `WRITES`:26 / `BOT`:27 / `STATIC_MAX_AGE_S`:28 / `EDGE_STALE_IF_ERROR_S`:29 / _refusal:32 / _api_cache:46 / _versioned:58 / _static_cache:63 / **class SiteMiddleware**:77
+- `PER_VISITOR`:27 / `WRITES`:28 / `UPLOAD`:29 / `BOT`:30 / `STATIC_MAX_AGE_S`:31 / `EDGE_STALE_IF_ERROR_S`:32 / _refusal:35 / _api_cache:52 / _versioned:64 / _static_cache:69 / **class SiteMiddleware**:83
 
-### `app/backend/models.py` (393 lines)
+### `app/backend/models.py` (411 lines)
 Tables as specified in docs/DataModel.MD.
-- **class Replay**:9 / **class Match**:33 / **class DuplicateMatch**:68 / **class Player**:78 / **class MatchPlayer**:88 / **class MatchPlayerLoadout**:125 / **class Event**:138 / **class AppSetting**:152 / **class PlayerProfile**:162 / **class DiscordProfile**:177 / **class NakamaAccount**:190 / **class PlayerAlias**:207 / **class RepairRequest**:217 / **class AggressiveRepair**:226 / **class PriorityReplay**:236 / **class HiddenReplay**:244 / **class ConsoleLog**:254 / **class ArenaPlayer**:271 / **class ArenaCounted**:285 / **class NakamaCombatPlayer**:295 / **class NakamaCombatCounted**:309 / **class CombatFile**:325 / **class CombatMatch**:341 / **class CombatPlayer**:359
+- **class Replay**:9 / **class Match**:33 / **class DuplicateMatch**:68 / **class Player**:78 / **class MatchPlayer**:88 / **class MatchPlayerLoadout**:125 / **class Event**:138 / **class AppSetting**:152 / **class PlayerProfile**:162 / **class DiscordProfile**:177 / **class NakamaAccount**:190 / **class PlayerAlias**:207 / **class RepairRequest**:217 / **class AggressiveRepair**:226 / **class PriorityReplay**:236 / **class HiddenReplay**:244 / **class CloudLog**:254 / **class ConsoleLog**:272 / **class ArenaPlayer**:289 / **class ArenaCounted**:303 / **class NakamaCombatPlayer**:313 / **class NakamaCombatCounted**:327 / **class CombatFile**:343 / **class CombatMatch**:359 / **class CombatPlayer**:377
 
 ### `app/backend/persist.py` (101 lines)
 MatchStats -> database rows. Callers commit, so a match is stored completely or not at all.
@@ -232,9 +248,9 @@ App version (user, 2026-11-01): calendar versioning, YYYY.MM.DD.N = release date
 Stats hidden from players (admin console: "hide-stats"), site-wide or for chosen players. Hidden stats are left out
 - `TTL_S`:18 / **class View**:22 [hides:26] / `ALL_SHOWN`:31 / _settings:34 / hidden_groups:46 / view:50 / win_loss:58 / ids:63 / hidden_player_ids:69 / `WIN_LOSS_KEYS`:77 / without:80
 
-### `app/backend/worker.py` (401 lines)
+### `app/backend/worker.py` (405 lines)
 Processes queued replays, newest file first (D25). Parsing + stats run in a process pool;
-- `MAX_CRASHES`:36 / `SIDE_WORKERS`:37 / _pool_process_start:40 / _lower_priority:47 / analyse:61 / timed_analyse:94 / save_result:101 / _save_result:108 / _with_hex_gear_codes:156 / requeue_unfinished_and_outdated:165 / claim_queued:186 / **class Worker**:223 [start:237, _new_pool:243, notify:248, run_side:251, _side_done:275, stop:285, busy:296, current:299, wait_idle:306, _claim:320, _tracks_file:334, _requeue:337, _recover_from_crash:342, _run:362]
+- `MAX_CRASHES`:36 / `SIDE_WORKERS`:37 / `LANES`:40 / _pool_process_start:43 / _lower_priority:50 / analyse:64 / timed_analyse:97 / save_result:104 / _save_result:111 / _with_hex_gear_codes:159 / requeue_unfinished_and_outdated:168 / claim_queued:189 / **class Worker**:226 [start:240, _new_pool:246, notify:251, run_side:254, _side_done:279, stop:289, busy:300, current:303, wait_idle:310, _claim:324, _tracks_file:338, _requeue:341, _recover_from_crash:346, _run:366]
 
 ### `app/parser/__init__.py` (22 lines)
 Echo VR replay parser. No database or web imports.

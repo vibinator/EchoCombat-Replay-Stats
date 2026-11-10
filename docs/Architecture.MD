@@ -77,6 +77,7 @@ All JSON. No upload, delete or replay-download endpoints: replays come only from
 | GET | /api/overview | Home dashboard: totals, today / week, by map, top players this week, latest; `global` = top weapon / ordnance / tac mod (time share), recorded hours, avg / longest match, players per match, deaths (est.), fastest, most active, busiest day, payload attack win rate, capture wins | D37 |
 | GET | /api/overview/activity | Matches per `bucket` (day / week / month / year), with a per-map split (`maps`) for the stacked chart; `day` = the 90 days up to the newest match, empty days included | D37 |
 | GET | /api/overview/players-seen | Distinct players per hour (24h) / day (7d, 30d); `anchor` now / latest match | D37 |
+| GET | /api/overview/map-heat | All-time heat per map for the home page's map cards, as palette PNG data URLs over the minimaps; `layer` = `team` or `weapon:` / `ordnance:` / `tacmod:<code>` (`layers` lists them). Gear: `view` = `favoured` (held there more often than on the map as a whole, the default) or `all`. Counts kept in `data/database/map-heat.npz`, brought up to date once per calendar month in the background (`map_heat.py`) | D37 |
 | GET | /api/search | `q`: players by name (merged ids left out, D34) + match by `#id` | D37 |
 | GET | /api/health | `{status, parser_version, stats_version, source_dir}` | 3 |
 | GET | /api/import | `{source_dir, workers, busy, counts, redo (re-processing after update), versions, rate_per_min (last 10 min), eta_min, matches_by_map, stages[{key, label, done, total, detail}] (files → replays → matches → players → events → tracks → heatmaps → leaderboard → achievements), current[{replay_id, source_path, seconds}], scan{…}}` | D25 |
@@ -142,7 +143,7 @@ Heatmap response: `{map, image: "/minimaps/<map>.png", cols, rows, cell_m, match
 ## Frontend pages
 | Page | Route | Notes |
 |---|---|---|
-| Home dashboard | `/` | Totals, most popular gear, global stats, matches per map (thumbnails), players seen (24 h / 7 d / 1 month), activity per month / year, most active this week, latest match cards |
+| Home dashboard | `/` | Totals, most popular gear, global stats, matches per map (minimap cards with the all-time heatmap: teams, or one weapon / ordnance / tac mod; a card's picture opens that map large), players seen (24 h / 7 d / 1 month), activity per month / year, most active this week, latest match cards |
 | Matches | `/matches` | Cards or list; filters map, mode, result, public/private, min players, dates, player name (all in the URL) |
 | Match | `/matches/:id?tab=` | Scoreboard (teams side by side), highlights, tabs Players / Timeline / Heatmap (mode, player, detail; zoom, opacity, side by side) / Playback; CSV/JSON export |
 | Players / Player | `/players`, `/players/:userId` | Profile header (level, seen, main loadout, favourite map, form), Compare, stat cards with ⓘ help, trends (small multiples), teammates / opponents, heatmap (settings in URL), achievements summary, recent matches |

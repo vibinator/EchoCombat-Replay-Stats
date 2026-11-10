@@ -5,9 +5,10 @@ from datetime import date, datetime, timedelta
 from fastapi import APIRouter, Query, Request, Response
 from sqlalchemy import case, func, select
 
-from .. import twitch, visibility
+from .. import map_heat, twitch, visibility
 from ..cache import cached_response
 from ..duplicates import counted
+from ..errors import ApiError
 from ..gear import ORDNANCES, TACMODS, WEAPONS
 from ..models import Match, MatchPlayer, MatchPlayerLoadout, Player, PlayerAlias, Replay
 from .derived import gear, match_summary, period_start, ratio
@@ -97,6 +98,30 @@ def last_match(request: Request):
     with request.app.state.sessionmaker() as db:
         last = _last_ended(db)
     return {"last_match_at": last}
+
+
+@router.get("/api/overview/map-heat")
+def map_heat_cards(request: Request,
+                   layer: str = Query(map_heat.TEAM_LAYER, pattern=r"^(team|(weapon|ordnance|tacmod):[a-z0-9]{1,16})$"),
+                   view: str = Query(map_heat.VIEWS[0], pattern="^(" + "|".join(map_heat.VIEWS) + ")$")):
+    """All-time heat per map for the "Matches per map" cards: PNG data URLs laid over the minimap thumbnails, and how
+    many matches each holds. `layer`: both teams, or one weapon / ordnance / tac mod (`layers` lists them); for gear
+    `view` = `favoured` (where it is held more often than on the map as a whole) or `all` (everywhere it was held). Counted once a month (map_heat.py); `building` while that pass runs, the cards then show what has been
+    added so far. Cached per layer and state of the counts, so the four PNGs are encoded once."""
+    if layer != map_heat.TEAM_LAYER and layer not in map_heat.LAYER_INDEX:
+        raise ApiError(400, "bad_layer", f"Unknown layer '{layer}'")
+    heat = _map_heat(request.app)
+    heat.ensure()
+    if layer == map_heat.TEAM_LAYER:
+        view = map_heat.VIEWS[0]  # one answer whatever was asked
+    return cached_response(request, "map-heat", (layer, view, heat.revision), lambda: heat.answer(layer, view))
+
+
+def _map_heat(app) -> map_heat.MapHeat:
+    heat = getattr(app.state, "map_heat", None)
+    if heat is None:
+        heat = app.state.map_heat = map_heat.MapHeat(app.state.sessionmaker, app.state.settings)
+    return heat
 
 
 LIVE_HEADERS = {"Cache-Control": "no-store", "Cloudflare-CDN-Cache-Control": "no-store"}
@@ -311,7 +336,8 @@ def warm(app) -> None:
     from types import SimpleNamespace
 
     request = SimpleNamespace(app=app, headers={})
-    for call in (lambda: overview(request), lambda: activity(request, "day"), lambda: players_seen(request, "24h", "now")):
+    for call in (lambda: overview(request), lambda: activity(request, "day"), lambda: players_seen(request, "24h", "now"),
+                 lambda: map_heat_cards(request, map_heat.TEAM_LAYER, map_heat.VIEWS[0])):
         try:
             call()
         except Exception:  # noqa: BLE001 - warming is best effort; the real request recomputes and reports errors

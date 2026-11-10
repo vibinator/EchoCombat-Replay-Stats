@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
-import { getActivity, getLastMatch, getLatestMatches, getLive, getOverview, getPlayersSeen, type GearShare, type MatchSummary, type PlayersSeen } from "../api";
+import { getActivity, getLastMatch, getLatestMatches, getLive, getMapHeat, getOverview, getPlayersSeen, type GearShare, type MapHeatLayer, type MapHeatView, type MatchSummary, type PlayersSeen } from "../api";
 import { BarChart, StackedBarChart } from "../components/charts";
 import { MatchCards } from "../components/MatchCards";
 import { EmptyState, FitText, Skeleton } from "../components/ui";
@@ -117,6 +117,143 @@ function ActivityChart() {
         />
       )}
     </section>
+  );
+}
+
+const HEAT_GROUPS: [MapHeatLayer["group"], string][] = [
+  ["team", "Teams"],
+  ["weapon", "Weapon"],
+  ["ordnance", "Ordnance"],
+  ["tacmod", "Tac mod"],
+];
+
+const HEAT_VIEWS: [MapHeatView, string, string][] = [
+  ["favoured", "Favoured spots", "Where it is held more often than on the map as a whole"],
+  ["all", "Everywhere", "Everywhere it was held"],
+];
+
+/** "Matches per map": a card per map, its minimap under the all-time heat of every counted match (counted once a
+ * month on the server, map_heat.py). The heat is of both teams, or of the players holding one weapon, ordnance or
+ * tac mod: one request per choice, four small PNGs, kept by the answer cache so going back to a choice is instant.
+ * Gear opens on its "favoured spots" (where it is held more than usual): everywhere it was held looks much the same
+ * for every piece of gear, the objective and the payload's route. Until the first answer (or if it fails) the cards
+ * show the plain minimap. Clicking a card's picture opens that map large under the cards (user, 2026-11-10), over
+ * the full-size minimap (loaded only then); the same tabs switch what it shows. The map's name still leads to its
+ * matches. */
+function MapCards({ byMap, total }: { byMap: Record<string, number>; total: number }) {
+  const [layer, setLayer] = useState("team");
+  const [view, setView] = useState<MapHeatView>("favoured");
+  const heat = useApi(() => getMapHeat(layer, view), `map-heat:${layer}:${layer === "team" ? "" : view}`);
+  const d = heat.data; // the previous choice's answer stays until the new one is there
+  const layers = d?.layers ?? [];
+  const group = layers.find((l) => l.key === layer)?.group ?? "team";
+  const inGroup = layers.filter((l) => l.group === group);
+  const shown = layers.find((l) => l.key === d?.layer);
+  const [big, setBig] = useState<string | null>(null);
+  const bigBox = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!big) return;
+    bigBox.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setBig(null);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [big]);
+  const bigImage = big ? d?.maps[big]?.image : undefined;
+  const what = shown && shown.group !== "team" ? shown.label : "both teams";
+  return (
+    <>
+      <div className="section-head map-heat-head">
+        <h2>Matches per map</h2>
+        {layers.length > 1 && (
+          <div className="tabs" role="tablist" aria-label="All-time heatmap of">
+            {HEAT_GROUPS.filter(([g]) => layers.some((l) => l.group === g)).map(([g, label]) => (
+              <button key={g} role="tab" aria-selected={group === g} className={group === g ? "tab active" : "tab"}
+                onClick={() => g !== group && setLayer(layers.find((l) => l.group === g)!.key)}>
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      {group !== "team" && (
+        <div className="chips map-heat-gear">
+          {inGroup.map((l) => (
+            <button key={l.key} className={l.key === layer ? "chip active" : "chip"} aria-pressed={l.key === layer} onClick={() => setLayer(l.key)}
+              title={l.share != null ? `Held ${pct(l.share)} of the time` : undefined}>
+              <GearLabel name={l.label} />
+              {l.cut && <sup className="cut">cut</sup>}
+            </button>
+          ))}
+          <span className="tabs map-heat-view" role="group" aria-label="What the heatmap shows">
+            {HEAT_VIEWS.map(([v, label, hint]) => (
+              <button key={v} className={view === v ? "tab active" : "tab"} aria-pressed={view === v} title={hint} onClick={() => setView(v)}>
+                {label}
+              </button>
+            ))}
+          </span>
+        </div>
+      )}
+      <div className="map-cards">
+        {Object.entries(byMap)
+          .sort((a, b) => b[1] - a[1])
+          .map(([m, n]) => {
+            const image = d?.maps[m]?.image;
+            return (
+              <div key={m} className={big === m ? "map-card open" : "map-card"}>
+                <button type="button" className={image ? "map-card-thumb has-heat" : "map-card-thumb"} aria-expanded={big === m}
+                  title={big === m ? "Close the large view" : `Show ${title(m)} large`} onClick={() => setBig(big === m ? null : m)}>
+                  <img src={`/minimaps/${m}_small.png`} alt={`${title(m)} heatmap`} loading="lazy" decoding="async" />
+                  {image && <img className="map-card-heat" src={image} alt="" />}
+                  <span className="map-card-zoom" aria-hidden="true">{big === m ? "−" : "+"}</span>
+                </button>
+                <Link to={`/matches?map=${m}`} className="map-card-name">
+                  <strong>{title(m)}</strong>
+                  <span className="muted">
+                    {n.toLocaleString()} matches · {pct(n / total)}
+                  </span>
+                </Link>
+              </div>
+            );
+          })}
+      </div>
+      {big && (
+        <div className="panel map-heat-big" ref={bigBox}>
+          <div className="section-head">
+            <h3>
+              {title(big)} <span className="muted">· all time · {what}</span>
+            </h3>
+            <span>
+              <Link to={`/matches?map=${big}`}>Matches on {title(big)}</Link>
+              <button type="button" className="secondary map-heat-close" onClick={() => setBig(null)}>Close</button>
+            </span>
+          </div>
+          <div className="map-heat-big-stage">
+            <div className={bigImage ? "map-heat-big-inner has-heat" : "map-heat-big-inner"}>
+              <img key={big} src={`/minimaps/${big}.png`} alt={`${title(big)} minimap`} decoding="async" />
+              {bigImage && <img className="map-card-heat" src={bigImage} alt={`All-time heatmap of ${what} on ${title(big)}`} />}
+            </div>
+          </div>
+          {d && !bigImage && <p className="muted">Nothing to show for this choice on {title(big)}.</p>}
+        </div>
+      )}
+      {d && Object.keys(d.maps).length > 0 && (
+        <p className="muted map-heat-note">
+          {shown && shown.group !== "team" ? (
+            <>
+              <span className="map-heat-scale" aria-hidden="true" />{" "}
+              {d.view === "all" ? (
+                <>Everywhere <GearLabel name={shown.label} /> was held, all time: brighter where it is held most.</>
+              ) : (
+                <>Where <GearLabel name={shown.label} /> is held more often than on the rest of the map, all time: brighter = more often than usual.</>
+              )}
+            </>
+          ) : (
+            <>All-time heatmap of every match: each spot in the colour of the team that is there most (<span className="team-text blue">blue</span> / <span className="team-text orange">orange</span>), brighter where players are most.</>
+          )}{" "}
+          {d.building ? "Still being counted, more matches are added as it goes." : d.updated_on && `Updated once a month, last on ${d.updated_on}.`}
+        </p>
+      )}
+    </>
   );
 }
 
@@ -339,20 +476,7 @@ export function HomePage() {
                 <PlayersSeenChart />
               </div>
 
-              <h2>Matches per map</h2>
-              <div className="map-cards">
-                {Object.entries(o.by_map)
-                  .sort((a, b) => b[1] - a[1])
-                  .map(([m, n]) => (
-                    <Link key={m} to={`/matches?map=${m}`} className="map-card">
-                      <img src={`/minimaps/${m}_small.png`} alt="" loading="lazy" decoding="async" />
-                      <strong>{title(m)}</strong>
-                      <span className="muted">
-                        {n.toLocaleString()} matches · {pct(n / o.matches)}
-                      </span>
-                    </Link>
-                  ))}
-              </div>
+              <MapCards byMap={o.by_map} total={o.matches} />
 
               <h2>Most popular gear</h2>
               <div className="cards gear-cards">
