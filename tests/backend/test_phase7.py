@@ -86,7 +86,8 @@ def test_recorder_pads_gaps_and_absence():
     rec = tracks.TrackRecorder(rf.START)
     def frame(seconds, players):
         return Frame(0, rf.START + timedelta(seconds=seconds), players, [], 0, 0, False, None, None, None, None)
-    p = type("P", (), {"user_id": "1", "head_position": (1.0, 0.0, 2.0), "weapon": "", "tacmod": "", "ordnance": "", "team": "blue"})
+    p = type("P", (), {"user_id": "1", "head_position": (1.0, 0.0, 2.0), "weapon": "", "tacmod": "", "ordnance": "", "team": "blue",
+                       "body_up": (0.0, -1.0, 0.0)})
     rec.add(frame(0.0, []))
     rec.add(frame(1.6, [p]))  # slot 3; slots 1-2 padded
     t = rec.result()
@@ -94,6 +95,7 @@ def test_recorder_pads_gaps_and_absence():
     assert t.players[0].x == [None, None, None, 1.0]
     header, players = tracks.decode(tracks.encode(t))
     assert list(players["1"]["team"]) == [0, 0, 0, tracks.BLUE]
+    assert list(players["1"]["flags"]) == [0, 0, 0, tracks.UPSIDE_DOWN]  # version 3: who is upside down
 
 
 # --- heatmap geometry --------------------------------------------------------------------

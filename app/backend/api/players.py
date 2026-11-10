@@ -9,12 +9,13 @@ from .. import gear_use, heatmaps, heatmaps3d, tracks, tracks3d, visibility
 from ..heatmaps3d import build_layers3d, read_pairs
 from ..version import VERSION
 from ..aliases import ids_of
+from .. import cache
 from ..cache import cached, cached_response
 from ..duplicates import counted
 from ..errors import ApiError
 from ..gear import WEAPONS
 from ..gear import lookup as gear_lookup
-from ..models import Event, Match, MatchPlayer, MatchPlayerLoadout, Player, PlayerAlias
+from ..models import Event, Match, MatchPlayer, MatchPlayerLoadout, Player, PlayerAlias, Replay
 from ..stats import quality
 from ..stats.maps import HEATMAP_LAYOUTS
 from .matches import MAPS_3D
@@ -281,6 +282,80 @@ def _get_player(request: Request, user_id: str, period: str, map: str | None, v:
 
 
 HEATMAP_MODES = heatmaps.TRACK_MODES + ("deaths",)
+ALL_MATCHES = 5000  # "All" in the page's Matches list
+HEATMAP_STAMP = 1  # another number when a heatmap is worked out differently: every kept one is then built again
+
+
+_heatmap_stamps: dict[tuple, tuple] = {}  # (user id, map, period) -> (state of the archive, stamp)
+
+
+def heatmap_stamp(app, user_id: str, map_: str, period: str) -> tuple:
+    """What a player heatmap is built from, as a stamp for the cache: the player's ids, and the number, newest and
+    last (re-)read of the matches on this map in this period. It changes when one of the player's own matches is
+    added, re-read or removed, and not when anybody else's replay comes in. Looked up once per state of the archive
+    (10 ms for a player with 1,700 matches): while no replay comes in, a repeat costs nothing."""
+    archive = (cache.current_stamp(app.state.sessionmaker), datetime.now().date() if period != "all" else None)
+    key = (user_id, map_, period)
+    memo = _heatmap_stamps.get(key)
+    if memo is not None and memo[0] == archive:
+        return memo[1]
+    with app.state.sessionmaker() as db:
+        player = db.scalar(select(Player).where(Player.user_id == user_id))
+        if player is None:
+            return (HEATMAP_STAMP, None)
+        found = db.execute(
+            select(func.count(), func.max(Match.id), func.max(Replay.processed_at))
+            .select_from(MatchPlayer).join(Match, Match.id == MatchPlayer.match_id).join(Replay, Replay.id == Match.replay_id)
+            .where(_filters(player.id, period, map_))).one()
+        stamp = (HEATMAP_STAMP, player.id, sorted(ids_of(db, user_id)), found[0], found[1], str(found[2]))
+    if len(_heatmap_stamps) >= 4096:
+        _heatmap_stamps.clear()
+    _heatmap_stamps[key] = (archive, stamp)
+    return stamp
+
+
+def _heatmap_job(request, user_id: str, map_: str, mode: str, period: str, last: int, cell: float) -> dict:
+    return {"name": "player-heatmap", "params": (user_id, map_, mode, period, last, cell),
+            "compute": lambda: _player_heatmap(request, user_id, map_, mode, period, last, cell),
+            "stamp": lambda: heatmap_stamp(request.app, user_id, map_, period), "daily": period != "all"}
+
+
+# 3D heatmaps that leave matches out because their 3D tracks are not there yet (an archive still being backfilled):
+# those tracks arrive without the database knowing, so such a heatmap is looked at again once a day. One that covers
+# all its matches is only built again when the player has a new match.
+_partial_3d: set[tuple] = set()
+
+
+def _heatmap3d_job(request, user_id: str, map_: str, mode: str, period: str, last: int) -> dict:
+    params = (user_id, map_, mode, period, last)
+
+    def compute() -> dict:
+        answer = _player_heatmap3d(request, user_id, map_, mode, period, last)
+        (_partial_3d.add if answer["matches_3d"] < answer["matches"] else _partial_3d.discard)(params)
+        return answer
+
+    def stamp() -> tuple:
+        day = datetime.now().date().isoformat() if params in _partial_3d else None
+        return (*heatmap_stamp(request.app, user_id, map_, period), day)
+
+    return {"name": "player-heatmap3d", "params": params, "compute": compute, "stamp": stamp, "daily": period != "all"}
+
+
+class _NoRequest:
+    """What the builders read of a request, for building without one."""
+
+    def __init__(self, app):
+        self.app = app
+
+
+def prebuild_heatmaps(app, user_id: str, map_: str) -> int:
+    """The two long heatmaps of a player on a map (all time, all matches, by team: flat and 3D) onto disk ahead of
+    time (heights_warm.py). Returns how many were built: 0 when both saved ones are still current."""
+    if map_ not in HEATMAP_LAYOUTS:
+        return 0
+    request = _NoRequest(app)
+    return (cache.prebuild(app, **_heatmap_job(request, user_id, map_, "team", "all", ALL_MATCHES, heatmaps.HEATMAP_CELL_M))
+            + cache.prebuild(app, **_heatmap3d_job(request, user_id, map_, "team", "all", ALL_MATCHES)))
 
 
 def _player_heatmap(request: Request, user_id: str, map_: str, mode: str, period: str, last: int, cell: float) -> dict:
@@ -327,8 +402,7 @@ def get_player_heatmap(
 ):
     if cell not in heatmaps.CELL_SIZES:
         raise ApiError(400, "bad_cell", f"cell must be one of {heatmaps.CELL_SIZES}")
-    return cached_response(request, "player-heatmap", (user_id, map, mode, period, last, cell),
-                           lambda: _player_heatmap(request, user_id, map, mode, period, last, cell))
+    return cached_response(request, **_heatmap_job(request, user_id, map, mode, period, last, cell), persist=True)
 
 
 HEATMAP3D_MODES = heatmaps.TRACK_MODES  # deaths are stored without a height
@@ -363,8 +437,7 @@ def get_player_heatmap3d(
     last: int = Query(200, ge=1, le=5000, description="most recent N matches"),
 ):
     """The 3D version of /heatmap, from the matches whose 3D tracks exist (`matches_3d` of `matches`): none is built here."""
-    return cached_response(request, "player-heatmap3d", (user_id, map, mode, period, last),
-                           lambda: _player_heatmap3d(request, user_id, map, mode, period, last))
+    return cached_response(request, **_heatmap3d_job(request, user_id, map, mode, period, last), persist=True)
 
 
 @router.get("/{user_id}/trends")

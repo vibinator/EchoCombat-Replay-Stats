@@ -7,7 +7,7 @@ path is in middleware.WRITES / BOT. Console routes need auth.has_console; profil
 
 | Method | Path | Handler | Where | Purpose |
 |---|---|---|---|---|
-| GET | `/achievements/custom/{name}` | custom_icon | app/backend/main.py:133 | Icons uploaded on the Console page (D43). Before the site mount, which serves the built-in ones. |
+| GET | `/achievements/custom/{name}` | custom_icon | app/backend/main.py:137 | Icons uploaded on the Console page (D43). Before the site mount, which serves the built-in ones. |
 | GET | `/api/achievements` | list_achievements | app/backend/api/achievements.py:531 | The rule catalogue with rarity: share of players (10+ games) who unlocked (25 %+, tiered: bronze) / completed  |
 | GET | `/api/achievements/recent` | recent_unlocks | app/backend/api/achievements.py:551 | Latest 100 % completions by players active in the last 30 days of the archive. |
 | POST | `/api/admin/achievements/{rule_id}/icon` | upload_icon | app/backend/api/admin.py:53 | Body = the PNG file itself (Content-Type: image/png). Stored, then used for this achievement. |
@@ -60,7 +60,7 @@ path is in middleware.WRITES / BOT. Console routes need auth.has_console; profil
 | GET | `/api/combat/players/{user_id}` | player | app/backend/api/combat.py:130 |  |
 | GET | `/api/combat/stats` | stat_options | app/backend/api/combat.py:119 |  |
 | GET | `/api/combat/summary` | summary | app/backend/api/combat.py:110 |  |
-| GET | `/api/health` | health | app/backend/main.py:129 |  |
+| GET | `/api/health` | health | app/backend/main.py:133 |  |
 | GET | `/api/import` | import_status | app/backend/api/imports.py:24 | Import progress, broken down by what each replay produces. |
 | GET | `/api/leaderboard` | leaderboard | app/backend/api/leaderboard.py:173 |  |
 | GET | `/api/leaderboard/achievers` | achievers | app/backend/api/leaderboard.py:256 | The top of the achievements ranking with facts about each player: challenges completed, medals, gold or better |
@@ -70,28 +70,28 @@ path is in middleware.WRITES / BOT. Console routes need auth.has_console; profil
 | GET | `/api/matches/thumbnails` | get_thumbnails | app/backend/api/matches.py:110 | Team heat over the minimap for a page of match cards, as PNG data URLs keyed by match id (matches without |
 | GET | `/api/matches/{match_id}` | get_match | app/backend/api/matches.py:178 |  |
 | GET | `/api/matches/{match_id}/events` | get_events | app/backend/api/matches.py:245 |  |
-| GET | `/api/matches/{match_id}/export` | export_match | app/backend/api/matches.py:398 |  |
+| GET | `/api/matches/{match_id}/export` | export_match | app/backend/api/matches.py:399 |  |
 | GET | `/api/matches/{match_id}/heatmap` | get_match_heatmap | app/backend/api/matches.py:305 |  |
 | GET | `/api/matches/{match_id}/heatmap3d` | get_match_heatmap3d | app/backend/api/matches.py:342 |  |
-| GET | `/api/matches/{match_id}/playback` | get_playback | app/backend/api/matches.py:408 | Player positions at 2 Hz in minimap image space (u, v in 0..1; null = absent / off the image), |
-| GET | `/api/matches/{match_id}/playback3d` | get_playback3d | app/backend/api/matches.py:539 | Head positions (decimetres), facing (yaw 0-255, pitch degrees), team and hands (relative to the head, 2 cm ste |
+| GET | `/api/matches/{match_id}/playback` | get_playback | app/backend/api/matches.py:409 | Player positions at 2 Hz in minimap image space (u, v in 0..1; null = absent / off the image), |
+| GET | `/api/matches/{match_id}/playback3d` | get_playback3d | app/backend/api/matches.py:540 | Head positions (decimetres), facing (yaw 0-255, pitch degrees), team and hands (relative to the head, 2 cm ste |
 | GET | `/api/matches/{match_id}/timeline` | get_timeline | app/backend/api/matches.py:287 | Objective progress (2 Hz) + events, for the match timeline. |
 | GET | `/api/overview` | overview | app/backend/api/overview.py:20 | Archive totals, today / this week, most-played map, top players this week, latest matches. |
-| GET | `/api/overview/activity` | activity | app/backend/api/overview.py:146 | Matches per period over the whole archive (recorder-local dates), split by map for the stacked chart. |
+| GET | `/api/overview/activity` | activity | app/backend/api/overview.py:169 | Matches per period over the whole archive (recorder-local dates), split by map for the stacked chart. |
 | GET | `/api/overview/last-match` | last_match | app/backend/api/overview.py:94 | When the newest match ended, for the home page's "Last match" card: the overview is rebuilt at most every |
 | GET | `/api/overview/latest` | latest_matches | app/backend/api/overview.py:77 | The home page's "Latest matches" list on its own: the overview is rebuilt at most every cache_refresh_s (it is |
-| GET | `/api/overview/live` | live | app/backend/api/overview.py:130 | Is a game being played now (the spectator bot is live on Twitch)? The home page's "Game in progress" card |
+| GET | `/api/overview/live` | live | app/backend/api/overview.py:153 | Is a game being played now (the spectator bot is live on Twitch)? The home page's "Game in progress" card |
 | GET | `/api/overview/map-heat` | map_heat_cards | app/backend/api/overview.py:103 |  |
-| GET | `/api/overview/players-seen` | players_seen | app/backend/api/overview.py:286 |  |
+| GET | `/api/overview/players-seen` | players_seen | app/backend/api/overview.py:309 |  |
 | GET | `/api/overview/processing` | processing | app/backend/api/overview.py:86 | Replays still waiting to be read, for the "processing" spinner in the top bar. Not cached: it is the live queu |
-| GET | `/api/players` | search_players | app/backend/api/players.py:34 |  |
-| GET | `/api/players/compare/{user_ids}` | compare_players | app/backend/api/players.py:176 | Profiles of 2-4 players side by side + head-to-head record of the first two. |
-| GET | `/api/players/{user_id}` | get_player | app/backend/api/players.py:209 |  |
+| GET | `/api/players` | search_players | app/backend/api/players.py:35 |  |
+| GET | `/api/players/compare/{user_ids}` | compare_players | app/backend/api/players.py:177 | Profiles of 2-4 players side by side + head-to-head record of the first two. |
+| GET | `/api/players/{user_id}` | get_player | app/backend/api/players.py:210 |  |
 | GET | `/api/players/{user_id}/achievements` | player_achievements | app/backend/api/achievements.py:173 |  |
-| GET | `/api/players/{user_id}/companions` | get_companions | app/backend/api/players.py:438 |  |
-| GET | `/api/players/{user_id}/heatmap` | get_player_heatmap | app/backend/api/players.py:318 |  |
-| GET | `/api/players/{user_id}/heatmap3d` | get_player_heatmap3d | app/backend/api/players.py:356 |  |
-| GET | `/api/players/{user_id}/trends` | get_trends | app/backend/api/players.py:370 |  |
+| GET | `/api/players/{user_id}/companions` | get_companions | app/backend/api/players.py:511 |  |
+| GET | `/api/players/{user_id}/heatmap` | get_player_heatmap | app/backend/api/players.py:393 |  |
+| GET | `/api/players/{user_id}/heatmap3d` | get_player_heatmap3d | app/backend/api/players.py:430 |  |
+| GET | `/api/players/{user_id}/trends` | get_trends | app/backend/api/players.py:443 |  |
 | GET | `/api/profiles/discord/{discord_id}` | get_discord_profile | app/backend/api/profiles.py:215 |  |
 | POST | `/api/profiles/discord/{discord_id}` | edit_discord_profile | app/backend/api/profiles.py:226 | Only the bio and the avatar choice, only by that Discord account itself (logged in with Discord). |
 | GET | `/api/profiles/me` | my_profile | app/backend/api/profiles.py:145 | The logged-in visitor's own profile (from the Discord login only; nothing about anyone else is asked for). |
@@ -100,7 +100,7 @@ path is in middleware.WRITES / BOT. Console routes need auth.has_console; profil
 | POST | `/api/profiles/{user_id}` | edit_profile | app/backend/api/profiles.py:257 | Only the bio and the avatar choice; only by the Discord account linked to this player. |
 | GET | `/api/replays` | list_replays | app/backend/api/replays.py:62 |  |
 | GET | `/api/replays/{replay_id}` | get_replay | app/backend/api/replays.py:78 |  |
-| GET | `/api/search` | search | app/backend/api/overview.py:188 | Players by name, plus a match when q is a match id. Cached: the top bar asks as you type. |
+| GET | `/api/search` | search | app/backend/api/overview.py:211 | Players by name, plus a match when q is a match id. Cached: the top bar asks as you type. |
 | POST | `/api/worker/claim` | claim | app/backend/api/remote_worker.py:54 | Up to `count` queued replays for the PC: {"enabled", "jobs": [{id, path, repair}]}. Nothing while remote |
 | POST | `/api/worker/release` | release | app/backend/api/remote_worker.py:72 | The PC is stopping (or cannot see a file): these go back into the queue. |
 | POST | `/api/worker/result/{replay_id}` | result | app/backend/api/remote_worker.py:98 | The PC's finished replay (remote.pack): saved as the NAS's own worker would, plus its two track files. |

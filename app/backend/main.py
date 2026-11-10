@@ -10,7 +10,7 @@ from starlette.exceptions import HTTPException
 
 from parser import PARSER_VERSION
 
-from . import antivirus, arena, auth, cloud, combat, guard, icons, tracks
+from . import antivirus, arena, auth, cloud, combat, guard, heights_warm, icons, tracks
 from .api import achievements, admin, avatars, arena as arena_api, auth as auth_api, cloud as cloud_api, combat as combat_api, console, imports, profiles, leaderboard, matches, overview, permissions, players, remote_worker, replays
 from .config import PROJECT_ROOT, Settings
 from .db import open_db, warm
@@ -78,11 +78,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             threading.Thread(target=warm_caches, name="warm-caches", daemon=True).start()
             app.state.arena = arena.Tracker(app.state.sessionmaker, settings)
             app.state.arena.start()
+            # heights.bin of the most active players' older matches and their long heatmaps, while no replay is being processed
+            app.state.heights = heights_warm.HeightsWarmer(app.state.sessionmaker, settings, app.state.worker, app)
+            app.state.heights.start()
         yield
         if settings.auto_scan:
             app.state.scanner.stop()
             app.state.combat.stop()
             app.state.arena.stop()
+            app.state.heights.stop()
         achievements.stop_offload(app.state.sessionmaker)
         app.state.worker.stop()
         app.state.antivirus.stop()

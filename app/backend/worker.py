@@ -24,7 +24,7 @@ from .cache import bump_generation
 from .config import Settings
 from .db import utcnow
 from .models import AggressiveRepair, Match, MatchPlayerLoadout, PriorityReplay, RepairRequest, Replay
-from . import duplicates, remote, tracks, tracks3d
+from . import duplicates, heatmaps3d, remote, tracks, tracks3d
 from .persist import delete_match, save_match
 from .stats import STATS_VERSION, compute
 from .stats.maps import load_in_spot
@@ -61,6 +61,15 @@ def _lower_priority() -> None:
         pass
 
 
+def save_heights(tracks_file: Path) -> None:
+    """heights.bin of a match whose two track files were just written (heatmaps3d: what 3D player heatmaps read).
+    Never an error: a heatmap makes the file itself when it is not there."""
+    try:
+        heatmaps3d.save_heights(tracks_file, tracks_file.with_name("tracks3d.bin"))
+    except Exception as e:  # noqa: BLE001
+        log.warning("Heights of %s not saved: %s: %s", tracks_file.parent, type(e).__name__, e)
+
+
 def analyse(path: str, tracks_file: str | None = None, repair: bool | str = False) -> tuple:
     """Runs in a pool process. Returns ("ok", meta, stats, warnings, tracks_saved) or ("failed", code, message).
     Also writes the 2 Hz position tracks (for heatmaps / timeline) to `tracks_file`, and the 5 Hz 3D tracks (3D playback)
@@ -83,6 +92,8 @@ def analyse(path: str, tracks_file: str | None = None, repair: bool | str = Fals
                 warnings.append(f"Position tracks not saved: {e}")
             try:
                 tracks3d.write(Path(tracks_file).with_name("tracks3d.bin"), recorder3d)
+                if saved:
+                    save_heights(Path(tracks_file))
             except OSError as e:
                 warnings.append(f"3D position tracks not saved: {e}")
         return "ok", parsed.meta, stats, warnings, saved

@@ -75,25 +75,25 @@ File-download responses for exports (CSV / JSON). Built in memory: exports are s
 Leaderboard (D15): the profile aggregates grouped by player, ranked by one stat.
 - `WIN_LOSS_STATS`:21 / `STATS`:23 / _aggregate:42 / _where:71 / _aggregate_rows:95 / _summary:103 / _values:114 / _rank:138 / `SORTS`:144 / _resort:147 / list_stats:164 / leaderboard:174 / _leaderboard:209 / achievers:257 / list_gear:271
 
-### `app/backend/api/matches.py` (618 lines)
-- player_counts:33 / list_matches:41 / _list_matches:60 / `MAX_THUMBNAILS`:106 / get_thumbnails:111 / _thumbnails:120 / _thumbnail:131 / _thumbnail_for:140 / player_row:146 / get_match:179 / match_detail:183 / repair_note:233 / get_events:246 / _event_data:265 / _match_or_404:273 / _tracks:280 / get_timeline:288 / _timeline:293 / `MATCH_HEATMAP_MODES`:302 / get_match_heatmap:306 / _match_heatmap:320 / get_match_heatmap3d:343 / _match_heatmap3d:355 / `EXPORT_COLUMNS`:379 / export_rows:386 / export_match:399 / get_playback:409 / _playback:415 / `PLAYBACK_EVENTS`:451 / `MAPS_3D`:453 / `PAYLOAD_MODEL_MAPS`:454 / `BUILD_WAIT_S`:455 / `MAX_BUILD_WAITERS`:456 / `FAILED_TTL_S`:457 / _recently_failed:464 / _remember_failure:469 / _tracks3d:478 / get_playback3d:540 / _playback3d:547 / _map_objects:574 / _gear_names:591 / _speeds:595 / _loadout_runs:608
+### `app/backend/api/matches.py` (619 lines)
+- player_counts:33 / list_matches:41 / _list_matches:60 / `MAX_THUMBNAILS`:106 / get_thumbnails:111 / _thumbnails:120 / _thumbnail:131 / _thumbnail_for:140 / player_row:146 / get_match:179 / match_detail:183 / repair_note:233 / get_events:246 / _event_data:265 / _match_or_404:273 / _tracks:280 / get_timeline:288 / _timeline:293 / `MATCH_HEATMAP_MODES`:302 / get_match_heatmap:306 / _match_heatmap:320 / get_match_heatmap3d:343 / _match_heatmap3d:355 / `EXPORT_COLUMNS`:380 / export_rows:387 / export_match:400 / get_playback:410 / _playback:416 / `PLAYBACK_EVENTS`:452 / `MAPS_3D`:454 / `PAYLOAD_MODEL_MAPS`:455 / `BUILD_WAIT_S`:456 / `MAX_BUILD_WAITERS`:457 / `FAILED_TTL_S`:458 / _recently_failed:465 / _remember_failure:470 / _tracks3d:479 / get_playback3d:541 / _playback3d:548 / _map_objects:575 / _gear_names:592 / _speeds:596 / _loadout_runs:609
 
-### `app/backend/api/overview.py` (345 lines)
+### `app/backend/api/overview.py` (368 lines)
 Home dashboard, archive activity and global search.
-- overview:21 / _overview:27 / `LATEST_MATCHES`:69 / _latest_matches:72 / latest_matches:78 / processing:87 / last_match:95 / map_heat_cards:104 / _map_heat:120 / `LIVE_HEADERS`:127 / live:131 / _last_ended:139 / activity:147 / `DAY_WINDOW`:154 / _activity:157 / search:189 / _search:195 / _top_gear:211 / `TEAM_WIN_KEYS`:232 / _global_stats:235 / `RANGES`:283 / players_seen:287 / _players_seen:295 / warm:333
+- overview:21 / _overview:27 / `LATEST_MATCHES`:69 / _latest_matches:72 / latest_matches:78 / processing:87 / last_match:95 / map_heat_cards:104 / _map_heat:136 / `LIVE_HEADERS`:150 / live:154 / _last_ended:162 / activity:170 / `DAY_WINDOW`:177 / _activity:180 / search:212 / _search:218 / _top_gear:234 / `TEAM_WIN_KEYS`:255 / _global_stats:258 / `RANGES`:306 / players_seen:310 / _players_seen:318 / warm:356
 
 ### `app/backend/api/permissions.py` (87 lines)
 Permissions page (user, 2026-10-30): console users give or take away Admin (the Status page), the Console and the Preview,
 - _server_roles:20 / _state:30 / permissions:50 / **class Change**:55 / change:63
 
-### `app/backend/api/players.py` (477 lines)
-- `RECENT_MATCHES`:25 / games_of:28 / search_players:35 / _search_players:45 / _filters:71 / _profile:80 / _site_averages:147 / compare_players:177 / _compare_players:183 / get_player:210 / _get_player:221 / `HEATMAP_MODES`:283 / _player_heatmap:286 / get_player_heatmap:319 / `HEATMAP3D_MODES`:334 / _player_heatmap3d:337 / get_player_heatmap3d:357 / get_trends:371 / _get_trends:376 / `COMPANION_WINDOWS`:413 / _mine:417 / _together:427 / get_companions:439 / _get_companions:447
+### `app/backend/api/players.py` (550 lines)
+- `RECENT_MATCHES`:26 / games_of:29 / search_players:36 / _search_players:46 / _filters:72 / _profile:81 / _site_averages:148 / compare_players:178 / _compare_players:184 / get_player:211 / _get_player:222 / `HEATMAP_MODES`:284 / `ALL_MATCHES`:285 / `HEATMAP_STAMP`:286 / heatmap_stamp:292 / _heatmap_job:317 / _heatmap3d_job:329 / **class _NoRequest**:344 / prebuild_heatmaps:351 / _player_heatmap:361 / get_player_heatmap:394 / `HEATMAP3D_MODES`:408 / _player_heatmap3d:411 / get_player_heatmap3d:431 / get_trends:444 / _get_trends:449 / `COMPANION_WINDOWS`:486 / _mine:490 / _together:500 / get_companions:512 / _get_companions:520
 
 ### `app/backend/api/profiles.py` (377 lines)
 Player profiles linked to Discord (user, 2026-11-02).
 - `BIO_MAX`:26 / `BIO_MAX_LINES`:27 / _now:30 / _main_id:34 / _seen_discord:40 / _replay_player_of:48 / clean_bio:62 / _name_match_avatar:78 / _seen_avatar:95 / _id_avatar:109 / _account:122 / _public:129 / my_profile:146 / edit_my_profile:159 / get_profile:167 / _known_discord:191 / _own_account:197 / _discord_public:202 / get_discord_profile:216 / edit_discord_profile:227 / **class ProfileEdit**:252 / edit_profile:258 / _require_bot:288 / _discord_id:297 / _link_info:304 / **class Link**:312 / bot_link:318 / **class Unlink**:343 / bot_unlink:349 / bot_lookup:365
 
-### `app/backend/api/remote_worker.py` (147 lines)
+### `app/backend/api/remote_worker.py` (148 lines)
 The remote PC's side of "Process replays on another PC" (remote.py): claim queued replays, send results, give back what
 - `MAX_CLAIM`:24 / _require:28 / _same_versions:37 / **class Claim**:44 / **class Release**:50 / claim:55 / release:73 / _write_tracks:79 / result:99
 
@@ -109,9 +109,9 @@ Public Echo Arena matches per player, counted from the live Nakama match list (u
 Discord login, only for previewing achievements before their launch date (D41). Login = OAuth2 "identify" (who
 - `API`:23 / `AUTHORIZE_URL`:24 / `SESSION_COOKIE`:25 / `STATE_COOKIE`:26 / `SESSION_DAYS`:27 / `STATE_S`:28 / `ROLE_CHECK_S`:29 / `ROLE_RETRY_S`:30 / `DISCORD_PER_S`:40 / `DISCORD_BURST`:41 / `DISCORD_WAIT_S`:42 / `DISCORD_PAUSE_MAX_S`:43 / `INVALID_WINDOW_S`:44 / `INVALID_MAX`:45 / **class DiscordPaused**:48 / **class DiscordLimiter**:53 [reset:58, acquire:63, record:81] / _send:109 / http_client:117 / enabled:122 / is_discord_id:128 / _bot_get:134 / `SERVER_ROLES_S`:139 / server_roles:143 / check_fixed_ids:157 / user_name:190 / `AVATAR_CHECK_S`:207 / `AVATAR_MAX_PER_MIN`:208 / `AVATAR_FILE`:209 / `AVATAR_KEEP_S`:210 / _avatar_budget:218 / _avatar_path:230 / _load_avatars:234 / _save_avatars:255 / avatar_url:270 / redirect_uri:320 / secure_cookies:324 / _key:330 / _b64:339 / _unb64:343 / sign:347 / unsign:352 / authorize_url:368 / user_from_code:375 / forget_roles:397 / _ask_roles:403 / member_roles:424 / viewer:453 / allowed:467 / _has:485 / has_preview:497 / is_admin:502 / has_console:507 / cloud_access:513
 
-### `app/backend/cache.py` (260 lines)
+### `app/backend/cache.py` (420 lines)
 Caches for answers built from the archive: home page, leaderboard, profiles, heatmaps, match views (D53). Keyed on
-- `STAMP_TTL_S`:37 / `MAX_VALUES`:38 / `MAX_RESPONSES`:39 / `MAX_RESPONSE_BYTES`:40 / `GZIP_LEVEL`:41 / `STATUS_HEADER`:42 / bump_generation:47 / data_stamp:52 / current_stamp:61 / **class Entry**:76 / **class Store**:85 [get:96, put:103, drop:113] / _store:122 / _run:140 / _used:154 / _build_now:165 / _refresh:183 / _lookup:206 / cached:224 / cached_response:230 / etag_matches:245 / reply:253
+- `STAMP_TTL_S`:49 / `MAX_VALUES`:50 / `MAX_RESPONSES`:51 / `MAX_RESPONSE_BYTES`:52 / `GZIP_LEVEL`:53 / `STATUS_HEADER`:54 / bump_generation:59 / data_stamp:64 / current_stamp:73 / **class Entry**:88 / **class Store**:97 [get:108, put:115, drop:125] / `DISK_FORMAT`:136 / `DISK_PRUNE_EVERY`:137 / `DISK_MAX_AGE_S`:138 / **class Disk**:141 [path:147, _read:150, used:162, stamp:169, load:174, save:183, prune:207] / _plain:227 / _disk:232 / _store:245 / _run:263 / _used:277 / _build_now:288 / _refresh:306 / _key:329 / _saving:333 / _lookup:343 / cached:367 / _response_entry:373 / cached_response:381 / prebuild:391 / etag_matches:405 / reply:413
 
 ### `app/backend/cloud.py` (472 lines)
 Open Cloud (user, 2026-11-10): file storage on the website for Discord members with the Cloud permission. Two
@@ -125,8 +125,8 @@ Combat stats from the recorder's match reports (user, 2026-11-04). Completely se
 Combat achievements (user, 2026-11-05): built only from the recorder's match reports (combat_matches, combat_players), kept
 - `GROUP`:28 / `MIN_PER_TEAM`:29 / `RARITY_MIN_GAMES`:30 / `RECENT_DAYS`:31 / **class CombatGame**:35 [day:52, start_dt:56] / _total:60 / _awards:68 / _rule:73 / _card_list:168 / load_games:177 / _player:212 / `_EMPTY`:222 / _everyone:225 / player_items:249 / player_name:255 / catalogue:261 / recent:275
 
-### `app/backend/config.py` (134 lines)
-- `PROJECT_ROOT`:5 / `DEFAULT_SOURCE`:6 / `DISCORD_CLIENT_ID`:8 / `DISCORD_GUILD_ID`:9 / _secret:12 / **class Settings**:18 [from_env:83, processed_dir:120, db_path:124, combat_dir:128]
+### `app/backend/config.py` (138 lines)
+- `PROJECT_ROOT`:5 / `DEFAULT_SOURCE`:6 / `DISCORD_CLIENT_ID`:8 / `DISCORD_GUILD_ID`:9 / _secret:12 / **class Settings**:18 [from_env:86, processed_dir:124, db_path:128, combat_dir:132]
 
 ### `app/backend/db.py` (180 lines)
 - **class Base**:9 / `BUSY_TIMEOUT_S`:13 / utcnow:16 / open_db:20 / open_reader:54 / warm:77 / _add_missing_columns:91 / _add_missing_indexes:107 / `DERIVED_TABLES`:117 / `PRESERVED_TABLES`:119 / `COMBAT_TABLES`:123 / `IN_PLACE_COLUMNS`:128 / _backfill_counted:131 / _add_columns_in_place:138 / _stale:152 / _rebuild_stale_tables:158
@@ -159,20 +159,24 @@ Scraper protection for the public site (D48). Cloudflare's own bot and rate rule
 Heatmap grids in minimap image space (D18). Cells are `cell_m` metres (0.1 m, user 2026-11-01); consecutive
 - `CELL_M`:16 / `HEATMAP_CELL_M`:17 / `CELL_SIZES`:18 / `MAX_STEP_M`:19 / `NO_GEAR`:20 / grid_size:23 / _geometry:30 / cell_mapper:39 / to_cell:54 / rasterise:58 / rasterise_many:72 / _densify:80 / cells_of:121 / _rasterise_arrays:133 / `SPEED_BANDS`:149 / `GEAR_FIELDS`:153 / `_SPEED_LIMITS`:154 / _sample_keys:157 / key_value:181 / layer_paths:190 / layer_runs:199 / _merge:227 / layer_label:231 / `MAX_LOADOUT_LAYERS`:250 / fold_layers:253 / player_layers:266 / pack_cells:275 / unpack_cells:291 / response:298 / `TRACK_MODES`:319 / build_layers:322 / `THUMB_CELL_M`:344 / `TEAM_RGB`:345 / `PNG_SIGNATURE`:348 / _png:351 / png_indexed:363 / thumbnail_png:378
 
-### `app/backend/heatmaps3d.py` (205 lines)
+### `app/backend/heatmaps3d.py` (391 lines)
 3D heatmaps: the heat of heatmaps.py in world-space voxels (VOX_M cubes), for the 3D view of a heatmap.
-- `VOX_M`:19 / `Y_LIMIT_M`:20 / aligned_y:25 / _with_height:40 / layer_paths3d:50 / read_pairs:60 / _merge4:79 / voxelise:83 / grid_dims:103 / build_layers3d:108 / player_layers3d:132 / _fold:141 / pack:160 / unpack:173 / response:180
+- `VOX_M`:27 / `Y_LIMIT_M`:28 / aligned_dm:33 / aligned_y:49 / heights_of:58 / `HEIGHTS_VERSION`:75 / `HEIGHTS_NAME`:76 / heights_path:79 / encode_heights:83 / decode_heights:90 / write_heights:101 / match_heights:118 / save_heights:145 / layer_paths3d:154 / _pair:163 / read_pairs:168 / `Y_OFFSET`:184 / `DENSE_CELLS`:185 / `DENSE_PER_POINT`:186 / `FLUSH_SAMPLES`:187 / _points:190 / _keys:215 / _add:240 / _voxels:248 / voxelise:255 / grid_dims:260 / **class _Layers**:265 [add:274, _flush:280, result:287] / build_layers3d:295 / player_layers3d:318 / _fold:327 / pack:346 / unpack:359 / response:366
+
+### `app/backend/heights_warm.py` (149 lines)
+Prepares the heatmaps of the most active players while the server is idle. First it writes the heights.bin files (heatmaps3d.py) of the most active pl...
+- `TOP_PLAYERS`:25 / `START_AFTER_S`:26 / `BUSY_WAIT_S`:27 / `RECHECK_S`:28 / `PROGRESS_EVERY`:29 / replay_ids:32 / players_and_maps:45 / missing:60 / write_one:70 / **class HeightsWarmer**:74 [start:80, stop:83, run_once:88, build_heatmaps:114, _run:140]
 
 ### `app/backend/icons.py` (99 lines)
 Achievement icons chosen on the Console page (D43): an existing badge image or an uploaded PNG. The choice is
 - `KEY`:20 / `CUSTOM`:21 / `CUSTOM_NAME`:22 / `MAX_BYTES`:23 / `MAX_SIDE`:24 / `PNG`:25 / `BUILT_IN_DIRS`:27 / `NOT_ICONS`:28 / `ALL_RULES`:29 / `RULE_IDS`:30 / **class IconError**:33 / overrides:37 / apply:42 / custom_dir:48 / built_in:52 / available:57 / default:64 / set_icon:68 / save_upload:85
 
-### `app/backend/main.py` (149 lines)
+### `app/backend/main.py` (153 lines)
 - `FRONTEND_DIST`:26 / **class SinglePageApp**:29 [get_response:32] / create_app:44
 
-### `app/backend/map_heat.py` (462 lines)
+### `app/backend/map_heat.py` (916 lines)
 All-time heat per map for the home page's "Matches per map" cards: where players have been over every counted
-- `FORMAT`:49 / `CELL_M`:53 / `NUDGE_M`:54 / `TEAMS`:55 / `TEAM_LAYER`:56 / `GEAR_GROUPS`:58 / `LAYERS`:60 / `LAYER_INDEX`:61 / `BATCH`:62 / `READ_CHUNK`:63 / `FLUSH_SAMPLES`:64 / `FILE_NAME`:65 / `RETRY_S`:66 / _shape:69 / _gear_layers:74 / sample_keys:82 / add_keys:107 / `PEAK_QUANTILE`:122 / `TEAM_RGB`:126 / `GEAR_RAMP`:132 / `GEAR_ALPHA`:134 / `GEAR_STEPS`:135 / `VIEWS`:143 / `FAVOURED_BLUR`:144 / `FAVOURED_MIN_EXPECTED`:145 / `FAVOURED_FROM`:146 / `FAVOURED_QUANTILE`:147 / `FAVOURED_TOP`:148 / `FAVOURED_ALPHA`:149 / `FAVOURED_CAP_QUANTILE`:150 / `FAVOURED_SPIKE`:151 / `MIN_LAYER_SHARE`:153 / _strength:156 / _team_palette:164 / _gear_palette:177 / render_teams:190 / render_gear:205 / _blur:214 / render_favoured:227 / **class MapHeat**:251 [_empty:271, _load:276, _save:297, _wanted:314, update:319, _apply:343, due:382, ensure:386, answer:413] / _read:453
+- `FORMAT`:87 / `CELL_M`:92 / `NUDGE_M`:93 / `TEAMS`:94 / `TEAM_LAYER`:95 / `GEAR_GROUPS`:97 / `EXTRA_GROUPS`:101 / `SPARSE_GROUPS`:108 / `SPARSE_BLUR`:109 / `SPARSE_MIN_EXPECTED`:110 / `LAYERS`:111 / `LAYER_INDEX`:113 / `LAYER_PATTERN`:115 / `PAYLOAD_LAYERS`:117 / `PAYLOAD_MAPS`:118 / `PAYLOAD_MAX_STEP_M`:120 / `PAYLOAD_MIN_SAMPLES`:121 / `PAYLOAD_BAND_M`:122 / `PAYLOAD_SMOOTH`:123 / `PAYLOAD_SHARES`:124 / `BATCH`:125 / `READ_CHUNK`:126 / `FLUSH_SAMPLES`:127 / `FILE_NAME`:128 / `RETRY_S`:129 / `RANGES`:130 / `IDLE_S`:131 / `UPSIDE_ROLL`:132 / `POSE_MIN_VERSION`:133 / _shape:136 / _gear_layers:141 / pose_layers:149 / death_keys:165 / `_SPEED_LAYERS`:172 / sample_keys:175 / payload_counts:215 / add_keys:240 / `PEAK_QUANTILE`:257 / `TEAM_RGB`:261 / `GEAR_RAMP`:267 / `GEAR_ALPHA`:269 / `GEAR_STEPS`:270 / `VIEWS`:278 / `FAVOURED_BLUR`:281 / `FAVOURED_MIN_EXPECTED`:282 / `FAVOURED_FROM`:283 / `FAVOURED_QUANTILE`:284 / `FAVOURED_TOP`:285 / `FAVOURED_ALPHA`:286 / `FAVOURED_CAP_QUANTILE`:287 / `FAVOURED_SPIKE`:288 / `MIN_LAYER_SHARE`:290 / _strength:293 / _team_palette:301 / _gear_palette:314 / render_teams:327 / render_gear:342 / _blur:354 / render_favoured:367 / `COMPARE_RGB`:400 / `COMPARE_FROM`:401 / `COMPARE_QUANTILE`:402 / `COMPARE_TOP`:403 / `COMPARE_ALPHA`:404 / `COMPARE_STEPS`:405 / `COMPARE_MIN_EXPECTED`:406 / _compare_palette:409 / `COMPARE_PALETTE`:421 / render_compare:424 / payload_values:450 / payload_average:462 / payload_scale:470 / render_payload:480 / `PAYLOAD_PALETTE`:506 / `READ`:514 / **class _Settings**:523 / **class MapHeat**:530 [_empty:556, _load:563, _save:589, _wanted:608, update:615, _recount:644, _results:659, _hands:681, _apply:697, due:750, release_if_idle:755, ensure:767, answer:795] / _read:878 / has_flags:891 / read_poses:896
 
 ### `app/backend/mega_prizes.py` (51 lines)
 Mega Prize winners report for the Console (user, 2026-11-04): the prizes are handed out by hand, so this lists who has
@@ -228,9 +232,9 @@ Which matches count for averages (user, 2026-11-07, Review DATA-3): a game of at
 Output of stats.compute(); persisted by backend/persist.py. Counters default to 0 until their calculator exists.
 - **class PlayerStats**:8 / **class EventRecord**:42 / **class MatchStats**:52
 
-### `app/backend/tracks.py` (248 lines)
+### `app/backend/tracks.py` (261 lines)
 Per-replay position tracks (D11, D18): `data/processed/<replay_id>/tracks.bin`.
-- `FORMAT_VERSION`:25 / `HZ`:26 / `TEAM_CODES`:28 / `NO_WEAPON`:29 / **class PlayerTrack**:33 / **class Tracks**:44 / **class TrackRecorder**:51 [add:61, result:93] / _dm:100 / _codes:106 / _indexes:110 / encode:115 / decode:135 / tracks_path:160 / write:164 / set_cache_limit:180 / _cost:189 / read:195 / `READ_THREADS`:232 / `READ_AHEAD`:233 / read_many:237
+- `FORMAT_VERSION`:27 / `UPSIDE_DOWN`:28 / `HZ`:29 / `TEAM_CODES`:31 / `NO_WEAPON`:32 / **class PlayerTrack**:36 / **class Tracks**:48 / **class TrackRecorder**:55 [add:65, result:100] / _dm:107 / _codes:113 / _indexes:117 / encode:122 / decode:143 / tracks_path:173 / write:177 / set_cache_limit:193 / _cost:202 / read:208 / `READ_THREADS`:245 / `READ_AHEAD`:246 / read_many:250
 
 ### `app/backend/tracks3d.py` (239 lines)
 Per-replay 3D tracks for 3D playback (docs/WebReplayer-Review.MD, Phase 2): `data/processed/<replay_id>/tracks3d.bin`.
@@ -248,9 +252,9 @@ App version (user, 2026-11-01): calendar versioning, YYYY.MM.DD.N = release date
 Stats hidden from players (admin console: "hide-stats"), site-wide or for chosen players. Hidden stats are left out
 - `TTL_S`:18 / **class View**:22 [hides:26] / `ALL_SHOWN`:31 / _settings:34 / hidden_groups:46 / view:50 / win_loss:58 / ids:63 / hidden_player_ids:69 / `WIN_LOSS_KEYS`:77 / without:80
 
-### `app/backend/worker.py` (405 lines)
+### `app/backend/worker.py` (416 lines)
 Processes queued replays, newest file first (D25). Parsing + stats run in a process pool;
-- `MAX_CRASHES`:36 / `SIDE_WORKERS`:37 / `LANES`:40 / _pool_process_start:43 / _lower_priority:50 / analyse:64 / timed_analyse:97 / save_result:104 / _save_result:111 / _with_hex_gear_codes:159 / requeue_unfinished_and_outdated:168 / claim_queued:189 / **class Worker**:226 [start:240, _new_pool:246, notify:251, run_side:254, _side_done:279, stop:289, busy:300, current:303, wait_idle:310, _claim:324, _tracks_file:338, _requeue:341, _recover_from_crash:346, _run:366]
+- `MAX_CRASHES`:36 / `SIDE_WORKERS`:37 / `LANES`:40 / _pool_process_start:43 / _lower_priority:50 / save_heights:64 / analyse:73 / timed_analyse:108 / save_result:115 / _save_result:122 / _with_hex_gear_codes:170 / requeue_unfinished_and_outdated:179 / claim_queued:200 / **class Worker**:237 [start:251, _new_pool:257, notify:262, run_side:265, _side_done:290, stop:300, busy:311, current:314, wait_idle:321, _claim:335, _tracks_file:349, _requeue:352, _recover_from_crash:357, _run:377]
 
 ### `app/parser/__init__.py` (22 lines)
 Echo VR replay parser. No database or web imports.
@@ -291,9 +295,9 @@ Is Cloudflare caching the public site the way it should (D53)? Run it after upda
 Keeps a local copy of the most recent replays of each map, so analysis does not read them over the network.
 - `SOURCES`:20 / `LOCAL`:21 / `MANIFEST`:22 / `LOG`:23 / `KEEP`:24 / `SUFFIX`:25 / `STAMP`:26 / most_recent:29 / sync:43 / main:82
 
-### `app/tools/backfill_tracks3d.py` (88 lines)
+### `app/tools/backfill_tracks3d.py` (99 lines)
 Build the 3D tracks (tracks3d.bin) of every processed replay that lacks them, so player / Compare 3D heatmaps cover
-- _low_priority:24 / _build:36 / main:40
+- _low_priority:26 / _build:38 / _heights:42 / main:46
 
 ### `app/tools/e2e/api_sweep.py` (188 lines)
 API end-to-end sweep against a running local server (docs/reference/E2E-TESTING.md).

@@ -366,13 +366,14 @@ def _match_heatmap3d(request: Request, match_id: int, player: str | None, mode: 
     three = _tracks3d(request, match.replay_id)
     layout = HEATMAP_LAYOUTS[match.map]
     model = f"/maps3d/{match.map}.glb?v={VERSION}" if match.map in MAPS_3D else None
+    heights = heatmaps3d.heights_of(players, three[1], header.get("hz", 2), three[0].get("hz", 5))
     if mode == "player":
-        found = heatmaps3d.player_layers3d(layout, players, three[1], wanted, header.get("hz", 2), three[0].get("hz", 5))
+        found = heatmaps3d.player_layers3d(layout, players, heights, wanted, header.get("hz", 2))
         layers = {uid: found.pop(uid) for uid, _, _ in roster if uid in found} | found  # roster order first
         labels = {uid: name for uid, name, _ in roster}
         teams = {uid: team for uid, _, team in roster}
         return heatmaps3d.response(match.map, layers, labels, matches=1, matches_3d=1, mode=mode, teams=teams, model=model)
-    layers, labels, used = heatmaps3d.build_layers3d(layout, [((header, players), three)], wanted, mode)
+    layers, labels, used = heatmaps3d.build_layers3d(layout, [((header, players), heights)], wanted, mode)
     return heatmaps3d.response(match.map, layers, labels, matches=1, matches_3d=used, mode=mode, model=model)
 
 

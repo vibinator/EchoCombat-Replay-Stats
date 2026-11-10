@@ -1115,25 +1115,34 @@ export const getPlayersSeen = (range: PlayersSeen["range"], anchor: PlayersSeen[
 
 /** All-time heat for the home page's map cards (map_heat.py): one transparent PNG per map, covering its minimap. */
 export interface MapHeatLayer {
-  key: string; // "team", or "weapon:assault", "ordnance:det", "tacmod:heal", ...
-  group: "team" | "weapon" | "ordnance" | "tacmod";
+  key: string; // "team", or "weapon:assault", "ordnance:det", "tacmod:heal", "hand:left", "pose:upside", "payload:stop", ...
+  group: "team" | "weapon" | "ordnance" | "tacmod" | "hand" | "pose" | "result" | "speed" | "death" | "payload";
   label: string;
   code?: string;
   cut?: boolean;
-  share?: number; // of the time any gear of its group was held
+  share?: number; // of the time any gear of its group was held (hand, pose: of the samples it is known of)
 }
 export interface MapHeat {
   layer: string;
-  view: "teams" | MapHeatView;
-  maps: Record<string, { image: string; matches: number }>; // a map with nothing to draw for this choice is left out
+  view: "teams" | "compare" | "payload" | MapHeatView;
+  against?: string | null; // "compare": the layer the chosen one is laid against
+  scale?: { min: number; max: number } | null; // "payload": the values at the two ends of the ramp
+  // a map with nothing to draw for this choice is left out. `top`: where the map's ramp ends ("favoured": times as
+  // often as usual; "compare": share of the two - 0.5); `average` ("payload"): the value over the whole route
+  maps: Record<string, { image: string; matches: number; top?: number; average?: number }>;
+  /** What a palette entry of the pictures means (map_heat.READ), for the read-out under the pointer (heatRead.ts). */
+  read?: { steps?: number; from?: number; share_steps?: number; alpha_steps?: number; contrast?: number };
   layers: MapHeatLayer[]; // "team" first, then per group the most held first; gear hardly ever held is left out
+  days?: number; // 0 = all time, else the last so many days
+  matches?: number; // matches the pictures are counted from (for upside down: those with 3D tracks)
   building: boolean; // the monthly count is running: the images show what has been added so far
   updated_on: string | null; // day the last complete count finished
 }
 /** Gear only: "favoured" = where it is held more often than on the map as a whole, "all" = everywhere it was held. */
 export type MapHeatView = "favoured" | "all";
-export const getMapHeat = (layer: string, view: MapHeatView) =>
-  request<MapHeat>(`/api/overview/map-heat${query(layer === "team" ? { layer } : { layer, view })}`);
+/** `against`: another layer ("team", "team:blue", "weapon:smg", ...) = the two compared, whatever the view. */
+export const getMapHeat = (layer: string, view: MapHeatView, against?: string, days = 0) =>
+  request<MapHeat>(`/api/overview/map-heat${query({ ...(against ? { layer, against } : layer === "team" || layer.startsWith("payload:") ? { layer } : { layer, view }), ...(days ? { days } : {}) })}`);
 export const search = (q: string) => request<SearchResult>(`/api/search${query({ q })}`);
 /** A server that has not been restarted after an update answers the older, smaller playback: fill in what is missing. */
 export const getPlayback = (id: number) =>

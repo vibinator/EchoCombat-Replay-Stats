@@ -197,8 +197,22 @@ No table: computed from `match_players` + loadouts + `matches` on request (`back
 - Per player, in header order: `x`, `y`, `z` int16[samples] (head position, decimetres), `yaw` uint8 (256 steps, 0 = facing +z, 64 = +x), `pitch` int8 (degrees, + = up), `team` uint8 (0 absent, 1 blue, 2 orange); version 2 adds hands `lx, ly, lz, rx, ry, rz` int8[samples] (relative to the head, 2 cm steps, ±2.54 m clamped); version 3 adds `roll` uint8[samples] (256 steps, the head's turn around its facing direction: 0 = upright, 128 = upside down; from `head.up`). Files of an older version are rebuilt on first view (`backfill_tracks3d.bat --upgrade` does the whole archive).
 - First frame of each 0.2 s slot; load-in spot samples absent. Written by the worker with `tracks.bin` for every replay it processes; for matches processed earlier (or in an older format) built on first view (`tracks3d.build`, ~1 s per 10-minute match). ≈ 140–210 KB per 10-minute match. Overwritten on reprocess; rebuildable.
 
+## Heights file (3D player heatmaps, 2026-11-10)
+`data/processed/<replay_id>/heights.bin` = zlib( uint32 header length | header JSON | arrays ), little-endian (`app/backend/heatmaps3d.py`).
+- Header: `{version: 1, samples, source: [mtime_ns, size of tracks3d.bin], players: [user_id…]}`.
+- Per player, in header order: int16[samples] = the head height (decimetres) at every 2 Hz sample of `tracks.bin` (the nearest 5 Hz sample of `tracks3d.bin`). Players without a 3D track are left out.
+- Why: a 3D heatmap over a player's 2,000 matches needs only this, and unpacking 2,000 `tracks3d.bin` files for it took 18 s on the live server. A few KB per match.
+- Written by the worker right after the two track files; for older matches on the first 3D heatmap that needs them, or all at once with `backfill_tracks3d.bat --heights`. Built again when `tracks3d.bin` has another time or size, or `tracks.bin` another number of samples. Safe to delete.
+
 ## Heatmap cache (D18)
 In memory (`functools.lru_cache`, 64 entries) keyed by player, map, mode, period, last N and a data stamp (done count + latest `processed_at`), so any import change recomputes. Not persisted; cold requests read the player's tracks files (≈ 1–3 s for 200 matches).
+
+### Player heatmaps (2026-11-10)
+Cached more tightly than other answers (`cache.py`, `api/players.py`), because they are the costliest (seconds; 18 s for a 2,000-match history on the live server):
+- **Own stamp** (`heatmap_stamp`): the player's ids and the number, newest id and last re-read of the player's matches on that map in that period. A heatmap is only worked out again when that player has a new, re-read or removed match, not when anybody's replay comes in. (A 3D heatmap that leaves matches out for lack of 3D tracks is looked at again once a day.) `HEATMAP_STAMP` in `api/players.py`: raise it when a heatmap is worked out differently.
+- **No day in the key** for the period "all time".
+- **On disk too**: `data/cache/answers/<hash>.bin` = uint32 header length | header JSON `{stamp, etag, name, built}` | the gzipped answer. Read back after a restart; over `ECHOVR_ANSWER_CACHE_MB` (1024; 4096 in the NAS YAML) the files not used for the longest are removed, and any not used for 60 days. Safe to delete.
+- **Written ahead** (`heights_warm.py`): while no replay is being processed, the two long heatmaps (all time, all matches, by team: flat and 3D) of the 100 most active players on every map they played go to disk only; a request finds them there.
 
 ## Indexes
 - replays.sha256 UNIQUE; replays.status

@@ -102,26 +102,49 @@ def last_match(request: Request):
 
 @router.get("/api/overview/map-heat")
 def map_heat_cards(request: Request,
-                   layer: str = Query(map_heat.TEAM_LAYER, pattern=r"^(team|(weapon|ordnance|tacmod):[a-z0-9]{1,16})$"),
-                   view: str = Query(map_heat.VIEWS[0], pattern="^(" + "|".join(map_heat.VIEWS) + ")$")):
+                   layer: str = Query(map_heat.TEAM_LAYER, pattern=map_heat.LAYER_PATTERN),
+                   view: str = Query(map_heat.VIEWS[0], pattern="^(" + "|".join(map_heat.VIEWS) + ")$"),
+                   against: str | None = Query(None, pattern=map_heat.LAYER_PATTERN),
+                   days: int = Query(0, description="0 = all time, or the last 30 / 90 days")):
     """All-time heat per map for the "Matches per map" cards: PNG data URLs laid over the minimap thumbnails, and how
     many matches each holds. `layer`: both teams, or one weapon / ordnance / tac mod (`layers` lists them); for gear
-    `view` = `favoured` (where it is held more often than on the map as a whole) or `all` (everywhere it was held). Counted once a month (map_heat.py); `building` while that pass runs, the cards then show what has been
+    `view` = `favoured` (where it is held more often than on the map as a whole) or `all` (everywhere it was held).
+    Also `hand:left` / `hand:right` (the players' arm setting) and `pose:upside` / `pose:upright` (from the 3D tracks,
+    so only matches that have them). `against` = any other layer (`team:blue` and `team:orange` too): the two compared,
+    each in its own colour where it is relatively more often than the other. `result:won` / `result:lost` (decided
+    matches), `speed:<band>` and `death:all` (estimated deaths; its favoured view = deaths per time spent there).
+    `payload:stop` / `payload:speed` / `payload:back` (payload maps): a band along the route, the share of time the
+    payload stood still or rolled back at each metre, or its average speed going forward; `scale` gives the values at
+    the ends of the ramp and each map's `average` the value over its whole route. `days` = 30 or 90: only the
+    matches started in the last so many days (brought up to date once a day). Counted once a month (map_heat.py); `building` while that pass runs, the cards then show what has been
     added so far. Cached per layer and state of the counts, so the four PNGs are encoded once."""
-    if layer != map_heat.TEAM_LAYER and layer not in map_heat.LAYER_INDEX:
-        raise ApiError(400, "bad_layer", f"Unknown layer '{layer}'")
-    heat = _map_heat(request.app)
+    if days not in map_heat.RANGES:
+        raise ApiError(400, "bad_range", f"days must be one of {sorted(map_heat.RANGES)}")
+    for key in (layer, against):
+        if key and key != map_heat.TEAM_LAYER and key not in map_heat.LAYER_INDEX and key not in map_heat.PAYLOAD_LAYERS:
+            raise ApiError(400, "bad_layer", f"Unknown layer '{key}'")
+    if against == layer or layer in map_heat.PAYLOAD_LAYERS or against in map_heat.PAYLOAD_LAYERS:
+        against = None  # the payload's movement is not where players are: nothing to compare
+    heat = _map_heat(request.app, days)
     heat.ensure()
-    if layer == map_heat.TEAM_LAYER:
+    if layer == map_heat.TEAM_LAYER or against or layer in map_heat.PAYLOAD_LAYERS:
         view = map_heat.VIEWS[0]  # one answer whatever was asked
-    return cached_response(request, "map-heat", (layer, view, heat.revision), lambda: heat.answer(layer, view))
+    return cached_response(request, "map-heat", (layer, view, against, days, heat.revision),
+                           lambda: heat.answer(layer, view, against))
 
 
-def _map_heat(app) -> map_heat.MapHeat:
-    heat = getattr(app.state, "map_heat", None)
-    if heat is None:
-        heat = app.state.map_heat = map_heat.MapHeat(app.state.sessionmaker, app.state.settings)
-    return heat
+def _map_heat(app, days: int = 0) -> map_heat.MapHeat:
+    """The all-time heat (app.state.map_heat), or the one of a time range; ranges nobody looks at let go of their counts."""
+    heats = getattr(app.state, "map_heats", None)
+    if heats is None:
+        heats = app.state.map_heats = {}
+    for other in heats.values():
+        other.release_if_idle()
+    if days not in heats:
+        heats[days] = map_heat.MapHeat(app.state.sessionmaker, app.state.settings, days)
+        if not days:
+            app.state.map_heat = heats[days]
+    return heats[days]
 
 
 LIVE_HEADERS = {"Cache-Control": "no-store", "Cloudflare-CDN-Cache-Control": "no-store"}

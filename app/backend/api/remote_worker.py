@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field
 from .. import remote, tracks, tracks3d
 from ..errors import ApiError
 from ..stats import STATS_VERSION
-from ..worker import claim_queued, save_result
+from ..worker import claim_queued, save_heights, save_result
 from parser import PARSER_VERSION
 
 router = APIRouter(prefix="/api/worker", tags=["remote-worker"])
@@ -129,7 +129,8 @@ async def result(request: Request, replay_id: int):
             raise ApiError(400, "bad_result", f"The result could not be read: {e}") from e
         if outcome[0] == "ok":
             saved = _write_tracks(tracks.tracks_path(settings.processed_dir, replay_id), tracks_bytes, tracks.decode)
-            _write_tracks(tracks3d.tracks3d_path(settings.processed_dir, replay_id), tracks3d_bytes, tracks3d.decode)
+            if _write_tracks(tracks3d.tracks3d_path(settings.processed_dir, replay_id), tracks3d_bytes, tracks3d.decode) and saved:
+                save_heights(tracks.tracks_path(settings.processed_dir, replay_id))
             outcome = (*outcome[:4], saved)  # has_tracks = the file really is here now
         t1 = time.perf_counter()
         with _write_lock:

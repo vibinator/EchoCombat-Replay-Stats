@@ -141,3 +141,172 @@ def test_player_heatmap3d_leaves_out_matches_without_3d_tracks(client):
     tracks3d.tracks3d_path(processed, replay_by_path(client, "dyson/climb.echoreplay")["id"]).unlink()
     h = client.get(f"/api/players/{BLUE}/heatmap3d", params={"map": "dyson"}).json()
     assert (h["matches"], h["matches_3d"], h["layers"]) == (1, 0, [])
+
+
+def test_heights_file_is_written_with_the_tracks_and_used(client):
+    """heights.bin (the height of every 2 Hz sample) is made when a match is processed; it holds what tracks3d.bin
+    gives, and it is made again when it is gone, damaged or tracks3d.bin has changed."""
+    import os
+
+    from backend import tracks, tracks3d
+
+    processed = client.app.state.settings.processed_dir
+    rid = replay_by_path(client, "dyson/climb.echoreplay")["id"]
+    p2, p3 = tracks.tracks_path(processed, rid), tracks3d.tracks3d_path(processed, rid)
+    saved = heatmaps3d.heights_path(p3)
+    assert saved.exists()
+    two = tracks.read(p2)
+    direct = heatmaps3d.heights_of(two[1], tracks3d.read(p3)[1], 2, 5)
+    kept = heatmaps3d.match_heights(two, p3)
+    assert set(kept) == set(direct) == {BLUE, "42"}
+    assert all(np.array_equal(kept[uid], direct[uid]) for uid in direct)
+    assert kept["42"].tolist() == [30] * len(kept["42"])  # 3 m, in decimetres
+
+    saved.unlink()
+    assert heatmaps3d.match_heights(two, p3, save=False) is not None and not saved.exists()
+    assert heatmaps3d.match_heights(two, p3) is not None and saved.exists()
+
+    st = p3.stat()
+    os.utime(p3, ns=(st.st_atime_ns, st.st_mtime_ns + 5_000_000_000))  # tracks3d.bin written again
+    source = [p3.stat().st_mtime_ns, st.st_size]
+    assert heatmaps3d.decode_heights(saved.read_bytes(), two[0]["samples"], source) is None
+    assert heatmaps3d.match_heights(two, p3) is not None
+    assert heatmaps3d.decode_heights(saved.read_bytes(), two[0]["samples"], source) is not None
+
+    saved.write_bytes(b"not a heights file")
+    assert set(heatmaps3d.match_heights(two, p3)) == {BLUE, "42"}
+    h = client.get(f"/api/players/{BLUE}/heatmap3d", params={"map": "dyson"}).json()
+    assert (h["matches_3d"], [layer["key"] for layer in h["layers"]]) == (1, ["blue"])
+
+
+def test_voxels_counted_in_parts_add_up(monkeypatch):
+    """A heatmap counted a few samples at a time (FLUSH_SAMPLES), or sorted instead of counted in a plain array, is
+    the same as one counted at once; the points between samples are those of heatmaps._densify."""
+    rng = np.random.default_rng(3)
+    n = 400
+    x, z = np.round(np.cumsum(rng.normal(0, 1.5, n)), 1), np.round(np.cumsum(rng.normal(0, 0.5, n)), 1)
+    y = np.round(np.abs(np.cumsum(rng.normal(0, 0.4, n))), 1)
+    x[200:] += 60  # a jump: no line
+    lengths = np.array([150, 0, 250])
+    xs, zs, ys = heatmaps._densify(x, z, lengths, heatmaps3d.VOX_M, y)
+    px, py, pz = heatmaps3d._points(x, y, z, lengths)
+    assert len(px) > 2 * n
+    assert sorted(zip(xs.tolist(), ys.tolist(), zs.tolist())) == sorted(zip(px.tolist(), py.tolist(), pz.tolist()))
+
+    def layers():
+        found = heatmaps3d._Layers(DYSON)
+        for start in range(0, n, 50):
+            found.add("a", x[start:start + 50], y[start:start + 50], z[start:start + 50], np.array([50]))
+        return sorted(zip(*(a.tolist() for a in found.result()["a"])))
+
+    whole = layers()
+    assert sum(v[3] for v in whole) > n
+    monkeypatch.setattr(heatmaps3d, "FLUSH_SAMPLES", 120)
+    assert layers() == whole
+    monkeypatch.setattr(heatmaps3d, "DENSE_PER_POINT", 0)
+    assert layers() == whole
+
+
+def test_idle_pass_writes_the_heights_of_the_most_active_players(client):
+    from backend import heights_warm, tracks3d
+
+    app = client.app
+    processed = app.state.settings.processed_dir
+    rid = replay_by_path(client, "dyson/climb.echoreplay")["id"]
+    saved = heatmaps3d.heights_path(tracks3d.tracks3d_path(processed, rid))
+    assert heights_warm.replay_ids(app.state.sessionmaker) == [rid]
+    assert heights_warm.missing(processed, [rid]) == []
+    saved.unlink()
+    assert heights_warm.missing(processed, [rid]) == [rid]
+    warmer = heights_warm.HeightsWarmer(app.state.sessionmaker, app.state.settings, app.state.worker)
+    assert warmer.run_once(rest=False) == (1, 0) and saved.exists()
+    assert warmer.run_once(rest=False) == (0, 0)
+
+
+def test_player_heatmaps_are_kept_until_the_player_has_a_new_match(tmp_path):
+    """Another player's replay does not make a player's heatmap out of date; a new match of the player does. The
+    answers are on disk: a server started again sends them without working them out."""
+    from backend.api import players
+
+    settings = make_settings(tmp_path, answer_cache_mb=8)
+    urls = [(f"/api/players/{BLUE}/heatmap3d", {"map": "dyson"}), (f"/api/players/{BLUE}/heatmap", {"map": "dyson"})]
+    with app_client(settings) as c:
+        add(c, {"dyson/climb.echoreplay": rf.plain(rf.lines_from(climbing_match()))})
+        first = [c.get(url, params=p) for url, p in urls]
+        assert [r.headers["X-EchoVR-Cache"] for r in first] == ["MISS", "MISS"]
+        assert len(list((settings.data_dir / "cache" / "answers").glob("*.bin"))) == 2
+
+        strangers = []
+        for i in range(40):
+            a, b = rf.player(7, "Seven"), rf.player(8, "Eight", 1)
+            a["head"], b["head"] = _pose(1.0, 1.0, i * 0.1), _pose(2.0, 1.0, 2.0)
+            strangers.append(rf.frame(teams=[{"players": [a]}, {"players": [b]}, {}]))
+        add(c, {"dyson/strangers.echoreplay": rf.plain(rf.lines_from(strangers))})
+        again = [c.get(url, params=p) for url, p in urls]
+        assert [r.headers["X-EchoVR-Cache"] for r in again] == ["HIT", "HIT"]
+        assert [r.content for r in again] == [r.content for r in first]
+
+    def must_not_run(*args, **kwargs):
+        raise AssertionError("worked out again")
+
+    with app_client(settings) as c:  # a restart: nothing in memory
+        with pytest.MonkeyPatch.context() as patch:
+            patch.setattr(players, "_player_heatmap3d", must_not_run)
+            patch.setattr(players, "_player_heatmap", must_not_run)
+            later = [c.get(url, params=p) for url, p in urls]
+            assert [r.headers["X-EchoVR-Cache"] for r in later] == ["HIT", "HIT"]
+            assert [r.json() for r in later] == [r.json() for r in first]
+        add(c, {"dyson/climb2.echoreplay": rf.plain(rf.lines_from(climbing_match()[:150]))})
+        new = c.get(urls[0][0], params=urls[0][1])
+        assert new.headers["X-EchoVR-Cache"] == "MISS" and new.json()["matches"] == 2
+
+
+def test_idle_pass_builds_the_long_heatmaps_onto_disk(tmp_path):
+    from backend import heights_warm
+    from backend.api import players
+
+    settings = make_settings(tmp_path, answer_cache_mb=8)
+    with app_client(settings) as c:
+        add(c, {"dyson/climb.echoreplay": rf.plain(rf.lines_from(climbing_match()))})
+        app = c.app
+        assert (BLUE, "dyson") in heights_warm.players_and_maps(app.state.sessionmaker)
+        warmer = heights_warm.HeightsWarmer(app.state.sessionmaker, settings, app.state.worker, app)
+        assert warmer.build_heatmaps(rest=False) == 4  # two players, flat and 3D
+        assert warmer.build_heatmaps(rest=False) == 0  # still current
+        with pytest.MonkeyPatch.context() as patch:
+            patch.setattr(players, "_player_heatmap3d", lambda *a, **k: pytest.fail("worked out again"))
+            h = c.get(f"/api/players/{BLUE}/heatmap3d", params={"map": "dyson", "last": players.ALL_MATCHES})
+        assert h.headers["X-EchoVR-Cache"] == "HIT" and [layer["key"] for layer in h.json()["layers"]] == ["blue"]
+
+
+def test_answers_on_disk_stay_within_their_limit(tmp_path):
+    from backend import cache
+
+    disk = cache.Disk(tmp_path / "answers", 3000)
+    for i in range(6):
+        disk.save(("x", (i,), None), cache.Entry((1, [2, "a"]), 0.0, gz=bytes(900), etag="e"))
+    assert disk.stamp(("x", (5,), None)) == (1, (2, "a")) and disk.load(("x", (5,), None)).gz == bytes(900)
+    disk.prune()
+    left = list((tmp_path / "answers").glob("*.bin"))
+    assert 0 < len(left) < 6 and sum(f.stat().st_size for f in left) <= 3000
+    assert disk.load(("x", (99,), None)) is None
+
+
+def test_answers_on_disk_keep_what_was_used_last(tmp_path):
+    import os
+    import time
+
+    from backend import cache
+
+    disk = cache.Disk(tmp_path / "answers", 4500)
+    keys = [("x", (i,), None) for i in range(3)]
+    for i, key in enumerate(keys):
+        disk.save(key, cache.Entry((1,), 0.0, gz=bytes(900), etag="e"))
+        os.utime(disk.path(key), (time.time() - 1000 + i, time.time() - 1000 + i))  # written long ago, 0 first
+    assert disk.load(keys[0]) is not None  # read for a request: used now
+    disk.used(keys[1])  # found current by the idle pass
+    for i in range(3, 5):
+        disk.save(("x", (i,), None), cache.Entry((1,), 0.0, gz=bytes(900), etag="e"))
+    disk.prune()
+    assert disk.load(keys[2]) is None  # the one nobody used went first
+    assert disk.load(keys[0]) is not None and disk.load(keys[1]) is not None

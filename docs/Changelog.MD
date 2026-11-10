@@ -18,6 +18,138 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.10.42 — 22:52
+
+- **Heatmaps kept on disk: the ones in use stay.** When the folder (`data/cache/answers`) was full, the files
+  written longest ago went first: exactly the prepared heatmaps of top players who had not played lately, which the
+  idle pass then built again every 6 hours. Now the files not *used* for the longest go first: a heatmap counts as
+  used when it is read for a visitor or found still current by the idle pass.
+- **NAS YAML: 4 GB for that folder** (`ECHOVR_ANSWER_CACHE_MB: "4096"` in `docker-compose.yml`; 1 GB when the line
+  is not there). Expected use: 150-350 MB for the prepared heatmaps of the 100 most active players, the rest for
+  whatever else people open (30-400 KB each).
+- **To do after updating:** restart the server with the new `docker-compose.yml`.
+
+## 2026.11.10.41 — 22:48
+
+- **Player heatmaps (flat and 3D) are no longer worked out again without need.**
+  - **Only when the player has a new match.** A kept heatmap was out of date as soon as anybody's replay came in,
+    so with replays arriving all day it was rebuilt again and again. It now depends on that player's own matches on
+    that map: a new, re-read or removed match of the player makes it out of date, nothing else does.
+  - **Not at midnight.** For the period "All time" the kept heatmap is the same on every day (it used to be built
+    fresh once each day).
+  - **Not after a restart.** Heatmaps are also kept on disk (`data/cache/answers`, up to 1 GB, oldest out first;
+    `ECHOVR_ANSWER_CACHE_MB`, `0` = off). After a restart they are read from there: 2-20 ms on the development PC
+    instead of a full build.
+- **The long heatmaps of the 100 most active players are built ahead of time.** After writing the height files
+  (2026.11.10.38), the idle pass builds "All time, All matches, by team" (flat and 3D) for each of them on every
+  map they played (about 400 player-map pairs) and saves them to disk only, so memory stays for what people are looking at. One that
+  is still current is skipped; the pass runs only while no replay is being processed and rests as long as each
+  build took. About 0.5 MB per player and map on disk.
+- Not prepared ahead: other colourings (weapon, loadout, speed ...) and other periods. Those are built on first
+  view (faster since 2026.11.10.37) and then kept like the rest.
+- A 3D heatmap that leaves matches out because their 3D tracks are not there yet is looked at again once a day.
+- **To do after updating:** restart the server. Nothing to set: the folder is made by itself. The first idle pass
+  after the update takes a while (every long heatmap once); the log says how many were built.
+
+## 2026.11.10.40 — 22:48
+
+- **Home page heatmaps: time range.** "All time", "Last 90 days" or "Last 30 days", for every tab, the compare and
+  the large view; the note says how many matches the pictures are counted from. In the address as `days=30`.
+- The two ranges are brought up to date once a day (on the first visit of the day: the new matches added, those
+  that left the range taken out again, a few seconds), all time once a month as before.
+- No extra memory while nobody looks: a range's counts are loaded when it is asked for (0.35 s on the development
+  PC) and let go ten minutes after the last request; its answers stay cached meanwhile. About 85 MB each while
+  held, 4 MB each on disk. First build: 6-8 s here for about 1,000 matches.
+- **To do after updating:** restart the server.
+
+## 2026.11.10.39 — 22:42
+
+- **Home page heatmaps: more to look at.**
+  - **Win / loss:** where the winners and the losers of decided matches spend their time. Compared with each other
+    it shows it at a glance: winners on the objective, losers on the way back from their spawn.
+  - **Speed:** where players are stopped, slow, medium or fast (the same four bands as the match heatmaps).
+  - **Deaths:** where players die, and (the default view) where they die more often than the time spent there
+    would suggest. Deaths are estimates (the last spot before a player left the play area) and few per spot, so
+    they are smoothed over about a metre. **Known flaw:** on Fission, Combustion and Surge straight bright lines
+    show where the play-area bounds are set wrong (leaving them counts as a death); Dyson is not affected.
+  - **Payload, "Rollback":** where the payload rolls backwards. Each payload card now also gives the map's own
+    average (speed going forward, or the share of the time stopped / rolling back).
+- **Large view: zoom, drag and read-out.** Buttons, a double click or Ctrl + wheel zoom in up to 8 times (the wheel
+  alone once zoomed in, so the page still scrolls past the map), drag moves it. Pointing at a spot says what it
+  means: "Pulsar: 1.4× as often as usual", "Winners: 1.5× as often here as Losers", "Blue 34 % · Orange 66 % of the
+  time here", "Payload: standing still 24 % of the time".
+- **Swap button** beside "Compare with": turns the two heatmaps around.
+- **A view can be linked.** The address remembers the tab, the choice, what it is compared with and the open map,
+  for example `/?heat=result:won&vs=result:lost&map=dyson`.
+- Every choice is cached as before: built once per state of the counts on the server (about 0.15 s for the four
+  maps), then served from memory with an ETag, by Cloudflare, and kept by the page while it is open.
+- The all-time heat is counted again once after this update (new layers): some minutes in the background. About
+  85 MB of memory (was 70), 9 MB on disk.
+- **To do after updating:** restart the server.
+
+## 2026.11.10.38 — 22:32
+
+- **3D heatmaps of the 100 most active players are prepared while the server is idle.** Two minutes after a start,
+  the server writes the missing `heights.bin` files (see 2026.11.10.37) of every match one of the 100 players with
+  the most matches is in, newest first. So the first 3D heatmap of exactly the players with the longest histories
+  is fast too, without running the backfill by hand.
+  - Only while no replay is being processed, one match at a time, resting as long as each match took: at most half
+    of one core. It stops with the server and carries on where it was after a restart (what is written stays).
+  - It looks again every 6 hours for players who entered the top 100 since. The log says how many matches there
+    were to write and how many were written.
+  - `backfill_tracks3d.bat --heights` is still there to do every match of everybody at once.
+- **To do after updating:** restart the server.
+
+## 2026.11.10.37 — 22:28
+
+- **Player 3D heatmap: much less work per match, so "All" no longer looks stuck.** Measured on the live site before
+  this update, for a player with 1,975 matches on one map: last 20 = 0.6 s, last 200 = 1.8 s, last 1,000 = 9.4 s,
+  All = 18.3 s (and the 2D heatmap is worked out at the same time). Nearly all of that was unpacking each match's
+  3D track file (95 KB, 400 KB unpacked: every player's position, facing and hands) to get one player's height.
+  - Each match now has a small `heights.bin` (a few KB) next to its tracks: the height of every player at every
+    heatmap sample. The 3D heatmap reads that instead.
+  - Counting the voxels is cheaper too (counted a part at a time instead of sorting every point at once; less
+    memory for long histories).
+  - The picture is the same to the last voxel (checked against the old code for team, weapon, loadout and speed
+    colouring over 415 matches).
+  - On the development PC: 415 matches 0.8-0.9 s → 0.35-0.5 s with eight reading threads; on one thread about
+    2.9 ms → 1.1 ms per match. The live server has fewer cores, so expect about a third of the old times there
+    (not measured live yet).
+- New matches get their `heights.bin` when they are processed. For older matches it is written the first time a 3D
+  heatmap needs the match, so the **first** view of a player is as slow as before and fast from then on.
+- **To do after updating:** restart the server. To make every player fast at once, run
+  `backfill_tracks3d.bat --heights` once where the data folder is (minutes: it reads only the track files, no
+  replays, and can be stopped and run again).
+
+## 2026.11.10.36 — 22:27
+
+- **Home page heatmaps: three new tabs.**
+  - **Handed:** where left-handed and right-handed players are (the arm setting of each player in each match; 8 %
+    of the play time is left-handed). "Favoured spots" and "Everywhere", as for gear.
+  - **Upside down:** where players are upside down, or upright. Read from the head's roll in the 3D tracks, so only
+    matches that have 3D tracks count; the note under the cards says how many. Run `backfill_tracks3d.bat` to cover
+    more of the archive, the next monthly count then picks them up. (Agrees with the "Inverted" statistic: correlation
+    0.96 over 2,465 players; that statistic uses the body, this the head, so the share is a little lower.)
+  - **Payload** (Fission, Surge): the payload's own movement as a band along its route. "Stops" = the share of its
+    time it stood still at each point, "Speed" = its average speed going forward. Only between the payload's first
+    and last move of a match, so the wait before the round and after the finish is not counted.
+- **"Compare with": lay any heatmap against any other** (both teams, one team, any weapon, ordnance, tac mod,
+  left / right-handed, upside down / upright). Pink = where the chosen one is relatively more often, green = where
+  the other is, clear = about as often. Each is measured against its own total, so something rare compares fairly
+  with something common. Examples: left-handed against right-handed, Comet against Nova, blue team against orange.
+- The all-time heat is counted again once after this update (new layers): some minutes in the background, the cards
+  fill in as it goes. On the development PC 111 s for 29,817 matches (was 96 s); longer where most matches have 3D
+  tracks, since those files are read too. Saved counts 7.6 MB, about 70 MB of memory.
+- **To do after updating:** restart the server.
+
+## 2026.11.10.35 — 22:09
+
+- **Home page, weapon / ordnance / tac mod heatmaps are sharper.** "Favoured spots" were smoothed over about a metre
+  each way, so every spot was a round blob three to four metres across; they are now smoothed over one 0.3 m cell
+  each way, as fine as the Teams view: single perches, doorways and routes show.
+- Nothing is counted again: only the drawing changed. A choice is about 10 % larger to download.
+- **To do after updating:** restart the server.
+
 ## 2026.11.10.34 — 22:01
 
 - **Home page heatmaps are no longer faded.** Since the finer 0.3 m cells, the brightness was set by a handful of

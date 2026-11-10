@@ -1,7 +1,9 @@
 """Per-replay position tracks (D11, D18): `data/processed/<replay_id>/tracks.bin`.
 
 Sampled at 2 Hz. Per player: x, z (int16 decimetres), weapon, tacmod and ordnance index (uint8, 255 = none)
-and team (uint8: 0 absent, 1 blue, 2 orange) per sample (version 2; version 1 had no tacmod / ordnance). Plus objective series (capture points or payload
+and team (uint8: 0 absent, 1 blue, 2 orange) per sample (version 2; version 1 had no tacmod / ordnance), and since
+version 3 (2026-11-10) a flags byte: bit 0 = upside down (the body's up points down, the test of the "Inverted"
+statistic), for the all-time upside-down heat. Plus objective series (capture points or payload
 distance) for the timeline. ~30 KB per match after zlib; rebuildable from the replay.
 
 File = zlib( uint32 header length | header JSON | player arrays, in header order ); arrays little-endian.
@@ -22,7 +24,8 @@ from pathlib import Path
 
 from .stats.maps import is_load_in
 
-FORMAT_VERSION = 2
+FORMAT_VERSION = 3
+UPSIDE_DOWN = 1  # flags bit
 HZ = 2
 ABSENT, BLUE, ORANGE = 0, 1, 2
 TEAM_CODES = {"blue": BLUE, "orange": ORANGE}
@@ -38,6 +41,7 @@ class PlayerTrack:
     weapon: list[str]  # "" when unknown / absent
     tacmod: list[str]
     ordnance: list[str]
+    flags: list[int] | None = None  # per sample (UPSIDE_DOWN ...); None = not recorded
 
 
 @dataclass
@@ -69,6 +73,7 @@ class TrackRecorder:
                     track[key].append(None)
                 for key in ("weapon", "tacmod", "ordnance"):
                     track[key].append("")
+                track["flags"].append(0)
             for values in self.series.values():
                 values.append(None)
         index = self.samples - 1
@@ -84,15 +89,17 @@ class TrackRecorder:
                     track = self.players[p.user_id] = {
                         "x": [None] * self.samples, "z": [None] * self.samples, "team": [None] * self.samples,
                         "weapon": [""] * self.samples, "tacmod": [""] * self.samples, "ordnance": [""] * self.samples,
+                        "flags": [0] * self.samples,
                     }
                 x, _, z = p.head_position
                 track["x"][index], track["z"][index] = x, z
                 track["team"][index], track["weapon"][index] = team, p.weapon
                 track["tacmod"][index], track["ordnance"][index] = p.tacmod, p.ordnance
+                track["flags"][index] = UPSIDE_DOWN if p.body_up[1] < 0 else 0  # as stats.player counts it
 
     def result(self) -> Tracks:
         series = {k: v for k, v in self.series.items() if any(x is not None for x in v)}
-        players = [PlayerTrack(uid, t["x"], t["z"], t["team"], t["weapon"], t["tacmod"], t["ordnance"])
+        players = [PlayerTrack(uid, t["x"], t["z"], t["team"], t["weapon"], t["tacmod"], t["ordnance"], t["flags"])
                    for uid, t in self.players.items()]
         return Tracks(HZ, self.samples, players, series)
 
@@ -128,13 +135,15 @@ def encode(tracks: Tracks) -> bytes:
         body += bytes(TEAM_CODES.get(t, ABSENT) if t else ABSENT for t in p.team)
         body += _indexes(p.tacmod, tacmods)
         body += _indexes(p.ordnance, ordnances)
+        body += bytes(p.flags) if p.flags is not None else bytes(len(p.x))
     head = json.dumps(header, separators=(",", ":")).encode()
     return zlib.compress(struct.pack("<I", len(head)) + head + bytes(body), 6)
 
 
 def decode(data: bytes) -> tuple[dict, dict[str, dict[str, array | bytes]]]:
-    """Returns (header, {user_id: {"x", "z": array('h'), "weapon", "team", "tacmod", "ordnance": bytes}}).
-    Version-1 files have no tacmod / ordnance: those come back as 'none' (255)."""
+    """Returns (header, {user_id: {"x", "z": array('h'), "weapon", "team", "tacmod", "ordnance", "flags": bytes}}).
+    Version-1 files have no tacmod / ordnance: those come back as 'none' (255). Files before version 3 have no
+    flags: b"" (not known, which is not the same as none set)."""
     raw = zlib.decompress(data)
     (length,) = struct.unpack_from("<I", raw)
     header = json.loads(raw[4 : 4 + length])
@@ -151,7 +160,11 @@ def decode(data: bytes) -> tuple[dict, dict[str, dict[str, array | bytes]]]:
             ordnance = raw[offset : offset + n]; offset += n
         else:
             tacmod = ordnance = bytes([NO_WEAPON]) * n
-        players[user_id] = {"x": x, "z": z, "weapon": weapon, "team": team, "tacmod": tacmod, "ordnance": ordnance}
+        flags = b""
+        if header.get("version", 1) >= 3:
+            flags = raw[offset : offset + n]; offset += n
+        players[user_id] = {"x": x, "z": z, "weapon": weapon, "team": team, "tacmod": tacmod, "ordnance": ordnance,
+                            "flags": flags}
     header.setdefault("tacmods", [])
     header.setdefault("ordnances", [])
     return header, players
@@ -188,7 +201,7 @@ def set_cache_limit(mb: int) -> None:
 
 def _cost(header: dict, players: dict) -> int:
     """Bytes in RAM, roughly: the arrays plus a flat allowance for the header JSON."""
-    return 4096 + sum(len(t["x"]) * 4 + sum(len(t[k]) for k in ("weapon", "team", "tacmod", "ordnance"))
+    return 4096 + sum(len(t["x"]) * 4 + sum(len(t[k]) for k in ("weapon", "team", "tacmod", "ordnance", "flags"))
                       for t in players.values())
 
 
