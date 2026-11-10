@@ -9,7 +9,7 @@ from datetime import datetime
 from parser import Frame, PlayerFrame
 from parser.models import Vec3
 
-from .maps import Bounds, in_bounds, is_load_in
+from .maps import Bounds, at_spawn, in_bounds, is_load_in
 from .results import EventRecord, PlayerStats
 
 LEFT_EARLY_S = 45.0  # last seen more than 45 s before the end (old "crashed")
@@ -23,8 +23,9 @@ TOP_SPEED_WINDOW_S = 1.0  # top speed = highest speed held for a full window
 
 class PlayerAccumulator:
     def __init__(self, user_id: str, bounds: Bounds | None, started_at: datetime, events: list[EventRecord],
-                 load_in: Vec3 | None = None):
+                 load_in: Vec3 | None = None, spawns=None):
         self.user_id = user_id
+        self.spawns = spawns  # this map's spawn circles (maps.SPAWN_CIRCLES): leaving from one is not a death
         self.bounds = bounds  # None for unknown maps: every frame counts as in bounds, no deaths
         self.load_in = load_in  # this map's load-in spot (maps.LOAD_IN_SPOTS); None: no load-in rule
         self.started_at = started_at
@@ -94,9 +95,12 @@ class PlayerAccumulator:
             self._last_in_bounds_position = p.head_position
             self._add_in_bounds(frame, p, teammates, enemies)
         elif self._was_in_bounds and not loading_in:
-            self.deaths += 1
-            x, _, z = self._last_in_bounds_position
-            self.event(frame, "death_est", {"x": round(x, 2), "z": round(z, 2)})
+            # gone from the play area. From a spawn point: back to the war room by choice, not a death (user,
+            # 2026-11-10); coming back out still shows as a respawn, which it is
+            if not at_spawn(self._last_in_bounds_position, self.spawns):
+                self.deaths += 1
+                x, _, z = self._last_in_bounds_position
+                self.event(frame, "death_est", {"x": round(x, 2), "z": round(z, 2)})
             self._speeds.clear()
             self._window_min.clear()
         self._was_in_bounds = inside

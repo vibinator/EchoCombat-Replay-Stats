@@ -36,9 +36,12 @@
   <h1>Play-area bounds</h1>
   <span class="group" id="maps" role="tablist" aria-label="Map"></span>
   <span class="group">
+    <button id="circle" title="Spawn circles (C): drag on the map to draw a circle over a spawn point. Leaving the play area from inside one is the way back to the war room, not a death.">◯ Spawn circle</button>
+  </span>
+  <span class="group">
     <button id="undo" title="Ctrl + Z">Undo</button>
     <button id="frombox" title="Start this map from the box now in the code, then move its corners and add points">Start from the current box</button>
-    <button id="clear">Clear this map</button>
+    <button id="clear" title="Removes this map's outline and its spawn circles (Undo brings them back)">Clear this map</button>
   </span>
   <span class="group">
     <label class="check"><input type="checkbox" id="showpos" checked> Where players are</label>
@@ -59,13 +62,16 @@
   <div id="help">
     <p><b>Click</b> to place points around the play area. <b>Click the first point</b> (or press Enter) to close the outline.</p>
     <p>Then: <b>drag</b> a point to move it, <b>click a line</b> to add a point there, <b>right-click</b> a point to remove it.</p>
+    <p><b>◯ Spawn circle</b> (or C): <b>drag</b> on the map to draw a circle over a spawn point; then drag its middle to move it, its edge to resize it, right-click to remove it. Press the button again to go back to the outline.</p>
     <p><b>Wheel</b> zooms, <b>right-drag</b> (or Space + drag) moves the view, <b>F</b> shows the whole map.</p>
-    <p><span class="key" style="background:#2fd66f"></span>inside = in bounds &nbsp; <span class="key" style="background:#e63c3c"></span>outside &nbsp; <span class="key" style="background:#35e0ff"></span>where players are &nbsp; <span class="key" style="background:#ffdc3c"></span>current box</p>
+    <p><span class="key" style="background:#2fd66f"></span>inside = in bounds &nbsp; <span class="key" style="background:#e63c3c"></span>outside &nbsp; <span class="key" style="background:#35e0ff"></span>where players are &nbsp; <span class="key" style="background:#ffdc3c"></span>current box &nbsp; <span class="key" style="background:#ff9a2e"></span>spawn circle: leaving from here is not a death</p>
     <p>Your work is kept in this browser as you go; <b>Save</b> writes the file to hand over.</p>
+    <p style="margin:0; text-align:right"><button id="hidehelp">Hide this</button></p>
   </div>
+  <button id="showhelp" hidden style="position:absolute; right:10px; top:10px">Help</button>
 </main>
 <dialog id="dlg">
-  <p>The outlines in metres, the game's own x and z: <code>{"map": [[x, z], …]}</code>.</p>
+  <p>The outlines in metres, the game's own x and z: <code>{"map": [[x, z], …]}</code>, and the spawn circles: <code>"spawns": {"map": [[x, z, radius], …]}</code>.</p>
   <textarea id="json" spellcheck="false" readonly></textarea>
   <p style="text-align:right; margin:8px 0 0"><button id="copy">Copy</button> <button id="closedlg">Close</button></p>
 </dialog>
@@ -85,12 +91,16 @@
   const STORE = "echo-combat-bounds-v1";
   const HIT = 9; // pixels: how near a click must be to a point or a line
 
-  // ---- state: one outline per map, in world metres [x, z]; `closed` once the ring is complete
-  let shapes = Object.fromEntries(NAMES.map((n) => [n, { points: [], closed: false }]));
+  // ---- state: one outline per map, in world metres [x, z]; `closed` once the ring is complete. And its spawn
+  // circles [x, z, radius]: spots a player leaves the play area from on the way back to the war room (not a death)
+  const empty = () => ({ points: [], closed: false, circles: [] });
+  let shapes = Object.fromEntries(NAMES.map((n) => [n, empty()]));
   try {
     const kept = JSON.parse(localStorage.getItem(STORE) || "null");
-    if (kept) for (const n of NAMES) if (kept[n] && Array.isArray(kept[n].points)) shapes[n] = kept[n];
+    if (kept) for (const n of NAMES) if (kept[n] && Array.isArray(kept[n].points)) shapes[n] = { ...empty(), ...kept[n] };
   } catch { /* storage off or damaged: start empty */ }
+  let tool = "outline"; // or "circle"
+  const MIN_R = 0.5, DEFAULT_R = 4; // metres: a click without a drag makes a circle of DEFAULT_R
   let current = NAMES[0];
   const history = []; // snapshots of `shapes` for undo
   const view = { scale: 4, ox: 0, oy: 0 }; // screen = picture metres * scale + offset
@@ -178,6 +188,19 @@
       if (d < bestD) { bestD = d; best = i; }
     }
     return best;
+  }
+
+  /** The circle under (x, y): {index, part: "edge" | "inside"}, the edge first (to resize), or null. */
+  function circleAt(x, y) {
+    const circles = shapes[current].circles;
+    let inside = null;
+    for (let i = circles.length - 1; i >= 0; i--) {
+      const [sx, sy] = toScreen(circles[i]);
+      const d = Math.hypot(sx - x, sy - y), r = circles[i][2] * view.scale;
+      if (Math.abs(d - r) <= HIT && r > HIT * 1.5) return { index: i, part: "edge" };
+      if (d <= r && !inside) inside = { index: i, part: "inside" };
+    }
+    return inside;
   }
 
   // ---- drawing
@@ -296,6 +319,29 @@
         ctx.stroke();
       });
     }
+    const hotCircle = mouse && tool === "circle" ? circleAt(mouse.x, mouse.y) : null;
+    s.circles.forEach((c, i) => {
+      const [x, y] = toScreen(c);
+      const r = c[2] * view.scale;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(255, 154, 46, 0.28)";
+      ctx.fill();
+      ctx.lineWidth = hotCircle && hotCircle.index === i ? 3 : 2;
+      ctx.strokeStyle = "#ff9a2e";
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(x, y, 3, 0, Math.PI * 2);
+      ctx.fillStyle = "#ff9a2e";
+      ctx.fill();
+      if (r > 22) {
+        ctx.font = "11px system-ui, sans-serif";
+        ctx.fillStyle = "#ffd9ad";
+        ctx.textAlign = "center";
+        ctx.fillText(`spawn · ${c[2].toFixed(1)} m`, x, y - 7);
+        ctx.textAlign = "start";
+      }
+    });
     updateStatus();
   }
 
@@ -307,6 +353,7 @@
       parts.push(`x ${x.toFixed(1)}   z ${z.toFixed(1)}`);
     }
     parts.push(`${s.points.length} point${s.points.length === 1 ? "" : "s"}${s.closed ? `, closed, ${Math.round(area(s.points)).toLocaleString()} m²` : s.points.length ? ", open (click the first point or press Enter to close)" : ""}`);
+    if (s.circles.length || tool === "circle") parts.push(`${s.circles.length} spawn circle${s.circles.length === 1 ? "" : "s"}${tool === "circle" ? " (drawing circles: drag on the map)" : ""}`);
     const m = map();
     if (m.positions) parts.push(`players: latest ${m.matches} matches`);
     statusBox.textContent = parts.join("   ·   ");
@@ -328,7 +375,12 @@
   function output() {
     const out = {};
     for (const n of NAMES) if (shapes[n].closed && shapes[n].points.length >= 3) out[n] = shapes[n].points.map(round);
-    return JSON.stringify(out, null, 1).replace(/\[\s+(-?[\d.]+),\s+(-?[\d.]+)\s+\]/g, "[$1, $2]");
+    const spawns = {};
+    for (const n of NAMES) if (shapes[n].circles.length) spawns[n] = shapes[n].circles.map((c) => [...round(c), Math.round(c[2] * 10) / 10]);
+    if (Object.keys(spawns).length) out.spawns = spawns;
+    return JSON.stringify(out, null, 1)
+      .replace(/\[\s+(-?[\d.]+),\s+(-?[\d.]+),\s+(-?[\d.]+)\s+\]/g, "[$1, $2, $3]")
+      .replace(/\[\s+(-?[\d.]+),\s+(-?[\d.]+)\s+\]/g, "[$1, $2]");
   }
   function load(text) {
     const data = JSON.parse(text);
@@ -336,7 +388,10 @@
     for (const n of NAMES) {
       const points = data[n];
       if (Array.isArray(points) && points.length >= 3 && points.every((p) => Array.isArray(p) && p.length === 2 && p.every(Number.isFinite)))
-        shapes[n] = { points: points.map(round), closed: true };
+        shapes[n] = { ...shapes[n], points: points.map(round), closed: true };
+      const circles = data.spawns && data.spawns[n];
+      if (Array.isArray(circles))
+        shapes[n].circles = circles.filter((c) => Array.isArray(c) && c.length === 3 && c.every(Number.isFinite) && c[2] > 0).map((c) => [...round(c), c[2]]);
     }
     changed();
   }
@@ -353,6 +408,26 @@
     canvas.setPointerCapture(e.pointerId);
     const s = shapes[current];
     const hit = pointAt(p.x, p.y);
+    if (tool === "circle" && !(e.button === 0 && space) && e.button !== 1) {
+      const on = circleAt(p.x, p.y);
+      if (e.button === 2 && on) { // remove the circle
+        remember();
+        s.circles.splice(on.index, 1);
+        changed();
+      } else if (e.button === 2) {
+        drag = { kind: "pan", x: p.x, y: p.y };
+      } else if (e.button === 0 && on) {
+        remember();
+        const [cx, cz] = s.circles[on.index], [wx, wz] = fromScreen(p.x, p.y);
+        drag = { kind: on.part === "edge" ? "radius" : "circle", index: on.index, dx: wx - cx, dz: wz - cz, moved: false };
+      } else if (e.button === 0) {
+        remember();
+        s.circles.push([...round(fromScreen(p.x, p.y)), 0]);
+        drag = { kind: "radius", index: s.circles.length - 1, moved: false, fresh: true };
+      }
+      draw();
+      return;
+    }
     if (e.button === 1 || (e.button === 0 && space) || (e.button === 2 && hit < 0)) {
       drag = { kind: "pan", x: p.x, y: p.y };
       return;
@@ -400,14 +475,33 @@
     } else if (drag && drag.kind === "point") {
       shapes[current].points[drag.index] = round(fromScreen(p.x, p.y));
       drag.moved = true;
+    } else if (drag && drag.kind === "circle") {
+      const c = shapes[current].circles[drag.index], [wx, wz] = fromScreen(p.x, p.y);
+      [c[0], c[1]] = round([wx - drag.dx, wz - drag.dz]);
+      drag.moved = true;
+    } else if (drag && drag.kind === "radius") {
+      const c = shapes[current].circles[drag.index], [sx, sy] = toScreen(c);
+      c[2] = Math.round((Math.hypot(sx - p.x, sy - p.y) / view.scale) * 10) / 10;
+      drag.moved = true;
     }
     const s = shapes[current];
+    if (tool === "circle" && !(drag && drag.kind === "pan")) {
+      const on = circleAt(p.x, p.y);
+      canvas.style.cursor = on ? (on.part === "edge" ? "nwse-resize" : "move") : "crosshair";
+      draw();
+      return;
+    }
     canvas.style.cursor = drag && drag.kind === "pan" ? "grabbing" : pointAt(p.x, p.y) >= 0 ? "move" : s.closed && lineAt(p.x, p.y) >= 0 ? "copy" : s.closed ? "default" : "crosshair";
     draw();
   });
   canvas.addEventListener("pointerup", () => {
     if (drag && drag.kind === "point") {
       if (drag.moved) changed(); else history.pop(); // a click on a point that moved nothing: nothing to undo
+    } else if (drag && (drag.kind === "circle" || drag.kind === "radius")) {
+      const circles = shapes[current].circles, c = circles[drag.index];
+      if (drag.fresh && c[2] < MIN_R) c[2] = DEFAULT_R; // a click without a drag
+      else if (c[2] < MIN_R) c[2] = MIN_R;
+      if (drag.moved || drag.fresh) changed(); else history.pop();
     }
     drag = null;
     updateBar();
@@ -436,6 +530,7 @@
     else if (e.key === "Enter" && !s.closed && s.points.length >= 3) { remember(); s.closed = true; changed(); }
     else if (e.key === "Escape" && !s.closed && s.points.length) { remember(); s.points.pop(); changed(); }
     else if (e.key.toLowerCase() === "f") { fit(); draw(); }
+    else if (e.key.toLowerCase() === "c" && !e.ctrlKey && !e.metaKey) setTool(tool === "circle" ? "outline" : "circle");
     else if ((e.key === "Delete" || e.key === "Backspace") && mouse) {
       const hit = pointAt(mouse.x, mouse.y);
       if (hit >= 0) { remember(); s.points.splice(hit, 1); if (s.points.length < 3) s.closed = false; changed(); }
@@ -452,9 +547,17 @@
     b.addEventListener("click", () => { current = n; fit(); updateBar(); draw(); });
     tabs.appendChild(b);
   }
+  function setTool(next) {
+    tool = next;
+    const button = document.getElementById("circle");
+    button.classList.toggle("on", tool === "circle");
+    button.setAttribute("aria-pressed", String(tool === "circle"));
+    draw();
+  }
+  document.getElementById("circle").addEventListener("click", () => setTool(tool === "circle" ? "outline" : "circle"));
   document.getElementById("undo").addEventListener("click", undo);
-  document.getElementById("clear").addEventListener("click", () => { remember(); shapes[current] = { points: [], closed: false }; changed(); });
-  document.getElementById("frombox").addEventListener("click", () => { remember(); shapes[current] = { points: map().box.map(round), closed: true }; changed(); });
+  document.getElementById("clear").addEventListener("click", () => { remember(); shapes[current] = empty(); changed(); });
+  document.getElementById("frombox").addEventListener("click", () => { remember(); shapes[current] = { ...shapes[current], points: map().box.map(round), closed: true }; changed(); });
   for (const id of ["showpos", "showbox", "showgrid", "showfill"]) document.getElementById(id).addEventListener("change", draw);
   document.getElementById("save").addEventListener("click", () => {
     const link = document.createElement("a");
@@ -479,6 +582,9 @@
     e.target.value = "";
   });
 
+  const help = document.getElementById("help"), showHelp = document.getElementById("showhelp");
+  document.getElementById("hidehelp").addEventListener("click", () => { help.hidden = true; showHelp.hidden = false; });
+  showHelp.addEventListener("click", () => { help.hidden = false; showHelp.hidden = true; });
   window.addEventListener("resize", () => { fit(); draw(); });
   window.boundsEditor = { output, shapes: () => shapes }; // for checks from outside
   fit();

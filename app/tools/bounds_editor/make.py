@@ -9,7 +9,9 @@ index.html is the editor (no server, no install: a page opened from disk). This 
   (MARGIN_M around it), from the position tracks in the data folder. Read-only: nothing is written but data.js.
 Without a data folder the editor still works, just without that overlay.
 
-The editor saves `echo_bounds.json`: {"<map>": [[x, z], ...]} in metres, one closed outline per map."""
+The editor saves `echo_bounds.json`: {"<map>": [[x, z], ...]} in metres, one closed outline per map, and under
+"spawns" {"<map>": [[x, z, radius], ...]}: circles over the spawn points (user, 2026-11-10), where leaving the play
+area is the way back to the war room and must not count as a death."""
 
 import base64
 import json
@@ -76,7 +78,7 @@ def positions_png(map_: str, settings) -> tuple[str | None, int]:
 
 
 def main() -> int:
-    settings = Settings()
+    settings = Settings.from_env()
     maps = {}
     for name, layout in HEATMAP_LAYOUTS.items():
         heat, used = positions_png(name, settings)

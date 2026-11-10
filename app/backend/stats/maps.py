@@ -63,6 +63,24 @@ def is_load_in(position: Vec3, spot: Vec3 | None) -> bool:
     return spot is not None and position[0] == spot[0] and position[1] == spot[1] and position[2] == spot[2]
 
 
+# Spawn points (user, 2026-11-10; drawn with the bounds editor, app/tools/bounds_editor/echo_bounds.json holds the same
+# numbers): (x, z, radius) in metres. A player who leaves the play area from inside one has gone back to the war room
+# by their own choice: not a death. Checked on Dyson, whose bounds were always right: 881 of the latest 71,641
+# estimated deaths (1.2 %) started inside one of its four circles, most of them within a metre of the middle.
+SPAWN_CIRCLES: dict[str, tuple[tuple[float, float, float], ...]] = {
+    "dyson": ((-16.9, 24, 1.1), (16.9, 24.1, 1), (-34.1, -34.3, 2.2), (34.4, -34.1, 2.1)),
+    "fission": ((-69.6, -3.8, 2.2), (-34.8, 19.7, 3.9), (17.6, 15.7, 3.1), (54.2, 29, 3.6), (119.3, 0.4, 3.3)),
+    "surge": ((-50.7, 26.6, 4.1), (38.9, 56.4, 3.7), (76.8, 52.2, 5.9), (143.8, 12.4, 6.5), (-12.1, -39.5, 7.5), (39.8, 34.3, 1.3)),
+    "combustion": ((37.5, -74, 5.8), (25.1, -79.8, 6.3), (12.1, -75.7, 8.6), (36.7, 75.9, 9.8), (24.5, 80.5, 7.4), (12.7, 75.5, 6.6)),
+}
+
+
+def at_spawn(position: Vec3, circles) -> bool:
+    """Inside one of the map's spawn circles (flat: height is not looked at)."""
+    x, _, z = position
+    return any((x - cx) ** 2 + (z - cz) ** 2 <= r * r for cx, cz, r in circles or ())
+
+
 def in_bounds(position: Vec3, b: Bounds) -> bool:
     x, _, z = position
     return b.x_min <= x <= b.x_max and b.z_min <= z <= b.z_max

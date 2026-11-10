@@ -5,12 +5,12 @@ from collections.abc import Iterable
 
 from parser import Frame, ReplayMeta
 
-from .maps import BOUNDS, LOAD_IN_SPOTS, MAP_MODES, map_name
+from .maps import BOUNDS, LOAD_IN_SPOTS, MAP_MODES, SPAWN_CIRCLES, map_name
 from .payload import FINAL_CHECKPOINT, PayloadAccumulator
 from .player import PlayerAccumulator
 from .results import EventRecord, MatchStats, PlayerStats
 
-STATS_VERSION = "12"  # 12: play-area bounds of Combustion, Surge and Fission had x and z swapped (maps.BOUNDS): deaths, in-bounds time and everything counted in bounds change on those maps. 11: ping_capped_sum (ping spikes capped at 400 ms in averages, DATA-5; in place, D57). 10: frames_lone_wolf_near (3.5 m, Lone Wolf). 9: no deaths / respawns after the capture match is decided or the payload run is over. 8: the map's load-in spot (maps.LOAD_IN_SPOTS) is no longer a death, in-bounds time or track sample
+STATS_VERSION = "13"  # 13: leaving the play area from a spawn point (maps.SPAWN_CIRCLES) is not a death. 12: play-area bounds of Combustion, Surge and Fission had x and z swapped (maps.BOUNDS): deaths, in-bounds time and everything counted in bounds change on those maps. 11: ping_capped_sum (ping spikes capped at 400 ms in averages, DATA-5; in place, D57). 10: frames_lone_wolf_near (3.5 m, Lone Wolf). 9: no deaths / respawns after the capture match is decided or the payload run is over. 8: the map's load-in spot (maps.LOAD_IN_SPOTS) is no longer a death, in-bounds time or track sample
 
 CAPTURE_ROUNDS_TO_WIN = 2  # best of three: the round that makes it 2 decides the match
 
@@ -56,6 +56,7 @@ def compute(meta: ReplayMeta, frames: Iterable[Frame], recorder=None) -> MatchSt
     name = map_name(meta.map_code)
     bounds = BOUNDS.get(name)
     load_in = LOAD_IN_SPOTS.get(name)
+    spawns = SPAWN_CIRCLES.get(name)
     events: list[EventRecord] = []
     match_events = _MatchEvents(meta, events)
     payload = PayloadAccumulator()
@@ -91,7 +92,7 @@ def compute(meta: ReplayMeta, frames: Iterable[Frame], recorder=None) -> MatchSt
             for p in own:
                 acc = players.get(p.user_id)
                 if acc is None:
-                    acc = players[p.user_id] = PlayerAccumulator(p.user_id, bounds, meta.started_at, events, load_in)
+                    acc = players[p.user_id] = PlayerAccumulator(p.user_id, bounds, meta.started_at, events, load_in, spawns)
                     if frame.index > 0:
                         acc.team = team
                         acc.event(frame, "player_join")

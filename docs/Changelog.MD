@@ -18,6 +18,43 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.10.51 — 23:51
+
+- **Going back to the war room is no longer a death.** The spawn points of every map were drawn by hand in the
+  bounds editor (Dyson 4, Fission 5, Surge 6, Combustion 6 circles). A player who leaves the play area from inside
+  one went back by choice: no death is counted and no death is drawn there. Coming back out still shows as a
+  respawn. Checked on Dyson, whose bounds were always right: 881 of its latest 71,641 estimated deaths (1.2 %)
+  started inside one of its four circles, most within a metre of the middle.
+- Fewer deaths on every map, so everything that reads them moves a little: deaths per match, Pixel Party!, Pew Pew
+  Proof, Untouchable Chassis, death places on the heatmaps and the timeline. Time in bounds does not change.
+- The circles are in `app/backend/stats/maps.py` (SPAWN_CIRCLES) and, the same numbers, in
+  `app/tools/bounds_editor/echo_bounds.json` ("Open…" in the editor loads it to carry on drawing).
+- No outlines were drawn: the play-area bounds stay the boxes of 2026.11.10.46.
+- **The whole archive is read again after this update** (stats version 13; one pass covers this, the corrected
+  bounds of .46 and the exact upside-down data of .43). It starts by itself at the next start and takes hours on
+  the NAS. Afterwards delete `data/database/map-heat*.npz` and open the home page for the new Deaths heatmap.
+- **To do after updating:** restart the server, and expect the re-read.
+
+## 2026.11.10.50 — 23:45
+
+- **Bounds editor: "Spawn circle" button** (or the C key). Drag on the map to draw a circle over a spawn point;
+  drag its middle to move it, its edge to resize it, right-click to remove it. The circles mark where leaving the
+  play area is the way back to the war room and must not count as a death. They are saved in `echo_bounds.json`
+  under `"spawns": {"map": [[x, z, radius], ...]}`, beside the outlines. The app does not use them yet.
+- **To do after updating:** nothing.
+
+## 2026.11.10.49 — 23:41
+
+- **New tool: the bounds editor** (`bounds_editor.bat`). Draw the play-area outline of each map by hand, over its
+  minimap and over where players actually are (every position of the latest 400 matches per map, also beyond the
+  picture). Click to place points, click the first point to close the outline, then drag points, click a line to
+  add one, right-click to remove one; wheel zooms, right-drag moves the view. Green = inside, red = outside, the
+  box now in the code as a dashed yellow line; x and z under the pointer.
+- The work is kept in the browser while drawing; "Save" writes `echo_bounds.json` (`{"map": [[x, z], ...]}` in
+  metres), which is what the app's bounds will be made from. Nothing on the website changes with this update, and
+  the tool reads the data folder only (it writes one file of its own, `app/tools/bounds_editor/data.js`).
+- **To do after updating:** nothing.
+
 ## 2026.11.10.48 — 23:33
 
 - Home page heatmaps: the weapon, ordnance and tac mod choices no longer carry the small "cut" label (Starburst,

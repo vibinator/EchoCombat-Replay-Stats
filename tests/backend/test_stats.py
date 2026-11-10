@@ -217,7 +217,7 @@ def test_load_in_teleport_is_not_a_death(tmp_path, map_, join_at):
     assert blue.deaths_est == 1
     assert [(e.type, e.frame - join_at) for e in s.events if e.user_id == blue.user_id and e.type in
             ("death_est", "respawn")] == [("respawn", 40), ("death_est", 100 - join_at)]
-    assert blue.frames_in_bounds == 100 - join_at - 40  # arena frames only
+    assert blue.frames_in_bounds == 100 - join_at - 40  # frames on the map only
     assert blue.frames_near_enemy == 0  # never counted while parked beside orange at the load-in spot
     assert s.map == map_
     track = next(t for t in recorder.result().players if t.user_id == blue.user_id)
@@ -400,3 +400,55 @@ def test_bounds_hold_each_map_and_not_the_rooms_between_lives():
         assert b.z_min <= layout.z_min + edge and layout.z_max - edge <= b.z_max, name
         for x, z in ((200, -200), (-160, 200), (180, 30)):  # where players wait between lives, on every map
             assert not (b.x_min <= x <= b.x_max and b.z_min <= z <= b.z_max), (name, x, z)
+
+
+def _leaves_from(spot, map_code):
+    """Blue stands at `spot` (x, z) for 40 frames, is far outside the play area for 20, and back for 40."""
+    frames = []
+    for i in range(100):
+        blue, orange = rf.player(), rf.player(42, "Other", 1)
+        x, z = (500.0, 500.0) if 40 <= i < 60 else spot
+        blue["head"] = {"position": [x, 0.0, z], "forward": [0, 0, 1], "left": [1, 0, 0], "up": [0, 1, 0]}
+        blue["velocity"] = [0.0, 0.0, 0.0]
+        orange["head"] = {"position": [1.0, 0.0, 1.0], "forward": [0, 0, 1], "left": [1, 0, 0], "up": [0, 1, 0]}
+        frames.append(rf.frame(map_name=map_code, teams=[{"players": [blue]}, {"players": [orange]}, {}]))
+    return frames
+
+
+@pytest.mark.parametrize("map_", list(MAP_CODES))
+def test_leaving_from_a_spawn_point_is_not_a_death(tmp_path, map_):
+    """Back to the war room through a spawn point (user, 2026-11-10): no death, the time in bounds as usual, and
+    coming back out is still a respawn. One step outside the circle it is a death as before."""
+    from backend.stats.maps import SPAWN_CIRCLES, at_spawn
+
+    assert set(SPAWN_CIRCLES) == set(MAP_CODES)
+    x, z, r = SPAWN_CIRCLES[map_][0]
+
+    def blue_of(spot):
+        path = tmp_path / "r.echoreplay"
+        path.write_bytes(rf.plain(rf.lines_from(_leaves_from(spot, MAP_CODES[map_]))))
+        replay = open_replay(path)
+        s = compute(replay.meta, replay.frames())
+        blue = next(p for p in s.players if p.team == "blue")
+        return blue, [e.type for e in s.events if e.user_id == blue.user_id and e.type in ("death_est", "respawn")]
+
+    blue, events = blue_of((x + r * 0.6, z - r * 0.6))  # inside the circle
+    assert (blue.deaths_est, blue.frames_in_bounds, events) == (0, 80, ["respawn"])
+    blue, events = blue_of((x + r + 0.5, z))  # just outside it
+    assert (blue.deaths_est, blue.frames_in_bounds, events) == (1, 80, ["death_est", "respawn"])
+    assert at_spawn((x, 99.0, z), SPAWN_CIRCLES[map_]) and not at_spawn((x, 0.0, z), None)
+
+
+def test_spawn_circles_are_the_ones_drawn_in_the_bounds_editor():
+    """stats/maps.py and the editor's saved file (what "Open…" loads to carry on drawing) hold the same circles, and
+    every circle is inside its map's bounds (a spawn point outside them could never be left from)."""
+    import json
+    from pathlib import Path
+
+    from backend.stats.maps import BOUNDS, SPAWN_CIRCLES
+
+    saved = json.loads((Path(__file__).parents[2] / "app/tools/bounds_editor/echo_bounds.json").read_text(encoding="utf-8"))
+    assert {name: [list(c) for c in circles] for name, circles in SPAWN_CIRCLES.items()} == saved["spawns"]
+    for name, circles in SPAWN_CIRCLES.items():
+        b = BOUNDS[name]
+        assert all(b.x_min <= x <= b.x_max and b.z_min <= z <= b.z_max and r > 0 for x, z, r in circles), name

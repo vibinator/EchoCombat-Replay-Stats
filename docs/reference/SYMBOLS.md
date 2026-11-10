@@ -206,23 +206,23 @@ Remote processing (user, 2026-11-02): reading replays is slow on the NAS, so ano
 Finds replays in the read-only share (D25) and queues new or changed files. Never writes to the share.
 - `EXTENSION`:25 / **class ScanState**:29 / **class Snapshot**:42 / _walk:48 / _written_at:69 / dirs_changed:75 / scan_once:85 / **class Scanner**:144 [start:152, scan_soon:155, stop:158, _run:163, _wait_for_change:170]
 
-### `app/backend/stats/__init__.py` (146 lines)
+### `app/backend/stats/__init__.py` (147 lines)
 Frames -> MatchStats in a single pass. No database imports.
 - `STATS_VERSION`:13 / `CAPTURE_ROUNDS_TO_WIN`:15 / `MAX_FRAME_GAP_S`:17 / **class _MatchEvents**:20 [_event:28, add:32] / _capture_point_winner:48 / compute:54
 
 ### `app/backend/stats/map_objects.py` (84 lines)
 Fixed objects per map, measured from real replays (2026-10-31), for drawing the playback.
 
-### `app/backend/stats/maps.py` (101 lines)
-- `MAP_NAMES`:5 / `MAP_MODES`:15 / **class Bounds**:18 / `BOUNDS`:31 / map_name:39 / load_in_spot:56 / is_load_in:60 / in_bounds:64 / **class HeatmapLayout**:69 / `MINIMAP_VERSIONS`:85 / minimap_url:88 / `HEATMAP_LAYOUTS`:93
+### `app/backend/stats/maps.py` (121 lines)
+- `MAP_NAMES`:5 / `MAP_MODES`:15 / **class Bounds**:18 / `BOUNDS`:33 / map_name:41 / load_in_spot:58 / is_load_in:62 / at_spawn:78 / in_bounds:84 / **class HeatmapLayout**:89 / `MINIMAP_VERSIONS`:105 / minimap_url:108 / `HEATMAP_LAYOUTS`:113
 
 ### `app/backend/stats/payload.py` (64 lines)
 Payload maps: attacking team, winner, per-player time on the payload (ReplayData "Payload semantics").
 - `ON_PAYLOAD_RADIUS_M`:8 / `FINAL_CHECKPOINT`:9 / **class PayloadAccumulator**:12 [add:21, attacking_team:37, winner:42, push_block:52] / _other:62
 
-### `app/backend/stats/player.py` (191 lines)
+### `app/backend/stats/player.py` (195 lines)
 Per-player accumulator. Rules follow the old app (ReplayData.MD): ping over all frames (except the 999 placeholder),
-- `LEFT_EARLY_S`:15 / `NEAR_DISTANCE_SQ`:16 / `LONE_WOLF_DISTANCE_SQ`:17 / `STOPPED_SPEED`:18 / `PING_PLACEHOLDER`:19 / `PING_CAP`:20 / `TOP_SPEED_WINDOW_S`:21 / **class PlayerAccumulator**:24 [event:65, add:69, _add_in_bounds:104, _track_top_speed:145, result:159]
+- `LEFT_EARLY_S`:15 / `NEAR_DISTANCE_SQ`:16 / `LONE_WOLF_DISTANCE_SQ`:17 / `STOPPED_SPEED`:18 / `PING_PLACEHOLDER`:19 / `PING_CAP`:20 / `TOP_SPEED_WINDOW_S`:21 / **class PlayerAccumulator**:24 [event:66, add:70, _add_in_bounds:108, _track_top_speed:149, result:163]
 
 ### `app/backend/stats/quality.py` (46 lines)
 Which matches count for averages (user, 2026-11-07, Review DATA-3): a game of at least COUNTED_MIN_S with at least
@@ -298,6 +298,10 @@ Keeps a local copy of the most recent replays of each map, so analysis does not 
 ### `app/tools/backfill_tracks3d.py` (99 lines)
 Build the 3D tracks (tracks3d.bin) of every processed replay that lacks them, so player / Compare 3D heatmaps cover
 - _low_priority:26 / _build:38 / _heights:42 / main:46
+
+### `app/tools/bounds_editor/make.py` (105 lines)
+Bounds editor: draw the play-area outline of each map by hand (user, 2026-11-10: the boxes in stats/maps.py BOUNDS
+- `HERE`:23 / `MATCHES`:32 / `MARGIN_M`:33 / `CELL_M`:34 / `RGB`:35 / window:38 / positions_png:43 / main:80
 
 ### `app/tools/e2e/api_sweep.py` (188 lines)
 API end-to-end sweep against a running local server (docs/reference/E2E-TESTING.md).
