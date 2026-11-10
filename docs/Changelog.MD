@@ -18,6 +18,29 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.10.21 — 17:56
+
+- **25 new Combat challenges for the game's award cards.** One game, one medal each for winning the card (16: MVP, Guard,
+  Specialist, Medic, Cannoneer, Tank, Hot Shot, Defender, Assassin, Sniper, Renegade, Controller, Super Star, Shock
+  Trooper, Infiltrator, Immovable Object; a card can only be won once per game). Longer ladders only where players win
+  enough cards: MVP (one day, any 7 days, all time), Guard and Medic (any 7 days, all time), Specialist and Hot Shot
+  (all time). The rarer cards (Tank and Sniper included) are one-game medals only. Targets come from the 154 matches with cards so far (the
+  top 10 % of players with 10+ games). Provisional like the other Combat challenges. Nothing to restart or re-read.
+
+
+## 2026.11.10.18 — 17:43
+
+- **The "Month" page is gone: its five Combat challenges are now "any 7 days" ones** (Power Surge, Captain Rhodes' Right
+  Hand, Lobby Billboard, Above the Rings, Kronos II Medbay), with the targets scaled to 7 days (all their all-time
+  versions already existed). Progress and medals already earned on them are recalculated by the next ranking refresh.
+
+## 2026.11.10.17 — 17:31
+
+- **Achievements page: less empty space.** The row of stat cards under "Your next medals" (Average progress,
+  Completed, Bronze, Silver, Gold, Crown) is gone. Average progress and completed now sit in the medal bar's header
+  line (`51% average progress · 36 / 158 completed · 24 / 158 crowns`), and the per-medal counts were already in the bar.
+  The "N or better" tier counts are no longer shown.
+
 ## 2026.11.10.16 — 17:20
 
 - **A player's Achievements page now opens with the medal bar from the player page, bigger.** One bar across the page

@@ -117,6 +117,10 @@ Calibration data (`E:\ECRanked\matches`, 4 Nov 15:17 to 5 Nov 14:15): 90 matches
 551 player-games, 264 counted, 140 players, 92 with a counted game. All-time targets are estimates. Assists stay above kills at
 every medal (user, 2026-11-05; tested).
 
+Award challenges (user, 2026-11-10, ids 233-264; 222-232, an unreleased "any card" set, stay unused): one per card of the game's end-of-match cards, from `combat_players.awards`. A player wins at most one card per game (checked on 154 matches), so one game = a single medal for the card (249-264, all 16 cards, like Flawless Chassis). One day: MVP (233). Any 7 days: MVP (234), Guard (236), Medic (238). All time: MVP, Guard, Medic, Specialist, Hot Shot (235, 237, 239, 240, 242; 241 Tank and 243 Sniper were dropped, under 10 of 31 regular players win them); the rarer cards (Tank, Sniper, Cannoneer, Controller, Assassin, Renegade, Defender, and Super Star, Shock Trooper, Infiltrator, Immovable Object) are one game only. Targets: the top 10 % of the 31 players with 10+ games with cards (4-9 Nov 2026): all time = their pace x15, any 7 days = their 6 days x7/6, one day = their best day; a day / week page exists only where that crown is 3+. Unknown cards (NULL) count as none. The rare cards are lumpy (Super Star and Immovable Object: 2 winners seen): re-check with more reports.
+
+The month ones (209, 210, 213, 214, 215, 2026-11-10) became any-7-days challenges with the targets x7/30, as every all-time version already existed; the "Month" page is empty and hidden.
+
 Second set (user, 2026-11-09, ids 202-221; 211, 212, 216 and 218 removed the same day as too repetitive, because over 30+ days objective eliminations and objective damage move with kills and damage, 0.98-0.99): one game, one day, any 30 days and all time. The "any 30 days" period (`month`) is new in the
 medal engine, a rolling window like "any 7 days" (complete at the window's last game), and so far only Combat uses it; the site shows it
 as the "Month" page. Calibration: 435 reports (4-9 Nov 2026), 1451 counted games, 251 players, 42 with 10+ counted games. The crown
@@ -140,7 +144,7 @@ Cloudflare edge cache (`ECHOVR_EDGE_CACHE_S`) still applies.
 
 ## Ideas for later (not built)
 The data these need is already stored unless noted.
-- Award challenges on the Achievements page (MVP N times, one of each card...): wait until a few weeks of reports carry awards.
+- More award challenges: Tank, Sniper, Defender and the rarer cards were left out in the first set (too few winners); re-check when more weeks of reports carry awards.
 - Accuracy-style stats per weapon (kills per 100 shots, shots per death) for matches with events.
 - Personal bests and "best match" cards (most kills / damage in one match) with a link to the match.
 - Role profile: damage vs objective share, heal bubbles + assists as a support score, stun use.

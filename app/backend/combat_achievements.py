@@ -11,6 +11,7 @@ all-time targets are estimates from that pace. Assists are always above kills. L
 hill captures (always 0). Heal bubbles and stuns come from complete event logs only, which matches have had since 5 Nov 2026 18:15:
 those targets rest on 9 matches. See docs/CombatStats.MD."""
 
+import json
 import threading
 from collections import Counter, defaultdict
 from dataclasses import dataclass
@@ -45,6 +46,7 @@ class CombatGame:
     objective_damage: float = 0.0
     heal_bubbles: int = 0  # 0 when the match has no complete event log
     stuns_given: int = 0  # same
+    awards: tuple[str, ...] = ()  # the end-of-match award cards this player won ("mvp", "guard" ...); () when unknown or none
 
     @cached_property
     def day(self) -> date:
@@ -61,6 +63,11 @@ def _total(value):
         return sum(value(g) for g in games)
     total.min_length = total.enough_players = True  # shown as rule notes; load_games only keeps games that meet them
     return total
+
+
+def _awards(*cards: str):
+    """Number of award cards won in a game (any card, or only the named ones)."""
+    return lambda g: sum(1 for a in g.awards if not cards or a in cards)
 
 
 def _rule(id_: int, name: str, what: str, icon: str | None, value, levels: tuple[float, ...], period: str, unit: str = "") -> Rule:
@@ -109,19 +116,62 @@ COMBAT_RULES: list[Rule] = [
     _rule(207, "Keeping Liv Alive", "Use heal bubbles in one day", "repair_matrix", lambda g: g.heal_bubbles, (6, 12, 22, 35, 50), "day"),
     _rule(208, "Spontaneous Combustion", "Games in one day where you got the most kills in the match (a tie counts)", None, lambda g: g.top_fragger,
           (1, 2, 3, 4, 5), "day"),
-    # In any 30 days
-    _rule(209, "Power Surge", "Get kills in any 30 days", "deaths", lambda g: g.kills, (130, 320, 640, 1100, 1600), "month"),
-    _rule(210, "Captain Rhodes' Right Hand", "Get assists in any 30 days", "team_proximity", lambda g: g.assists, (150, 360, 720, 1300, 1800), "month"),
-    _rule(213, "Lobby Billboard", "Games in any 30 days where you got the most kills in the match (a tie counts)", None, lambda g: g.top_fragger,
-          (4, 10, 20, 36, 60), "month"),
-    _rule(214, "Above the Rings", "Games in any 30 days with more kills than deaths", "deaths", lambda g: g.kills > g.deaths, (9, 23, 43, 81, 130), "month"),
-    _rule(215, "Kronos II Medbay", "Use heal bubbles in any 30 days", "repair_matrix", lambda g: g.heal_bubbles, (33, 100, 200, 330, 500), "month"),
+    # In any 7 days (user, 2026-11-10: the 30-day set became the first Combat 7-day challenges, targets = the old ones x 7/30;
+    # the month period stays supported in the code but no challenge uses it, so its page is hidden)
+    _rule(209, "Power Surge", "Get kills in any 7 days", "deaths", lambda g: g.kills, (30, 75, 150, 260, 370), "week"),
+    _rule(210, "Captain Rhodes' Right Hand", "Get assists in any 7 days", "team_proximity", lambda g: g.assists, (35, 85, 170, 300, 420), "week"),
+    _rule(213, "Lobby Billboard", "Games in any 7 days where you got the most kills in the match (a tie counts)", None, lambda g: g.top_fragger,
+          (1, 3, 5, 8, 14), "week"),
+    _rule(214, "Above the Rings", "Games in any 7 days with more kills than deaths", "deaths", lambda g: g.kills > g.deaths, (2, 5, 10, 19, 30), "week"),
+    _rule(215, "Kronos II Medbay", "Use heal bubbles in any 7 days", "repair_matrix", lambda g: g.heal_bubbles, (8, 23, 47, 77, 115), "week"),
+    # Award cards (user, 2026-11-10): one set per card of the game's end-of-match cards. A player wins at most one card per game
+    # (checked on 154 matches), so there is no "in one game" version. Targets: the top 10 % of the 31 players with 10+ games with
+    # cards (4-9 Nov 2026): all time = their pace x 15 (~3 months), any 7 days = their 6 days x 7/6, one day = their best day.
+    # A period is only made where that crown is 3 or more: one day only MVP, any 7 days MVP / Guard / Medic. The rare cards
+    # (fewer than 10 of the 31 regular players have won one: Tank, Sniper, Cannoneer, Controller, Assassin, Renegade, Defender) are one game only (user, 2026-11-10); so are Super Star, Shock
+    # Trooper, Infiltrator and Immovable Object (2-11 winners so far, re-check as more reports come in).
+    # Ids 222-232 (an earlier "any card" / collector set, never released) stay unused.
+    _rule(233, "Most Valuable Jack", "Win the MVP card in one day", None, _awards("mvp"), (1, 2, 3, 4, 5), "day"),
+    _rule(234, "Jack of the Week", "Win the MVP card in any 7 days", None, _awards("mvp"), (3, 6, 9, 12, 16), "week"),
+    _rule(235, "Lone Echo MVP", "Total MVP cards won (the highest score in a match)", None, _awards("mvp"), (8, 30, 70, 130, 210), "all"),
+    _rule(236, "Guard Duty on Kronos II", "Win the Guard card in any 7 days (the most time on the objective in a match)", None, _awards("guard"), (1, 1, 2, 3, 4), "week"),
+    _rule(237, "Dyson Sentinel", "Total Guard cards won (the most time on the objective in a match)", None, _awards("guard"), (3, 9, 18, 30, 45), "all"),
+    _rule(238, "Repair Matrix on Call", "Win the Medic card in any 7 days (the most healing in a match)", None, _awards("medic"), (1, 1, 2, 3, 4), "week"),
+    _rule(239, "Repair Matrix Veteran", "Total Medic cards won (the most healing in a match)", None, _awards("medic"), (3, 9, 18, 30, 45), "all"),
+    _rule(240, "Saturn Specialist", "Total Specialist cards won (the most assists in a match)", None, _awards("specialist"), (2, 6, 12, 20, 30), "all"),
+    _rule(242, "Pulsar Hot Shot", "Total Hot Shot cards won (the longest elimination streak in a match)", None, _awards("hot_shot"), (2, 6, 12, 20, 30), "all"),
+    # One game: each card can be won once per game, so one medal each (user, 2026-11-10; like Flawless Chassis)
+    Rule(249, "MVP of Echo Combat", "Win the MVP card in one game (the highest score in the match)", "game", None, _total(lambda g: "mvp" in g.awards), new=True, group=GROUP, counted=False),
+    Rule(250, "Standing Guard on Kronos II", "Win the Guard card in one game (the most time on the objective)", "game", None, _total(lambda g: "guard" in g.awards), new=True, group=GROUP, counted=False),
+    Rule(251, "Echo Combat Specialist", "Win the Specialist card in one game (the most assists)", "game", None, _total(lambda g: "specialist" in g.awards), new=True, group=GROUP, counted=False),
+    Rule(252, "Repair Matrix Rescue", "Win the Medic card in one game (the most healing)", "game", None, _total(lambda g: "medic" in g.awards), new=True, group=GROUP, counted=False),
+    Rule(253, "Detonator Strike", "Win the Cannoneer card in one game (the most damage dealt)", "game", None, _total(lambda g: "cannoneer" in g.awards), new=True, group=GROUP, counted=False),
+    Rule(254, "Saturn Hull Plating", "Win the Tank card in one game (the most damage absorbed)", "game", None, _total(lambda g: "tank" in g.awards), new=True, group=GROUP, counted=False),
+    Rule(255, "Pulsar Streak", "Win the Hot Shot card in one game (the longest elimination streak)", "game", None, _total(lambda g: "hot_shot" in g.awards), new=True, group=GROUP, counted=False),
+    Rule(256, "Dyson Defender", "Win the Defender card in one game (the most eliminations on the objective)", "game", None, _total(lambda g: "defender" in g.awards), new=True, group=GROUP, counted=False),
+    Rule(257, "Nova Strike", "Win the Assassin card in one game (the most kills)", "game", None, _total(lambda g: "assassin" in g.awards), new=True, group=GROUP, counted=False),
+    Rule(258, "Comet Headhunter", "Win the Sniper card in one game (the most headshot kills)", "game", None, _total(lambda g: "sniper" in g.awards), new=True, group=GROUP, counted=False),
+    Rule(259, "Lone Wolf of Kronos II", "Win the Renegade card in one game (the most solo kills)", "game", None, _total(lambda g: "renegade" in g.awards), new=True, group=GROUP, counted=False),
+    Rule(260, "Stun Field Lockdown", "Win the Controller card in one game (the most damage to enemies on the objective)", "game", None, _total(lambda g: "controller" in g.awards), new=True, group=GROUP, counted=False),
+    Rule(261, "Saturn Super Star", "Win the Super Star card in one game (the most eliminations, kills and assists together)", "game", None, _total(lambda g: "super_star" in g.awards), new=True, group=GROUP, counted=False),
+    Rule(262, "Kronos II Shock Trooper", "Win the Shock Trooper card in one game (the most enemies stunned)", "game", None, _total(lambda g: "shock_trooper" in g.awards), new=True, group=GROUP, counted=False),
+    Rule(263, "Capture Point Infiltrator", "Win the Infiltrator card in one game (the most hill captures, Capture Point maps)", "game", None, _total(lambda g: "infiltrator" in g.awards), new=True, group=GROUP, counted=False),
+    Rule(264, "Immovable Object on Dyson", "Win the Immovable Object card in one game (the most hill defends, Capture Point maps)", "game", None, _total(lambda g: "immovable_object" in g.awards), new=True, group=GROUP, counted=False),
     # All time
     _rule(217, "The Anomaly Doesn't Move", "Total time on the objective yourself, in minutes", None, lambda g: g.objective_time / 60, (18, 72, 180, 360, 650), "all", " min"),
     _rule(219, "Life Support Systems", "Total heal bubbles used", "repair_matrix", lambda g: g.heal_bubbles, (64, 190, 480, 960, 1600), "all"),
     _rule(220, "Old Arena Habits", "Total enemies stunned", "stun_field", lambda g: g.stuns_given, (7, 22, 56, 110, 200), "all"),
     _rule(221, "Ready At Dawn", "Games with more kills than deaths", "deaths", lambda g: g.kills > g.deaths, (13, 51, 130, 230, 380), "all"),
 ]
+
+
+def _card_list(raw) -> list[str]:
+    """The award symbols of a player row (JSON list; NULL = unknown counts as none)."""
+    try:
+        cards = json.loads(raw) if raw else []
+    except ValueError:
+        return []
+    return [c for c in cards if isinstance(c, str)]
 
 
 def load_games(db, aliases: dict[str, str]) -> tuple[dict[str, list[CombatGame]], dict[str, str]]:
@@ -131,7 +181,7 @@ def load_games(db, aliases: dict[str, str]) -> tuple[dict[str, list[CombatGame]]
                CombatPlayer.user_id, CombatPlayer.name, CombatPlayer.team,
                CombatPlayer.present_s, CombatPlayer.kills, CombatPlayer.assists, CombatPlayer.deaths, CombatPlayer.damage,
                CombatPlayer.objective_eliminations, CombatPlayer.objective_time, CombatPlayer.objective_damage,
-               CombatPlayer.heal_bubbles, CombatPlayer.stuns_given)
+               CombatPlayer.heal_bubbles, CombatPlayer.stuns_given, CombatPlayer.awards)
         .join(CombatMatch, CombatMatch.id == CombatPlayer.match_id)
         .order_by(CombatMatch.started_at, CombatMatch.id))
     games: dict[str, list[CombatGame]] = defaultdict(list)
@@ -139,11 +189,13 @@ def load_games(db, aliases: dict[str, str]) -> tuple[dict[str, list[CombatGame]]
     for _, match in groupby(rows, key=lambda r: r[0]):
         # main id -> [team, present, kills, assists, deaths, damage, objective eliminations, objective time, objective damage, heal bubbles, stuns]
         merged: dict[str, list] = {}
-        for _, started, duration, has_events, complete, user_id, name, team, present, *numbers, heals, stuns in match:
+        won: dict[str, list[str]] = {}
+        for _, started, duration, has_events, complete, user_id, name, team, present, *numbers, heals, stuns, awards in match:
             logged = has_events and complete is True  # an incomplete log counts too little: left out, as FORMATS.md advises
             numbers = [*numbers, (heals or 0) if logged else 0, (stuns or 0) if logged else 0]
             main = aliases.get(user_id, user_id)
             names[main] = name
+            won.setdefault(main, []).extend(_card_list(awards))
             have = merged.get(main)
             merged[main] = [team, present, *numbers] if have is None else [have[0], max(have[1], present), *(a + b for a, b in zip(have[2:], numbers))]
         teams = Counter(m[0] for m in merged.values() if m[1] >= 0.5 * duration)
@@ -153,7 +205,7 @@ def load_games(db, aliases: dict[str, str]) -> tuple[dict[str, list[CombatGame]]
         for main, m in merged.items():
             if m[1] >= FULL_GAME_S:
                 games[main].append(CombatGame(started, *m[2:8], top_fragger=m[2] > 0 and m[2] == most,
-                                              objective_damage=m[8], heal_bubbles=m[9], stuns_given=m[10]))
+                                              objective_damage=m[8], heal_bubbles=m[9], stuns_given=m[10], awards=tuple(won[main])))
     return games, names
 
 

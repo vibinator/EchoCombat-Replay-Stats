@@ -899,7 +899,7 @@ function pickGoals(userId: string, items: Achievement[]): { a: Achievement; frac
 /** A player's challenges as one bar split by best medal (crowns first, then gold, silver, bronze), the overall progress
  *  and the count per medal. On the player page's strip, and bigger at the top of the player's Achievements page
  *  (user, 2026-11-10: the same bar on both). */
-function MedalBar({ items, overall }: { items: Achievement[]; overall: number }) {
+function MedalBar({ items, overall, completed }: { items: Achievement[]; overall: number; completed?: { done: number; total: number } }) {
   const counted = items.filter((a) => a.counted && !a.prize);
   const crowns = counted.filter((a) => a.progress >= 1).length;
   // one coloured segment per medal level, highest first: every crown has its own share of the bar (user, 2026-11-06)
@@ -912,7 +912,13 @@ function MedalBar({ items, overall }: { items: Achievement[]; overall: number })
           <i key={m} className={`t-${m}`} style={{ width: `${(n / counted.length) * 100}%` }} title={`${n} challenge${n === 1 ? "" : "s"} at ${m}${m === "crown" ? " (completed)" : " as the best medal"}`} />
         ))}
       </div>
-      <span className="muted strip-total">{pct(overall)} · {crowns} / {counted.length} crowns</span>
+      {completed ? (
+        <span className="muted strip-total" title="Average progress counts partial progress toward every achievement">
+          {pct(overall)} average progress · {completed.done} / {completed.total} completed · {crowns} / {counted.length} crowns
+        </span>
+      ) : (
+        <span className="muted strip-total">{pct(overall)} · {crowns} / {counted.length} crowns</span>
+      )}
       <span className="strip-medals">
         {[...segments].reverse().map(([m, n]) => (
           <span key={m} className={`t-${m}`} title={`Challenges where ${m} is the best medal`}><i />{n}</span>
@@ -1176,27 +1182,9 @@ export function AchievementsView({ userId }: { userId: string }) {
       {data && (
         <>
           <div className="medal-bar-big" aria-label="Medals">
-            <MedalBar items={data.items} overall={data.overall} />
+            <MedalBar items={data.items} overall={data.overall} completed={{ done: data.completed, total: data.total }} />
           </div>
           <NextMedals items={data.items} />
-          <div className="filters">
-            <div className="card">
-              <span className="label" title="Average progress across every achievement, counting partial progress toward each one">Average progress</span>
-              <strong>{pct(data.overall)}</strong>
-            </div>
-            <div className="card">
-              <span className="label">Completed</span>
-              <strong>
-                {data.completed} / {data.total}
-              </strong>
-            </div>
-            {LEVELS.map((medal, i) => (
-              <div className={`card t-${medal}`} key={medal} title={`Challenges where the ${medal} medal (or better) is earned`}>
-                <span className="label" style={{ color: "var(--tier)" }}>{medal}</span>
-                <strong>{data.items.filter((a) => a.counted && a.levels && a.tier && LEVELS.indexOf(a.tier as (typeof LEVELS)[number]) >= i).length}</strong>
-              </div>
-            ))}
-          </div>
           {sort === "group" && <JumpToNew ready />}
           <label className="inline-check">
             <input type="checkbox" checked={sort === "closest"} onChange={(e) => setSort(e.target.checked ? "closest" : "group")} /> Sort by closest

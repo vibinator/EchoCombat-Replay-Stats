@@ -14,8 +14,8 @@ RULES_HERE = ca.COMBAT_RULES
 STARTED = "2026-11-05T20:00:00"
 
 
-def game(kills=0, assists=0, deaths=5, damage=0.0, objective=0, time_s=0.0, top=False, started=STARTED):
-    return ca.CombatGame(started, kills, assists, deaths, damage, objective, time_s, top)
+def game(kills=0, assists=0, deaths=5, damage=0.0, objective=0, time_s=0.0, top=False, started=STARTED, awards=()):
+    return ca.CombatGame(started, kills, assists, deaths, damage, objective, time_s, top, awards=tuple(awards))
 
 
 def results(games):
@@ -24,7 +24,7 @@ def results(games):
 
 def test_kept_apart_from_the_replay_rules():
     ids = {r.id for r in RULES_HERE}
-    assert ids == set(range(164, 179)) | set(range(198, 201)) | (set(range(202, 222)) - {211, 212, 216, 218}) and not ids & {r.id for r in RULES}
+    assert ids == set(range(164, 179)) | set(range(198, 201)) | (set(range(202, 222)) - {211, 212, 216, 218}) | (set(range(233, 244)) - {241, 243}) | set(range(249, 265)) and not ids & {r.id for r in RULES}
     assert all(r.group == "Combat" and r.new and not r.counted for r in RULES_HERE)
     # the module cannot read a replay table: it imports only the combat ones
     tree = ast.parse(Path(ca.__file__).read_text(encoding="utf-8"))
@@ -62,17 +62,29 @@ def test_second_set_one_game_and_one_day():
     assert r[202]["count"] == 7  # the lowest of kills / assists / objective eliminations in the best game
     assert r[203]["count"] == 9  # 12 kills with 4 deaths do not count
     assert r[204]["count"] == 5000 and r[206]["count"] == 5 and r[208]["count"] == 2  # one day: 300 s = 5 min, two top-fragger games
-    assert rule_notes(next(x for x in RULES_HERE if x.id == 209))[0] == "Best 30 days"
+    assert rule_notes(next(x for x in RULES_HERE if x.id == 209))[0] == "Best 7 days"
 
 
-def test_any_30_days_is_a_rolling_window():
-    games = [game(kills=70, deaths=1, started="2026-11-05T20:00:00"), game(kills=70, deaths=90, started="2026-12-04T19:00:00"),
-             game(kills=70, deaths=1, started="2026-12-05T21:00:00")]
+def test_any_7_days_is_a_rolling_window():
+    games = [game(kills=70, deaths=1, started="2026-11-05T20:00:00"), game(kills=70, deaths=90, started="2026-11-11T19:00:00"),
+             game(kills=70, deaths=1, started="2026-11-13T21:00:00")]
     r = results(games)
-    assert r[209]["count"] == 140 and r[214]["count"] == 1  # 5 Nov + 4 Dec are inside 30 days, 5 Dec is not
+    assert r[209]["count"] == 140 and r[214]["count"] == 1  # 5 + 11 Nov and 11 + 13 Nov fit in 7 days, all three do not
     assert r[173]["count"] == 210 and r[221]["count"] == 2  # all time keeps everything
     times = medal_times(games, RULES_HERE)
-    assert times[209]["bronze"] == "2026-12-04T19:00:00"  # complete at the window's last game, like the 7 days
+    assert times[209]["bronze"] == "2026-11-11T19:00:00"  # complete at the window's last game, like the other 7-day rules
+
+
+def test_award_cards():
+    games = [game(awards=["mvp", "guard"], started="2026-11-05T20:00:00"), game(awards=["mvp"], started="2026-11-05T21:00:00"),
+             game(awards=["medic"], started="2026-11-12T20:00:00"), game()]
+    r = results(games)
+    assert r[233]["count"] == 2 and r[234]["count"] == 2 and r[235]["count"] == 2  # MVP: day, 7 days, all time
+    assert r[236]["count"] == 1 and r[237]["count"] == 1 and r[238]["count"] == 1 and r[239]["count"] == 1
+    assert r[240]["count"] == 0 and r[242]["count"] == 0
+    one = results([game(awards=["mvp"]), game(awards=["medic"])])
+    assert one[249]["progress"] == 1 and one[252]["progress"] == 1 and one[254]["progress"] == 0 and one[263]["progress"] == 0  # one medal each
+    assert results([game(awards=["hot_shot", "x"])])[242]["count"] == 1  # an unknown card is just not counted for a rule
 
 
 def test_medal_dates():
