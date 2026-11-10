@@ -111,10 +111,10 @@ def map_heat_cards(request: Request,
     `view` = `favoured` (where it is held more often than on the map as a whole) or `all` (everywhere it was held).
     Also `hand:left` / `hand:right` (the players' arm setting) and `pose:upside` / `pose:upright` (from the 3D tracks,
     so only matches that have them). `against` = any other layer (`team:blue` and `team:orange` too): the two compared,
-    each in its own colour where it is relatively more often than the other. `result:won` / `result:lost` (decided
-    matches), `speed:<band>` and `death:all` (estimated deaths; its favoured view = deaths per time spent there).
-    `payload:stop` / `payload:speed` / `payload:back` (payload maps): a band along the route, the share of time the
-    payload stood still or rolled back at each metre, or its average speed going forward; `scale` gives the values at
+    each in its own colour where it is relatively more often than the other. `speed:<band>` and `death:all` (estimated deaths; its favoured view = deaths per time spent there).
+    `payload:speed` / `payload:moving` / `payload:back` (payload maps): a band along the route, the payload's
+    average speed at each metre (standing still counted as no progress), its speed only while it moves forward, or
+    the share of time it rolled back; `scale` gives the values at
     the ends of the ramp and each map's `average` the value over its whole route. `days` = 30 or 90: only the
     matches started in the last so many days (brought up to date once a day). Counted once a month (map_heat.py); `building` while that pass runs, the cards then show what has been
     added so far. Cached per layer and state of the counts, so the four PNGs are encoded once."""

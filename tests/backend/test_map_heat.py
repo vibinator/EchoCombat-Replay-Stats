@@ -252,7 +252,7 @@ def test_compare_api(handed):
     same = handed.get("/api/overview/map-heat", params={"layer": "hand:left", "against": "hand:left", "view": "all"}).json()
     assert same["view"] == "all" and same["against"] is None  # nothing is compared with itself
     assert handed.get("/api/overview/map-heat", params={"against": "weapon:nope"}).json()["error_code"] == "bad_layer"
-    assert handed.get("/api/overview/map-heat", params={"layer": "payload:stop", "against": "team"}).json()["view"] == "payload"
+    assert handed.get("/api/overview/map-heat", params={"layer": "payload:speed", "against": "team"}).json()["view"] == "payload"
 
 
 def test_payload_counts_per_metre_of_route():
@@ -275,27 +275,32 @@ def test_payload_band_along_the_route():
     counts[:, map_heat.P_TIME], counts[:, map_heat.P_STOPPED] = 1000, 100
     counts[50:70, map_heat.P_STOPPED] = 600  # it gets stuck here
     counts[150:, map_heat.P_TIME], counts[150:, map_heat.P_STOPPED] = 10, 5  # hardly ever reached: not drawn
-    values = map_heat.payload_values(counts, "payload:stop")
+    counts[:, map_heat.P_BACK] = counts[:, map_heat.P_STOPPED]  # (the picture that is a share of the time: rollback)
+    values = map_heat.payload_values(counts, "payload:back")
     assert abs(values[60] - 0.6) < 0.01 and abs(values[20] - 0.1) < 0.01 and np.isnan(values[160])
     index, _ = _pixels("data:image/png;base64," + base64.b64encode(
         map_heat.render_payload("surge", values, map_heat.payload_scale([values]))).decode())
     assert 0 < (index > 0).mean() < 0.05 and index.max() == map_heat.GEAR_STEPS and index[index > 0].min() == 1
     counts[:, map_heat.P_FORWARD], counts[:, map_heat.P_FORWARD_CM] = 500, 500 * 60
-    assert abs(map_heat.payload_values(counts, "payload:speed")[20] - 1.2) < 1e-6  # 0.6 m per half second
+    assert abs(map_heat.payload_values(counts, "payload:moving")[20] - 1.2) < 1e-6  # 0.6 m per half second it moves
+    assert abs(map_heat.payload_values(counts, "payload:speed")[20] - 0.6) < 1e-6  # it moves half of the time it is there
+    assert abs(map_heat.payload_average(counts[:150], "payload:speed") - 0.6) < 1e-6
+    assert list(map_heat.PAYLOAD_LAYERS)[0] == "payload:speed" and "payload:stop" not in map_heat.PAYLOAD_LAYERS
 
 
 def test_payload_layers_only_when_a_payload_moved(client, tmp_path):
-    assert "payload:stop" not in [layer["key"] for layer in client.get("/api/overview/map-heat").json()["layers"]]
+    assert "payload:speed" not in [layer["key"] for layer in client.get("/api/overview/map-heat").json()["layers"]]
     heat = client.app.state.map_heat
     with heat.lock:
-        heat.payload["surge"][:, map_heat.P_TIME], heat.payload["surge"][:, map_heat.P_STOPPED] = 1000, 100
-        heat.payload["surge"][40:60, map_heat.P_STOPPED] = 500
+        heat.payload["surge"][:, map_heat.P_TIME], heat.payload["surge"][:, map_heat.P_BACK] = 1000, 100
+        heat.payload["surge"][40:60, map_heat.P_BACK] = 500
         heat.revision += 1
         heat._save()
-    d = client.get("/api/overview/map-heat", params={"layer": "payload:stop"}).json()
+    assert client.get("/api/overview/map-heat", params={"layer": "payload:stop"}).json()["error_code"] == "bad_layer"
+    d = client.get("/api/overview/map-heat", params={"layer": "payload:back"}).json()
     assert d["view"] == "payload" and set(d["maps"]) == {"surge"} and d["scale"]["min"] < d["scale"]["max"]
-    assert [layer["label"] for layer in d["layers"] if layer["group"] == "payload"] == ["Stops", "Speed", "Rollback"]
-    assert abs(d["maps"]["surge"]["average"] - heat.payload["surge"][:, 1].sum() / heat.payload["surge"][:, 0].sum()) < 0.001
+    assert [layer["label"] for layer in d["layers"] if layer["group"] == "payload"] == ["Speed", "Speed while moving", "Rollback"]
+    assert abs(d["maps"]["surge"]["average"] - heat.payload["surge"][:, map_heat.P_BACK].sum() / heat.payload["surge"][:, 0].sum()) < 0.001
     again = map_heat.MapHeat(client.app.state.sessionmaker, client.app.state.settings)  # as after a restart
     again.ensure()
     assert np.array_equal(again.payload["surge"], heat.payload["surge"]) and again.posed == heat.posed
@@ -305,26 +310,17 @@ def test_result_speed_and_death_layers(handed):
     heat = handed.app.state.map_heat
     counts = heat.counts["dyson"]
     n = {key: int(counts[i].sum()) for key, i in map_heat.LAYER_INDEX.items()}
-    assert n["result:won"] == n["result:lost"] == 0  # nobody won this one: in neither layer
     assert n["speed:medium"] > 0 and n["speed:stopped"] > 0 and n["speed:fast"] == 0  # blue at 5 m/s, orange standing
     assert n["speed:stopped"] + n["speed:slow"] + n["speed:medium"] <= n["team:blue"] + n["team:orange"]
     keys = [layer["key"] for layer in heat.answer()["layers"]]
-    assert "speed:medium" in keys and "speed:fast" not in keys and "result:won" not in keys and "death:all" not in keys
+    assert "speed:medium" in keys and "speed:fast" not in keys and "death:all" not in keys
+    assert not [key for key in map_heat.LAYERS if key.startswith("result:")]  # winners / losers: taken out again
+    assert handed.get("/api/overview/map-heat", params={"layer": "result:won"}).status_code == 422
 
 
 @pytest.fixture
 def decided(tmp_path):
     yield from _heat_with(tmp_path, {"dyson/a.echoreplay": _handed_match(blue_round_score=2)})
-
-
-def test_winners_and_losers(decided):
-    heat = decided.app.state.map_heat
-    counts = heat.counts["dyson"]
-    won, lost = counts[map_heat.LAYER_INDEX["result:won"]], counts[map_heat.LAYER_INDEX["result:lost"]]
-    assert np.array_equal(won, counts[map_heat.LAYER_INDEX["team:blue"]])  # blue won
-    assert np.array_equal(lost, counts[map_heat.LAYER_INDEX["team:orange"]])
-    d = decided.get("/api/overview/map-heat", params={"layer": "result:won", "view": "all"}).json()
-    assert [layer["label"] for layer in d["layers"] if layer["group"] == "result"] == ["Winners", "Losers"]
 
 
 def test_deaths_are_counted_where_they_happened(decided):

@@ -75,8 +75,8 @@ export function readOut(heat: MapHeat, map: string, entry: number, one: string, 
   if (heat.view === "payload" && heat.scale) {
     const value = heat.scale.min + level * (heat.scale.max - heat.scale.min);
     const edge = top ? " or more" : level <= 0 ? " or less" : "";
-    if (heat.layer === "payload:speed") return `Payload: ${value.toFixed(2)} m/s on average going forward${edge}`;
-    return `Payload: ${heat.layer === "payload:back" ? "rolling back" : "standing still"} ${pct(value)} of the time${edge}`;
+    if (heat.layer === "payload:back") return `Payload: rolling back ${pct(value)} of the time${edge}`;
+    return `Payload: ${value.toFixed(2)} m/s on average${heat.layer === "payload:moving" ? " while moving forward" : ""}${edge}`;
   }
   if (heat.view === "teams" && read.alpha_steps && read.share_steps && read.contrast) {
     const step = Math.floor((entry - 1) / read.alpha_steps);

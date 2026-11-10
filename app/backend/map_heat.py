@@ -8,7 +8,7 @@ saved in the data folder with the replay ids already added. It is counted once p
 2026-11-10), on the first visit of the month, a batch at a time in a background thread; the cards keep showing last
 month's counts until the new ones are complete. All time is counted from nothing each month (since 2026-11-10: what
 a match adds also comes from the database and from files that are written again when a replay is reprocessed -
-the winner, the arm, the deaths, the upside-down flags - and adding only new replays never picked that up); it
+the arm, the deaths, the upside-down flags - and adding only new replays never picked that up); it
 goes into a second file (map-heat.next.npz) and takes the place of the first when done, so a restart half way
 carries on where it was. A time range (below) is brought up to date in place: it only reads the tracks of replays
 that are new, and subtracts those that left it or stopped counting (a duplicate recording, D13).
@@ -37,8 +37,8 @@ Two more groups of layers since 2026-11-10 (user), counted in the same pass:
   neither is in no pose layer ("upright" is the rest of the same matches, which keeps the "favoured" view fair).
   Reading the archive again (console: reprocess-all) gives every match the flags.
 
-Three more since the same day (user's pick from a list), FORMAT 5:
-- result: the winning and the losing team of each decided match (matches.winner; undecided matches are in neither).
+Two more since the same day (user's pick from a list). (A third, the winners and the losers of decided matches, was
+made too and taken out again the same evening: "meaningless", user. FORMAT 6.)
 - speed: the four speed bands of the match heatmaps (heatmaps.SPEED_BANDS), from the movement to the next sample.
 - death: the estimated deaths (events of type death_est: the last spot in bounds before a player left them). Points,
   not time: about six a cell over the whole archive, so they are smoothed over a metre (SPARSE_BLUR) and their
@@ -46,7 +46,7 @@ Three more since the same day (user's pick from a list), FORMAT 5:
 
 Payload maps also get the payload's own movement (user, 2026-11-10), from the payload distance series of tracks.bin:
 per metre of the route how long it was there, how long it stood still and how fast it went forward (payload_counts),
-drawn as a band along the route (PAYLOAD_LAYERS: "stop" and "speed").
+drawn as a band along the route (PAYLOAD_LAYERS).
 
 And any layer can be laid against any other ("compare", render_compare): where the one is relatively more often than
 the other, each in its own colour.
@@ -84,8 +84,8 @@ from .stats.maps import HEATMAP_LAYOUTS
 
 log = logging.getLogger(__name__)
 
-FORMAT = 5  # of the saved file: another number = start again (3: Fission turned top to bottom; 4: hand and pose;
-# 5: result, speed and death)
+FORMAT = 6  # of the saved file: another number = start again (3: Fission turned top to bottom; 4: hand and pose;
+# 5: result, speed and death; 6: result taken out)
 # Cell size: 0.3 m since 2026-11-10 (user: a little finer than the first 0.5 m; the large view shows it). Positions are
 # stored in whole decimetres, so a cell must be a whole number of them: 0.25 m cells would hold 2 or 3 positions in
 # turn and show as stripes.
@@ -100,7 +100,6 @@ GEAR_GROUPS = (("weapon", "weapon", "weapons", WEAPONS), ("ordnance", "ordnance"
 # together they are "everybody this is known of": what the favoured view measures against.
 EXTRA_GROUPS = (("hand", (("left", "Left-handed"), ("right", "Right-handed"))),
                 ("pose", (("upside", "Upside down"), ("upright", "Upright"))),
-                ("result", (("won", "Winners"), ("lost", "Losers"))),
                 ("speed", tuple((code, label) for _, code, label in heatmaps.SPEED_BANDS)),
                 ("death", (("all", "Deaths"),)))
 # Groups measured against where everybody is instead of against the group itself ("favoured" view), and smoothed more:
@@ -112,16 +111,20 @@ LAYERS = ([f"team:{t}" for t in TEAMS] + [f"{group}:{code}" for group, _, _, tab
           + [f"{group}:{code}" for group, codes in EXTRA_GROUPS for code, _ in codes])
 LAYER_INDEX = {key: i for i, key in enumerate(LAYERS)}
 # what a request may name: both teams ("team"), one team, a layer of a group, or a payload picture
-LAYER_PATTERN = r"^(team|(team|weapon|ordnance|tacmod|hand|pose|result|speed|death|payload):[a-z0-9]{1,16})$"
+LAYER_PATTERN = r"^(team|(team|weapon|ordnance|tacmod|hand|pose|speed|death|payload):[a-z0-9]{1,16})$"
 # The payload's movement, per metre of its route (payload maps only). Not player positions: no favoured view, no compare.
-PAYLOAD_LAYERS = {"payload:stop": "Stops", "payload:speed": "Speed", "payload:back": "Rollback"}
+# "speed" first: what was asked for (user, 2026-11-10: the payload's speed; the share of time it stands still, the
+# first picture made, "is meaningless to me" and is gone). Standing still and rolling back count as no progress in it,
+# so a spot where pushes stall is slow; "moving" leaves those moments out.
+PAYLOAD_LAYERS = {"payload:speed": "Speed", "payload:moving": "Speed while moving", "payload:back": "Rollback"}
 PAYLOAD_MAPS = tuple(m for m in HEATMAP_LAYOUTS if m in PAYLOAD_ROUTES)
 P_TIME, P_STOPPED, P_FORWARD, P_FORWARD_CM, P_BACK = range(5)  # columns of the payload counts (samples; centimetres)
 PAYLOAD_MAX_STEP_M = 2.0  # between two samples (0.5 s): more is a reset or a glitch (it moves at 2.7 m/s at most)
 PAYLOAD_MIN_SAMPLES = 240  # a metre of route needs two minutes of payload time over the archive to be drawn
 PAYLOAD_BAND_M = 1.5  # half the width of the band drawn along the route
 PAYLOAD_SMOOTH = np.array([1, 2, 3, 2, 1]) / 9
-PAYLOAD_SHARES = {"payload:stop": P_STOPPED, "payload:back": P_BACK}  # layers that are a share of the payload's time
+PAYLOAD_SHARES = {"payload:back": P_BACK}  # layers that are a share of the payload's time
+PAYLOAD_SPEEDS = {"payload:speed": P_TIME, "payload:moving": P_FORWARD}  # metres forward per second of this time
 BATCH = 500  # replays added between two saves (and two looks at the cards while it builds)
 READ_CHUNK = 64  # files decoded at once
 FLUSH_SAMPLES = 2_000_000  # samples gathered per map before they are counted (memory: ~70 MB at the peak)
@@ -173,11 +176,11 @@ _SPEED_LAYERS = np.array([LAYER_INDEX[f"speed:{code}"] for _, code, _ in heatmap
 
 
 def sample_keys(map_: str, header: dict, players: dict, hands: dict[str, int] | None = None,
-                poses: dict[str, tuple[int, bytes, bytes]] | None = None, winner: int | None = None) -> np.ndarray:
+                poses: dict[str, tuple[int, bytes, bytes]] | None = None) -> np.ndarray:
     """Every sample of one match as layer * cells + cell, once per layer it belongs to (its team, the three pieces
-    of gear held, its speed band, the player's hand when `hands` knows it: user id -> layer, upside down or upright
-    when `poses` has the player: user id -> (hz, team, roll) of the 3D tracks, and winners or losers when the match
-    has a `winner`: tracks.BLUE or ORANGE)."""
+    of gear held, its speed band, the player's hand when `hands` knows it: user id -> layer, and upside down or
+    upright from the track's own flags or, without them, when `poses` has the player: user id -> (hz, team, roll) of
+    the 3D tracks)."""
     layout = HEATMAP_LAYOUTS[map_]
     rows, cols = _shape(map_)
     lookups = [(field, _gear_layers(header, codes_field, group)) for group, field, codes_field, _ in GEAR_GROUPS]
@@ -195,8 +198,6 @@ def sample_keys(map_: str, header: dict, players: dict, hands: dict[str, int] | 
         layers = [team[where].astype(np.int64) - 1]  # tracks.BLUE, ORANGE = 1, 2 -> layers 0, 1
         layers += [lookup[np.frombuffer(t[field], dtype=np.uint8)[where]] for field, lookup in lookups]
         layers.append(_SPEED_LAYERS[heatmaps._sample_keys(t, "speed", header.get("hz", tracks.HZ))[where]])
-        if winner:
-            layers.append(np.where(team[where] == winner, LAYER_INDEX["result:won"], LAYER_INDEX["result:lost"]))
         if hands and uid in hands:
             layers.append(np.full(len(where), hands[uid], dtype=np.int64))
         if len(t.get("flags", b"")) == len(team):  # recorded with the track: exact
@@ -448,14 +449,16 @@ def render_compare(one: np.ndarray, other: np.ndarray, blur: int = FAVOURED_BLUR
 
 
 def payload_values(counts: np.ndarray, layer: str, hz: int = tracks.HZ) -> np.ndarray:
-    """Per metre of the route: the share of its time the payload stood still there ("payload:stop"), or its average
-    speed in m/s while it went forward ("payload:speed"); NaN where the archive has too little to say."""
+    """Per metre of the route: the payload's average speed there in m/s ("payload:speed": metres forward per second
+    it was there, standing still and rolling back included as no progress; "payload:moving": only while it went
+    forward), or the share of its time it rolled back ("payload:back"); NaN where the archive has too little to say."""
     # over five metres, the middle one counting most: single metres are noisy and would draw the band as beads
     counts = np.stack([np.convolve(column, PAYLOAD_SMOOTH, mode="same") for column in counts.astype(np.float64).T], axis=1)
     if layer in PAYLOAD_SHARES:
         value, basis = counts[:, PAYLOAD_SHARES[layer]] / np.maximum(counts[:, P_TIME], 1), counts[:, P_TIME]
     else:
-        value, basis = counts[:, P_FORWARD_CM] / 100 * hz / np.maximum(counts[:, P_FORWARD], 1), counts[:, P_FORWARD]
+        basis = counts[:, PAYLOAD_SPEEDS[layer]]
+        value = counts[:, P_FORWARD_CM] / 100 * hz / np.maximum(basis, 1)
     return np.where(basis >= PAYLOAD_MIN_SAMPLES, value, np.nan)
 
 
@@ -464,7 +467,8 @@ def payload_average(counts: np.ndarray, layer: str, hz: int = tracks.HZ) -> floa
     total = counts.sum(axis=0).astype(np.float64)
     if layer in PAYLOAD_SHARES:
         return float(total[PAYLOAD_SHARES[layer]] / total[P_TIME]) if total[P_TIME] else None
-    return float(total[P_FORWARD_CM] / 100 * hz / total[P_FORWARD]) if total[P_FORWARD] else None
+    basis = total[PAYLOAD_SPEEDS[layer]]
+    return float(total[P_FORWARD_CM] / 100 * hz / basis) if basis else None
 
 
 def payload_scale(values: list[np.ndarray]) -> tuple[float, float] | None:
@@ -656,17 +660,12 @@ class MapHeat:
             self._save()
         fresh.path.unlink(missing_ok=True)
 
-    def _results(self, replay_ids: list[int]) -> tuple[dict[int, int], dict[int, tuple[np.ndarray, np.ndarray]]]:
-        """replay id -> the winning team (tracks.BLUE / ORANGE; undecided matches are left out), and replay id ->
-        (x, z) in metres of its estimated deaths."""
-        winners: dict[int, int] = {}
+    def _deaths(self, replay_ids: list[int]) -> dict[int, tuple[np.ndarray, np.ndarray]]:
+        """replay id -> (x, z) in metres of its estimated deaths."""
         spots: dict[int, list[tuple[float, float]]] = {}
         with self.sessions() as db:
             for start in range(0, len(replay_ids), 500):
                 ids = replay_ids[start:start + 500]
-                for replay_id, winner in db.execute(select(Match.replay_id, Match.winner).where(Match.replay_id.in_(ids))):
-                    if winner in tracks.TEAM_CODES:
-                        winners[replay_id] = tracks.TEAM_CODES[winner]
                 rows = db.execute(select(Match.replay_id, Event.data).join(Event, Event.match_id == Match.id)
                                   .where(Match.replay_id.in_(ids), Event.type == "death_est"))
                 for replay_id, data in rows:
@@ -675,8 +674,7 @@ class MapHeat:
                         spots.setdefault(replay_id, []).append((float(spot["x"]), float(spot["z"])))
                     except (TypeError, ValueError, KeyError):
                         continue
-        deaths = {r: (np.array([x for x, _ in s]), np.array([z for _, z in s])) for r, s in spots.items()}
-        return winners, deaths
+        return {r: (np.array([x for x, _ in s]), np.array([z for _, z in s])) for r, s in spots.items()}
 
     def _hands(self, replay_ids: list[int]) -> dict[int, dict[str, int]]:
         """replay id -> {user id: hand layer} for the players whose arm setting is known (the arm used most in the
@@ -701,7 +699,7 @@ class MapHeat:
         seen: list[tuple[int, str, bool, bool]] = []
         payload: dict[str, np.ndarray] = {}
         hands = self._hands([replay_id for replay_id, _ in batch])
-        winners, deaths = self._results([replay_id for replay_id, _ in batch])
+        deaths = self._deaths([replay_id for replay_id, _ in batch])
 
         def flush(map_: str) -> None:
             keys = pending.pop(map_, [])
@@ -721,7 +719,7 @@ class MapHeat:
                 if (moved := payload_counts(map_, header)) is not None:
                     payload[map_] = payload.get(map_, 0) + moved
                 pending.setdefault(map_, []).append(
-                    sample_keys(map_, header, players, hands.get(replay_id), poses, winners.get(replay_id)))
+                    sample_keys(map_, header, players, hands.get(replay_id), poses))
                 if replay_id in deaths:
                     pending[map_].append(death_keys(map_, *deaths[replay_id]))
                 if sum(len(k) for k in pending[map_]) >= FLUSH_SAMPLES:

@@ -22,12 +22,19 @@ class Bounds(NamedTuple):
     z_max: float
 
 
-# Old app's play-area bounds (ReplayData.MD); leaving them is counted as a death.
+# Play-area bounds (ReplayData.MD); leaving them is counted as a death. The old app's numbers, but with x and z the
+# right way round for Combustion, Surge and Fission since 2026-11-10 (user): they were swapped, so part of each map
+# counted as out of bounds (Fission 39 % of all samples, Surge 16 %, Combustion 13 %) and crossing the line inside the
+# map was a "death" (17 % of Combustion's deaths sat on z = -20). Each box now holds its whole map (HEATMAP_LAYOUTS)
+# and none of the rooms players are sent to between lives, which are 150-200 m out on every map; measured on the
+# latest 300 matches per map, time in bounds is 73-76 % on all four (Dyson, which was right, 76 %).
+# Still boxes, not the real outline of each play area (user, 2026-11-10: "much better", but not right): the user
+# draws the outlines with the bounds editor (app/tools/bounds_editor), to replace these.
 BOUNDS = {
     "dyson": Bounds(-100, 100, -40, 40),
-    "combustion": Bounds(-100, 100, -20, 60),
-    "surge": Bounds(-50, 70, -60, 150),
-    "fission": Bounds(-30, 40, -80, 130),
+    "combustion": Bounds(-20, 60, -100, 100),
+    "surge": Bounds(-60, 150, -50, 70),
+    "fission": Bounds(-80, 130, -30, 40),
 }
 
 

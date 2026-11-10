@@ -10,7 +10,7 @@ from .payload import FINAL_CHECKPOINT, PayloadAccumulator
 from .player import PlayerAccumulator
 from .results import EventRecord, MatchStats, PlayerStats
 
-STATS_VERSION = "11"  # 11: ping_capped_sum (ping spikes capped at 400 ms in averages, DATA-5; in place, D57). 10: frames_lone_wolf_near (3.5 m, Lone Wolf). 9: no deaths / respawns after the capture match is decided or the payload run is over. 8: the map's load-in spot (maps.LOAD_IN_SPOTS) is no longer a death, in-bounds time or track sample
+STATS_VERSION = "12"  # 12: play-area bounds of Combustion, Surge and Fission had x and z swapped (maps.BOUNDS): deaths, in-bounds time and everything counted in bounds change on those maps. 11: ping_capped_sum (ping spikes capped at 400 ms in averages, DATA-5; in place, D57). 10: frames_lone_wolf_near (3.5 m, Lone Wolf). 9: no deaths / respawns after the capture match is decided or the payload run is over. 8: the map's load-in spot (maps.LOAD_IN_SPOTS) is no longer a death, in-bounds time or track sample
 
 CAPTURE_ROUNDS_TO_WIN = 2  # best of three: the round that makes it 2 decides the match
 

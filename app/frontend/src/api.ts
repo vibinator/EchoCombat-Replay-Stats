@@ -1116,7 +1116,7 @@ export const getPlayersSeen = (range: PlayersSeen["range"], anchor: PlayersSeen[
 /** All-time heat for the home page's map cards (map_heat.py): one transparent PNG per map, covering its minimap. */
 export interface MapHeatLayer {
   key: string; // "team", or "weapon:assault", "ordnance:det", "tacmod:heal", "hand:left", "pose:upside", "payload:stop", ...
-  group: "team" | "weapon" | "ordnance" | "tacmod" | "hand" | "pose" | "result" | "speed" | "death" | "payload";
+  group: "team" | "weapon" | "ordnance" | "tacmod" | "hand" | "pose" | "speed" | "death" | "payload";
   label: string;
   code?: string;
   cut?: boolean;

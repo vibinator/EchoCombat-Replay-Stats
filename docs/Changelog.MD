@@ -18,10 +18,59 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.10.48 — 23:33
+
+- Home page heatmaps: the weapon, ordnance and tac mod choices no longer carry the small "cut" label (Starburst,
+  Protostar, Quark ...). The label is unchanged elsewhere on the site.
+- **To do after updating:** nothing beyond the restart of the earlier updates.
+
+## 2026.11.10.47 — 23:30
+
+- **Home page, Payload heatmap: it now shows the payload's speed.** "Speed" (the first choice) is the average
+  speed of the payload at each point of its route, the moments it stands still or rolls back included, so a spot
+  where pushes stall is dark and a spot it runs through is pale. "Speed while moving" leaves those moments out;
+  "Rollback" stays. Each card gives the map's average: on the development PC's data Fission 0.51 m/s and Surge
+  0.47 m/s (1.05 and 1.02 m/s while moving).
+- **Removed: "Stops"** (the share of time the payload stood still), and **"Win / loss"** (winners and losers).
+  Links with `heat=payload:stop` or `heat=result:...` open the Teams view.
+- The all-time heat is counted again once after this update. **To do after updating:** restart the server.
+
+## 2026.11.10.46 — 23:27
+
+- **Play-area bounds corrected on Combustion, Fission and Surge.** Their x and z limits were swapped, so part of
+  each map counted as out of bounds and simply crossing that line counted as a death. Found through the new Deaths
+  heatmap: a straight line of deaths across Combustion (17 % of all its deaths). Dyson was right and does not change.
+
+  | Map | Was (x, z) | Now (x, z) | Of the map counted out of bounds, was | Time in bounds, was → now |
+  |---|---|---|---|---|
+  | Combustion | -100..100, -20..60 | -20..60, -100..100 | 13 % | 63 % → 75 % |
+  | Fission | -30..40, -80..130 | -80..130, -30..40 | 39 % | 34 % → 73 % |
+  | Surge | -50..70, -60..150 | -60..150, -50..70 | 16 % | 57 % → 73 % |
+
+  (Latest 300 matches per map; Dyson 76 %. Each box now holds its whole map and none of the rooms players are sent
+  to between lives, 150-200 m away.)
+- **Still boxes, not the real outline of each play area** (user: much better than before, but not right). The
+  outlines are to be drawn by hand with the bounds editor (2026.11.10.49) and will replace the boxes; that will need
+  the archive read once more, so it is worth waiting for them before restarting the live server.
+- **What changes on those three maps:** deaths (estimated: Combustion about 7.3 → 6.6 per player per match, Fission
+  5.1 → 5.5, Surge 4.5 → 5.0), time in bounds, and everything counted only in bounds: average and top speed, time
+  stopped, upside down, near a teammate / enemy, arm, loadout shares. Death places on heatmaps and the timeline too.
+- **Achievements that read these numbers** and may be reached more or less easily on those maps: Super Ultra Hyper
+  Turbo, I'm Bat Bot (all three), Pew Pew Proof, Tech Support w/RAD_Natalie, Hug Your Frenemy, The Wings of
+  RAD_Wyvern, Pixel Party!, Cyberkinetic Enhancements, Untouchable Chassis, Lone Echo, Boost Junkie, and the
+  "at least 1 minute in bounds" rule (many Fission games failed it only because of the wrong bounds). Their targets
+  were not changed here: look at them again once the archive has been read.
+- **The whole archive is read again after this update** (stats version 12): it starts by itself at the next start,
+  takes hours on the NAS, and old results stay visible until each replay is replaced. The same pass gives every
+  match the exact upside-down data of 2026.11.10.43, so no separate `reprocess-all` is needed.
+- When it has finished, delete `data/database/map-heat.npz`, `map-heat-30d.npz` and `map-heat-90d.npz` and open
+  the home page (or wait for the next monthly count): the Deaths heatmap then loses its straight lines.
+- **To do after updating:** restart the server, and expect the re-read.
+
 ## 2026.11.10.45 — 23:13
 
 - **3D heatmaps are readable: they no longer draw every place ever visited at full strength.** A long history
-  filled the whole arena with a cloud of dots. (Player, Compare and match 3D heatmaps.)
+  filled the whole map with a cloud of dots. (Player, Compare and match 3D heatmaps.)
   - **"Show" slider** in the bar under the view (and in the full screen options): how much of the heat is drawn,
     from only the busiest 2 % of each layer's places up to everything.
   - **Three buttons set it:** *Hot spots* (the busiest 5 %: where most time was spent), *Routes* (the busiest

@@ -136,7 +136,8 @@ API values may be text codes or older hex symbols (`0x…`, see below). `cut` = 
 
 ## Map bounds (old app, used for deaths and in-bounds stats)
 - C (old `skims.py`): ping counts every frame; speed, stopped, upside down, arm, loadout and near mate/enemy count **in-bounds frames only**; near = any other player's head (wherever it is) within dist² < 7; death = player's previous frame in bounds and current frame out of bounds.
-- Kept as-is by user decision (Decisions D20). **C (2026-10-29, 16 samples): these bounds look wrong for combustion, fission and surge** (x/z swapped vs the minimap/heatmap extents). Share of head positions inside: fission 24 % (old) vs 72 % (heatmap extent), surge 51 % vs 73 %, combustion 62 % vs 75 %, dyson 79 % vs 78 %. Out-of-play positions sit far away (|x|, |z| ≈ 150–200: spawn/respawn areas). Deaths change by up to ±7 per match.
+- **Corrected 2026-11-10 (user, STATS_VERSION 12):** combustion, fission and surge had x and z swapped; they are now x -20..60 / z -100..100, x -80..130 / z -30..40 and x -60..150 / z -50..70 (dyson unchanged: x -100..100 / z -40..40). Found through the home page's Deaths heatmap: a straight line of "deaths" along z = -20 on Combustion. Still boxes: the user is to draw the real outlines (bounds editor). What follows is the history.
+- Kept as-is by user decision (Decisions D20) until then. **C (2026-10-29, 16 samples): these bounds look wrong for combustion, fission and surge** (x/z swapped vs the minimap/heatmap extents). Share of head positions inside: fission 24 % (old) vs 72 % (heatmap extent), surge 51 % vs 73 %, combustion 62 % vs 75 %, dyson 79 % vs 78 %. Out-of-play positions sit far away (|x|, |z| ≈ 150–200: spawn/respawn areas). Deaths change by up to ±7 per match.
 | Map | x min | x max | z min | z max |
 |---|---|---|---|---|
 | dyson | -100 | 100 | -40 | 40 |

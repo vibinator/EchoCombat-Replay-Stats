@@ -387,3 +387,16 @@ def test_payload_routes_have_no_jumps():
     for name, route in PAYLOAD_ROUTES.items():
         for i, ((x0, z0), (x1, z1)) in enumerate(zip(route, route[1:])):
             assert ((x1 - x0) ** 2 + (z1 - z0) ** 2) ** 0.5 < 2.5, f"{name} metre {i}->{i + 1}"
+
+
+def test_bounds_hold_each_map_and_not_the_rooms_between_lives():
+    """2026-11-10: Combustion, Fission and Surge had x and z swapped; part of each map counted as out of bounds."""
+    from backend.stats.maps import BOUNDS, HEATMAP_LAYOUTS
+
+    for name, layout in HEATMAP_LAYOUTS.items():
+        b = BOUNDS[name]
+        edge = 2.0  # metres of empty picture around a map (Dyson's picture starts 1.1 m outside its bounds)
+        assert b.x_min <= layout.x_min + edge and layout.x_max - edge <= b.x_max, name  # the whole map is in bounds
+        assert b.z_min <= layout.z_min + edge and layout.z_max - edge <= b.z_max, name
+        for x, z in ((200, -200), (-160, 200), (180, 30)):  # where players wait between lives, on every map
+            assert not (b.x_min <= x <= b.x_max and b.z_min <= z <= b.z_max), (name, x, z)

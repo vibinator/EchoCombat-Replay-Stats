@@ -13,7 +13,6 @@ const HEAT_GROUPS: [MapHeatLayer["group"], string][] = [
   ["tacmod", "Tac mod"],
   ["hand", "Handed"],
   ["pose", "Upside down"],
-  ["result", "Win / loss"],
   ["speed", "Speed"],
   ["death", "Deaths"],
   ["payload", "Payload"],
@@ -36,7 +35,7 @@ const HEAT_RANGES: [number, string, string][] = [
   [30, "Last 30 days", "the last 30 days"],
 ];
 
-const LAYER_KEY = /^(team|(team|weapon|ordnance|tacmod|hand|pose|result|speed|death|payload):[a-z0-9]{1,16})$/;
+const LAYER_KEY = /^(team|(team|weapon|ordnance|tacmod|hand|pose|speed|death|payload):[a-z0-9]{1,16})$/;
 const GEAR = ["weapon", "ordnance", "tacmod"];
 
 /** The sentence under the cards for one layer on its own. */
@@ -48,10 +47,6 @@ function describe(l: MapHeatLayer, all: boolean, when: string): ReactNode {
     ) : (
       <>Where <GearLabel name={l.label} /> is held more often than on the rest of the map, {when}: brighter = more often than usual.</>
     );
-  if (l.group === "result")
-    return all
-      ? `Everywhere the ${name} of decided matches were, ${when}: brighter where most.`
-      : `Where the ${name} of decided matches are more often than on the rest of the map, ${when}: brighter = more often than usual.`;
   if (l.group === "death")
     return all
       ? `Where players die, ${when} (estimated: the last spot before a player left the play area): brighter where most.`
@@ -183,8 +178,8 @@ function BigHeat({ map, heat, one, other, alt }: { map: string; heat: MapHeat | 
 
 /** "Matches per map": a card per map, its minimap under the all-time heat of every counted match (counted once a
  * month on the server, map_heat.py). The heat is of both teams, or of one layer: a weapon, ordnance or tac mod, left- /
- * right-handed players, upside down / upright (only from matches with 3D tracks), the winners or losers, a speed
- * band, the estimated deaths; "Payload" draws the payload's own stops, speed or rollback along its route. One request
+ * right-handed players, upside down / upright, a speed
+ * band, the estimated deaths; "Payload" draws the payload's own speed or rollback along its route. One request
  * per choice, four small PNGs, kept by the answer cache (here, on the server and at Cloudflare), so going back to a
  * choice is instant. A layer opens on its "favoured spots" (where it is more than usual): everywhere it was looks much
  * the same for every piece of gear, the objective and the payload's route.
@@ -243,7 +238,8 @@ export function MapHeatCards({ byMap, total }: { byMap: Record<string, number>; 
   const average = (m: string) => {
     const value = d?.view === "payload" ? d.maps[m]?.average : undefined;
     if (value == null) return null;
-    return d!.layer === "payload:speed" ? `${value.toFixed(2)} m/s on average` : `${d!.layer === "payload:back" ? "rolling back" : "standing still"} ${pct(value)} of the time`;
+    if (d!.layer === "payload:back") return `rolling back ${pct(value)} of the time`;
+    return `${value.toFixed(2)} m/s on average${d!.layer === "payload:moving" ? " while moving" : ""}`;
   };
   return (
     <>
@@ -304,7 +300,6 @@ export function MapHeatCards({ byMap, total }: { byMap: Record<string, number>; 
             <button key={l.key} className={l.key === layer ? "chip active" : "chip"} aria-pressed={l.key === layer} onClick={() => setLayer(l.key)}
               title={l.share == null ? undefined : GEAR.includes(l.group) ? `Held ${pct(l.share)} of the time` : `${pct(l.share)} of the play time`}>
               <GearLabel name={l.label} />
-              {l.cut && <sup className="cut">cut</sup>}
             </button>
           ))}
           {!isPayload && !versus && (
@@ -375,10 +370,12 @@ export function MapHeatCards({ byMap, total }: { byMap: Record<string, number>; 
           ) : shown && shown.group === "payload" ? (
             <>
               <span className="map-heat-scale" aria-hidden="true" />{" "}
-              {shown.key === "payload:speed" ? (
-                <>Average speed of the payload while it moves forward{d.scale && <>: {d.scale.min.toFixed(1)} m/s (dark) to {d.scale.max.toFixed(1)} m/s (pale)</>}.</>
+              {shown.key === "payload:back" ? (
+                <>Share of its time the payload rolled back at each point of the route, while the push was on{d.scale && <>: {pct(d.scale.min)} (dark) to {pct(d.scale.max)} (pale)</>}.</>
+              ) : shown.key === "payload:moving" ? (
+                <>Average speed of the payload at each point of the route, only while it moves forward{d.scale && <>: {d.scale.min.toFixed(1)} m/s (dark) to {d.scale.max.toFixed(1)} m/s (pale)</>}.</>
               ) : (
-                <>Share of its time the payload {shown.key === "payload:back" ? "rolled back" : "stood still"} at each point of the route, while the push was on{d.scale && <>: {pct(d.scale.min)} (dark) to {pct(d.scale.max)} (pale)</>}.</>
+                <>Average speed of the payload at each point of the route, the moments it stands still or rolls back included{d.scale && <>: {d.scale.min.toFixed(1)} m/s (dark = slow) to {d.scale.max.toFixed(1)} m/s (pale = fast)</>}.</>
               )}
             </>
           ) : shown && shown.group !== "team" ? (

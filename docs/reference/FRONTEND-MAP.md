@@ -69,8 +69,8 @@ lines and CRLF.
 - exports: Map3DProps:48, Map3D:84
 - api.ts calls: getPlayback3d
 
-### `app/frontend/src/components/MapHeatCards.tsx` (398 lines)
-- exports: MapHeatCards:196
+### `app/frontend/src/components/MapHeatCards.tsx` (395 lines)
+- exports: MapHeatCards:191
 - api.ts calls: getMapHeat
 
 ### `app/frontend/src/components/mapModel3d.ts` (57 lines)
