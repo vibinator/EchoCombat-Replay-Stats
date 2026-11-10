@@ -19,8 +19,8 @@ services:
       ECHOVR_QUICK_CHECK_S: "15"     # seconds between checks of the folders for new files (full scan when changed)
       ECHOVR_RATE_LIMIT_PER_MIN: "60"  # scraper protection: data requests per visitor per minute (0 = no limit)
       ECHOVR_RATE_LIMIT_PER_HOUR: "1500"  # ... and per hour (0 = no hourly limit)
-      ECHOVR_DB_CACHE_MB: "1024"     # RAM for the database (faster pages); lower on a NAS with little RAM, 0 = off
-      ECHOVR_TRACK_CACHE_MB: "512"   # RAM for heatmap / playback position data; 0 = off
+      ECHOVR_DB_CACHE_MB: "2048"     # RAM for the database (faster pages); shared file cache, given back when needed. 0 = off
+      ECHOVR_TRACK_CACHE_MB: "3072"  # RAM for heatmap / playback position data (~70 KB a match: 3 GB holds every match); 0 = off
       ECHOVR_CACHE_REFRESH_S: "300"  # pages answer at once and are recalculated in the background at most this often (s)
       ECHOVR_EDGE_CACHE_S: "60"      # Cloudflare may keep public data answers this long (s); 0 = never (Setup.MD, Cloudflare cache)
       # Discord login: people with the preview role see achievements before their launch (Setup.MD, Discord login).
@@ -36,12 +36,37 @@ services:
       # (/share/ECRanked/ECRanked on the NAS), so the /replays mount below already holds it
       ECHOVR_COMBAT_SOURCE: /replays
       ECHOVR_CLOUD_QUOTA_GB: "250"   # Open Cloud page (Setup.MD, Open Cloud): at most this much in data/cloud; 0 = no limit (5 GB stay free)
+      # Virus scanning of cloud uploads (Setup.MD, Open Cloud): the clamav service below; files are held until scanned
+      ECHOVR_CLAMAV: clamav:3310
+      ECHOVR_CLAMAV_MAX_MB: "1024"  # files up to this are virus-scanned before download; bigger: "Not scanned". Must match MaxFileSize below
+      # VirusTotal fingerprint check (only the file's SHA-256 is sent, never the file); placeholder = off. Never upload a real key
+      ECHOVR_VIRUSTOTAL_KEY: YOUR_VIRUSTOTAL_KEY
       ECHOVR_DISCORD_PREVIEW_ROLES: YOUR_PREVIEW_ROLE_ID   # role and / or user id(s), comma-separated: preview + Console page (admin.bat on the website)
     volumes:
       # Replay folder on the NAS (File Station: ECRanked > ECRanked), read-only; subfolders are scanned too
       - /share/ECRanked/ECRanked:/replays:ro
       # Database and processed files: kept when the app is updated (created automatically if missing)
       - /share/Container/echovr-replay-stats/data:/data
+
+  # Virus scanner for the cloud uploads (antivirus.py). Updates its virus list by itself several times a day; the first start
+  # downloads it (about 200 MB, a few minutes; uploads wait meanwhile). Uses about 1.2-1.6 GB of RAM.
+  clamav:
+    image: clamav/clamav:1.4   # official image; 1.4 = this release line with its security fixes
+    container_name: echovr-clamav
+    restart: unless-stopped
+    # Scan files up to 1 GB (ClamAV's defaults: 100 MB per file, 400 MB unpacked; it cannot scan over 2 GB at all). The two
+    # lines are added once to the image's own /etc/clamav/clamd.conf at start, everything else stays as the image ships it.
+    # MaxFileSize must equal ECHOVR_CLAMAV_MAX_MB above; MaxScanSize = what an archive may unpack to and still be checked.
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        grep -q '^MaxFileSize' /etc/clamav/clamd.conf || printf 'MaxFileSize 1024M\nMaxScanSize 2048M\n' >> /etc/clamav/clamd.conf
+        exec /init
+    volumes:
+      - /share/Container/echovr-replay-stats/clamav:/var/lib/clamav   # the virus list, kept across restarts
+      # the app's data folder at the same path as in the app, read-only: ClamAV reads the waiting files where they are
+      - /share/Container/echovr-replay-stats/data:/data:ro
 
   # Connects echocombat.com to the app above (outgoing connection only). In Cloudflare, point the tunnel's public
   # hostnames echocombat.com and www.echocombat.com at http://echovr-replay-stats:8000.

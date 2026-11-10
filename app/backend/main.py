@@ -10,7 +10,7 @@ from starlette.exceptions import HTTPException
 
 from parser import PARSER_VERSION
 
-from . import arena, auth, combat, guard, icons, tracks
+from . import antivirus, arena, auth, cloud, combat, guard, icons, tracks
 from .api import achievements, admin, avatars, arena as arena_api, auth as auth_api, cloud as cloud_api, combat as combat_api, console, imports, profiles, leaderboard, matches, overview, permissions, players, remote_worker, replays
 from .config import PROJECT_ROOT, Settings
 from .db import open_db, warm
@@ -54,6 +54,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.scanner = Scanner(app.state.sessionmaker, settings, on_queued=app.state.worker.notify)
         app.state.worker.start()
         app.state.combat = combat.CombatIngest(app.state.sessionmaker, settings)
+
+        def cloud_audit(user, action, path, ok=True, detail=None, size=None):  # the scanners write the cloud audit log
+            cloud.log(app.state.sessionmaker, user, action, path, ok, detail, size, None)
+
+        app.state.virustotal = antivirus.VirusTotal(settings, cloud_audit)
+        app.state.antivirus = antivirus.Scanner(settings, cloud_audit, after_clean=app.state.virustotal.enqueue)
+        if settings.virustotal_key:
+            app.state.virustotal.start()
+        if antivirus.enabled(settings):
+            app.state.antivirus.start()  # also picks up files still waiting from before a restart
         if settings.auto_scan:
             app.state.scanner.start()
             app.state.combat.start()  # the recorder's match reports (combat stats), apart from the replays
@@ -72,6 +82,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             app.state.combat.stop()
             app.state.arena.stop()
         app.state.worker.stop()
+        app.state.antivirus.stop()
+        app.state.virustotal.stop()
         engine.dispose()
 
     # no /docs, /redoc or /openapi.json on the public site: they list every route, the admin ones included

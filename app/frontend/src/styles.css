@@ -4304,16 +4304,41 @@ button.small {
   margin: 12px 0 0;
 }
 .cloud-uploads {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
   margin: 0 0 16px;
-  padding: 0;
-  list-style: none;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: var(--panel);
+}
+.cloud-uploads-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
 }
 .cloud-uploads .progress {
   height: 22px;
+  margin: 8px 0;
+  background: var(--surface-2); /* the box itself is var(--panel): the empty track must still show */
+}
+.cloud-uploads ul {
   margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.85rem;
+}
+.cloud-uploads li {
+  padding: 2px 0;
+  overflow-wrap: anywhere;
+}
+.cloud-upload-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin: 6px 0 2px;
+}
+.upload-drop:has(.cloud-upload-buttons) {
+  cursor: default;
 }
 .cloud-name {
   overflow-wrap: anywhere;
@@ -4336,4 +4361,20 @@ button.small {
   color: var(--muted);
   font-size: 0.8rem;
   white-space: nowrap;
+}
+
+.ok-note {
+  color: var(--ok);
+  font-weight: 600;
+}
+.cloud-av-status {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 8px 0 16px;
+  padding: 0;
+  list-style: none;
+}
+.cloud-checking td {
+  color: var(--muted);
 }

@@ -1,5 +1,6 @@
 """Open Cloud (cloud.py): only Discord members with Cloud view / Cloud edit (or the console) reach the files."""
 
+import json
 import secrets
 
 import pytest
@@ -84,7 +85,7 @@ def test_chunked_upload_rename_delete(tmp_path, discord):
     with app_client(settings(tmp_path)) as client:
         login(client, MEMBER)
         data = bytes(range(256)) * 40  # 10 KB in 3 KB chunks
-        assert put(client, "big.bin", data, chunk=3000).json() == {"done": True, "received": len(data), "path": "big.bin"}
+        assert put(client, "big.bin", data, chunk=3000).json() == {"done": True, "received": len(data), "path": "big.bin", "scanning": False}
         assert client.get("/api/cloud/download", params={"path": "big.bin"}).content == data
         assert not list((tmp_path / "data" / "cloud-uploads").glob("*.part"))  # moved, not copied
 
@@ -146,6 +147,11 @@ def test_quota(tmp_path, discord):
         assert r.status_code == 413 and r.json()["error_code"] == "quota"
         assert put(client, "a.bin", b"x" * 900, overwrite=True).json()["done"] is True  # replacing frees the old size
         client.post("/api/cloud/delete", json={"path": "a.bin"}, headers=CONSOLE)
+        # in the recycle bin it still takes its space (delete-and-upload again cannot fill the disk) ...
+        assert put(client, "b.bin", b"x" * 300).json()["error_code"] == "quota"
+        assert client.get("/api/cloud/list").json()["trash_bytes"] == 900
+        # ... until a console user removes it for good
+        client.post("/api/cloud/trash/purge", json={"all": True}, headers=CONSOLE)
         assert put(client, "b.bin", b"x" * 300).json()["done"] is True
 
         # uploads still in progress reserve their full size: two half-sent 600-byte files cannot both fit in 700 left
@@ -190,7 +196,7 @@ def test_audit_log(tmp_path, discord):
             (MEMBER, "folder", "Dir", None, None, True),
             (MEMBER, "rename", "a.txt", "b.txt", None, True),
             (MEMBER, "download", "b.txt", None, 11, True),
-            (MEMBER, "delete", "b.txt", None, 11, True),
+            (MEMBER, "delete", "b.txt", "to the recycle bin", 11, True),
             (MEMBER, "upload", "../x", BAD_NAME, 1, False),
             (VIEWER, "denied", "Dir", "delete: needs Cloud edit", None, False),
         ]
@@ -213,3 +219,122 @@ def test_upload_chunks_skip_the_rate_limit_when_logged_in(tmp_path, discord):
         client.cookies.clear()
         codes = [put(client, f"{i}.bin", b"x").status_code for i in range(15)]
         assert 429 in codes  # anonymous chunks are limited
+
+
+def test_folder_uploads_make_their_folders(tmp_path, discord):
+    """User, 2026-11-10: whole folders at once. A file of a folder tree makes its missing folders; checks stay the same."""
+    with app_client(settings(tmp_path)) as client:
+        login(client, MEMBER)
+
+        def up(path, name, data=b"x", folders=True):
+            return client.post("/api/cloud/upload", params={"path": path, "name": name, "upload": secrets.token_hex(16),
+                                                            "offset": 0, "total": len(data), "folders": folders},
+                               content=data, headers=CONSOLE)
+
+        assert up("Photos/2026/Nov", "a.jpg").json()["path"] == "Photos/2026/Nov/a.jpg"
+        assert up("Photos/2026", "b.jpg").json()["done"] is True  # an existing folder: fine
+        assert up("Other/x", "c.jpg", folders=False).status_code == 404  # without the option: the folder must exist
+        assert up("Photos/2026/Nov/a.jpg/deeper", "d.jpg").json()["error_code"] == "exists"  # a file is in the way
+        assert up("/".join(["d"] * 33), "e.jpg").json()["error_code"] == "bad_path"  # 32 deep at most
+        assert up("Photos/../../escape", "f.jpg").status_code == 400  # every part still checked
+        r = client.post("/api/cloud/folder", json={"path": "Empty/Inside", "name": "Leaf", "parents": True}, headers=CONSOLE)
+        assert r.json() == {"path": "Empty/Inside/Leaf"}  # an empty folder of a dropped tree
+        names = lambda p: [e["name"] for e in client.get("/api/cloud/list", params={"path": p}).json()["entries"]]
+        assert names("") == ["Empty", "Photos"] and names("Photos/2026") == ["Nov", "b.jpg"]
+        assert not (tmp_path / "escape").exists()
+
+
+def test_an_interrupted_upload_resumes_where_it_stopped(tmp_path, discord):
+    """User, 2026-11-10: the page asks how much the server has, then sends only the rest (same upload id)."""
+    with app_client(settings(tmp_path)) as client:
+        login(client, MEMBER)
+        data = bytes(range(256)) * 100  # 25,600 bytes
+        upload = secrets.token_hex(16)
+        status = lambda: client.get("/api/cloud/upload/status", params={"upload": upload, "total": len(data)}, headers=CONSOLE).json()
+        assert status() == {"received": 0}
+        base = {"name": "resume.bin", "upload": upload, "total": len(data)}
+        client.post("/api/cloud/upload", params=base | {"offset": 0}, content=data[:10_000], headers=CONSOLE)
+        assert status() == {"received": 10_000}  # the connection dropped here; later the page asks
+        r = client.post("/api/cloud/upload", params=base | {"offset": 10_000}, content=data[10_000:], headers=CONSOLE)
+        assert r.json()["done"] is True
+        assert client.get("/api/cloud/download", params={"path": "resume.bin"}).content == data
+        assert status() == {"received": 0}  # finished: nothing left to resume
+
+        client.cookies.clear()
+        login(client, NO_ROLE)  # only the person's own uploads, and only with Cloud edit
+        assert client.get("/api/cloud/upload/status", params={"upload": upload, "total": 1}, headers=CONSOLE).status_code == 403
+
+
+def test_recycle_bin(tmp_path, discord):
+    """User, 2026-11-10: Delete moves to a recycle bin; a console user restores it easily, or removes it for good."""
+    with app_client(settings(tmp_path)) as client:
+        grant(client, "cloud_edit", "role", DB_ROLE)
+        login(client, DB_MEMBER)  # Cloud edit, not console
+        client.post("/api/cloud/folder", json={"name": "Docs"}, headers=CONSOLE)
+        put(client, "report.pdf", b"v1", path="Docs")
+        put(client, "notes.txt", b"n", path="Docs")
+        assert client.post("/api/cloud/delete", json={"path": "Docs/report.pdf"}, headers=CONSOLE).json() == {"ok": True}
+        assert client.post("/api/cloud/delete", json={"path": "Docs"}, headers=CONSOLE).json() == {"ok": True}  # the folder too
+        assert client.get("/api/cloud/list").json()["entries"] == []
+        assert client.get("/api/cloud/trash").status_code == 403  # an editor cannot see or restore: console users only
+        assert client.post("/api/cloud/trash/restore", json={"id": "x"}, headers=CONSOLE).status_code == 403
+
+        client.cookies.clear()
+        login(client, MEMBER)  # console
+        trash = client.get("/api/cloud/trash").json()
+        assert trash["days"] == 30 and trash["bytes"] == 3
+        items = {i["path"]: i for i in trash["items"]}
+        assert set(items) == {"Docs/report.pdf", "Docs"}
+        assert items["Docs"]["dir"] is True and items["Docs/report.pdf"]["by_id"] == DB_MEMBER
+        assert items["Docs/report.pdf"]["expires_at"] - items["Docs/report.pdf"]["deleted_at"] == 30 * 86400
+
+        # the file comes back where it was, its folder made again (the folder itself is still in the bin)
+        r = client.post("/api/cloud/trash/restore", json={"id": items["Docs/report.pdf"]["id"]}, headers=CONSOLE).json()
+        assert r["path"] == "Docs/report.pdf"
+        assert client.get("/api/cloud/download", params={"path": "Docs/report.pdf"}).content == b"v1"
+        # the folder: "Docs" exists again now, so it comes back beside it under a new name, nothing overwritten
+        r = client.post("/api/cloud/trash/restore", json={"id": items["Docs"]["id"]}, headers=CONSOLE).json()
+        assert r["path"].startswith("Docs (restored ") and r["path"] != "Docs"
+        assert [e["name"] for e in client.get("/api/cloud/list", params={"path": r["path"]}).json()["entries"]] == ["notes.txt"]
+        assert client.post("/api/cloud/trash/restore", json={"id": items["Docs"]["id"]}, headers=CONSOLE).status_code == 404
+        assert client.post("/api/cloud/trash/restore", json={"id": "../../etc"}, headers=CONSOLE).status_code == 400
+
+        # removed for good: one item, or the whole bin
+        put(client, "a.txt", b"a"); put(client, "b.txt", b"b")
+        client.post("/api/cloud/delete", json={"path": "a.txt"}, headers=CONSOLE)
+        client.post("/api/cloud/delete", json={"path": "b.txt"}, headers=CONSOLE)
+        first = client.get("/api/cloud/trash").json()["items"][0]["id"]
+        assert client.post("/api/cloud/trash/purge", json={"id": first}, headers=CONSOLE).json()["size"] == 1
+        assert client.post("/api/cloud/trash/purge", json={"all": True}, headers=CONSOLE).json() == {"count": 1, "size": 1}
+        assert client.get("/api/cloud/trash").json()["items"] == []
+        log = client.get("/api/cloud/log").json()
+        done = [r["action"] for r in log if r["ok"]]
+        assert done.count("restore") == 2 and done.count("purge") == 2
+        assert [r["action"] for r in log if not r["ok"]].count("restore") == 2  # the refused tries are logged too
+
+
+def test_recycle_bin_items_go_after_the_days_set(tmp_path, discord):
+    with app_client(settings(tmp_path, cloud_trash_days=30)) as client:
+        login(client, MEMBER)
+        put(client, "old.txt", b"o")
+        client.post("/api/cloud/delete", json={"path": "old.txt"}, headers=CONSOLE)
+        box = next((tmp_path / "data" / "cloud-trash").iterdir())
+        info = json.loads((box / "info.json").read_text())
+        (box / "info.json").write_text(json.dumps(info | {"deleted_at": info["deleted_at"] - 31 * 86400}))
+        assert client.get("/api/cloud/trash").json()["items"] == []  # older than 30 days: gone for good
+        assert not box.exists()
+
+
+def test_a_link_planted_on_the_nas_is_never_followed(tmp_path, discord):
+    import os
+    (tmp_path / "data" / "cloud").mkdir(parents=True, exist_ok=True)
+    (tmp_path / "data" / "secret.txt").write_text("no")
+    try:
+        os.symlink(tmp_path / "data", tmp_path / "data" / "cloud" / "out", target_is_directory=True)
+    except OSError:
+        pytest.skip("this system needs admin rights for links (Windows); runs on Linux, like the NAS")
+    with app_client(settings(tmp_path)) as client:
+        login(client, MEMBER)
+        assert client.get("/api/cloud/download", params={"path": "out/secret.txt"}).status_code == 400
+        assert client.get("/api/cloud/list", params={"path": "out"}).status_code == 400
+        assert put(client, "x.txt", b"x", path="out").status_code == 400

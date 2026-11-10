@@ -1425,6 +1425,8 @@ export interface CloudEntry {
   dir: boolean;
   size: number | null;
   modified: number; // unix seconds
+  /** scanning: uploaded, waiting for its virus scan (not downloadable yet); unscanned: too big for the virus scan */
+  state?: "scanning" | "unscanned";
 }
 export interface CloudListing {
   path: string;
@@ -1432,8 +1434,61 @@ export interface CloudListing {
   can_edit: boolean;
   used_bytes: number;
   quota_bytes: number; // 0 = no limit
+  trash_bytes: number; // part of used_bytes: deleted files kept in the recycle bin
 }
-const cloudPost = <T>(action: string, body: { path: string; name?: string }) =>
+
+/** Cloud recycle bin (console users): deleted files and folders, kept `days` days. */
+export interface CloudTrashItem {
+  id: string;
+  path: string; // where it was
+  dir: boolean;
+  size: number;
+  deleted_at: number; // unix seconds
+  by_id: string;
+  by_name: string;
+  expires_at: number | null; // unix seconds, removed for good then
+}
+export const getCloudTrash = () => send<{ items: CloudTrashItem[]; bytes: number; days: number }>("/api/cloud/trash");
+const trashPost = <T>(action: string, body: { id?: string; all?: boolean }) =>
+  send<T>(`/api/cloud/trash/${action}`, {
+    method: "POST",
+    headers: { ...ADMIN_WRITE, "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+/** Cloud virus scanning (console users): the quarantine and how the scanners are doing. */
+export interface CloudQuarantineItem {
+  id: string;
+  path: string;
+  size: number;
+  virus: string;
+  found_at: number; // unix seconds
+  by_id: string;
+  by_name: string;
+}
+export interface CloudQuarantine {
+  items: CloudQuarantineItem[];
+  scanner: { enabled: boolean; reachable?: boolean; version?: string; error?: string; max_mb?: number };
+  virustotal: { enabled: boolean; working?: boolean; queued?: number; today?: number; per_day?: number; checked?: number;
+    found?: number; unknown?: number; min_engines?: number; error?: string | null };
+  waiting: number;
+  sweep: { running: boolean; done: number; total: number; found: number };
+  scanner_error: string | null;
+}
+export const getCloudQuarantine = () => send<CloudQuarantine>("/api/cloud/quarantine");
+const quarantinePost = (action: "delete" | "release", id: string) =>
+  send<{ path: string }>(`/api/cloud/quarantine/${action}`, {
+    method: "POST",
+    headers: { ...ADMIN_WRITE, "Content-Type": "application/json" },
+    body: JSON.stringify({ id }),
+  });
+export const deleteQuarantined = (id: string) => quarantinePost("delete", id);
+export const releaseQuarantined = (id: string) => quarantinePost("release", id);
+export const scanAllCloudFiles = () =>
+  send<{ queued: number }>("/api/cloud/scan-all", { method: "POST", headers: { ...ADMIN_WRITE, "Content-Type": "application/json" }, body: "{}" });
+export const restoreCloudTrash = (id: string) => trashPost<{ path: string }>("restore", { id });
+export const purgeCloudTrash = (id: string) => trashPost<{ path: string; size: number }>("purge", { id });
+export const emptyCloudTrash = () => trashPost<{ count: number; size: number }>("purge", { all: true });
+const cloudPost = <T>(action: string, body: { path: string; name?: string; parents?: boolean }) =>
   send<T>(`/api/cloud/${action}`, {
     method: "POST",
     headers: { ...ADMIN_WRITE, "Content-Type": "application/json" },
@@ -1445,7 +1500,7 @@ export interface CloudLogEntry {
   at: string; // UTC
   who: string;
   who_id: string;
-  action: "upload" | "download" | "folder" | "rename" | "delete" | "denied";
+  action: "upload" | "download" | "folder" | "rename" | "delete" | "restore" | "purge" | "scan" | "virus" | "release" | "denied";
   path: string;
   detail: string | null;
   size: number | null;
@@ -1457,7 +1512,9 @@ export const getCloudLog = (q = "", before?: number) =>
 export const getCloud = (path: string) => send<CloudListing>(`/api/cloud/list?${new URLSearchParams({ path })}`);
 /** Opened by the browser itself (a link): no header needed, the login cookie decides. */
 export const cloudDownloadUrl = (path: string) => `/api/cloud/download?${new URLSearchParams({ path })}`;
-export const makeCloudFolder = (path: string, name: string) => cloudPost<{ path: string }>("folder", { path, name });
+/** parents: also make the missing folders above it (empty folders of an uploaded folder tree). */
+export const makeCloudFolder = (path: string, name: string, parents = false) =>
+  cloudPost<{ path: string }>("folder", { path, name, parents });
 export const renameCloud = (path: string, name: string) => cloudPost<{ path: string }>("rename", { path, name });
 export const deleteCloud = (path: string) => cloudPost<{ ok: boolean }>("delete", { path });
 
@@ -1487,13 +1544,39 @@ function sendChunk(url: string, body: Blob, onProgress: (sent: number) => void):
   });
 }
 
-/** Uploads one file into folder `path`; `onProgress` gets the bytes sent so far. A chunk that fails on the network or
- * with a 5xx is sent once more before giving up. */
-export async function uploadCloudFile(path: string, file: File, overwrite: boolean, onProgress: (sent: number) => void): Promise<void> {
-  const upload = Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, "0")).join("");
-  for (let offset = 0; offset < file.size || offset === 0; offset += CLOUD_CHUNK) {
+// A dropped connection (Wi-Fi blip, laptop lid): the same chunk again after these waits, then the upload counts as failed
+// (it can still be resumed: "Try the failed ones again", or choosing the same file again later).
+const CLOUD_RETRY_S = [2, 5, 10, 20, 30, 60];
+
+/** Same file (name, size, last change) to the same folder = the same upload id: an interrupted upload continues where it
+ * stopped, even after the tab was closed and the file chosen again (the server keeps unfinished parts a day). */
+async function uploadId(path: string, file: File): Promise<string> {
+  const key = new TextEncoder().encode([path, file.name, file.size, file.lastModified].join("\n"));
+  try {
+    const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", key));
+    return Array.from(digest.slice(0, 16), (b) => b.toString(16).padStart(2, "0")).join("");
+  } catch {
+    return Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, "0")).join("");
+  }
+}
+
+/** Uploads one file into folder `path`; `onProgress` gets the bytes sent so far. Continues an interrupted upload of the same
+ * file where the server stopped; a chunk that fails on the network or with a 5xx is sent again after CLOUD_RETRY_S.
+ * folders: the server makes the missing folders of `path` (folder uploads). */
+export async function uploadCloudFile(path: string, file: File, overwrite: boolean, onProgress: (sent: number) => void,
+  folders = false): Promise<void> {
+  const upload = await uploadId(path, file);
+  let start = 0;
+  if (file.size > 0) {
+    const have = await send<{ received: number }>(`/api/cloud/upload/status?${new URLSearchParams({ upload, total: String(file.size) })}`)
+      .then((r) => r.received, () => 0);
+    start = have > 0 && have < file.size ? have : 0; // a whole part (never moved into place) is sent again from the start
+    onProgress(start);
+  }
+  for (let offset = start; offset < file.size || offset === 0; offset += CLOUD_CHUNK) {
     const params = new URLSearchParams({
       path, name: file.name, upload, offset: String(offset), total: String(file.size), overwrite: String(overwrite),
+      folders: String(folders),
     });
     const body = file.slice(offset, offset + CLOUD_CHUNK);
     for (let failed = 0, busy = 0; ; ) {
@@ -1506,8 +1589,8 @@ export async function uploadCloudFile(path: string, file: File, overwrite: boole
           await pause(Math.min(Math.max(retryAfter, 1), 60) * 1000);
           continue;
         }
-        if (failed++ > 0 || (status !== 0 && status < 500)) throw e;
-        await pause(RETRY_MS);
+        if (failed >= CLOUD_RETRY_S.length || (status !== 0 && status < 500)) throw e;
+        await pause(CLOUD_RETRY_S[failed++] * 1000);
       }
     }
     if (file.size === 0) break;

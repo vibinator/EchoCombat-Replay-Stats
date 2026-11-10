@@ -40,6 +40,11 @@ npm install
 | `ECHOVR_CACHE_REFRESH_S` | `300` | Answer cache (D53): a page whose data changed is still answered at once and recalculated in the background at most this often (pages are at most about this far behind new replays). Lower = fresher, more CPU while importing. `0` = recalculate before answering (slow while importing) |
 | `ECHOVR_EDGE_CACHE_S` | `60` | Cloudflare may keep public data answers this many seconds, so repeats never reach the NAS (needs the Cache Rule, see Cloudflare cache). Login answers and errors are never kept. `0` = Cloudflare never keeps them |
 | `ECHOVR_DISCORD_NAME_PICTURES` | `1` | Player pictures matched by name from the Discord server's member list. Needs the bot's **Server Members intent** (Developer Portal > Bot > Privileged Gateway Intents; no approval needed while the bot is in fewer than 100 servers). Without it Discord's refusal is logged once per start and nothing else changes. `0` = never ask for the member list. Pictures of linked players and known Discord ids need no intent either way |
+| `ECHOVR_CLOUD_TRASH_DAYS` | `30` | Open Cloud: deleted files and folders stay this many days in the recycle bin (Console > Cloud > Recycle bin), then go for good. `0` = kept until a console user removes them. The recycle bin counts toward the quota |
+| `ECHOVR_CLAMAV` | – | Virus scan of cloud uploads (antivirus.py): ClamAV's daemon as `host:port`, `clamav:3310` with the `clamav` service of docker-compose.yml. Unset = no scanning. Files up to `ECHOVR_CLAMAV_MAX_MB` are held ("Checking for viruses") until clean |
+| `ECHOVR_CLAMAV_MAX_MB` | `100` | Bigger files are not scanned and are labelled "Not scanned". Raising it also needs ClamAV's own `MaxFileSize` / `MaxScanSize` raised (more RAM and time): the NAS YAML sets 1024 here and `MaxFileSize 1024M` / `MaxScanSize 2048M` on the clamav service (ClamAV's ceiling is 2 GB) |
+| `ECHOVR_VIRUSTOTAL_KEY` | – | VirusTotal fingerprint check of cloud files (only the SHA-256 is sent). Free key from virustotal.com. Secret: never in GitHub (upload_to_github.bat refuses it) |
+| `ECHOVR_VIRUSTOTAL_MIN_ENGINES` | `3` | Engines that must call a file malicious before it is quarantined (one or two alone are often false alarms) |
 | `ECHOVR_CLOUD_QUOTA_GB` | `250` | Open Cloud (D60): at most this many GB of files in `<data>/cloud`. `0` = no limit (an upload still never leaves less than 5 GB free on the disk) |
 | `ECHOVR_DISCORD_CLIENT_ID` / `_GUILD_ID` | `1214456381466222683` / `779349159852769310` | Bot application and EchoVR Combat server |
 
@@ -221,6 +226,12 @@ make folders, rename and delete. Console users have both. Files are kept on the 
 there. Space: `ECHOVR_CLOUD_QUOTA_GB` (250 GB by default, for everyone together). Big files are sent in 16 MB pieces, so Cloudflare's
 100 MB limit does not apply. Every upload, download, change and refused attempt is in Console > Audit log >
 Cloud audit log (who, when, file, size, IP; console users only) and in the container log.
+Virus scanning: the `clamav` service in docker-compose.yml (about 1.2-1.6 GB RAM; its virus list is kept in
+`/share/Container/echovr-replay-stats/clamav`, and it reads the app's data folder read-only at the same path `/data`).
+Uploads up to 100 MB wait as "Checking for viruses" until ClamAV calls them clean; a VirusTotal fingerprint check follows in
+the background when `ECHOVR_VIRUSTOTAL_KEY` is set. Finds go to Console > Cloud > Quarantine (delete, or release a false
+alarm). After setting it up, press **Scan all existing files** there once. Check it works: upload the standard EICAR test
+file (eicar.org); it must end up in the quarantine.
 
 ## Run (single server)
 ```

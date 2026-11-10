@@ -66,6 +66,14 @@ class Settings:
     discord_name_pictures: bool = True
     # Open Cloud (cloud.py): at most this many GB of files in <data>/cloud; 0 = no limit (the disk still keeps 5 GB free)
     cloud_quota_gb: float = 250.0
+    # Deleted cloud files stay in the recycle bin this many days (console users restore them), then go for good
+    cloud_trash_days: int = 30
+    # Virus scanning of cloud uploads (antivirus.py, user 2026-11-10): ClamAV's daemon "host:port" ("" = off), files up to
+    # clamav_max_mb are scanned before they can be downloaded; VirusTotal fingerprint check in the background ("" = off)
+    clamav_address: str = ""
+    clamav_max_mb: int = 100
+    virustotal_key: str = ""
+    virustotal_min_engines: int = 3  # engines that must call a file malicious before it is quarantined
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -94,6 +102,11 @@ class Settings:
             bot_link_secret=_secret(env("ECHOVR_BOT_LINK_SECRET")),
             remote_worker_secret=_secret(env("ECHOVR_REMOTE_WORKER_SECRET")),
             discord_name_pictures=env("ECHOVR_DISCORD_NAME_PICTURES", "1").strip().lower() in ("1", "true", "yes", "on"),
+            cloud_trash_days=int(env("ECHOVR_CLOUD_TRASH_DAYS", 30)),
+            clamav_address=_secret(env("ECHOVR_CLAMAV")),
+            clamav_max_mb=int(env("ECHOVR_CLAMAV_MAX_MB", 100)),
+            virustotal_key=_secret(env("ECHOVR_VIRUSTOTAL_KEY")),
+            virustotal_min_engines=int(env("ECHOVR_VIRUSTOTAL_MIN_ENGINES", 3)),
             cloud_quota_gb=float(env("ECHOVR_CLOUD_QUOTA_GB", 250)),
             discord_preview_roles=tuple(r.strip() for r in _secret(env("ECHOVR_DISCORD_PREVIEW_ROLES")).split(",") if r.strip()),
         )

@@ -13,12 +13,17 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
 
-from .. import auth, cloud, guard
+from .. import antivirus, auth, cloud, guard
 from ..cloud import CloudError
 from ..errors import ApiError
 
 router = APIRouter(prefix="/api/cloud", tags=["cloud"])
 log = logging.getLogger("uvicorn.error")
+WRITE_BLOCK = 1024 * 1024  # upload data is written in 1 MB blocks (one disk write and thread hop each, not one per 64 KB)
+
+
+class BigBlockFileResponse(FileResponse):
+    chunk_size = 1024 * 1024  # downloads read and sent in 1 MB blocks instead of Starlette's 64 KB: 16x fewer reads
 
 
 def _audit(request: Request, user: dict, action: str, path: str, ok: bool = True, detail: str | None = None,
@@ -57,16 +62,20 @@ def listing(request: Request, path: str = ""):
 @router.get("/download")
 def download(request: Request, path: str):
     user = _require(request, "download", path)
+    settings = request.app.state.settings
     try:
-        file = cloud.file_for_download(request.app.state.settings, path)
+        file = cloud.file_for_download(settings, path)
     except CloudError as e:
+        folder, _, name = path.strip("/").rpartition("/")
+        if e.code == "not_found" and any(p["name"] == name for p in antivirus.pending_in(settings, folder)):
+            e = CloudError(409, "scanning", "This file is still being checked for viruses. Try again in a moment.")
         _fail(request, user, "download", path, e)
     # a resumed download or a video player asks for parts: logged once, for the request from the start
     span = request.headers.get("range", "")
     if not span or span.replace(" ", "").startswith("bytes=0-"):
         _audit(request, user, "download", path, size=file.stat().st_size)
     # always a download, never shown as a page: an uploaded .html or .svg cannot run on this site (sandbox, octet-stream)
-    return FileResponse(file, filename=file.name, media_type="application/octet-stream",
+    return BigBlockFileResponse(file, filename=file.name, media_type="application/octet-stream",
                         content_disposition_type="attachment",
                         headers={"Content-Security-Policy": "sandbox", "Content-Encoding": "identity"})  # identity: no gzip of big files
 
@@ -74,6 +83,7 @@ def download(request: Request, path: str):
 class Target(BaseModel):
     path: str = ""
     name: str = ""
+    parents: bool = False  # folder: make the missing folders above it too
 
 
 @router.post("/folder")
@@ -81,7 +91,7 @@ def make_folder(request: Request, body: Target):
     where = cloud.relative_join(body.path, body.name)
     user = _require(request, "folder", where, edit=True, fresh=True)
     try:
-        result = cloud.make_folder(request.app.state.settings, body.path, body.name)
+        result = cloud.make_folder(request.app.state.settings, body.path, body.name, body.parents)
     except CloudError as e:
         _fail(request, user, "folder", where, e)
     _audit(request, user, "folder", result["path"])
@@ -102,26 +112,97 @@ def rename(request: Request, body: Target):
 @router.post("/delete")
 def delete(request: Request, body: Target):
     user = _require(request, "delete", body.path, edit=True, fresh=True)
-    settings = request.app.state.settings
     try:
-        size = cloud.size_of(settings, body.path)
-        cloud.delete(settings, body.path)
+        gone = cloud.delete(request.app.state.settings, body.path, user)
     except CloudError as e:
         _fail(request, user, "delete", body.path, e)
-    _audit(request, user, "delete", body.path, size=size)
+    _audit(request, user, "delete", body.path, detail="to the recycle bin", size=gone["size"])
     return {"ok": True}
+
+
+# --- recycle bin: console users (user, 2026-11-10: a Delete can be undone easily in the Console) -----------------------
+
+def _require_console(request: Request, action: str, fresh: bool = False) -> dict:
+    user = auth.viewer(request)
+    if not user:
+        raise ApiError(401, "login_required", "Log in with Discord")
+    if not auth.has_console(request, fresh=fresh):
+        _audit(request, user, "denied", "", False, f"{action}: console only")
+        raise ApiError(403, "console_only", "Only console users can use the cloud recycle bin")
+    return user
+
+
+@router.get("/trash")
+def trash(request: Request):
+    _require_console(request, "recycle bin")
+    settings = request.app.state.settings
+    expired = cloud.purge_expired(settings)
+    if expired:
+        log.warning("Cloud: %d recycle bin item(s) older than %d days removed for good", len(expired), settings.cloud_trash_days)
+    items = cloud.trash_items(settings)
+    return {"items": items, "bytes": sum(i["size"] for i in items), "days": settings.cloud_trash_days}
+
+
+class TrashChoice(BaseModel):
+    id: str = ""
+    all: bool = False  # purge: empty the whole recycle bin
+
+
+@router.post("/trash/restore")
+def trash_restore(request: Request, body: TrashChoice):
+    user = _require_console(request, "restore", fresh=True)
+    try:
+        result = cloud.restore(request.app.state.settings, body.id)
+    except CloudError as e:
+        _fail(request, user, "restore", body.id, e)
+    _audit(request, user, "restore", result["path"], detail="from the recycle bin", size=result["size"])
+    return result
+
+
+@router.post("/trash/purge")
+def trash_purge(request: Request, body: TrashChoice):
+    user = _require_console(request, "remove for good", fresh=True)
+    settings = request.app.state.settings
+    try:
+        if body.all:
+            result = cloud.purge_all(settings)
+            _audit(request, user, "purge", "(whole recycle bin)", detail=f"{result['count']} items", size=result["size"])
+        else:
+            result = cloud.purge(settings, body.id)
+            _audit(request, user, "purge", result["path"], detail="removed for good", size=result["size"])
+    except CloudError as e:
+        _fail(request, user, "purge", body.id, e)
+    return result
+
+
+@router.get("/upload/status")
+def upload_status(request: Request, upload: str, total: int):
+    """How much of this upload the server already has (user, 2026-11-10: an interrupted upload continues where it
+    stopped). The page derives the upload id from the file and where it goes, so choosing the same file again resumes."""
+    user = _require(request, "upload", "", edit=True)
+    try:
+        part = cloud.part_path(request.app.state.settings, user["id"], upload, total)
+    except CloudError as e:
+        raise ApiError(e.status, e.code, e.message) from None
+    return {"received": part.stat().st_size if part.is_file() else 0}
 
 
 @router.post("/upload")
 async def upload(request: Request, name: str, upload: str, offset: int, total: int, path: str = "",
-                 overwrite: bool = False):
+                 overwrite: bool = False, folders: bool = False):
     """One chunk of a file (the body, at most cloud.CHUNK_MAX bytes) at `offset` of `total`. The page sends the chunks
     in order with the same random `upload` id; the last one moves the file into the folder. Logged when the file is
     complete, or refused (a refusal only once: at the first chunk)."""
     settings = request.app.state.settings
     where = cloud.relative_join(path, name)
     first = offset == 0
-    user = await run_in_threadpool(_require, request, "upload", where, True, first)  # Discord asked again when a file starts
+    if first:  # Cloud edit checked when a file starts (roles remembered up to 5 minutes, not a Discord request per file: a
+        # folder of 300 files was 300 Discord requests); its part file is then this person's. Rename / delete ask fresh
+        user = await run_in_threadpool(_require, request, "upload", where, True, False)
+    else:  # later chunks: the login only (no permission queries per 16 MB); the part must be this person's own (below)
+        user = auth.viewer(request)
+        if not user:
+            raise ApiError(401, "login_required", "Log in with Discord to use the cloud")
     declared = request.headers.get("content-length", "")
     if declared.isdigit() and int(declared) > cloud.CHUNK_MAX:
         raise ApiError(413, "chunk_too_big", "Upload chunk too big")
@@ -133,9 +214,8 @@ async def upload(request: Request, name: str, upload: str, offset: int, total: i
 
     try:
         part = cloud.part_path(settings, user["id"], upload, total)
-        target = await run_in_threadpool(cloud.upload_target, settings, path, name, overwrite)
-        replacing = target.is_file()
         if first:
+            target = await run_in_threadpool(cloud.upload_target, settings, path, name, overwrite, folders)
             await run_in_threadpool(cloud.start_upload, settings, part, target, total, overwrite)
         else:
             have = part.stat().st_size if part.is_file() else -1
@@ -147,6 +227,7 @@ async def upload(request: Request, name: str, upload: str, offset: int, total: i
     except CloudError as e:
         await run_in_threadpool(fail, e)
     received = offset
+    block = bytearray()
     with open(part, "ab") as f:
         async for chunk in request.stream():
             received += len(chunk)
@@ -154,18 +235,85 @@ async def upload(request: Request, name: str, upload: str, offset: int, total: i
                 f.close()
                 part.unlink(missing_ok=True)
                 raise ApiError(400, "bad_upload", "More data than the file size given")
-            await run_in_threadpool(f.write, chunk)
+            block += chunk
+            if len(block) >= WRITE_BLOCK:
+                await run_in_threadpool(f.write, block)
+                block = bytearray()
+        if block:
+            await run_in_threadpool(f.write, block)
     if received < total:
         return {"done": False, "received": received}
     try:
         target = await run_in_threadpool(cloud.upload_target, settings, path, name, overwrite)  # still free?
-        await run_in_threadpool(cloud.finish_upload, settings, part, target)
+        replacing = target.is_file()
+        done = cloud.relative(settings, target)
+        if antivirus.scannable(settings, total):  # waits for its virus scan; not downloadable until clean
+            await run_in_threadpool(antivirus.hold, settings, part, done, overwrite, user, total)
+            cloud._adjust_usage(settings, total)
+            request.app.state.antivirus.notify()
+        else:
+            await run_in_threadpool(cloud.finish_upload, settings, part, target)
+            request.app.state.virustotal.enqueue(done, user)  # background fingerprint check (when a key is set)
     except CloudError as e:
         part.unlink(missing_ok=True)
         await run_in_threadpool(_fail, request, user, "upload", where, e, total)
-    done = cloud.relative(settings, target)
-    await run_in_threadpool(_audit, request, user, "upload", done, True, "replaced" if replacing else None, total)
-    return {"done": True, "received": received, "path": done}
+    scanning = antivirus.scannable(settings, total)
+    detail = ", ".join(x for x in ("replaced" if replacing else "", "checking for viruses" if scanning else "") if x) or None
+    await run_in_threadpool(_audit, request, user, "upload", done, True, detail, total)
+    return {"done": True, "received": received, "path": done, "scanning": scanning}
+
+
+# --- virus scanning: console users (user, 2026-11-10) -------------------------------------------------------------------
+
+@router.get("/quarantine")
+def quarantine(request: Request):
+    _require_console(request, "quarantine")
+    settings = request.app.state.settings
+    return {"items": antivirus.quarantine_items(settings), "scanner": antivirus.status(settings),
+            "virustotal": request.app.state.virustotal.status(), "waiting": antivirus.pending_count(settings),
+            "sweep": {k: v for k, v in request.app.state.antivirus.sweep.items() if k != "by"},
+            "scanner_error": request.app.state.antivirus.last_error}
+
+
+@router.post("/quarantine/delete")
+def quarantine_delete(request: Request, body: TrashChoice):
+    user = _require_console(request, "quarantine delete", fresh=True)
+    try:
+        result = antivirus.quarantine_delete(request.app.state.settings, body.id)
+    except CloudError as e:
+        _fail(request, user, "purge", body.id, e)
+    _audit(request, user, "purge", result["path"], detail=f"quarantined file deleted ({result['virus']})", size=result["size"])
+    return result
+
+
+@router.post("/quarantine/release")
+def quarantine_release(request: Request, body: TrashChoice):
+    """A false alarm: a console user lets the file into the cloud."""
+    user = _require_console(request, "quarantine release", fresh=True)
+    try:
+        result = antivirus.quarantine_release(request.app.state.settings, body.id)
+    except CloudError as e:
+        _fail(request, user, "release", body.id, e)
+    _audit(request, user, "release", result["path"], detail=f"released from the quarantine despite: {result['virus']}",
+           size=result["size"])
+    return result
+
+
+@router.post("/scan-all")
+def scan_all(request: Request):
+    """Every file already in the cloud: ClamAV where it is (and VirusTotal after), one at a time in the background."""
+    user = _require_console(request, "scan all", fresh=True)
+    settings = request.app.state.settings
+    if not (antivirus.enabled(settings) or settings.virustotal_key):
+        raise ApiError(409, "scanning_off", "Virus scanning is not set up (ECHOVR_CLAMAV / ECHOVR_VIRUSTOTAL_KEY)")
+    queued = request.app.state.antivirus.scan_existing(user)
+    if not antivirus.enabled(settings):  # ClamAV off: the sweep thread is not running, VirusTotal only
+        for folder in [cloud.root(settings)]:
+            for rel in [cloud.relative(settings, f) for f in folder.rglob("*") if f.is_file() and not f.is_symlink()]:
+                request.app.state.virustotal.enqueue(rel, user)
+        request.app.state.antivirus.sweep["running"] = False
+    _audit(request, user, "scan", "(all existing files)", detail=f"started: {queued} files")
+    return {"queued": queued}
 
 
 @router.get("/log")

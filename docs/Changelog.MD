@@ -18,6 +18,64 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.10.10 — 15:15
+
+- **NAS YAML tuned for 31 GB of RAM (user, 2026-11-10).** `ECHOVR_TRACK_CACHE_MB` 512 -> 3072 (every match's position data
+  stays in RAM: faster heatmaps and playback), `ECHOVR_DB_CACHE_MB` 1024 -> 2048 (room as the archive grows; shared cache,
+  given back when needed). Virus scan limit 100 MB -> 1 GB: `ECHOVR_CLAMAV_MAX_MB: "1024"`, and the clamav service adds
+  `MaxFileSize 1024M` / `MaxScanSize 2048M` to its own config at start (ClamAV cannot scan files over 2 GB at all). About
+  3-4 GB more RAM in use. Files over 1 GB are labelled "Not scanned".
+  To do: paste the new YAML in Container Station (keep your real secrets and VirusTotal key), Recreate.
+
+## 2026.11.10.9 — 15:06
+
+- **Virus and malware scanning of cloud uploads.** Two scanners:
+  - **ClamAV** (new `clamav` container in the NAS YAML, updates its virus list by itself): every upload of up to 100 MB
+    is checked **before** it can be downloaded. Meanwhile it shows as "Checking for viruses" on the Cloud page (no download,
+    no changes); a file it replaces stays available until the new one is clean. One file at a time, so the NAS keeps its CPU.
+    If ClamAV is down, files wait and are checked when it is back (they survive restarts).
+  - **VirusTotal** fingerprint check in the background (needs your free API key in the YAML): only the file's SHA-256 is
+    sent, never the file; results of about 70 engines for files seen before. 3 or more engines = quarantined. Paced to the
+    free key (1 every 15 s, 480 a day); files over 650 MB are skipped (VirusTotal cannot know them).
+  - A virus goes to the **quarantine**: Console > Cloud > **Quarantine** (console users only) shows both scanners' state,
+    the files found, **Delete** or **Release** (false alarm), and **Scan all existing files** for what was uploaded before.
+    Every scan, find and decision is in the Cloud audit log.
+  - Files over 100 MB are labelled **"Not scanned"** (ClamAV's own limit; it would otherwise call them clean unchecked).
+- **Fix found while testing:** two uploads finishing at the same moment could, with scanning on, put one file beside the
+  cloud folder instead of inside it. Waiting, recycle bin and quarantine boxes now appear complete or not at all.
+  To do on the NAS: paste the new YAML (the `clamav` service and the `ECHOVR_CLAMAV` / `ECHOVR_VIRUSTOTAL_KEY` lines), replace
+  `YOUR_VIRUSTOTAL_KEY` with your key, Recreate. ClamAV's first start downloads its virus list (a few minutes; uploads wait).
+  Then Console > Cloud > Quarantine > **Scan all existing files** once.
+
+## 2026.11.10.8 — 14:44
+
+- **Cloud recycle bin.** Delete on the Cloud page now moves the file or folder to a recycle bin instead of erasing it.
+  Console > **Cloud** > **Recycle bin** lists what was deleted, by whom and when, with **Restore** (back where it was; a new
+  name if something new took it, its folders made again if needed) and **Delete forever** / **Empty the recycle bin**.
+  Items go for good after 30 days (`ECHOVR_CLOUD_TRASH_DAYS`). The recycle bin counts toward the 250 GB; the Cloud page
+  shows how much of the space it holds. Restores and removals are in the Cloud audit log.
+- **Uploads continue where they stopped.** A dropped connection is retried 6 times (2 s to 1 min apart) and only the
+  missing part is sent again; choosing the same file again later (even after closing the tab, within a day) continues it.
+  Downloads already resume with the browser's own Resume button.
+- **Less NAS CPU for files** (dev PC, same test before and after): download 1 GB 81 % less CPU, folder of 300 small files
+  64 % less (and 2.8x faster), upload 1 GB 25 % less. Done by: a running total of the space used instead of counting every
+  file before each upload; the permission check once per file, not per 16 MB; 1 MB disk writes and download blocks instead
+  of 64 KB; deleting is one rename (instant, even for a big folder). An upload no longer asks Discord for the person's roles
+  once per file (a 300-file folder was 300 Discord requests).
+- **Fix:** uploading a folder could refuse some files as "outside the cloud folder" when several of its subfolders were
+  created at the same moment (seen on Windows). The path check now looks at each part for links instead.
+  To do: nothing.
+
+## 2026.11.10.7 — 14:27
+
+- **Cloud: many files and whole folders at once.** New **Upload folder** button (Windows' folder dialog) next to **Upload
+  files** (the file dialog, several files at once). Dropping folders on the page works too, folders inside folders and empty
+  folders included; the folder tree keeps its shape. More files can be added while an upload runs; 3 files go at once. One
+  summary line ("12 of 340 files done · 3 sending · 1.2 GB of 3.4 GB") with the files being sent and any that failed, plus
+  "Try the failed ones again". Names already in the folder: asked once whether to replace them. Closing the tab during an
+  upload asks first.
+  To do: nothing.
+
 ## 2026.11.10.6 — 13:49
 
 - **Discord request limits, so the bot is never flagged.** Every request the site sends to Discord (logins, role checks,
