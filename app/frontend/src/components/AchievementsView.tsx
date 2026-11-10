@@ -731,7 +731,7 @@ export function useAchievementsAccess(): AchievementsAccess {
 
 /** Before the launch: how many achievements per section, a few shown in full and a few more as hidden badges. */
 function SneakPeek({ peek }: { peek: AchievementPeek }) {
-  const newTotal = Object.values(peek.new).reduce((a, b) => a + b, 0);
+  const total = Object.values(peek.periods).reduce((a, b) => a + (b ?? 0), 0);
   return (
     <section className="sneak-peek">
       <div className="section-head">
@@ -763,7 +763,10 @@ function SneakPeek({ peek }: { peek: AchievementPeek }) {
           <strong>{peek.one_game}</strong> “In one game” challenges — every one needs at least 3 players on each team.
         </p>
       )}
-      <h3>Classic challenges</h3>
+      <h3>
+        Challenges <span className="muted hint">· {total}</span>
+      </h3>
+      <p className="muted">More being developed.</p>
       <div className="cards">
         {GROUPS.filter(([period]) => peek.periods[period]).map(([period, label]) => (
           <div key={period} className="card">
@@ -772,23 +775,6 @@ function SneakPeek({ peek }: { peek: AchievementPeek }) {
           </div>
         ))}
       </div>
-      {newTotal > 0 && (
-        <>
-          <h3>
-            New challenges <span className="tag">new</span> <span className="muted hint">· {newTotal}</span>
-          </h3>
-          <p className="muted">More being developed.</p>
-          <div className="cards">
-            {Object.entries(peek.new).map(([theme, count]) => (
-              <div key={theme} className="card">
-                <span className="label">{theme}</span>
-                <strong>{count}</strong>
-                {theme === "Experimental gear" && <span className="muted">Now public</span>}
-              </div>
-            ))}
-          </div>
-        </>
-      )}
     </section>
   );
 }

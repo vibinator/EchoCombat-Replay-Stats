@@ -18,6 +18,12 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.10.23 — 18:14
+
+- **"Coming soon" sneak peek: one list of challenges.** The "Classic challenges" and "New challenges" sections are merged
+  into a single "Challenges" count with one card per period (In one game, In one day, In any 7 days, All time); original,
+  new and Combat challenges are counted together. The per-theme cards are gone.
+
 ## 2026.11.10.22 — 17:59
 
 - **The "Coming soon" sneak peek now counts the Combat challenges** (a "Combat" card under New challenges, and in the

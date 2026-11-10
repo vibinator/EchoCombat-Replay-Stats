@@ -874,10 +874,9 @@ export interface ChallengeWindow {
 
 export interface AchievementPeek {
   periods: Partial<Record<AchievementRule["period"], number>>;
-  new: Record<string, number>; // theme -> count
   revealed: AchievementRule[]; // shown in full before the launch
   icons: string[]; // more badge pictures, shown blurred
-  one_game: number; // "In one game" challenges (all 3v3 or bigger), original and new
+  one_game: number; // "In one game" challenges (all 3v3 or bigger)
 }
 
 export interface Me {
