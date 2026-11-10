@@ -38,6 +38,59 @@ function setUnreachable(value: boolean) {
   connectionListeners.forEach((fn) => fn());
 }
 
+// ---- Site updates (2026-11-10) ----------------------------------------------------------------------------------------
+// Every /api answer says which version of the site built it (X-EchoVR-Build, middleware.py); this page knows the version
+// it was built as. An answer from a NEWER version: the site was updated while this tab was open. Its old pages may not
+// understand the new answers, and its page files are gone from the server, so the next page change reloads the tab
+// (App.tsx). An answer from an OLDER version: a copy Cloudflare kept from before the update: asked again past that copy.
+const MY_VERSION: string = __APP_VERSION__; // "" = unknown (version.py was not there at build time): none of this happens
+const versionParts = (v: string) => v.split(".").map(Number);
+function compareVersions(a: string, b: string): number {
+  const x = versionParts(a), y = versionParts(b);
+  for (let i = 0; i < Math.max(x.length, y.length); i++) {
+    const d = (x[i] || 0) - (y[i] || 0);
+    if (d) return d;
+  }
+  return 0;
+}
+let updated = false;
+const updateListeners = new Set<() => void>();
+export const siteUpdate = {
+  subscribe(fn: () => void) {
+    updateListeners.add(fn);
+    return () => void updateListeners.delete(fn);
+  },
+  /** the server runs a newer version than this tab */
+  available: () => updated,
+};
+/** -1 = the answer is from an older version than this page, 1 = newer (noted), 0 = same or unknown */
+function answerAge(res: Response): number {
+  const theirs = res.headers.get("X-EchoVR-Build");
+  if (!MY_VERSION || !theirs || !/^\d+(\.\d+)*$/.test(theirs)) return 0;
+  const d = Math.sign(compareVersions(theirs, MY_VERSION));
+  if (d > 0 && !updated) {
+    updated = true;
+    updateListeners.forEach((fn) => fn());
+  }
+  return d;
+}
+
+const RELOADED_KEY = "echovr-reloaded-at"; // not under STORE_PREFIX: it must outlive forgetting the saved answers
+const RELOAD_GAP_MS = 60_000;
+/** Reloads the tab to pick up the current version of the site, at most once a minute (never a reload loop).
+ *  false = it was reloaded moments ago already: whatever is wrong, another reload will not fix it. */
+export function reloadOnce(): boolean {
+  try {
+    const last = Number(window.sessionStorage.getItem(RELOADED_KEY)) || 0;
+    if (Date.now() - last < RELOAD_GAP_MS) return false;
+    window.sessionStorage.setItem(RELOADED_KEY, String(Date.now()));
+  } catch {
+    return false; // no storage to remember the reload in: do not risk a loop
+  }
+  window.location.reload();
+  return true;
+}
+
 const TIMEOUT_MS = 30_000; // a request still unanswered is given up (and a GET asked once more)
 // Heatmaps are built from every game's tracks: a cold one for a busy player takes 8-10 s on the NAS, longer while
 // replays are imported. They rarely change (kept by the server once built), so waiting longer beats "Server busy";
@@ -57,13 +110,14 @@ interface Reply<T> {
 
 async function fetchReply<T>(path: string, init?: RequestInit): Promise<Reply<T>> {
   const retryable = !init?.method || init.method === "GET";
+  let url = path;
   for (let attempt = 0; ; attempt++) {
     const timeout = new AbortController();
     const timer = setTimeout(() => timeout.abort(), path.includes("/heatmap") ? HEATMAP_TIMEOUT_MS : TIMEOUT_MS);
     let res: Response;
     try {
       // X-EchoVR: the server answers /api only to this site's own pages (scraper protection, D48)
-      res = await fetch(path, { ...init, signal: timeout.signal, headers: { "X-EchoVR": "1", ...init?.headers } });
+      res = await fetch(url, { ...init, signal: timeout.signal, headers: { "X-EchoVR": "1", ...init?.headers } });
     } catch {
       if (retryable && attempt === 0) {
         await pause(RETRY_MS);
@@ -80,6 +134,12 @@ async function fetchReply<T>(path: string, init?: RequestInit): Promise<Reply<T>
       continue;
     }
     setUnreachable(res.status >= 500);
+    if (answerAge(res) < 0 && retryable && url === path && res.ok) {
+      // kept by Cloudflare from before the update: the same question under an address it has no copy of
+      url = `${path}${path.includes("?") ? "&" : "?"}_v=${encodeURIComponent(MY_VERSION)}`;
+      attempt--;
+      continue;
+    }
     if (res.status === 429) {
       const seconds = Math.min(Math.max(Math.ceil(Number(res.headers.get("Retry-After"))) || 5, 1), 120);
       blockedUntil = Date.now() + seconds * 1000;
@@ -145,6 +205,13 @@ function forgetStored(keep: (key: string) => boolean = () => false): void {
   }
 }
 forgetStored((key) => key.startsWith(STORE_BUILD)); // answers saved by an older version of the site
+
+/** Forget every saved answer (memory and this tab's store): a page that crashed on one must not get it again. */
+export function forgetAnswers(): void {
+  entries.clear();
+  rechecks.clear();
+  forgetStored();
+}
 
 function setEntry(path: string, entry: Entry): void {
   entries.delete(path); // most recently used last
@@ -625,15 +692,15 @@ export interface AchievementRule {
   new: boolean; // added in this app (80+), not on the original ECRanked site
   group: string | null; // theme of a new achievement
   unit?: string; // ladder targets are in this unit ("%", " m/s", " min"); empty = a count
-  levels?: number[] | null; // tiered achievements: count targets for bronze, gold, platinum, crown
+  levels?: number[] | null; // tiered achievements: count targets for bronze, silver, gold, crown
   prize?: string | null; // Mega Prize (in-game item) for completing it
 }
 
-export const LEVELS = ["bronze", "gold", "platinum", "crown"] as const;
+export const LEVELS = ["bronze", "silver", "gold", "crown"] as const;
 
 export interface Achievement extends AchievementRule {
   progress: number;
-  tier: "white" | "bronze" | "silver" | "gold" | "platinum" | "crown" | null;
+  tier: "white" | "bronze" | "silver" | "gold" | "crown" | null;
   unlocked_at: string | null;
   count?: number; // tiered achievements: games counted so far
   try_next?: { weapon: string; tacmod: string; ordnance: string; label: string }[]; // "Different loadouts": ones this player has not tried
@@ -1015,7 +1082,7 @@ export interface AchievementRarity extends AchievementRule {
 export interface RecentUnlock {
   date: string;
   at: string; // started_at of the game that earned it, "YYYY-MM-DDTHH:MM:SS"
-  medal: "bronze" | "gold" | "platinum" | "crown" | null; // null = a single-step challenge, completed
+  medal: "bronze" | "silver" | "gold" | "crown" | null; // null = a single-step challenge, completed
   user_id: string;
   name: string;
   id: number;
@@ -1085,7 +1152,7 @@ export interface Achiever {
   completed: number; // challenges at 100 %
   total: number;
   medals: number; // ladder steps reached (a single-step challenge counts once)
-  gold_plus: number; // challenges at gold or better
+  gold_plus: number; // challenges at silver or better
   best_section: string | null; // section with the highest average progress
   best_section_share: number;
 }

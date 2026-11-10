@@ -7,6 +7,8 @@ WORKDIR /src/app/frontend
 COPY app/frontend/package.json app/frontend/package-lock.json ./
 RUN npm ci
 COPY app/frontend/ ./
+# the site is built knowing its version (vite.config.ts): pages opened before an update notice it and reload
+COPY app/backend/version.py /src/app/backend/version.py
 RUN npm run build
 
 # 2) Python server + built website

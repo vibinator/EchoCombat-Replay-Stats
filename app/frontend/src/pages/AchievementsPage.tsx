@@ -74,7 +74,7 @@ function TopPlayers() {
             <strong className="big">
               {int(p.completed)} <span className="muted">/ {int(p.total)} completed</span>
             </strong>
-            <span className="muted" title="Gold or better = challenges where the player reached the gold, platinum or crown medal">{int(p.gold_plus)} challenges at gold or better</span>
+            <span className="muted" title="Silver or better = challenges where the player reached the silver, gold or crown medal">{int(p.gold_plus)} challenges at silver or better</span>
             <span className="muted" title="Every medal step reached, added up across all challenges (a challenge can give up to 4)">{int(p.medals)} medals earned in total</span>
             {p.best_section && <span className="muted">Best category: {p.best_section} ({pct(p.best_section_share)} done)</span>}
             <span className="muted">Avg progress {pct(p.overall)}</span>

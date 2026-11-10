@@ -460,7 +460,7 @@ function TierSteps({ a }: { a: Achievement & AchievementRule }) {
 }
 
 /** The medal ladder as four dots on a compact tile (user, 2026-11-07, Achievements idea 4): filled = earned, half = the
- *  one being chased, empty = later. Ladders use bronze / gold / platinum / crown; single-step rules their percentage steps. */
+ *  one being chased, empty = later. Ladders use bronze / silver / gold / crown; single-step rules their percentage steps. */
 function MedalDots({ a }: { a: Achievement }) {
   const steps = a.levels && a.count != null
     ? a.levels.map((need, i) => ({ medal: LEVELS[i], done: a.count! >= need }))
@@ -503,7 +503,7 @@ function nextMedalFraction(a: Achievement): number | null {
 
 /** Medal colour of a section's overall progress (ladders give 25 % per medal: bronze 25 ... crown 100 %). */
 function sectionMedal(progress: number): string | null {
-  return progress >= 1 ? "crown" : progress >= 0.75 ? "platinum" : progress >= 0.5 ? "gold" : progress >= 0.25 ? "bronze" : null;
+  return progress >= 1 ? "crown" : progress >= 0.75 ? "gold" : progress >= 0.5 ? "silver" : progress >= 0.25 ? "bronze" : null;
 }
 
 const EASY_SHOWN = 12;
@@ -902,7 +902,7 @@ function StripBody({ userId, onOpen }: { userId: string; onOpen: () => void }) {
   const counted = d.items.filter((a) => a.counted && !a.prize);
   const crowns = counted.filter((a) => a.progress >= 1).length;
   // one coloured segment per medal level, highest first: every crown has its own share of the bar (user, 2026-11-06)
-  const segments = ([["crown", crowns], ...(["platinum", "gold", "bronze"] as const).map((m) => [m, counted.filter((a) => a.progress < 1 && a.levels && a.tier === m).length] as const)] as const)
+  const segments = ([["crown", crowns], ...(["gold", "silver", "bronze"] as const).map((m) => [m, counted.filter((a) => a.progress < 1 && a.levels && a.tier === m).length] as const)] as const)
     .filter(([, n]) => n > 0);
   const next = pickGoals(userId, counted);
   return (
@@ -1081,7 +1081,7 @@ export function AchievementRules({ open = false }: { open?: boolean }) {
       <summary>Rules</summary>
       <ul>
         <li>
-          <strong>Medals.</strong> Almost every challenge is a ladder: bronze, gold, platinum and a gold crown with a pink diamond for completing it. The bar has one step per medal, the
+          <strong>Medals.</strong> Almost every challenge is a ladder: bronze, silver, gold and a purple crown for completing it. The bar has one step per medal, the
           colour of a name is the medal reached and the number under each step is its target. A few single-step challenges keep white 25%, bronze
           50%, silver 75%, gold 100%.
         </li>
@@ -1096,7 +1096,7 @@ export function AchievementRules({ open = false }: { open?: boolean }) {
         <li>
           <strong>Nothing is locked.</strong> Every challenge is open from your first game, in any order. Daily challenges suit a short session,
           "any 7 days" ones sit in between, and the all-time ones count every game you have played, so daily and weekly play always adds to them.
-          Medal Collector counts the gold (or better) medals you hold on all the others.
+          Medal Collector counts the silver (or better) medals you hold on all the others.
         </li>
         <li>
           <strong>Each achievement lists its own rules</strong> under its description: whether the best game, day or 7 days counts, whether games

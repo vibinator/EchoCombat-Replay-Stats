@@ -19,7 +19,7 @@ TACMODS = [("heal", "Repair Matrix", "repair_matrix"), ("sensor", "Threat Scanne
 SLOTS = {"weapon": 0, "tacmod": 1, "ordnance": 2}  # index into the (weapon, tacmod, ordnance) loadout key
 # Unreleased gear seen in recent replays. Attack Drone, Umbral Veil and Neutron are left out: each appears in 35
 # games or fewer in the 2026 archive and in none of the 30-31 Oct 2026 replays. Overcharge got a low target (112).
-MEDAL_LEVELS = (5, 10, 25, 50, 75)  # Medal Collector: gold-or-better medals held; archive: 36 % bronze, 20 % silver, 11 % gold, 5 % diamond, 1 % platinum
+MEDAL_LEVELS = (5, 10, 25, 50, 75)  # Medal Collector: silver-or-better medals held; archive: 36 % bronze, 20 % silver, 11 % gold, 5 % diamond, 1 % platinum
 MAPS = ("dyson", "combustion", "fission", "surge")
 UNRELEASED_WEAPONS = [("rifle", "Starburst"), ("magnum", "Protostar"), ("smg", "Quark"), ("chain", "Blazar")]
 # Badge art for the gear released 2026-10-30 (made from the loadout icons in public/icons). Dot Field and Overcharge
@@ -160,17 +160,17 @@ class Rule:
 
 
 # Tiered rules (user, 2026-10-31): almost every rule is a ladder. Order (user, 2026-10-31): bronze, silver, gold, diamond, platinum (platinum is the top medal).
-LEVELS = ("bronze", "gold", "platinum", "crown")  # user, 2026-11-06: four medals; the crown (gold with a pink diamond) = completed
+LEVELS = ("bronze", "silver", "gold", "crown")  # user, 2026-11-10: bronze > silver > gold > crown (purple) = completed (was bronze, gold, platinum, crown)
 
 
 def four_medals(levels: tuple[float, ...]) -> tuple[float, ...]:
     """The five written / tuned targets (bronze, silver, gold, diamond, platinum) as the four medals: the same range, silver
-    dropped (bronze = first target, gold = old gold, platinum = old diamond, crown = old platinum; user, 2026-11-06)."""
+    dropped (bronze = first target, silver = old gold, gold = old diamond, crown = old platinum; user, 2026-11-06, renamed 2026-11-10)."""
     return (levels[0], *levels[2:]) if len(levels) == 5 else levels
 
 
 def _levelled(count, levels: tuple[float, ...]):
-    """Progress spread evenly over the medals: bronze 25 %, gold 50 %, platinum 75 %, crown 100 %, partial in between."""
+    """Progress spread evenly over the medals: bronze 25 %, silver 50 %, gold 75 %, crown 100 %, partial in between."""
     def score(games):
         n, prev = count(games), 0
         for i, need in enumerate(levels):
@@ -730,7 +730,7 @@ def _build_rules() -> list[Rule]:
     i = 30
     for slot, items in (("weapon", WEAPONS), ("ordnance", ORDNANCES), ("tacmod", TACMODS)):
         for code, label, icon in items:
-            rules.append(_ladder(i, names[code], f"Play games using only {label} in any 7 days, gold and up on at least {WEEK_MIN_DAYS} different days", icon,
+            rules.append(_ladder(i, names[code], f"Play games using only {label} in any 7 days, silver and up on at least {WEEK_MIN_DAYS} different days", icon,
                                  _only_games(slot, code, WEEK_MIN_DAYS), GEAR_WEEK, "week"))
             i += 1
     rules += [
@@ -850,7 +850,7 @@ def _build_rules() -> list[Rule]:
         _ladder(125, "Nothing Leaves Kronos II (Payload)", "Total time spent blocking the payload", "payload", lambda gs: sum(g.block_s for g in gs) / 60, (2, 10, 30, 60, 120),
                 "all", " min", estimated=True, new=True, group="Payload"),
         # Medal Collector counts the other rules' medals; filled in by evaluate() (meta)
-        _ladder(126, "Medal Collector", "Earn gold or better on other challenges (each challenge counts once, Test Drives do not count)", None, lambda gs: 0.0, MEDAL_LEVELS,
+        _ladder(126, "Medal Collector", "Earn silver or better on other challenges (each challenge counts once, Test Drives do not count)", None, lambda gs: 0.0, MEDAL_LEVELS,
                 new=True, group="Activity", meta=True),
     ]
     # Gear released on 2026-10-30 gets what the older gear has: "only X" in a week (127-130) and Overcharge in a day / week
@@ -858,12 +858,12 @@ def _build_rules() -> list[Rule]:
     weekly = (("weapon", "rifle", "Starburst", "Star Power"), ("weapon", "magnum", "Protostar", "Protostar Powerhouse"),
               ("weapon", "smg", "Quark", "Quark Quake"), ("ordnance", "loc", "Translocator", "Blink and You'll Miss It"))
     for i, (slot, code, label, name) in enumerate(weekly, 127):
-        rules.append(_ladder(i, name, f"Play games using only {label} in any 7 days, gold and up on at least {WEEK_MIN_DAYS} different days", GEAR_ICONS[code],
+        rules.append(_ladder(i, name, f"Play games using only {label} in any 7 days, silver and up on at least {WEEK_MIN_DAYS} different days", GEAR_ICONS[code],
                              _only_games(slot, code, WEEK_MIN_DAYS), GEAR_WEEK, "week", new=True, group="Experimental gear"))
     rules += [
         _ladder(131, "Full Charge", "Play games using only Overcharge in one day", None,
                 _only_games("tacmod", "buff"), GEAR_DAY, "day", new=True, group="Experimental gear"),
-        _ladder(132, "Charged Up", f"Play games using only Overcharge in any 7 days, gold and up on at least {WEEK_MIN_DAYS} different days", None,
+        _ladder(132, "Charged Up", f"Play games using only Overcharge in any 7 days, silver and up on at least {WEEK_MIN_DAYS} different days", None,
                 _only_games("tacmod", "buff", WEEK_MIN_DAYS), GEAR_WEEK, "week", new=True, group="Experimental gear"),
         # Blazar and Dot Field were released too (user, 2026-10-31): the same set as the other new gear
         _ladder(133, "Blazar Veteran", "Play games using Blazar", "blazar", _games_using("weapon", "chain"), GEAR_VETERAN,
@@ -874,9 +874,9 @@ def _build_rules() -> list[Rule]:
                 _only_games("weapon", "chain"), GEAR_DAY, "day", new=True, group="Experimental gear"),
         _ladder(136, "Dot to Dot", "Play games using only Dot Field in one day", None,
                 _only_games("ordnance", "dot"), GEAR_DAY, "day", new=True, group="Experimental gear"),
-        _ladder(137, "Blazar Barrage", f"Play games using only Blazar in any 7 days, gold and up on at least {WEEK_MIN_DAYS} different days", "blazar",
+        _ladder(137, "Blazar Barrage", f"Play games using only Blazar in any 7 days, silver and up on at least {WEEK_MIN_DAYS} different days", "blazar",
                 _only_games("weapon", "chain", WEEK_MIN_DAYS), GEAR_WEEK, "week", new=True, group="Experimental gear"),
-        _ladder(138, "Dot Matrix", f"Play games using only Dot Field in any 7 days, gold and up on at least {WEEK_MIN_DAYS} different days", None,
+        _ladder(138, "Dot Matrix", f"Play games using only Dot Field in any 7 days, silver and up on at least {WEEK_MIN_DAYS} different days", None,
                 _only_games("ordnance", "dot", WEEK_MIN_DAYS), GEAR_WEEK, "week", new=True, group="Experimental gear"),
     ]
 
@@ -961,7 +961,7 @@ def rule_notes(rule: Rule) -> list[str]:
     if getattr(fn, "use_only", False) or rule.id in _NOTE_ONLY_IDS:
         notes.append(f"\"Only\" = {ONLY_SHARE:.0%}+ of the game")
     if getattr(fn, "min_days", 0) and rule.period == "week":
-        notes.append(f"Gold+: {fn.min_days}+ different days")
+        notes.append(f"Silver+: {fn.min_days}+ different days")
     if rule.id == 67:
         notes.append(f"{LOADOUT_USED_S / 60:g}+ min per loadout")
     return [n for n in notes if n]
@@ -1057,7 +1057,7 @@ def _groups(games: list[Game], period: str) -> list[list[Game]]:
 
 
 def _reached_gold(entry: dict, rule: Rule) -> bool:
-    """Medal Collector: a ladder counts from gold (second medal) on, a single-step rule when completed."""
+    """Medal Collector: a ladder counts from silver (second medal) on, a single-step rule when completed."""
     return entry["count"] >= rule.levels[1] if rule.levels else entry["progress"] >= 1
 
 

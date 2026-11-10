@@ -113,11 +113,11 @@ def test_side_jobs_run_apart_from_the_replay_pool(settings):
 
     worker = Worker(None, settings)  # workers=0 in the tests: threads
     assert worker.run_side(pow, 2, 5).result(timeout=10) == 32
-    assert worker._pool is None and worker._side is not None  # the replay pool was not used (nor created)
+    assert worker._pool is None and worker._sides.get("side") is not None  # the replay pool was not used (nor created)
     worker._stop.set()
     with pytest.raises(RuntimeError):  # stopping: no new jobs
         worker.run_side(pow, 2, 5)
-    worker._side.shutdown()
+    worker._sides["side"].shutdown()
 
 
 def test_side_pool_that_crashed_is_replaced_and_leaves_the_replay_pool_alone(settings):
@@ -137,4 +137,4 @@ def test_side_pool_that_crashed_is_replaced_and_leaves_the_replay_pool_alone(set
         assert not worker._in_flight  # and no replay was blamed for the crash
     finally:
         main.shutdown()
-        worker._side.shutdown()
+        worker._sides["side"].shutdown()

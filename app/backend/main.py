@@ -53,6 +53,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.worker = Worker(app.state.sessionmaker, settings)
         app.state.scanner = Scanner(app.state.sessionmaker, settings, on_queued=app.state.worker.notify)
         app.state.worker.start()
+        if settings.workers > 0:  # achievement calculations in the worker's side processes, not in the web server's threads
+            achievements.offload(app.state.sessionmaker, app.state.worker, settings)
         app.state.combat = combat.CombatIngest(app.state.sessionmaker, settings)
 
         def cloud_audit(user, action, path, ok=True, detail=None, size=None):  # the scanners write the cloud audit log
@@ -81,6 +83,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             app.state.scanner.stop()
             app.state.combat.stop()
             app.state.arena.stop()
+        achievements.stop_offload(app.state.sessionmaker)
         app.state.worker.stop()
         app.state.antivirus.stop()
         app.state.virustotal.stop()

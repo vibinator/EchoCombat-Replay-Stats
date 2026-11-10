@@ -35,7 +35,7 @@ Line numbers drift; `SYMBOLS.md` (generated) has the current ones. Paths are und
 - Errors: `backend/errors.py: ApiError(status, code, message)` → `{error_code, message}`; FastAPI validation errors are **not** wrapped (`{detail: [...]}`).
 - Request gate: `backend/middleware.py: SiteMiddleware` (replay-file paths 404, non-GET 405 unless in `WRITES` / `BOT`, then `guard.check`) → `backend/guard.py` (UA + `X-EchoVR` + token buckets).
 - Overview / home: `api/overview.py`; matches: `api/matches.py` (heatmap, playback, playback3d, export); players: `api/players.py`; leaderboard: `api/leaderboard.py`;
-  achievements: `api/achievements.py` (+ ranking cache file `achievements-cache.pkl`); combat: `api/combat.py`; arena / mega prizes: `api/arena.py`, `backend/mega_prizes.py`.
+  achievements: `api/achievements.py` (+ ranking cache file `achievements-cache.pkl`; calculations run in the worker's side processes, `worker.run_side` lanes); combat: `api/combat.py`; arena / mega prizes: `api/arena.py`, `backend/mega_prizes.py`.
 
 ## Auth and staff — `app/backend/auth.py`, `api/auth.py`, `api/console.py`, `api/permissions.py`, `api/admin.py`, `api/profiles.py`
 - `auth.enabled(settings)` needs client secret + bot token (+ ids). Session = signed cookie `echovr_session` (`auth.sign / unsign`, key `data/session.key`).

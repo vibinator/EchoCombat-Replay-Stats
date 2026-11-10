@@ -34,7 +34,10 @@ from .tracks3d import Recorders, Track3DRecorder
 log = logging.getLogger(__name__)
 
 MAX_CRASHES = 2  # a file in flight during this many pool crashes is marked failed ("crashed")
-SIDE_WORKERS = 2  # processes for one-off jobs (3D tracks on first view), apart from the replay pool
+SIDE_WORKERS = 2  # processes for one-off jobs (3D tracks on first view, a busy player's achievements), apart from the replay pool
+# Side pools by name. "ranking": the everyone-ranking of the achievements has a process to itself, so a long build never
+# makes a one-off job wait, and that process keeps every player's results in memory between builds (api/achievements.py)
+LANES = {"side": SIDE_WORKERS, "ranking": 1}
 
 
 def _pool_process_start() -> None:
@@ -230,7 +233,7 @@ class Worker:
         self._started: dict[int, tuple[str, float]] = {}  # replay_id -> (source_path, monotonic start)
         self._crashes: Counter[int] = Counter()
         self._pool: Executor | None = None
-        self._side: Executor | None = None  # one-off jobs: a crash there never touches replay processing
+        self._sides: dict[str, Executor] = {}  # lane -> pool for one-off jobs: a crash there never touches replay processing
         self._side_lock = threading.Lock()
         self._thread = threading.Thread(target=self._run, name="replay-worker", daemon=True)
 
@@ -248,24 +251,25 @@ class Worker:
     def notify(self) -> None:
         self._wake.set()
 
-    def run_side(self, fn, *args) -> Future:
-        """A one-off job (3D tracks on first view) in its own small pool of low-priority processes: it does not wait
-        behind a backlog of replays, and a crash in it (a damaged replay running out of memory) is not blamed on the
-        replays in flight. A pool that broke is replaced. RuntimeError = the worker is stopping."""
+    def run_side(self, fn, *args, lane: str = "side") -> Future:
+        """A one-off job (3D tracks on first view, achievement calculations) in a small pool of low-priority processes
+        of its own (LANES): it does not wait behind a backlog of replays, it never holds up the web server's own
+        threads, and a crash in it (a damaged replay running out of memory) is not blamed on the replays in flight.
+        A pool that broke is replaced. RuntimeError = the worker is stopping."""
         future = pool = None
         with self._side_lock:
             for _attempt in range(2):
                 if self._stop.is_set():
                     raise RuntimeError("The worker is stopping")
-                if self._side is None:
-                    self._side = self._new_pool(SIDE_WORKERS)
-                pool = self._side
+                pool = self._sides.get(lane)
+                if pool is None:
+                    pool = self._sides[lane] = self._new_pool(LANES[lane])
                 try:
                     future = pool.submit(fn, *args)
                     break
                 except (BrokenProcessPool, RuntimeError):
                     pool.shutdown(wait=False, cancel_futures=True)
-                    self._side = None
+                    self._sides.pop(lane, None)
         if future is None:
             raise RuntimeError("The side pool could not be started")
         # outside the lock: a job that is already finished runs the callback at once, and the callback takes the lock
@@ -279,8 +283,8 @@ class Worker:
         # no shutdown() here: this runs inside the broken pool's own thread, under its lock (it would wait for itself);
         # a broken pool has already ended its processes
         with self._side_lock:
-            if self._side is pool:
-                self._side = None
+            for lane in [name for name, p in self._sides.items() if p is pool]:
+                del self._sides[lane]
 
     def stop(self) -> None:
         self._stop.set()
@@ -288,8 +292,8 @@ class Worker:
         self._thread.join()
         self._pool.shutdown(wait=True, cancel_futures=True)
         with self._side_lock:
-            side, self._side = self._side, None
-        if side is not None:
+            sides, self._sides = list(self._sides.values()), {}
+        for side in sides:
             side.shutdown(wait=True, cancel_futures=True)
 
     @property

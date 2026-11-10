@@ -48,6 +48,32 @@ def open_db(db_path: Path, cache_mb: int = 0) -> tuple[Engine, sessionmaker]:
     return engine, sessionmaker(engine, expire_on_commit=False)
 
 
+_readers: dict[str, sessionmaker] = {}
+
+
+def open_reader(db_path: str, cache_mb: int = 0) -> sessionmaker:
+    """Read-only sessions for a helper process (the achievement calculations, api/achievements.py): no tables are created
+    or changed here, the web server did that when it started. One engine per database per process."""
+    sessions = _readers.get(db_path)
+    if sessions is None:
+        engine = create_engine(f"sqlite:///{db_path}", connect_args={"check_same_thread": False, "timeout": BUSY_TIMEOUT_S})
+
+        @event.listens_for(engine, "connect")
+        def _pragmas(conn, _record):
+            cur = conn.cursor()
+            cur.execute(f"PRAGMA busy_timeout={BUSY_TIMEOUT_S * 1000}")
+            cur.execute("PRAGMA query_only=ON")
+            if cache_mb > 0:
+                cur.execute(f"PRAGMA mmap_size={cache_mb * 1024 * 1024}")
+                cur.execute("PRAGMA cache_size=-32768")
+            cur.close()
+
+        from . import models  # noqa: F401  registers tables on Base
+
+        sessions = _readers[db_path] = sessionmaker(engine, expire_on_commit=False)
+    return sessions
+
+
 def warm(db_path: Path, cache_mb: int) -> None:
     """Read the database file once in the background so the first visitors do not wait on the disk (D49)."""
     def _read():

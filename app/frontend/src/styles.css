@@ -3,9 +3,8 @@
   --tier-bronze: #d08a4b;
   --tier-silver: #b9c2d0;
   --tier-gold: #f0c230;
-  --tier-platinum: #5fd6c8;
   --tier-diamond: #6cb8ff;
-  --tier-crown: #ff5fae;
+  --tier-crown: #a855f7;
   --tier-bar-default: var(--blue);
   --bg: #16181c;
   --panel: #1f2228;
@@ -800,7 +799,6 @@ svg .crosshair {
 .t-bronze { --tier: var(--tier-bronze); }
 .t-silver { --tier: var(--tier-silver); }
 .t-gold { --tier: var(--tier-gold); }
-.t-platinum { --tier: var(--tier-platinum); }
 .t-diamond { --tier: var(--tier-diamond); }
 .t-crown { --tier: var(--tier-crown); }
 
@@ -974,9 +972,8 @@ nav {
   --tier-bronze: #8f500f;
   --tier-silver: #576173;
   --tier-gold: #8a6500;
-  --tier-platinum: #0a766b;
   --tier-diamond: #1560b5;
-  --tier-crown: #c2186f;
+  --tier-crown: #7c3aed;
   --bg: #f4f5f7;
   --panel: #ffffff;
   --line: #d9dce1;
@@ -1865,7 +1862,6 @@ td.best {
 .recent-unlocks .recent-glyph.t-silver { --tier: var(--tier-silver); }
 .recent-unlocks .recent-glyph.t-gold { --tier: var(--tier-gold); }
 .recent-unlocks .recent-glyph.t-diamond { --tier: var(--tier-diamond); }
-.recent-unlocks .recent-glyph.t-platinum { --tier: var(--tier-platinum); }
 .recent-unlocks .recent-glyph.t-crown { --tier: var(--tier-crown); }
 .recent-unlocks img {
   flex: none;
@@ -1901,7 +1897,6 @@ td.best {
 .medal-chip.silver { --tier: var(--tier-silver); }
 .medal-chip.gold { --tier: var(--tier-gold); }
 .medal-chip.diamond { --tier: var(--tier-diamond); }
-.medal-chip.platinum { --tier: var(--tier-platinum); }
 .medal-chip.crown { --tier: var(--tier-crown); }
 .note.ended {
   border-left-color: var(--muted);
@@ -3993,7 +3988,6 @@ button.small {
 .medal-dots .t-silver i { background: var(--tier-silver); }
 .medal-dots .t-gold i { background: var(--tier-gold); }
 .medal-dots .t-diamond i { background: var(--tier-diamond); }
-.medal-dots .t-platinum i { background: var(--tier-platinum); }
 .medal-dots .t-crown i { background: var(--tier-crown); }
 .card-more summary {
   cursor: pointer;
@@ -4242,8 +4236,8 @@ button.small {
 
 /* Crown = a gold crown with a pink diamond: its icon glyph and name use the same gold-to-pink as the frame (user, 2026-11-06:
    icon colours match the achievement colour). The medal frames themselves were recoloured to the exact tier colours above. */
-.t-crown { --tier-fill: linear-gradient(135deg, #f0c230 0%, #f0c230 45%, #ff5fae 100%); }
-:root[data-theme="light"] .t-crown { --tier-fill: linear-gradient(135deg, #8a6500 0%, #8a6500 45%, #c2186f 100%); }
+.t-crown { --tier-fill: #a855f7; }
+:root[data-theme="light"] .t-crown { --tier-fill: #7c3aed; }
 .badge-card.t-crown .badge-text strong,
 .badge-card.t-crown .tier-name {
   background: var(--tier-fill);
@@ -4267,11 +4261,12 @@ button.small {
 .avatar.placeholder { display: inline-flex; align-items: center; justify-content: center; font-size: calc(var(--avatar, 24px) * 0.45); font-weight: 700; color: var(--muted, #9aa0a6); border: 1px solid var(--line); }
 .podium-step .avatar { margin: 0 auto 4px; }
 
-/* player strip: the bar is split by best medal, crowns first in the crown colour, then platinum, gold and bronze (user, 2026-11-06) */
+/* player strip: the bar is split by best medal, crowns first in the crown colour, then gold, silver and bronze (user, 2026-11-06) */
 .strip-bar { display: flex; flex: 1 1 140px; min-width: 100px; max-width: 320px; height: 0.7rem; border-radius: 999px; overflow: hidden; background: var(--panel-2, rgba(255, 255, 255, 0.08)); }
 .strip-bar i { display: block; height: 100%; background: var(--tier-fill, var(--tier)); min-width: 2px; }
 .strip-bar i + i { box-shadow: -1px 0 0 var(--panel); }
 .strip-medals i { background: var(--tier-fill, var(--tier)); }
+/* the crown is purple in the player-profile Achievements strip (user, 2026-11-10) */
 
 .strip-goals { margin: 10px 0 0; font-size: 0.8rem; }
 

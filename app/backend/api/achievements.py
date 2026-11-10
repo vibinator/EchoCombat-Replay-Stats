@@ -1,12 +1,17 @@
 """Achievements / Flamingo Challenges per player, rarity, recent unlocks, the achievement ranking, and the
 challenge period (Phase 8, D17, D31, D33). Read-only: the period and player merges are set in the admin console."""
 
+import functools
 import gc
 import hashlib
+import logging
+import marshal
 import pickle
 import threading
 import time
 import zlib
+from concurrent.futures import CancelledError
+from concurrent.futures.process import BrokenProcessPool
 from contextlib import contextmanager
 from pathlib import Path
 from collections import defaultdict
@@ -19,13 +24,15 @@ from .. import auth, combat_achievements, icons
 from ..achievements import RULES, Game, evaluate, icon_file, in_window, medal_times, overall, rule_notes, unlock_dates, unlock_threshold
 from ..admin_actions import (WINDOW_KEYS, achievements_counting, achievements_launched, achievements_visibility,
                              challenge_window, previews_can_see)
+from .. import achievements as engine, gear as gear_tables
 from ..cache import cached, current_stamp
+from ..db import open_reader
 from ..duplicates import counted
 from ..errors import ApiError
 from ..models import AppSetting, Match, MatchPlayer, MatchPlayerLoadout, Player
-from ..version import APP_VERSION
 
 router = APIRouter(tags=["achievements"])
+log = logging.getLogger(__name__)
 
 RARITY_MIN_GAMES = 10
 RECENT_DAYS = 30
@@ -108,8 +115,9 @@ FINGERPRINT_MASK = (1 << 64) - 1
 
 
 def _stable_hash(row: tuple) -> int:
-    """Same value in every process (str hash() is randomised), so the results can be kept on disk across restarts."""
-    return zlib.crc32(repr(row).encode())
+    """Same value in every process (str hash() is randomised), so the results can be kept on disk across restarts.
+    marshal: the row's exact values as bytes, twice as fast as repr() over the archive's 620k rows."""
+    return zlib.crc32(marshal.dumps(row))
 
 
 def _games(db, player_ids: list[int] | None = None, fingerprints: dict[int, int] | None = None) -> dict[int, list[Game]]:
@@ -140,14 +148,15 @@ def _games(db, player_ids: list[int] | None = None, fingerprints: dict[int, int]
     if player_ids is not None:
         size_query = size_query.where(MatchPlayer.match_id.in_(
             select(MatchPlayer.match_id).where(MatchPlayer.player_id.in_(player_ids))))
-    sizes = {(m, t): n for m, t, n in db.execute(size_query)}
+    rows = db.connection()  # plain rows, without the ORM's per-row handling (a quarter of the time over the whole archive)
+    sizes = {(m, t): n for m, t, n in rows.execute(size_query)}
     loadouts: dict[tuple[int, int], dict] = defaultdict(dict)
-    for row in db.execute(lo_query):
+    for row in rows.execute(lo_query):
         match_id, player_id, weapon, tacmod, ordnance, frames = row = tuple(row)
         loadouts[(match_id, player_id)][(weapon, tacmod, ordnance)] = frames
         fp[player_id] = (fp.get(player_id, 0) + _stable_hash(row)) & FINGERPRINT_MASK
     games: dict[int, list[Game]] = defaultdict(list)
-    for row in db.execute(query):
+    for row in rows.execute(query):
         (pid, mid, started, map_, mode, private, play, deaths, bounds, mate, enemy, upside, speed, top, hz,
          team, winner, attacking, blue_rounds, orange_rounds, push, block, emotes, stopped, left, right, contested,
          blue_cap, orange_cap, lone_wolf_near) = row = tuple(row)
@@ -176,14 +185,34 @@ def player_achievements(request: Request, user_id: str):
         return result | {"items": icons.apply(db, items)}  # icons chosen on the Console page (D43)
 
 
+OFFLOAD_MIN_GAMES = 100  # a player with fewer games is evaluated at once (a few ms); more: in a helper process
+
+
 def _player_achievements(request: Request, user_id: str) -> dict:
-    with request.app.state.sessionmaker() as db:
+    """Evaluating every rule over a busy player's games is seconds of pure Python (measured 2026-11-10: 3.7 s for 8,700
+    games on the dev PC, 5-12x that on the NAS). Done in the web server it holds up every other request meanwhile, so
+    players with OFFLOAD_MIN_GAMES+ games are evaluated in a helper process (_elsewhere)."""
+    sessions = request.app.state.sessionmaker
+    with sessions() as db:
+        played = db.scalar(select(func.count()).select_from(MatchPlayer).join(Player).where(Player.user_id == user_id))
+    if (played or 0) >= OFFLOAD_MIN_GAMES:
+        result = _elsewhere(sessions, "side", _player_job, _player_result, user_id)
+    else:
+        result = _player_result(sessions, user_id)
+    if result is None:
+        raise ApiError(404, "not_found", f"Player {user_id} not found")
+    return result
+
+
+def _player_result(sessions, user_id: str) -> dict | None:
+    """One player's cards. None = no such player (neither in the replays nor in the combat reports)."""
+    with sessions() as db:
         player = db.scalar(select(Player).where(Player.user_id == user_id))
         start, end = counted_window(db)
         # someone can be in the combat reports without having a replay: their replay challenges are simply at 0
-        name = player.name if player else combat_achievements.player_name(request.app.state.sessionmaker, (start, end), user_id)
+        name = player.name if player else combat_achievements.player_name(sessions, (start, end), user_id)
         if name is None:
-            raise ApiError(404, "not_found", f"Player {user_id} not found")
+            return None
         games = in_window(_games(db, [player.id]).get(player.id, []), start, end) if player else []
     results = evaluate(games)
     unlocked = unlock_dates(games)
@@ -204,6 +233,7 @@ def _player_achievements(request: Request, user_id: str) -> dict:
 # --- everyone (ranking, rarity, recent unlocks) ---------------------------------------------
 
 REUSE_WHILE_IMPORTING_S = 600  # the full archive takes a while: not redone for every processed replay
+FIRST_WAIT_S = 20  # a request needing a ranking that does not exist yet waits this long for it, then gets "try again"
 _cache: dict[int, tuple[tuple, float, dict]] = {}  # id(sessions) -> (key, computed at, data)
 _refreshing: set[int] = set()
 _lock = threading.Lock()
@@ -222,10 +252,24 @@ def _cache_file(sessions) -> Path | None:
     return Path(database).with_name("achievements-cache.pkl") if database else None
 
 
+@functools.cache
+def _code_signature() -> str:
+    digest = hashlib.sha1()
+    for source in (engine.__file__, gear_tables.__file__, __file__):
+        try:
+            digest.update(Path(source).read_bytes().replace(b"\r\n", b"\n"))
+        except OSError:  # no source beside the module: never reuse results across starts
+            digest.update(repr(time.time()).encode())
+    return digest.hexdigest()
+
+
 def _signature() -> str:
-    """Results are only reused for the same version and the same rules."""
+    """Results are only reused while what produced them is the same: the rules, and the code that reads the games and
+    evaluates them (achievements.py, this file, the gear tables). Not the app version: until 2026-11-10 every update
+    of the site threw the results away, and the first ranking after each one evaluated all 8,600 players again
+    (72 s of CPU on the dev PC, minutes on the NAS, with the website stalling meanwhile)."""
     rules = repr([(r.id, r.levels, r.period, r.description) for r in RULES])
-    return f"{APP_VERSION}|{hashlib.sha1(rules.encode()).hexdigest()}"
+    return f"{_code_signature()}|{hashlib.sha1(rules.encode()).hexdigest()}"
 
 
 def _load_results(sessions) -> dict[int, list]:
@@ -246,7 +290,9 @@ def _save_results(sessions, entries: dict[int, list]) -> None:
     try:
         tmp = path.with_suffix(".tmp")
         with open(tmp, "wb") as f:
-            pickle.dump((_signature(), {pid: [e[0], e[1], e[2], None] for pid, e in entries.items()}), f)
+            # medal times too (entry[3], filled for players active lately): without them a restart worked them out
+            # again for every such player (14 of 19 s on the dev PC)
+            pickle.dump((_signature(), {pid: list(e[:4]) for pid, e in entries.items()}), f)
         tmp.replace(path)
     except Exception:  # noqa: BLE001 - a cache that cannot be written is just slower next time
         pass
@@ -280,6 +326,47 @@ def _compute(sessions, window: tuple) -> dict:
         return _compute_ranking(sessions, window)
 
 
+# --- helper processes -------------------------------------------------------------------------
+# Evaluating achievements is pure Python, and Python runs one thread at a time: while the web server itself built the
+# everyone-ranking, every page request waited its turn (measured 2026-11-10 on the dev PC: 16x fewer requests answered,
+# stalls of 1.5 s; the NAS is 5-12x slower and showed "Server busy"). So the calculations run in the import worker's
+# low-priority side processes (worker.run_side) and the web server only waits for the result.
+
+_offload: dict[int, tuple] = {}  # id(sessions) -> (worker, database path, database cache MB)
+
+
+def offload(sessions, worker, settings) -> None:
+    """Called once at start (main.py). Without it (the tests, workers = 0) everything is calculated in this process."""
+    _offload[id(sessions)] = (worker, str(settings.db_path), settings.db_cache_mb)
+
+
+def stop_offload(sessions) -> None:
+    _offload.pop(id(sessions), None)
+
+
+def _ranking_job(db_path: str, cache_mb: int, window: tuple) -> dict:
+    """In the ranking process, which keeps _evaluated between builds: a build after a new replay evaluates ~8 players."""
+    return _compute(open_reader(db_path, cache_mb), tuple(window))
+
+
+def _player_job(db_path: str, cache_mb: int, user_id: str) -> dict | None:
+    return _player_result(open_reader(db_path, cache_mb), user_id)
+
+
+def _elsewhere(sessions, lane: str, job, inline, *args):
+    """job(database path, cache MB, *args) in a helper process of `lane` (worker.LANES), waited for here. When there is
+    no helper (tests), or it cannot be started or died, inline(sessions, *args) in this process instead: slower for
+    everyone, but the answer still comes."""
+    target = _offload.get(id(sessions))
+    if target is not None:
+        worker, db_path, cache_mb = target
+        try:
+            return worker.run_side(job, db_path, cache_mb, *args, lane=lane).result()
+        except (RuntimeError, BrokenProcessPool, CancelledError) as e:
+            log.warning("Achievement calculation in a helper process failed (%s); calculating in the web server", e)
+    return inline(sessions, *args)
+
+
 def _compute_ranking(sessions, window: tuple) -> dict:
     fingerprints: dict[int, int] = {}
     with sessions() as db:
@@ -305,9 +392,11 @@ def _compute_ranking(sessions, window: tuple) -> dict:
         progress[pid] = entry[1]
         rows.append((pid, len(gs), entry[2]))
     _evaluated[id(sessions)] = evaluated
-    if changed:
+    untimed = sum(1 for e in evaluated.values() if e[3] is None)
+    recent = _recent(games, latest, people, evaluated)
+    if changed or untimed != sum(1 for e in evaluated.values() if e[3] is None):
         _save_results(sessions, evaluated)
-    return {"rows": rows, "progress": progress, "recent": _recent(games, latest, people, evaluated)}
+    return {"rows": rows, "progress": progress, "recent": recent}
 
 
 def _recent(games: dict[int, list[Game]], latest: str | None, people: dict, evaluated: dict[int, list]) -> list[dict]:
@@ -343,7 +432,7 @@ def _store(sessions, key: tuple) -> dict:
         cached = _cache.get(id(sessions))
         if cached and cached[0] == key:
             return cached[2]
-        data = _compute(sessions, key[1])
+        data = _elsewhere(sessions, "ranking", _ranking_job, _compute, key[1])
         _cache[id(sessions)] = (key, time.monotonic(), data)
         return data
 
@@ -406,7 +495,19 @@ def _everyone(request: Request) -> dict:
         if time.monotonic() - cached[1] >= reuse:
             _refresh_in_background(sessions, key)
         return cached[2]
-    return _store(sessions, key)
+    if id(sessions) not in _offload:
+        return _store(sessions, key)  # no helper process (tests): calculated here, the request waits
+    # No ranking yet (just started, or the challenge period changed): it is calculated in the background. Wait a little,
+    # then say so: a request held for the minutes a first build can take on the NAS only ties up a server thread
+    # (the page gives up after 30 s anyway, api.ts)
+    _refresh_in_background(sessions, key)
+    deadline = time.monotonic() + FIRST_WAIT_S
+    while time.monotonic() < deadline:
+        cached = _cache.get(id(sessions))
+        if cached and cached[0][1] == key[1]:
+            return cached[2]
+        time.sleep(0.1)
+    raise ApiError(503, "ranking_building", "The achievement ranking is being calculated. Try again in a minute.")
 
 
 def _ready_or_start(request: Request) -> dict | None:

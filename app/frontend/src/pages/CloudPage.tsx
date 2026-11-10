@@ -186,9 +186,10 @@ function CloudBrowser() {
             role="button"
             tabIndex={0}
             aria-label="Upload files: opens the file dialog"
-            // the whole box opens the file dialog, as before. Its buttons do their own thing, and so do its hidden inputs: a
-            // button "clicks" its input, and that click bubbles up here (it opened the file dialog over the folder one)
-            onClick={(e) => (e.target as HTMLElement).closest("button, input") || filesInput.current?.click()}
+            // the whole box opens the file dialog, as before. Its buttons stop their click here and open their own dialog; the
+            // hidden inputs live outside the box, so an input's click never comes back through this handler (it opened the
+            // file dialog over the folder one, and a second click() on a file input while its dialog opens can cancel it)
+            onClick={() => filesInput.current?.click()}
             onKeyDown={(e) => {
               if ((e.key === "Enter" || e.key === " ") && e.target === e.currentTarget) {
                 e.preventDefault();
@@ -199,19 +200,19 @@ function CloudBrowser() {
             <span className="upload-drop-title">{reading ? "Reading the folder…" : "Click to choose files, or drop files and folders anywhere on this page"}</span>
             <span className="cloud-upload-buttons">
               {/* both open the system's own file dialog (Windows Explorer on a PC) */}
-              <button type="button" onClick={() => filesInput.current?.click()}>Upload files</button>
-              <button type="button" className="secondary" onClick={() => folderInput.current?.click()}>Upload folder</button>
+              <button type="button" onClick={(e) => { e.stopPropagation(); filesInput.current?.click(); }}>Upload files</button>
+              <button type="button" className="secondary" onClick={(e) => { e.stopPropagation(); folderInput.current?.click(); }}>Upload folder</button>
             </span>
             <span className="muted">Many files at once, folders with everything inside them; more can be added while it uploads.</span>
-            <input ref={filesInput} type="file" multiple hidden onChange={(e) => {
-              upload(Array.from(e.target.files ?? [], (file) => ({ file, dir: "" })));
-              e.target.value = "";
-            }} />
-            <input ref={folderInput} type="file" multiple hidden onChange={(e) => {
-              if (e.target.files) upload(pickedFolder(e.target.files));
-              e.target.value = "";
-            }} />
           </div>
+          <input ref={filesInput} type="file" multiple hidden onChange={(e) => {
+            upload(Array.from(e.target.files ?? [], (file) => ({ file, dir: "" })));
+            e.target.value = "";
+          }} />
+          <input ref={folderInput} type="file" multiple hidden onChange={(e) => {
+            if (e.target.files) upload(pickedFolder(e.target.files));
+            e.target.value = "";
+          }} />
           <UploadSummary queue={queue} />
         </>
       )}

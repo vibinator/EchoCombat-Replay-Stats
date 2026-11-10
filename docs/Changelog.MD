@@ -18,6 +18,50 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.10.14 — 16:57
+
+- **The crown medal is now purple everywhere** (was gold with a pink diamond): the player-profile Achievements strip
+  (bar and legend dot), the crown medal picture, crown names and icons on achievement cards, recent unlocks, medal
+  chips and dots, and the Medals help text. A lighter purple in the dark theme, a deeper one in the light theme.
+
+## 2026.11.10.13 — 16:52
+
+End-to-end performance test of the site (live sweep, local load tests on a copy of the full archive, browser tests).
+
+- **"Server busy" fixed at its main cause: achievements are no longer calculated inside the web server.** The
+  everyone-ranking (leaderboard, rarity, recent medals) is pure Python, and Python runs one thread at a time: while the
+  web server built it, every other request waited its turn. Measured on the dev PC: 16x fewer requests answered, stalls
+  of 1.5 s; on the live NAS during the test ordinary requests took 6-36 s and one timed out. The ranking and the
+  achievement page of players with 100+ games are now calculated in the import worker's low-priority helper processes;
+  the web server only waits for the result. Same test after the change: no slowdown at all (worst stall 42 ms). The
+  results are identical (compared on the full archive: 8,618 players, 19,164 medals).
+- **An update of the site no longer throws the saved achievement results away.** They were tied to the app version, so
+  after every update all 8,600 players were evaluated again: 72 s of CPU on the dev PC, minutes on the NAS, each time.
+  They are now tied to the rules and the code that evaluates them, and the medal times are saved too: after a restart
+  the ranking is ready in 5.6 s (dev PC), in the background. The first start after THIS update evaluates everyone once
+  more (in the helper process: the site stays quick meanwhile).
+- **Each ranking refresh uses about 20 % less CPU** (4.4 s -> 3.5 s on the dev PC; it runs at most every 5 minutes while
+  new matches arrive).
+- **A ranking that is not ready yet answers "being calculated, try again in a minute"** after 20 s instead of holding the
+  request (and a server thread) for as long as the build takes. The achievements list and the medal feed never wait for it.
+- **"Something went wrong showing this page" after an update, fixed.** A tab that was open while the site was updated
+  kept its old pages, whose files no longer exist on the server: opening another page ended in that message until a
+  manual reload. Now every answer of the server names its version (`X-EchoVR-Build`); a tab that sees a newer one
+  reloads itself on the next page change, and a page file that cannot be loaded reloads the tab once. An answer
+  Cloudflare kept from before the update is asked for again. A page that still crashes forgets its saved answers and
+  tries once more before showing the message; the Reload button forgets them too (a plain reload handed the page the
+  same saved answer again). Never more than one automatic reload a minute.
+- Tested: 7 browser tests of these cases (missing page file, file gone for good, newer server, older copy, crash on a
+  bad answer, crash every time), 33 page views of every page without a page error, 5 new backend tests.
+  To do: nothing on the NAS beyond the usual update (no YAML change).
+
+## 2026.11.10.12 — 16:37
+
+- **Cloud: "Upload files" opens the file dialog reliably.** The hidden file inputs sat inside the clickable upload box, so
+  each button's click on its input came back through the box's own click handler, which could open or cancel a second
+  dialog. The inputs now sit outside the box and the buttons stop their click there. Checked in Chromium and Firefox:
+  "Upload files", "Upload folder" and the box itself each open exactly one dialog of the right kind, also one after another.
+
 ## 2026.11.10.11 — 15:34
 
 - **Fix: a bio written on My profile now shows on the player's page.** When a Discord account was connected to its player

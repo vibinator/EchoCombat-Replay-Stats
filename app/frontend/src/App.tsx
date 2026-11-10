@@ -1,6 +1,6 @@
-import { lazy, Suspense, useEffect, useState, useSyncExternalStore } from "react";
+import { lazy, Suspense, useEffect, useRef, useState, useSyncExternalStore, type ComponentType } from "react";
 import { BrowserRouter, Link, Navigate, NavLink, Route, Routes, useLocation } from "react-router";
-import { connection, getHealth, getMe, getProcessing, loginUrl, LOGOUT_URL } from "./api";
+import { connection, getHealth, getMe, getProcessing, loginUrl, LOGOUT_URL, reloadOnce, siteUpdate } from "./api";
 import { dateTime, viewerZone } from "./format";
 import { GlobalSearch } from "./components/GlobalSearch";
 import { HomePage } from "./pages/HomePage";
@@ -9,19 +9,36 @@ import { ErrorBoundary, Skeleton } from "./components/ui";
 import { useApi, useWhileVisible } from "./useApi";
 import { usePageTitle } from "./usePageTitle";
 
-// Pages other than home load on first visit: the first page view downloads less.
-const AchievementsPage = lazy(() => import("./pages/AchievementsPage").then((m) => ({ default: m.AchievementsPage })));
-const CombatMatchPage = lazy(() => import("./pages/CombatPage").then((m) => ({ default: m.CombatMatchPage })));
-const ComparePage = lazy(() => import("./pages/ComparePage").then((m) => ({ default: m.ComparePage })));
-const ConsolePage = lazy(() => import("./pages/ConsolePage").then((m) => ({ default: m.ConsolePage })));
-const ProfilePage = lazy(() => import("./pages/ProfilePage").then((m) => ({ default: m.ProfilePage })));
-const LeaderboardPage = lazy(() => import("./pages/LeaderboardPage").then((m) => ({ default: m.LeaderboardPage })));
-const MatchPage = lazy(() => import("./pages/MatchPage").then((m) => ({ default: m.MatchPage })));
-const MatchesPage = lazy(() => import("./pages/MatchesPage").then((m) => ({ default: m.MatchesPage })));
-const PermissionsPage = lazy(() => import("./pages/PermissionsPage").then((m) => ({ default: m.PermissionsPage })));
-const PlayerPage = lazy(() => import("./pages/PlayerPage").then((m) => ({ default: m.PlayerPage })));
-const CloudPage = lazy(() => import("./pages/CloudPage").then((m) => ({ default: m.CloudPage })));
-const PlayersPage = lazy(() => import("./pages/PlayersPage").then((m) => ({ default: m.PlayersPage })));
+const PAGE_RETRY_MS = 1_500;
+
+/** A page loaded on first visit (the first page view downloads less). Its file can fail to load: the server was busy
+ *  or restarting for a moment (asked once more), or the site was updated since this tab opened and the file is gone
+ *  (the tab is reloaded, which loads the current site: the skeleton stays until then). Before 2026-11-10 either one
+ *  ended in "Something went wrong showing this page" until the visitor reloaded by hand. */
+function page<M>(load: () => Promise<M>, pick: (m: M) => ComponentType) {
+  return lazy(() =>
+    load()
+      .catch(() => new Promise<M>((done, fail) => setTimeout(() => load().then(done, fail), PAGE_RETRY_MS)))
+      .catch((e: unknown) => {
+        if (reloadOnce()) return new Promise<M>(() => undefined);
+        throw e;
+      })
+      .then((m) => ({ default: pick(m) })),
+  );
+}
+
+const AchievementsPage = page(() => import("./pages/AchievementsPage"), (m) => m.AchievementsPage);
+const CombatMatchPage = page(() => import("./pages/CombatPage"), (m) => m.CombatMatchPage);
+const ComparePage = page(() => import("./pages/ComparePage"), (m) => m.ComparePage);
+const ConsolePage = page(() => import("./pages/ConsolePage"), (m) => m.ConsolePage);
+const ProfilePage = page(() => import("./pages/ProfilePage"), (m) => m.ProfilePage);
+const LeaderboardPage = page(() => import("./pages/LeaderboardPage"), (m) => m.LeaderboardPage);
+const MatchPage = page(() => import("./pages/MatchPage"), (m) => m.MatchPage);
+const MatchesPage = page(() => import("./pages/MatchesPage"), (m) => m.MatchesPage);
+const PermissionsPage = page(() => import("./pages/PermissionsPage"), (m) => m.PermissionsPage);
+const PlayerPage = page(() => import("./pages/PlayerPage"), (m) => m.PlayerPage);
+const CloudPage = page(() => import("./pages/CloudPage"), (m) => m.CloudPage);
+const PlayersPage = page(() => import("./pages/PlayersPage"), (m) => m.PlayersPage);
 
 type Theme = "dark" | "light";
 const THEME_KEY = "echovr-theme";
@@ -130,6 +147,13 @@ function Layout() {
   const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
   useEffect(() => setMenuOpen(false), [location.pathname]);
+  // The site was updated while this tab was open (api.ts, site updates): the next page change loads the new version,
+  // instead of old pages meeting new answers and page files that no longer exist
+  const opened = useRef(location.pathname);
+  useEffect(() => {
+    if (location.pathname !== opened.current && siteUpdate.available()) reloadOnce();
+    opened.current = location.pathname;
+  }, [location.pathname]);
 
   return (
     <>

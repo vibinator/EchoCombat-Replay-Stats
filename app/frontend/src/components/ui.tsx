@@ -1,4 +1,5 @@
 import { Component, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { forgetAnswers, reloadOnce, siteUpdate } from "../api";
 
 /** Renders `children` only once this spot is near the screen: sections far down a page (heatmaps, trends,
  *  teammates) ask the server nothing for visitors who never scroll there. */
@@ -139,22 +140,56 @@ export function EmptyState({ title, children }: { title: string; children?: Reac
   );
 }
 
-/** A page that crashes shows this message instead of taking the whole site blank. Reset by `key` (the address). */
-export class ErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
-  state = { failed: false };
+/** A page file that could not be loaded: after an update of the site the old files are gone from the server. */
+const PAGE_FILE_ERROR = /dynamically imported module|module script failed|error loading dynamically|Unable to preload|Failed to fetch/i;
+const RETRY_AFTER_MS = 1_500;
+const RETRY_GAP_MS = 60_000;
+let retriedAt = 0;
+
+/** A page that crashes shows a message instead of taking the whole site blank. Reset by `key` (the address).
+ *  Before the message it tries what usually fixes it (2026-11-10), each at most once a minute:
+ *  - the site was updated since this tab opened (a page file is gone, or the server answers as a newer version): the
+ *    tab is reloaded, which loads the current site;
+ *  - otherwise the saved answers are forgotten (the page may have crashed on one of them, and a plain reload would
+ *    hand it the same one from this tab's store) and the page is shown again with fresh ones. */
+export class ErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean; fixing: boolean }> {
+  state = { failed: false, fixing: false };
+  private timer: ReturnType<typeof setTimeout> | undefined;
   static getDerivedStateFromError() {
     return { failed: true };
   }
   componentDidCatch(error: unknown) {
     console.error("Page error:", error);
+    const text = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+    if ((PAGE_FILE_ERROR.test(text) || siteUpdate.available()) && reloadOnce()) {
+      this.setState({ fixing: true }); // the tab is reloading
+      return;
+    }
+    forgetAnswers();
+    if (Date.now() - retriedAt < RETRY_GAP_MS) return; // tried moments ago: show the message
+    retriedAt = Date.now();
+    this.setState({ fixing: true });
+    this.timer = setTimeout(() => this.setState({ failed: false, fixing: false }), RETRY_AFTER_MS);
+  }
+  componentWillUnmount() {
+    clearTimeout(this.timer);
   }
   render() {
     if (!this.state.failed) return this.props.children;
+    if (this.state.fixing) return <Skeleton lines={4} />;
     return (
       <div className="empty-state">
         <p className="error">Something went wrong showing this page.</p>
-        <p className="muted">If the site was just updated, reload the page (Ctrl+F5). If it keeps happening, tell us which page it was.</p>
-        <button type="button" onClick={() => location.reload()}>Reload</button>
+        <p className="muted">Reloading usually fixes it. If it keeps happening, tell us which page it was.</p>
+        <button
+          type="button"
+          onClick={() => {
+            forgetAnswers();
+            location.reload();
+          }}
+        >
+          Reload
+        </button>
       </div>
     );
   }

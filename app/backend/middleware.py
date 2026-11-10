@@ -12,6 +12,7 @@ Answers get the security headers, and say who may keep a copy (D53, user 2026-11
 - Other API answers: browsers keep them but ask again every time (no-cache; the ETag makes that a 304). Cloudflare may
   keep them ECHOVR_EDGE_CACHE_S seconds (Cloudflare-CDN-Cache-Control: browsers never see it) and serve them up to
   10 minutes longer while the NAS answers 5xx; not a STALE answer (a fresher one is being built).
+- Every API answer carries X-EchoVR-Build (the version that built it): the pages use it to notice an update of the site.
 - Built JS / CSS (/assets): a year (the file name changes with the content). Page addresses (index.html): always
   checked, so a new version shows at once. Images and other files: 4 hours (what Cloudflare gave them before)."""
 
@@ -21,6 +22,7 @@ from starlette.requests import Request
 
 from . import auth, guard
 from .cache import STATUS_HEADER
+from .version import VERSION
 
 PER_VISITOR = ("/api/auth", "/api/admin", "/api/arena", "/api/profiles", "/api/bot", "/api/worker", "/api/cloud")
 WRITES = ("/api/admin/achievements/", "/api/admin/console/", "/api/admin/permissions", "/api/profiles/", "/api/cloud/")
@@ -104,6 +106,9 @@ class SiteMiddleware:
                 status = message["status"]
                 if path.startswith("/api/"):
                     headers["X-Robots-Tag"] = "noindex, nofollow"  # data, not pages: keep it out of search results
+                    # which version built this answer: a tab opened before an update notices it and reloads, and a copy
+                    # Cloudflare kept from before the update is recognised as one (api.ts, site updates)
+                    headers["X-EchoVR-Build"] = VERSION
                     per_visitor = path.startswith(PER_VISITOR) or bool(scope.get("state", {}).get("per_visitor"))
                     _api_cache(headers, status, per_visitor, edge_s)
                 else:
