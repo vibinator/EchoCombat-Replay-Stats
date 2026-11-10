@@ -183,6 +183,8 @@ def _reference_paths(players, mode, hz=2):
         if mode == "loadout":
             key = (t["weapon"][i], t["ordnance"][i], t["tacmod"][i])
             return None if 255 in key else key
+        if mode == "pose":
+            return t["flags"][i] & 1
         j = i + 1  # speed
         if j >= len(t["team"]) or not t["team"][j]:
             return None
@@ -218,7 +220,7 @@ def test_build_layers_matches_per_sample_reference():
     players = {}
     for p in range(4):
         x, z, cols = 0, 0, {"x": array("h"), "z": array("h"), "team": bytearray(), "weapon": bytearray(),
-                            "ordnance": bytearray(), "tacmod": bytearray()}
+                            "ordnance": bytearray(), "tacmod": bytearray(), "flags": bytearray()}
         for _ in range(400):
             jump = rng.random() < 0.03
             x = rng.randint(-500, 500) if jump else max(-600, min(600, x + rng.randint(-25, 25)))
@@ -228,6 +230,7 @@ def test_build_layers_matches_per_sample_reference():
             cols["team"].append(0 if rng.random() < 0.05 else 1 + p % 2)
             for f in ("weapon", "ordnance", "tacmod"):
                 cols[f].append(255 if rng.random() < 0.05 else rng.randint(0, 1))
+            cols["flags"].append(cols["flags"][-1] ^ (rng.random() < 0.1) if cols["flags"] else 0)  # upside down in spells
         players[str(p)] = {k: bytes(v) if isinstance(v, bytearray) else v for k, v in cols.items()}
     for mode in heatmaps.TRACK_MODES:
         for cell_m in heatmaps.CELL_SIZES:
@@ -239,6 +242,9 @@ def test_build_layers_matches_per_sample_reference():
             if mode == "loadout":
                 want, _ = heatmaps.fold_layers(want, {k: k for k in want})
             assert {k: v for k, v in got.items() if v} == {k: v for k, v in want.items() if v}, (mode, cell_m)
+    older = {uid: t | {"flags": b""} for uid, t in players.items()}  # tracks from before the flags: no pose layers
+    assert heatmaps.build_layers(layout, [(header, older)], None, "pose", 0.5) == ({}, {})
+    assert list(heatmaps.build_layers(layout, [(header, players)], None, "pose", 0.5)[0]) == ["upside", "upright"]
 
 # --- endpoints ---------------------------------------------------------------------------
 

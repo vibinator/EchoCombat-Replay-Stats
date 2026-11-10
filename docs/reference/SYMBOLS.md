@@ -155,9 +155,9 @@ Gear use per player: how many times each weapon / ordnance / tac mod was picked,
 Scraper protection for the public site (D48). Cloudflare's own bot and rate rules come first (Setup.MD); this is
 - `AI_CRAWLERS`:17 / `SCRIPT_AGENTS`:23 / `HEADER_EXEMPT`:30 / `HEADER_EXEMPT_SUFFIXES`:31 / `HEAVY`:32 / `HEAVY_COST`:33 / `REPLAY_FILE`:36 / `CONTENT_SECURITY_POLICY`:37 / `SECURITY_HEADERS`:42 / asks_for_replay_file:49 / is_https:54 / _from_inside:59 / client_ip:68 / **class RateLimiter**:78 [take:89, _prune:102] / _refuse:109 / check:113
 
-### `app/backend/heatmaps.py` (400 lines)
+### `app/backend/heatmaps.py` (411 lines)
 Heatmap grids in minimap image space (D18). Cells are `cell_m` metres (0.1 m, user 2026-11-01); consecutive
-- `CELL_M`:16 / `HEATMAP_CELL_M`:17 / `CELL_SIZES`:18 / `MAX_STEP_M`:19 / `NO_GEAR`:20 / grid_size:23 / _geometry:30 / cell_mapper:39 / to_cell:54 / rasterise:58 / rasterise_many:72 / _densify:80 / cells_of:121 / _rasterise_arrays:133 / `SPEED_BANDS`:149 / `GEAR_FIELDS`:153 / `_SPEED_LIMITS`:154 / _sample_keys:157 / key_value:181 / layer_paths:190 / layer_runs:199 / _merge:227 / layer_label:231 / `MAX_LOADOUT_LAYERS`:250 / fold_layers:253 / player_layers:266 / pack_cells:275 / unpack_cells:291 / response:298 / `TRACK_MODES`:319 / build_layers:322 / `THUMB_CELL_M`:344 / `TEAM_RGB`:345 / `PNG_SIGNATURE`:348 / _png:351 / png_indexed:363 / thumbnail_png:378
+- `CELL_M`:16 / `HEATMAP_CELL_M`:17 / `CELL_SIZES`:18 / `MAX_STEP_M`:19 / `NO_GEAR`:20 / grid_size:23 / _geometry:30 / cell_mapper:39 / to_cell:54 / rasterise:58 / rasterise_many:72 / _densify:80 / cells_of:121 / _rasterise_arrays:133 / `SPEED_BANDS`:149 / `GEAR_FIELDS`:153 / `_SPEED_LIMITS`:154 / _sample_keys:157 / key_value:188 / layer_paths:197 / layer_runs:206 / _merge:234 / layer_label:238 / `MAX_LOADOUT_LAYERS`:259 / fold_layers:262 / player_layers:275 / pack_cells:284 / unpack_cells:300 / response:307 / `TRACK_MODES`:328 / build_layers:331 / `THUMB_CELL_M`:355 / `TEAM_RGB`:356 / `PNG_SIGNATURE`:359 / _png:362 / png_indexed:374 / thumbnail_png:389
 
 ### `app/backend/heatmaps3d.py` (391 lines)
 3D heatmaps: the heat of heatmaps.py in world-space voxels (VOX_M cubes), for the 3D view of a heatmap.

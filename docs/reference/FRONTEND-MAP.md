@@ -52,11 +52,11 @@ lines and CRLF.
 - exports: GlobalSearch:7
 - api.ts calls: search
 
-### `app/frontend/src/components/Heatmap3DView.tsx` (413 lines)
-- exports: Heat3DSource:20, Heatmap3DView:45
+### `app/frontend/src/components/Heatmap3DView.tsx` (446 lines)
+- exports: Heat3DSource:33, Heatmap3DView:58
 
-### `app/frontend/src/components/HeatmapView.tsx` (294 lines)
-- exports: HEATMAP_MODES:26, HEATMAP_CELL_M:34, HeatmapView:158
+### `app/frontend/src/components/HeatmapView.tsx` (418 lines)
+- exports: HEATMAP_MODES:30, HEATMAP_CELL_M:39, HeatmapView:243
 
 ### `app/frontend/src/components/heatRead.ts` (90 lines)
 - exports: Entries:6, decodeEntries:12, entryAt:47, readOut:56

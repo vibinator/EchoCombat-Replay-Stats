@@ -188,7 +188,7 @@ No table: computed from `match_players` + loadouts + `matches` on request (`back
 ## Tracks file (Phase 7, D11, D30)
 `data/processed/<replay_id>/tracks.bin` = zlib( uint32 header length | header JSON | arrays ), little-endian.
 - Header: `{version: 1, hz: 2, samples, weapons: [codes], players: [user_id…], series: {blue_points?, orange_points?, payload_distance?: [value|null per sample]}}`.
-- Per player, in header order: `x` int16[samples], `z` int16[samples] (decimetres), `weapon` uint8 (index into `weapons`, 255 = none), `team` uint8 (0 absent, 1 blue, 2 orange); version 2 adds `tacmod`, `ordnance` uint8 (indexes into `tacmods` / `ordnances`). Version-1 files read with no tac mod / ordnance.
+- Per player, in header order: `x` int16[samples], `z` int16[samples] (decimetres), `weapon` uint8 (index into `weapons`, 255 = none), `team` uint8 (0 absent, 1 blue, 2 orange); version 2 adds `tacmod`, `ordnance` uint8 (indexes into `tacmods` / `ordnances`). Version-1 files read with no tac mod / ordnance. Version 3 (2026-11-10) adds `flags` uint8 per sample: bit 0 = upside down (body up pointing down); older files have none (not known).
 - First frame of each 0.5 s slot; written by the worker while processing; ≈ 9–26 KB per match (≈ 0.6 GB for the archive). Overwritten on reprocess; rebuildable.
 
 ## 3D tracks file (3D playback, docs/WebReplayer-Review.MD Phase 2)

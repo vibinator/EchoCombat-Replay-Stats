@@ -1642,6 +1642,18 @@ section > .skeleton:first-child {
   margin-top: 6px;
   font-size: 0.8rem;
 }
+.heatmap-compare {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.heatmap-compare select {
+  max-width: 170px;
+  padding: 2px 6px;
+}
+.heatmap-compare button {
+  padding: 1px 8px;
+}
 .map-heat-against {
   display: inline-flex;
   align-items: center;

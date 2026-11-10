@@ -1188,7 +1188,7 @@ export interface Achiever {
 }
 export const getAchievers = (limit = 10) => request<Achiever[]>(`/api/leaderboard/achievers?limit=${limit}`);
 
-export type HeatmapLayerMode = "team" | "weapons" | "ordnance" | "tacmod" | "loadout" | "speed";
+export type HeatmapLayerMode = "team" | "weapons" | "ordnance" | "tacmod" | "loadout" | "speed" | "pose";
 
 export const getMatchHeatmapBy = (id: number, mode: HeatmapLayerMode | "player", cell: number, player?: string) =>
   heatmapRequest(`/api/matches/${id}/heatmap${query({ mode, cell, player })}`);

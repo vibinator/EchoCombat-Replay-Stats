@@ -15,6 +15,19 @@ const BASE_FOV = 50;
 const GLOW_SIZE = 1.7; // a voxel's dot is this many voxels wide: neighbours overlap, so a path is one continuous line, not beads
 const GAIN = 1; // opacity at slider 1: normal alpha blending (not additive), so the colours stay saturated and never wash out to white
 const DEFAULT_MAP_OPACITY = 0.2; // see-through: the heat sits inside the arena
+// How much of the heat is drawn (user, 2026-11-10: a long history filled the whole arena with a cloud). `share` = the
+// busiest part of each layer's voxels: 0.05 = only the 5 % where most time was spent, 1 = every voxel ever touched.
+const PRESETS = [
+  { key: "hot", label: "Hot spots", share: 0.05, title: "Only the places where most time was spent (the busiest 5 %)" },
+  { key: "routes", label: "Routes", share: 0.25, title: "The usual routes and positions (the busiest 25 %)" },
+  { key: "all", label: "Everything", share: 1, title: "Every place ever visited; rarely visited ones are faint" },
+] as const;
+const DEFAULT_SHARE = 0.25;
+const MIN_SHARE = 0.02;
+// Opacity of a voxel by how busy it is (log scale, 0..1 of the layer's busiest): rarely visited ones are nearly
+// see-through, the busiest solid. It was 0.4 + 0.6 t: a place passed once was drawn at 40 %.
+const FAINT = 0.05;
+const fade = (t: number) => FAINT + (1 - FAINT) * t * t;
 const FALLBACK = ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#008300", "#9085e9", "#e66767"];
 
 export interface Heat3DSource {
@@ -89,7 +102,7 @@ void main() {
   // depth cue: what is behind the point looked at fades to ~40%, so near and far paths can be told apart
   vHeat = vec4(heat.rgb, heat.a * mix(1.0, 0.4, smoothstep(uFocus, uFocus + uReach, -mv.z)));
   gl_PointSize = max(3.0, uSize * uScale / -mv.z);
-  gl_Position = projectionMatrix * mv;
+  gl_Position = heat.a > 0.0 ? projectionMatrix * mv : vec4(2.0, 2.0, 2.0, 1.0); // not shown: outside the view
 }`;
 const FRAGMENT = `
 uniform float uGain;
@@ -105,14 +118,16 @@ interface LayerObj {
   layer: Heatmap3DLayer;
   points: THREE.Points;
   heat: Float32Array;
+  sorted: Uint32Array; // the layer's counts, lowest first: where the busiest share starts
 }
 
 function Scene({ data, colors, hidden, opacity, onUse2D, onHidden, onOpacity, controls }: Props & { data: Heatmap3D }) {
   const mount = useRef<HTMLDivElement>(null);
   const dirty = useRef(true);
   const screen = useFullscreen(mount);
-  const latest = useRef({ colors, hidden, opacity });
-  latest.current = { colors, hidden, opacity };
+  const [share, setShare] = useState(DEFAULT_SHARE);
+  const latest = useRef({ colors, hidden, opacity, share });
+  latest.current = { colors, hidden, opacity, share };
   const engine = useRef<{ apply: () => void; view: (v: "orbit" | "top") => void; mapOpacity: (o: number) => void } | null>(null);
   const [mapState, setMapState] = useState<"loading" | "ok" | "none" | "failed">(data.model ? "loading" : "none");
   const [failed, setFailed] = useState<string | null>(null);
@@ -253,16 +268,17 @@ function Scene({ data, colors, hidden, opacity, onUse2D, onHidden, onOpacity, co
       points.frustumCulled = false;
       points.renderOrder = 5; // after the (see-through) map
       scene.add(points);
-      return { layer, points, heat };
+      return { layer, points, heat, sorted: Uint32Array.from(layer.n.subarray(0, layer.count)).sort() };
     });
-    // like the 2D heatmap's alpha curve, with a higher floor so rarely used paths stay visible: 0.4 .. 1 with log(count)
+    // only the busiest `share` of a layer's voxels, each as solid as it is busy (fade)
     function apply() {
-      const { colors: palette, hidden: off, opacity: gain } = latest.current;
-      objs.forEach(({ layer, points, heat }, k) => {
+      const { colors: palette, hidden: off, opacity: gain, share: part } = latest.current;
+      objs.forEach(({ layer, points, heat, sorted }, k) => {
         rgb.set(palette.get(layer.key) ?? FALLBACK[k % FALLBACK.length]);
         const scale = Math.log1p(layer.max) || 1;
+        const from = part >= 1 || !layer.count ? 0 : sorted[Math.max(0, layer.count - Math.max(1, Math.ceil(part * layer.count)))];
         for (let i = 0; i < layer.count; i++) {
-          const a = 0.4 + 0.6 * (Math.log1p(layer.n[i]) / scale);
+          const a = layer.n[i] >= from ? fade(Math.log1p(layer.n[i]) / scale) : 0;
           heat[i * 4] = rgb.r;
           heat[i * 4 + 1] = rgb.g;
           heat[i * 4 + 2] = rgb.b;
@@ -328,12 +344,18 @@ function Scene({ data, colors, hidden, opacity, onUse2D, onHidden, onOpacity, co
     };
   }, [data]);
 
-  useEffect(() => engine.current?.apply(), [colors, hidden, opacity, data]);
+  useEffect(() => engine.current?.apply(), [colors, hidden, opacity, share, data]);
   useEffect(() => engine.current?.mapOpacity(mapOpacity), [mapOpacity]);
+
+  const showSlider = (
+    <input type="range" min={MIN_SHARE * 100} max={100} step={1} value={Math.round(share * 100)}
+      aria-label="Busiest part of the heat shown, in percent" onChange={(e) => setShare(Number(e.target.value) / 100)} />
+  );
+  const shown = share >= 1 ? "everything" : `busiest ${Math.round(share * 100)} %`;
 
   return (
     <div className={`pb3d${screen.fakeClass}`} ref={mount}>
-      <div className="pb3d-bar" role="toolbar" aria-label="Camera">
+      <div className="pb3d-bar" role="toolbar" aria-label="Camera and what is shown" style={{ flexWrap: "wrap" }}>
         {(["orbit", "top"] as const).map((v) => (
           <button key={v} type="button" className={v === view ? "active" : ""} aria-pressed={v === view}
             onClick={() => { setView(v); engine.current?.view(v); }}>{v === "orbit" ? "Orbit" : "Top"}</button>
@@ -342,6 +364,14 @@ function Scene({ data, colors, hidden, opacity, onUse2D, onHidden, onOpacity, co
         <label className="pb3d-slider" title="How solid the map is drawn: lower to see the heat inside it">
           Map
           <input type="range" min={0.05} max={1} step={0.05} value={mapOpacity} onChange={(e) => setMapOpacity(Number(e.target.value))} />
+        </label>
+        {PRESETS.map((p) => (
+          <button key={p.key} type="button" className={p.share === share ? "active" : ""} aria-pressed={p.share === share}
+            title={p.title} onClick={() => setShare(p.share)}>{p.label}</button>
+        ))}
+        <label className="pb3d-slider" title="How much of the heat is drawn: left = only where most time was spent, right = every place ever visited">
+          Show
+          {showSlider}
         </label>
         <button type="button" className="pb3d-full" aria-pressed={screen.full} aria-label={screen.full ? "Leave full screen" : "Full screen"}
           title={screen.full ? "Leave full screen (Esc)" : "Full screen"} onClick={screen.toggle}>{screen.full ? "✕" : "⛶"}</button>
@@ -377,6 +407,9 @@ function Scene({ data, colors, hidden, opacity, onUse2D, onHidden, onOpacity, co
                 ))}
               </div>
               <div className="pb3d-section">
+                <label className="pb3d-range">Heat shown: {shown}
+                  {showSlider}
+                </label>
                 <label className="pb3d-range">Heat opacity
                   <input type="range" min={0.2} max={1} step={0.05} value={opacity} onChange={(e) => onOpacity(Number(e.target.value))} />
                 </label>
@@ -403,7 +436,7 @@ function Scene({ data, colors, hidden, opacity, onUse2D, onHidden, onOpacity, co
       {mapState === "failed" && <div className="pb3d-note">The map model could not be loaded: heat only.</div>}
       {mapState === "none" && <div className="pb3d-note">No 3D model for this map yet: heat only.</div>}
       {data.matches_3d < data.matches && mapState !== "loading" && (
-        <div className="pb3d-note" style={{ top: 36 }}>
+        <div className="pb3d-note" style={{ top: 36, bottom: "auto" }}>
           3D heat from {data.matches_3d.toLocaleString()} of {data.matches.toLocaleString()} matches (the others have no height recorded). {voxels.toLocaleString()} voxels.
         </div>
       )}

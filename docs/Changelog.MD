@@ -18,6 +18,55 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.10.45 — 23:13
+
+- **3D heatmaps are readable: they no longer draw every place ever visited at full strength.** A long history
+  filled the whole arena with a cloud of dots. (Player, Compare and match 3D heatmaps.)
+  - **"Show" slider** in the bar under the view (and in the full screen options): how much of the heat is drawn,
+    from only the busiest 2 % of each layer's places up to everything.
+  - **Three buttons set it:** *Hot spots* (the busiest 5 %: where most time was spent), *Routes* (the busiest
+    25 %: the usual routes and positions; this is how it opens) and *Everything*.
+  - **Busy places are solid, rarely visited ones nearly see-through.** A place passed once was drawn at 40 %
+    opacity; it is now about 5 %, rising to solid for the busiest place of the layer.
+  - Each layer (team, weapon ...) is measured by itself, so a small layer keeps its own hot spots.
+- Fixed: on a heatmap where some matches have no height, the note saying so was stretched into a dark panel over
+  the left half of the 3D view.
+- **To do after updating:** nothing but the update itself (website only; nothing is counted again).
+
+## 2026.11.10.44 — 23:03
+
+- **Match, player and Compare-page heatmaps: "Upside down" colouring.** One layer for upside down, one for
+  upright, in 2D and 3D. It uses the exact data kept since 2026.11.10.43, so only matches processed since then are
+  in it; older matches are left out of this colouring until the archive is read again (`reprocess-all`), and the
+  page says so.
+- **The same heatmaps: "Compare".** Tick it and pick two of the layers shown (blue and orange, two weapons, upside
+  down and upright, two speed bands ...): pink where the first is relatively more often, green where the second
+  is, with a swap button. Each layer is measured against its own total and smoothed over about half a metre
+  (single paths are thin lines at 0.1 m cells). Worked out in the browser from the answer already loaded: no
+  extra request.
+- Not added here: "Handed". A player's arm is one setting per match, so on a player or match page it would only
+  split whole matches, not places; it stays a home page heatmap (all players).
+- **To do after updating:** restart the server.
+
+## 2026.11.10.43 — 22:59
+
+- **Upside down, exactly.** The position tracks of a match now keep who is upside down at every sample (the same
+  test as the "Inverted" statistic: the body's up points down), so the home page's "Upside down" heatmap no longer
+  depends on the 3D tracks. Every match processed from now on has it.
+  - Matches processed earlier: the head's roll from the 3D tracks stands in where those exist (as before), and a
+    match with neither is left out of that heatmap. **To give every match the exact data, read the archive again:
+    console command `reprocess-all`** (hours on the NAS, old results stay visible meanwhile). Nothing is read again
+    by this update on its own.
+- **The monthly count of the all-time heat now counts everything again** instead of only adding new matches: what
+  a match adds also comes from things that change when a replay is read again (winner, arm, deaths, upside down),
+  and adding only new matches never picked that up. It is counted beside the old counts and takes their place when
+  complete, so the cards never show a half-done picture; a restart half way carries on. On the development PC
+  2.6 minutes for 29,817 matches; twice the memory (about 170 MB) while it runs. Time ranges are still brought up
+  to date in place, daily.
+- After a `reprocess-all`, the heat picks the new data up at the next monthly count; to have it at once, delete
+  `data/database/map-heat.npz` (and `map-heat-30d.npz`, `map-heat-90d.npz`) and open the home page.
+- The all-time heat is counted again once after this update. **To do after updating:** restart the server.
+
 ## 2026.11.10.42 — 22:52
 
 - **Heatmaps kept on disk: the ones in use stay.** When the folder (`data/cache/answers`) was full, the files

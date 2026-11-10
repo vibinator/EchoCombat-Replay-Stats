@@ -156,7 +156,8 @@ _SPEED_LIMITS = np.array([limit for limit, _, _ in SPEED_BANDS[:-1]])
 
 def _sample_keys(t: dict, mode: str, hz: int) -> np.ndarray:
     """Layer of every sample as an int (-1 = skip): team code, gear index, weapon << 16 | ordnance << 8 | tacmod,
-    or speed band index (speed from the movement to the next sample; none after a jump or before an absence)."""
+    speed band index (speed from the movement to the next sample; none after a jump or before an absence), or pose
+    (0 upright, 1 upside down, from the flags of a version-3 tracks file; a file without them gives no layer)."""
     team = np.frombuffer(t["team"], dtype=np.uint8)
     if mode == "team":
         keys = team.astype(np.int64)
@@ -173,6 +174,12 @@ def _sample_keys(t: dict, mode: str, hz: int) -> np.ndarray:
             metres = np.hypot(np.diff(x.astype(np.float64)), np.diff(z.astype(np.float64))) / 10
             band = np.searchsorted(_SPEED_LIMITS, metres * hz, side="right")
             keys[:-1] = np.where((team[1:] != 0) & (metres <= MAX_STEP_M), band, -1)
+    elif mode == "pose":
+        flags = t.get("flags", b"")
+        if len(flags) == len(team):
+            keys = (np.frombuffer(flags, dtype=np.uint8) & 1).astype(np.int64)  # tracks.UPSIDE_DOWN
+        else:  # processed before the flags were kept: not known
+            keys = np.full(len(team), -1, dtype=np.int64)
     else:
         raise ValueError(mode)
     return np.where(team != 0, keys, -1)
@@ -237,6 +244,8 @@ def layer_label(mode: str, header: dict, key) -> tuple[str, str]:
         return ("blue", "Blue") if key == 1 else ("orange", "Orange")
     if mode == "speed":
         return key, next(label for _, k, label in SPEED_BANDS if k == key)
+    if mode == "pose":
+        return ("upside", "Upside down") if key == 1 else ("upright", "Upright")
     tables = {"weapons": ("weapons", WEAPONS), "ordnance": ("ordnances", ORDNANCES), "tacmod": ("tacmods", TACMODS)}
     if mode in tables:
         field, table = tables[mode]
@@ -316,7 +325,7 @@ def response(map_name: str, layers: dict[str, Counter], labels: dict[str, str] |
     }
 
 
-TRACK_MODES = ("team", "weapons", "ordnance", "tacmod", "loadout", "speed")
+TRACK_MODES = ("team", "weapons", "ordnance", "tacmod", "loadout", "speed", "pose")
 
 
 def build_layers(layout: HeatmapLayout, decoded: Iterable[tuple[dict, dict]], user_ids: set[str] | None,
@@ -335,6 +344,8 @@ def build_layers(layout: HeatmapLayout, decoded: Iterable[tuple[dict, dict]], us
     if mode == "speed":  # keep the band order
         order = [k for _, k, _ in SPEED_BANDS]
         layers = {k: layers[k] for k in order if k in layers}
+    if mode == "pose":
+        layers = {k: layers[k] for k in ("upside", "upright") if k in layers}
     return layers, labels
 
 
