@@ -206,6 +206,10 @@ player's profile page (lists show saved pictures and never ask Discord), remembe
 `data/discord-avatars.json` so restarts and updates do not ask Discord again; a player saving their profile refreshes theirs at once.
 Matching pictures to unlinked players by name also needs the bot's Server Members intent (see `ECHOVR_DISCORD_NAME_PICTURES`).
 
+Discord limits (auth.py `DiscordLimiter`): every Discord request of the site together stays at most 5 a second (a tenth
+of Discord's 50 per bot; the site shares the token with the Discord bot), a 429 pauses all of them for Discord's
+Retry-After, and 500 refused requests in 10 minutes stop them for 10 minutes (Discord blocks an IP at 10,000).
+
 Giving or removing the role in Discord takes effect within 5 minutes. A login lasts 30 days; deleting
 `data/session.key` logs everyone out.
 

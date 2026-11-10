@@ -18,6 +18,17 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.10.6 — 13:49
+
+- **Discord request limits, so the bot is never flagged.** Every request the site sends to Discord (logins, role checks,
+  pictures, the member list) now goes through one limiter: at most 5 a second for the whole site (Discord allows 50 per bot,
+  and the site shares the token with your Discord bot), short bursts up to 10. If Discord ever says "slow down" (429), every
+  Discord request waits as long as Discord asks. If Discord refuses 500 requests within 10 minutes (it blocks an IP at
+  10,000), the site stops asking Discord for 10 minutes and logs it, which protects your home IP and the bot. The server's
+  role list (Permissions page) is remembered for 5 minutes. A request that cannot get a turn within 2 seconds acts like
+  Discord being unreachable: role checks keep their last answer, pictures stay as saved.
+  To do: nothing.
+
 ## 2026.11.10.5 — 13:44
 
 - **Player pictures are fetched only when someone opens that player's profile page.** The Players list, Leaderboard,

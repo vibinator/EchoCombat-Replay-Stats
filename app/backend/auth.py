@@ -34,6 +34,86 @@ _roles_lock = threading.Lock()
 log = logging.getLogger("uvicorn.error")
 
 
+# --- one limiter for every Discord request (user, 2026-11-10: never reach, or come near, Discord's limits) ------------
+# Discord allows 50 requests a second per bot (the website shares the bot's token with the user's Discord bot) and blocks an
+# IP address for a while after 10,000 refused requests (401 / 403 / 429) in 10 minutes. The site stays far below both:
+DISCORD_PER_S = 5.0  # all of the site's Discord requests together: a tenth of the per-bot limit
+DISCORD_BURST = 10  # at once, after a quiet spell
+DISCORD_WAIT_S = 2.0  # a request waits at most this long for its turn, then fails like an unreachable Discord
+DISCORD_PAUSE_MAX_S = 600.0  # the longest a 429's Retry-After is obeyed for
+INVALID_WINDOW_S = 600.0
+INVALID_MAX = 500  # refused answers in INVALID_WINDOW_S that stop every Discord request for INVALID_WINDOW_S (Discord: 10,000)
+
+
+class DiscordPaused(httpx.HTTPError):
+    """No request sent: the site is holding back (over its own rate, Discord said 429, or too many refusals). Every caller
+    already treats an httpx.HTTPError as "Discord unreachable": the last known answer is kept."""
+
+
+class DiscordLimiter:
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.reset()
+
+    def reset(self) -> None:
+        self.tokens, self.last = float(DISCORD_BURST), time.monotonic()
+        self.paused_until, self.pause_reason = 0.0, ""
+        self.invalid: list[float] = []
+
+    def acquire(self) -> None:
+        """Take one request slot, waiting up to DISCORD_WAIT_S; raises DiscordPaused instead of sending."""
+        deadline = time.monotonic() + DISCORD_WAIT_S
+        while True:
+            with self.lock:
+                now = time.monotonic()
+                if now < self.paused_until:
+                    raise DiscordPaused(f"Discord requests paused for {self.paused_until - now:.0f} s ({self.pause_reason})")
+                self.tokens = min(float(DISCORD_BURST), self.tokens + (now - self.last) * DISCORD_PER_S)
+                self.last = now
+                if self.tokens >= 1:
+                    self.tokens -= 1
+                    return
+                wait = (1 - self.tokens) / DISCORD_PER_S
+            if now + wait > deadline:
+                raise DiscordPaused("too many Discord requests at once: the site's own limit")
+            time.sleep(wait)
+
+    def record(self, response: httpx.Response) -> None:
+        """Count refusals; obey a 429 (every request waits, not only that kind)."""
+        status = response.status_code
+        if status not in (401, 403, 429):
+            return
+        now = time.monotonic()
+        with self.lock:
+            self.invalid = [t for t in self.invalid if now - t < INVALID_WINDOW_S] + [now]
+            if status == 429:
+                try:
+                    wait = float(response.headers.get("Retry-After") or response.json().get("retry_after") or 5)
+                except (ValueError, TypeError, AttributeError):
+                    wait = 5.0
+                wait = min(max(wait, 1.0), DISCORD_PAUSE_MAX_S)
+                if now + wait > self.paused_until:
+                    self.paused_until, self.pause_reason = now + wait, "Discord asked to slow down (429)"
+                    log.warning("Discord said 429: every Discord request waits %.0f s", wait)
+            if len(self.invalid) >= INVALID_MAX and self.paused_until < now + INVALID_WINDOW_S:
+                self.paused_until = now + INVALID_WINDOW_S
+                self.pause_reason = f"{len(self.invalid)} refused requests in {INVALID_WINDOW_S / 60:.0f} min"
+                log.error("Discord refused %d requests in %.0f minutes: every Discord request stops for %.0f minutes "
+                          "(protects the IP address from Discord's block; check the bot token)",
+                          len(self.invalid), INVALID_WINDOW_S / 60, INVALID_WINDOW_S / 60)
+
+
+discord_limiter = DiscordLimiter()
+
+
+def _send(client: httpx.Client, method: str, url: str, **kw) -> httpx.Response:
+    """Every request to Discord: a slot from the shared limiter first, the answer counted after."""
+    discord_limiter.acquire()
+    response = client.request(method, url, **kw)
+    discord_limiter.record(response)
+    return response
+
+
 def http_client() -> httpx.Client:
     """Replaced in tests."""
     return httpx.Client(timeout=httpx.Timeout(5, connect=3))  # the limit applies to each of connect / write / read: 10 s meant up to 30 s
@@ -53,16 +133,25 @@ def is_discord_id(value: str) -> bool:
 
 def _bot_get(settings: Settings, path: str) -> httpx.Response:
     with http_client() as client:
-        return client.get(f"{API}{path}", headers={"Authorization": f"Bot {settings.discord_bot_token}"})
+        return _send(client, "GET", f"{API}{path}", headers={"Authorization": f"Bot {settings.discord_bot_token}"})
+
+
+SERVER_ROLES_S = 300  # the server's role list is asked at most every 5 minutes (Permissions page, startup check)
+_server_roles: dict[str, tuple[float, list[dict]]] = {}  # guild id -> (asked at, roles)
 
 
 def server_roles(settings: Settings) -> list[dict]:
     """Every role in the Discord server ({"id", "name"}), highest first: for picking preview roles in the admin
-    console. Raises httpx.HTTPError when Discord cannot be asked."""
+    console. Remembered SERVER_ROLES_S. Raises httpx.HTTPError when Discord cannot be asked."""
+    hit = _server_roles.get(settings.discord_guild_id)
+    if hit and time.monotonic() - hit[0] < SERVER_ROLES_S:
+        return hit[1]
     r = _bot_get(settings, f"/guilds/{settings.discord_guild_id}/roles")
     r.raise_for_status()
     roles = sorted(r.json(), key=lambda x: -x.get("position", 0))
-    return [{"id": x["id"], "name": x["name"]} for x in roles if x["id"] != settings.discord_guild_id]  # not @everyone
+    result = [{"id": x["id"], "name": x["name"]} for x in roles if x["id"] != settings.discord_guild_id]  # not @everyone
+    _server_roles[settings.discord_guild_id] = (time.monotonic(), result)
+    return result
 
 
 def check_fixed_ids(settings: Settings) -> list[str]:
@@ -286,16 +375,16 @@ def authorize_url(settings: Settings, state: str) -> str:
 def user_from_code(settings: Settings, code: str) -> dict:
     """OAuth code -> {"id", "name"}. The user token is revoked straight away: only the id is needed."""
     with http_client() as client:
-        token = client.post(f"{API}/oauth2/token", data={
+        token = _send(client, "POST", f"{API}/oauth2/token", data={
             "grant_type": "authorization_code", "code": code, "redirect_uri": redirect_uri(settings),
             "client_id": settings.discord_client_id, "client_secret": settings.discord_client_secret,
         })
         token.raise_for_status()
         access = token.json()["access_token"]
-        me = client.get(f"{API}/users/@me", headers={"Authorization": f"Bearer {access}"})
+        me = _send(client, "GET", f"{API}/users/@me", headers={"Authorization": f"Bearer {access}"})
         me.raise_for_status()
         try:
-            client.post(f"{API}/oauth2/token/revoke", data={
+            _send(client, "POST", f"{API}/oauth2/token/revoke", data={
                 "token": access, "token_type_hint": "access_token",
                 "client_id": settings.discord_client_id, "client_secret": settings.discord_client_secret,
             })
