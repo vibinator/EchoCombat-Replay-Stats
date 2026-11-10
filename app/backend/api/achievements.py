@@ -482,7 +482,8 @@ def warm(sessions, previews: bool = False) -> None:
 def _everyone(request: Request) -> dict:
     """{"rows": [(player_id, games, overall)], "progress": {player_id: [progress per rule]}, "recent": [...]}
     within the challenge period. New data: the previous result is served at once and recomputed in the
-    background, at most every ECHOVR_CACHE_REFRESH_S (every 10 minutes while an import is running). Only the very
+    background, at most every ECHOVR_RANKING_REFRESH_S (15 minutes on the website; never more often than
+    ECHOVR_CACHE_REFRESH_S, nor than every 10 minutes while an import is running). Only the very
     first request and a challenge-period change wait for the computation."""
     sessions = request.app.state.sessionmaker
     key = _key(sessions)
@@ -490,7 +491,8 @@ def _everyone(request: Request) -> dict:
     if cached and cached[0] == key:
         return cached[2]
     if cached and cached[0][1] == key[1]:
-        reuse = max(request.app.state.settings.cache_refresh_s,
+        settings = request.app.state.settings
+        reuse = max(settings.cache_refresh_s, settings.ranking_refresh_s,
                     REUSE_WHILE_IMPORTING_S if request.app.state.worker.busy else 0)
         if time.monotonic() - cached[1] >= reuse:
             _refresh_in_background(sessions, key)

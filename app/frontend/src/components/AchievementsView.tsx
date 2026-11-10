@@ -896,31 +896,43 @@ function pickGoals(userId: string, items: Achievement[]): { a: Achievement; frac
   return picked.map(({ a, fraction }) => ({ a, fraction }));
 }
 
-function StripBody({ userId, onOpen }: { userId: string; onOpen: () => void }) {
-  const d = useApi(() => getAchievements(userId), userId).data;
-  if (!d) return null;
-  const counted = d.items.filter((a) => a.counted && !a.prize);
+/** A player's challenges as one bar split by best medal (crowns first, then gold, silver, bronze), the overall progress
+ *  and the count per medal. On the player page's strip, and bigger at the top of the player's Achievements page
+ *  (user, 2026-11-10: the same bar on both). */
+function MedalBar({ items, overall }: { items: Achievement[]; overall: number }) {
+  const counted = items.filter((a) => a.counted && !a.prize);
   const crowns = counted.filter((a) => a.progress >= 1).length;
   // one coloured segment per medal level, highest first: every crown has its own share of the bar (user, 2026-11-06)
   const segments = ([["crown", crowns], ...(["gold", "silver", "bronze"] as const).map((m) => [m, counted.filter((a) => a.progress < 1 && a.levels && a.tier === m).length] as const)] as const)
     .filter(([, n]) => n > 0);
+  return (
+    <>
+      <div className="strip-bar" role="img" aria-label={`${crowns} crowns, ${segments.map(([m, n]) => `${n} ${m}`).join(", ")} out of ${counted.length} challenges`}>
+        {segments.map(([m, n]) => (
+          <i key={m} className={`t-${m}`} style={{ width: `${(n / counted.length) * 100}%` }} title={`${n} challenge${n === 1 ? "" : "s"} at ${m}${m === "crown" ? " (completed)" : " as the best medal"}`} />
+        ))}
+      </div>
+      <span className="muted strip-total">{pct(overall)} · {crowns} / {counted.length} crowns</span>
+      <span className="strip-medals">
+        {[...segments].reverse().map(([m, n]) => (
+          <span key={m} className={`t-${m}`} title={`Challenges where ${m} is the best medal`}><i />{n}</span>
+        ))}
+      </span>
+    </>
+  );
+}
+
+function StripBody({ userId, onOpen }: { userId: string; onOpen: () => void }) {
+  const d = useApi(() => getAchievements(userId), userId).data;
+  if (!d) return null;
+  const counted = d.items.filter((a) => a.counted && !a.prize);
   const next = pickGoals(userId, counted);
   return (
     <section className="ach-strip" aria-label="Achievements">
       <div className="ach-strip-top">
       <button className="ach-strip-head" onClick={onOpen} title="Open the Achievements tab">
         <strong>Achievements</strong>
-        <div className="strip-bar" role="img" aria-label={`${crowns} crowns, ${segments.map(([m, n]) => `${n} ${m}`).join(", ")} out of ${counted.length} challenges`}>
-          {segments.map(([m, n]) => (
-            <i key={m} className={`t-${m}`} style={{ width: `${(n / counted.length) * 100}%` }} title={`${n} challenge${n === 1 ? "" : "s"} at ${m}${m === "crown" ? " (completed)" : " as the best medal"}`} />
-          ))}
-        </div>
-        <span className="muted">{pct(d.overall)} · {crowns} / {counted.length} crowns</span>
-        <span className="strip-medals">
-          {[...segments].reverse().map(([m, n]) => (
-            <span key={m} className={`t-${m}`} title={`Challenges where ${m} is the best medal`}><i />{n}</span>
-          ))}
-        </span>
+        <MedalBar items={d.items} overall={d.overall} />
       </button>
       <Link className="button ach-all" to={achievementsPath(d.user_id, d.name)}>
         All achievements →
@@ -1081,7 +1093,7 @@ export function AchievementRules({ open = false }: { open?: boolean }) {
       <summary>Rules</summary>
       <ul>
         <li>
-          <strong>Medals.</strong> Almost every challenge is a ladder: bronze, silver, gold and a purple crown for completing it. The bar has one step per medal, the
+          <strong>Medals.</strong> Almost every challenge is a ladder: bronze, silver, gold and a pink crown for completing it. The bar has one step per medal, the
           colour of a name is the medal reached and the number under each step is its target. A few single-step challenges keep white 25%, bronze
           50%, silver 75%, gold 100%.
         </li>
@@ -1163,6 +1175,9 @@ export function AchievementsView({ userId }: { userId: string }) {
       <Status loading={result.loading} error={result.error} />
       {data && (
         <>
+          <div className="medal-bar-big" aria-label="Medals">
+            <MedalBar items={data.items} overall={data.overall} />
+          </div>
           <NextMedals items={data.items} />
           <div className="filters">
             <div className="card">

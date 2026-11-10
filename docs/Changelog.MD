@@ -18,14 +18,30 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.10.16 — 17:20
+
+- **A player's Achievements page now opens with the medal bar from the player page, bigger.** One bar across the page
+  split by best medal (crowns, gold, silver, bronze), with the overall progress, the crowns out of all challenges and
+  the count per medal under it, above "Your next medals". The player page's strip is unchanged (both use the same
+  component). Checked on desktop (dark and light) and at phone width.
+
+## 2026.11.10.15 — 17:15
+
+- **Less NAS CPU: the achievement ranking is recalculated at most every 15 minutes** (was 5; user, 2026-11-10). The
+  achievement leaderboard, the rarity shares and the medal feed can be up to 15 minutes behind new matches; a player's own
+  achievements page is not affected. Each refresh reads every game of every player (3.5 s of CPU on the dev PC, an
+  estimated 18-42 s on the NAS): during play roughly 2-5 % of one NAS core instead of 6-14 %. New setting
+  `ECHOVR_RANKING_REFRESH_S` (seconds, `900`); it is never shorter than `ECHOVR_CACHE_REFRESH_S`.
+  To do: nothing (900 is the default without the YAML line); to choose another interval add the line from the new YAML.
+
 ## 2026.11.10.14 — 16:57
 
-- **Medal ladder is now Bronze > Silver > Gold > Crown (purple)** (was bronze, gold, platinum, crown): same targets, new
+- **Medal ladder is now Bronze > Silver > Gold > Crown (pink)** (was bronze, gold, platinum, crown): same targets, new
   names and colours (old gold is silver, old platinum is gold). Texts that said "gold or better" / "gold and up" now say
   silver (Medal Collector, 7-day gear rules). The teal platinum colour is gone.
-- **The crown medal is now purple everywhere** (was gold with a pink diamond): the player-profile Achievements strip
+- **The crown medal is now pink everywhere** (was gold with a pink diamond): the player-profile Achievements strip
   (bar and legend dot), the crown medal picture, crown names and icons on achievement cards, recent unlocks, medal
-  chips and dots, and the Medals help text. A lighter purple in the dark theme, a deeper one in the light theme.
+  chips and dots, and the Medals help text. A lighter pink in the dark theme, a deeper one in the light theme.
 
 ## 2026.11.10.13 — 16:52
 

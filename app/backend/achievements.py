@@ -160,7 +160,7 @@ class Rule:
 
 
 # Tiered rules (user, 2026-10-31): almost every rule is a ladder. Order (user, 2026-10-31): bronze, silver, gold, diamond, platinum (platinum is the top medal).
-LEVELS = ("bronze", "silver", "gold", "crown")  # user, 2026-11-10: bronze > silver > gold > crown (purple) = completed (was bronze, gold, platinum, crown)
+LEVELS = ("bronze", "silver", "gold", "crown")  # user, 2026-11-10: bronze > silver > gold > crown (pink) = completed (was bronze, gold, platinum, crown)
 
 
 def four_medals(levels: tuple[float, ...]) -> tuple[float, ...]:

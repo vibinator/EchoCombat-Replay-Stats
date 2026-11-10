@@ -136,3 +136,20 @@ def test_every_api_answer_names_its_version(tmp_path):
         assert client.get("/api/health").headers["x-echovr-build"] == version.VERSION
         assert client.get("/api/matches/999999").headers["x-echovr-build"] == version.VERSION  # errors too
         assert "x-echovr-build" not in client.get("/").headers
+
+def test_ranking_is_refreshed_at_most_every_ranking_refresh_s(tmp_path, monkeypatch):
+    """New data: the ranking is recalculated once it is ranking_refresh_s old, not after the shorter cache_refresh_s."""
+    with app_client(make_settings(tmp_path, cache_refresh_s=1, ranking_refresh_s=900)) as client:
+        add(client, {"dyson/0.echoreplay": rf.plain(rf.lines(20))})
+        act(client, actions.set_challenge_window, "2026-01-01", None)
+        sessions = client.app.state.sessionmaker
+        board = {"stat": "achievements", "min_games": 1}
+        assert client.get("/api/leaderboard", params=board).status_code == 200
+        started = []
+        monkeypatch.setattr(api, "_refresh_in_background", lambda s, key: started.append(key))
+        add(client, {"dyson/1.echoreplay": rf.plain(rf.lines(20))})  # the data changed
+        key, built_at, data = api._cache[id(sessions)]
+        api._cache[id(sessions)] = (key, built_at - 600, data)  # 10 minutes old: past cache_refresh_s, not ranking_refresh_s
+        assert client.get("/api/leaderboard", params=board).status_code == 200 and started == []
+        api._cache[id(sessions)] = (key, built_at - 901, data)
+        assert client.get("/api/leaderboard", params=board).status_code == 200 and len(started) == 1

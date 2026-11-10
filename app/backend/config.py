@@ -54,6 +54,10 @@ class Settings:
     # many seconds (Cloudflare-CDN-Cache-Control; 0 = no shared cache keeps them, browsers still revalidate by ETag)
     cache_refresh_s: float = 0.0
     edge_cache_s: int = 0
+    # The everyone-ranking of the achievements (leaderboard, rarity, medal feed) is the costliest answer to keep current:
+    # every refresh reads all games of all players (3.5 s of CPU on the dev PC, 5-12x that on the NAS). It is recalculated
+    # at most this often, never more often than cache_refresh_s (user, 2026-11-10: 15 minutes on the website)
+    ranking_refresh_s: float = 0.0
     # Twitch channel of the spectator bot: live = a game is being played now (twitch.py); "" = not checked (the tests)
     twitch_channel: str = ""
     # Averages, rates and win rates on profiles / trends / compare / leaderboard count only games of 2+ minutes with 2+
@@ -97,6 +101,7 @@ class Settings:
             db_cache_mb=int(env("ECHOVR_DB_CACHE_MB", 1024)),
             track_cache_mb=int(env("ECHOVR_TRACK_CACHE_MB", 512)),
             cache_refresh_s=float(env("ECHOVR_CACHE_REFRESH_S", 300)),
+            ranking_refresh_s=float(env("ECHOVR_RANKING_REFRESH_S", 900)),
             edge_cache_s=int(env("ECHOVR_EDGE_CACHE_S", 60)),
             twitch_channel=env("ECHOVR_TWITCH_CHANNEL", "combat_stream_bot"),
             bot_link_secret=_secret(env("ECHOVR_BOT_LINK_SECRET")),
