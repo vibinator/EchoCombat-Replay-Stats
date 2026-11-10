@@ -20,6 +20,9 @@ Working record of what changed in each release, newest first.
 
 ## 2026.11.10.14 — 16:57
 
+- **Medal ladder is now Bronze > Silver > Gold > Crown (purple)** (was bronze, gold, platinum, crown): same targets, new
+  names and colours (old gold is silver, old platinum is gold). Texts that said "gold or better" / "gold and up" now say
+  silver (Medal Collector, 7-day gear rules). The teal platinum colour is gone.
 - **The crown medal is now purple everywhere** (was gold with a pink diamond): the player-profile Achievements strip
   (bar and legend dot), the crown medal picture, crown names and icons on achievement cards, recent unlocks, medal
   chips and dots, and the Medals help text. A lighter purple in the dark theme, a deeper one in the light theme.

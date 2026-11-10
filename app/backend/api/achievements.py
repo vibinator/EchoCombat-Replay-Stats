@@ -400,7 +400,7 @@ def _compute_ranking(sessions, window: tuple) -> dict:
 
 
 def _recent(games: dict[int, list[Game]], latest: str | None, people: dict, evaluated: dict[int, list]) -> list[dict]:
-    """Every medal earned in the last RECENT_DAYS of the archive (bronze ... platinum; a single-step challenge when
+    """Every medal earned in the last RECENT_DAYS of the archive (bronze ... crown; a single-step challenge when
     completed, medal None), newest first, with the time of the game that earned it."""
     if not latest:
         return []
@@ -540,7 +540,7 @@ def list_achievements(request: Request):
         values = [p[i] for p in eligible]
         out.append({"id": r.id, "name": r.name, "description": r.description, "rules": rule_notes(r), "period": r.period,
                     "icon": icon_file(r), "estimated": r.estimated, "new": r.new, "group": r.group, "counted": r.counted,
-                    "levels": list(r.levels) or None,  # ladder: targets for bronze ... platinum
+                    "levels": list(r.levels) or None,  # ladder: targets for bronze ... crown
                     "unit": r.unit,
                     "unlocked_share": round(sum(v >= unlock_threshold(r) for v in values) / len(values), 4) if values else None,
                     "completed_share": round(sum(v >= 1 for v in values) / len(values), 4) if values else None})
