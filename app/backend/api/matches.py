@@ -21,7 +21,7 @@ from ..errors import ApiError
 from ..gear import ORDNANCES, TACMODS, WEAPONS
 from ..gear import lookup as gear_lookup
 from ..stats.map_objects import CAPTURE_POINTS, PAYLOAD_ROUTES
-from ..stats.maps import HEATMAP_LAYOUTS
+from ..stats.maps import HEATMAP_LAYOUTS, minimap_url
 from ..models import AggressiveRepair, CombatMatch, DuplicateMatch, Event, Match, MatchPlayer, MatchPlayerLoadout, Player, RepairRequest, Replay
 from ..version import VERSION
 from .derived import ID_MAX, MAP_PATTERN, MODE_PATTERN, TEXT_MAX, dominant_arm, loadout, match_summary, ratio
@@ -441,7 +441,7 @@ def _playback(request: Request, match_id: int) -> dict:
         if e["type"] == "death_est" and e["data"] and "x" in e["data"]:
             cell = cell_of(e["data"]["x"], e["data"]["z"])
             e["data"] |= {"u": None, "v": None} if cell is None else {"u": round((cell[0] + 0.5) / cols, 4), "v": round((cell[1] + 0.5) / rows, 4)}
-    return {"map": match.map, "image": f"/minimaps/{match.map}.png", "hz": header["hz"], "samples": header["samples"],
+    return {"map": match.map, "image": minimap_url(match.map), "hz": header["hz"], "samples": header["samples"],
             "mode": match.mode, "attacking_team": match.attacking_team, "duration_s": match.duration_s, "series": header.get("series", {}),
             "gear": {"weapon": _gear_names(header["weapons"], WEAPONS), "ordnance": _gear_names(header["ordnances"], ORDNANCES),
                      "tacmod": _gear_names(header["tacmods"], TACMODS)},

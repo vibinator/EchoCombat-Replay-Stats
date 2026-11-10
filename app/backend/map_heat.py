@@ -46,8 +46,12 @@ from .stats.maps import HEATMAP_LAYOUTS
 
 log = logging.getLogger(__name__)
 
-FORMAT = 2  # of the saved file: another number = start again
-CELL_M = 0.5  # about one cell per screen pixel on a card
+FORMAT = 3  # of the saved file: another number = start again (3: Fission turned top to bottom)
+# Cell size: 0.3 m since 2026-11-10 (user: a little finer than the first 0.5 m; the large view shows it). Positions are
+# stored in whole decimetres, so a cell must be a whole number of them: 0.25 m cells would hold 2 or 3 positions in
+# turn and show as stripes.
+CELL_M = 0.3
+NUDGE_M = 0.0125  # added to every position: none then sits exactly on a cell's edge, where rounding would decide
 TEAMS = ("blue", "orange")
 TEAM_LAYER = "team"  # the answer that mixes the two team layers
 # (group, field in a tracks file, list of codes in its header, gear table)
@@ -87,7 +91,8 @@ def sample_keys(map_: str, header: dict, players: dict) -> np.ndarray:
         present = team != 0
         if not present.any():
             continue
-        x, z = np.frombuffer(t["x"], dtype=np.int16)[present] / 10, np.frombuffer(t["z"], dtype=np.int16)[present] / 10
+        x = np.frombuffer(t["x"], dtype=np.int16)[present] / 10 + NUDGE_M
+        z = np.frombuffer(t["z"], dtype=np.int16)[present] / 10 + NUDGE_M
         col, row, inside = heatmaps.cells_of(layout, x, z, CELL_M)
         cell = row * cols + col
         where = np.flatnonzero(present)[inside]
@@ -136,8 +141,8 @@ GEAR_STEPS = 255
 # layer's own FAVOURED_QUANTILE cell, kept within FAVOURED_TOP: gear half of all players carry can never be held
 # twice as often as usual anywhere, gear few carry can be ten times as often in one corner.
 VIEWS = ("favoured", "all")
-FAVOURED_BLUR = 2
-FAVOURED_MIN_EXPECTED = 40.0
+FAVOURED_BLUR = max(1, round(1.0 / CELL_M))  # cells: about a metre each way
+FAVOURED_MIN_EXPECTED = 160.0 * CELL_M * CELL_M  # per cell: 160 samples per square metre
 FAVOURED_FROM = 1.05
 FAVOURED_QUANTILE = 0.995
 FAVOURED_TOP = (1.3, 2.5)
@@ -244,7 +249,7 @@ def render_favoured(gear: np.ndarray, group: np.ndarray) -> bytes | None:
 
 
 class MapHeat:
-    """The counts in memory (~25 MB), their file, and the background update. One per app."""
+    """The counts in memory (~70 MB), their file, and the background update. One per app."""
 
     def __init__(self, sessions, settings):
         self.sessions = sessions

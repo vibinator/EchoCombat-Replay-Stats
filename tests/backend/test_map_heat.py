@@ -84,7 +84,9 @@ def test_favoured_view_shows_where_gear_is_held_more_than_usual():
     group[40, 60], gear[40, 60] = 5_000_000, 5_000_000  # and somebody parked in one cell for hours
     png = map_heat.render_favoured(gear, group)
     index, palette = _pixels("data:image/png;base64," + base64.b64encode(png).decode())
-    assert (index[13:22, 13:22] == index.max()).all() and palette[index.max(), 3] > 200  # the corner, at full strength
+    reach = 2 * map_heat.FAVOURED_BLUR  # how far the smoothing carries the surroundings into the corner
+    inside = index[10 + reach:25 - reach, 10 + reach:25 - reach]
+    assert inside.size and (inside == index.max()).all() and palette[index.max(), 3] > 200  # the corner, at full strength
     assert (index[35:46, 30:50] == 0).all() and (index[30:, :50] == 0).all()  # as often as anywhere, the parked cell: clear
     assert map_heat.render_favoured(np.zeros((rows, cols), dtype=np.int64), group) is None
     assert map_heat.render_favoured(gear // 100, group // 100) is None  # a handful of samples per cell: not drawn

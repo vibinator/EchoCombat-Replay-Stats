@@ -5,7 +5,7 @@ import { BarChart, StackedBarChart } from "../components/charts";
 import { MatchCards } from "../components/MatchCards";
 import { EmptyState, FitText, Skeleton } from "../components/ui";
 import { GearLabel, LocalTime, Status } from "../components/common";
-import { MAPS, dateTime, duration, instant, int, modeLabel, num, pct, periodLabel, playerPath, scoreText, title } from "../format";
+import { MAPS, dateTime, duration, instant, int, minimapUrl, modeLabel, num, pct, periodLabel, playerPath, scoreText, title } from "../format";
 import { useApi, useWhileVisible } from "../useApi";
 import { usePageTitle } from "../usePageTitle";
 
@@ -202,7 +202,7 @@ function MapCards({ byMap, total }: { byMap: Record<string, number>; total: numb
               <div key={m} className={big === m ? "map-card open" : "map-card"}>
                 <button type="button" className={image ? "map-card-thumb has-heat" : "map-card-thumb"} aria-expanded={big === m}
                   title={big === m ? "Close the large view" : `Show ${title(m)} large`} onClick={() => setBig(big === m ? null : m)}>
-                  <img src={`/minimaps/${m}_small.png`} alt={`${title(m)} heatmap`} loading="lazy" decoding="async" />
+                  <img src={minimapUrl(m, true)} alt={`${title(m)} heatmap`} loading="lazy" decoding="async" />
                   {image && <img className="map-card-heat" src={image} alt="" />}
                   <span className="map-card-zoom" aria-hidden="true">{big === m ? "−" : "+"}</span>
                 </button>
@@ -229,7 +229,7 @@ function MapCards({ byMap, total }: { byMap: Record<string, number>; total: numb
           </div>
           <div className="map-heat-big-stage">
             <div className={bigImage ? "map-heat-big-inner has-heat" : "map-heat-big-inner"}>
-              <img key={big} src={`/minimaps/${big}.png`} alt={`${title(big)} minimap`} decoding="async" />
+              <img key={big} src={minimapUrl(big)} alt={`${title(big)} minimap`} decoding="async" />
               {bigImage && <img className="map-card-heat" src={bigImage} alt={`All-time heatmap of ${what} on ${title(big)}`} />}
             </div>
           </div>

@@ -113,6 +113,16 @@ export function periodLabel(period: string, bucket: string, long = false): strin
   return `${month} ${year}`;
 }
 
+// A minimap picture that was replaced gets a number: a new address, so no kept copy of the old picture is shown
+// under positions mapped for the new one. The same numbers are in stats/maps.py (MINIMAP_VERSIONS).
+const MINIMAP_VERSIONS: Record<string, number> = { fission: 2 };
+
+/** Address of a map's minimap picture; `small` = the thumbnail (480 px wide). */
+export function minimapUrl(map: string, small = false): string {
+  const version = MINIMAP_VERSIONS[map];
+  return `/minimaps/${map}${small ? "_small" : ""}.png${version ? `?v=${version}` : ""}`;
+}
+
 export function title(word: string): string {
   return word ? word[0].toUpperCase() + word.slice(1) : word;
 }

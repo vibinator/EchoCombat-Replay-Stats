@@ -18,6 +18,28 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.10.33 — 21:37
+
+- **Home page heatmaps are finer: 0.3 m cells instead of 0.5 m** (2.8 times as many), most visible in the large
+  view. Not 0.25 m: positions are stored in whole decimetres, so those cells would show stripes.
+- Cost: the monthly count takes about two thirds longer (96 s instead of 58 s on the development PC for 29,817
+  matches), the saved counts are 6.5 MB and about 60 MB of memory; a choice of the four maps is 70-115 KB (about
+  210 KB for a gear's "Everywhere" view).
+- The all-time heat is counted again once after this update (cell size changed).
+- **To do after updating:** restart the server.
+
+## 2026.11.10.32 — 21:32
+
+- **Fission is no longer upside down.** Its minimap and every position drawn on it were turned top to bottom
+  together, everywhere the 2D map is shown: home page cards and large view, match cards, match and player heatmaps,
+  the timeline and 2D playback. Positions still land on the map as before (99.6 % of all samples on the picture);
+  the 3D views were not affected and did not change.
+- The home page's all-time heat is counted again once after this update (the saved counts were for the old
+  picture): some minutes in the background on the NAS, the cards fill in as it goes.
+- The Fission picture has a new address (`?v=2`), so no browser or Cloudflare copy of the old one is shown under
+  the new positions.
+- **To do after updating:** restart the server.
+
 ## 2026.11.10.31 — 21:22
 
 - **Home page, "Matches per map": click a map's picture to see its heatmap large.** It opens under the four cards,

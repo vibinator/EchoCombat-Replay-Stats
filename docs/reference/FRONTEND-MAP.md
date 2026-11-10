@@ -102,8 +102,8 @@ lines and CRLF.
 - exports: WhenVisible:6, STAT_HELP:25, InfoTip:42, MoreCard:55, Skeleton:67, useActiveTabInView:86, FitText:103, EmptyState:133, ErrorBoundary:155
 - api.ts calls: forgetAnswers, reloadOnce
 
-### `app/frontend/src/format.ts` (168 lines)
-- exports: MAPS:3, MAP_MODE:6, nameSlug:9, achievementsPath:15, playerPath:21, duration:26, pct:35, num:40, int:45, hoursMinutes:50, instant:69, dateTime:80, ukDateTime:88, viewerZone:96, periodLabel:105, title:116, modeLabel:120, teamLabel:124, scoreText:128, ruleText:137, medalRuleText:143, fileSize:157
+### `app/frontend/src/format.ts` (178 lines)
+- exports: MAPS:3, MAP_MODE:6, nameSlug:9, achievementsPath:15, playerPath:21, duration:26, pct:35, num:40, int:45, hoursMinutes:50, instant:69, dateTime:80, ukDateTime:88, viewerZone:96, periodLabel:105, minimapUrl:121, title:126, modeLabel:130, teamLabel:134, scoreText:138, ruleText:147, medalRuleText:153, fileSize:167
 
 ### `app/frontend/src/globals.d.ts` (5 lines)
 

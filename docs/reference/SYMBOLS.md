@@ -170,9 +170,9 @@ Achievement icons chosen on the Console page (D43): an existing badge image or a
 ### `app/backend/main.py` (149 lines)
 - `FRONTEND_DIST`:26 / **class SinglePageApp**:29 [get_response:32] / create_app:44
 
-### `app/backend/map_heat.py` (457 lines)
+### `app/backend/map_heat.py` (462 lines)
 All-time heat per map for the home page's "Matches per map" cards: where players have been over every counted
-- `FORMAT`:49 / `CELL_M`:50 / `TEAMS`:51 / `TEAM_LAYER`:52 / `GEAR_GROUPS`:54 / `LAYERS`:56 / `LAYER_INDEX`:57 / `BATCH`:58 / `READ_CHUNK`:59 / `FLUSH_SAMPLES`:60 / `FILE_NAME`:61 / `RETRY_S`:62 / _shape:65 / _gear_layers:70 / sample_keys:78 / add_keys:102 / `PEAK_QUANTILE`:117 / `TEAM_RGB`:121 / `GEAR_RAMP`:127 / `GEAR_ALPHA`:129 / `GEAR_STEPS`:130 / `VIEWS`:138 / `FAVOURED_BLUR`:139 / `FAVOURED_MIN_EXPECTED`:140 / `FAVOURED_FROM`:141 / `FAVOURED_QUANTILE`:142 / `FAVOURED_TOP`:143 / `FAVOURED_ALPHA`:144 / `FAVOURED_CAP_QUANTILE`:145 / `FAVOURED_SPIKE`:146 / `MIN_LAYER_SHARE`:148 / _strength:151 / _team_palette:159 / _gear_palette:172 / render_teams:185 / render_gear:200 / _blur:209 / render_favoured:222 / **class MapHeat**:246 [_empty:266, _load:271, _save:292, _wanted:309, update:314, _apply:338, due:377, ensure:381, answer:408] / _read:448
+- `FORMAT`:49 / `CELL_M`:53 / `NUDGE_M`:54 / `TEAMS`:55 / `TEAM_LAYER`:56 / `GEAR_GROUPS`:58 / `LAYERS`:60 / `LAYER_INDEX`:61 / `BATCH`:62 / `READ_CHUNK`:63 / `FLUSH_SAMPLES`:64 / `FILE_NAME`:65 / `RETRY_S`:66 / _shape:69 / _gear_layers:74 / sample_keys:82 / add_keys:107 / `PEAK_QUANTILE`:122 / `TEAM_RGB`:126 / `GEAR_RAMP`:132 / `GEAR_ALPHA`:134 / `GEAR_STEPS`:135 / `VIEWS`:143 / `FAVOURED_BLUR`:144 / `FAVOURED_MIN_EXPECTED`:145 / `FAVOURED_FROM`:146 / `FAVOURED_QUANTILE`:147 / `FAVOURED_TOP`:148 / `FAVOURED_ALPHA`:149 / `FAVOURED_CAP_QUANTILE`:150 / `FAVOURED_SPIKE`:151 / `MIN_LAYER_SHARE`:153 / _strength:156 / _team_palette:164 / _gear_palette:177 / render_teams:190 / render_gear:205 / _blur:214 / render_favoured:227 / **class MapHeat**:251 [_empty:271, _load:276, _save:297, _wanted:314, update:319, _apply:343, due:382, ensure:386, answer:413] / _read:453
 
 ### `app/backend/mega_prizes.py` (51 lines)
 Mega Prize winners report for the Console (user, 2026-11-04): the prizes are handed out by hand, so this lists who has
@@ -209,8 +209,8 @@ Frames -> MatchStats in a single pass. No database imports.
 ### `app/backend/stats/map_objects.py` (84 lines)
 Fixed objects per map, measured from real replays (2026-10-31), for drawing the playback.
 
-### `app/backend/stats/maps.py` (83 lines)
-- `MAP_NAMES`:5 / `MAP_MODES`:15 / **class Bounds**:18 / `BOUNDS`:26 / map_name:34 / load_in_spot:51 / is_load_in:55 / in_bounds:59 / **class HeatmapLayout**:64 / `HEATMAP_LAYOUTS`:77
+### `app/backend/stats/maps.py` (96 lines)
+- `MAP_NAMES`:5 / `MAP_MODES`:15 / **class Bounds**:18 / `BOUNDS`:26 / map_name:34 / load_in_spot:51 / is_load_in:55 / in_bounds:59 / **class HeatmapLayout**:64 / `MINIMAP_VERSIONS`:80 / minimap_url:83 / `HEATMAP_LAYOUTS`:88
 
 ### `app/backend/stats/payload.py` (64 lines)
 Payload maps: attacking team, winner, per-player time on the payload (ReplayData "Payload semantics").

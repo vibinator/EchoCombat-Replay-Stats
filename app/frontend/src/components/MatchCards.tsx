@@ -1,6 +1,6 @@
 import { Link } from "react-router";
 import { getMatchThumbnails, type MatchSummary } from "../api";
-import { duration, modeLabel, scoreText, title } from "../format";
+import { duration, minimapUrl, modeLabel, scoreText, title } from "../format";
 import { useApi } from "../useApi";
 import { LocalTime, TeamBadge } from "./common";
 import { EmptyState } from "./ui";
@@ -18,7 +18,7 @@ function useThumbnails(matches: MatchSummary[]): Record<string, string> {
 function MatchThumb({ map, heat }: { map: string; heat: string | undefined }) {
   return (
     <div className={heat ? "match-card-thumb has-heat" : "match-card-thumb"}>
-      <img src={`/minimaps/${map}_small.png`} alt="" loading="lazy" />
+      <img src={minimapUrl(map, true)} alt="" loading="lazy" />
       {heat && <img className="match-card-heat" src={heat} alt="" />}
     </div>
   );

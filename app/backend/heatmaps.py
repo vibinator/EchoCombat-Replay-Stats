@@ -11,7 +11,7 @@ from functools import lru_cache
 
 import numpy as np
 
-from .stats.maps import HEATMAP_LAYOUTS, HeatmapLayout
+from .stats.maps import HEATMAP_LAYOUTS, HeatmapLayout, minimap_url
 
 CELL_M = 0.25  # playback position snapping
 HEATMAP_CELL_M = 0.1  # heatmaps: super fine only (positions are stored to 0.1 m)
@@ -301,7 +301,7 @@ def response(map_name: str, layers: dict[str, Counter], labels: dict[str, str] |
     cols, rows = grid_size(layout, cell_m)
     return {
         "map": map_name,
-        "image": f"/minimaps/{map_name}.png",
+        "image": minimap_url(map_name),
         "mode": mode,
         "cols": cols,
         "rows": rows,

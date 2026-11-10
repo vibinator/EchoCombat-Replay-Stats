@@ -74,9 +74,22 @@ class HeatmapLayout(NamedTuple):
     v_flip: bool  # True: image top = axis min (False: top = axis max)
 
 
+# A minimap picture that was replaced gets a number here: its address changes, so no browser or Cloudflare copy of the
+# old picture is shown under positions mapped for the new one (static files are kept for hours). The same numbers
+# are in format.ts (minimapUrl).
+MINIMAP_VERSIONS = {"fission": 2}
+
+
+def minimap_url(map_code: str) -> str:
+    version = MINIMAP_VERSIONS.get(map_code)
+    return f"/minimaps/{map_code}.png" + (f"?v={version}" if version else "")
+
+
 HEATMAP_LAYOUTS = {
     "dyson": HeatmapLayout(-54.625, 54.625, -41.125, 28.375, "x", False, False),
-    "fission": HeatmapLayout(-74.125, 124.5, -23.125, 34.125, "x", False, False),
+    # Fission was drawn upside down, picture and positions alike (user, 2026-11-10): the picture was turned top to
+    # bottom and v_flip set with it
+    "fission": HeatmapLayout(-74.125, 124.5, -23.125, 34.125, "x", False, True),
     "surge": HeatmapLayout(-55.625, 149.5, -47, 62.625, "x", False, True),
     "combustion": HeatmapLayout(-18.25, 55.625, -87.625, 86.625, "z", False, True),
 }
