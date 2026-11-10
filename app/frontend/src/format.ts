@@ -152,3 +152,16 @@ export function medalRuleText(description: string, medal: string | null): string
   }
   return `${base} (${n}${unit} for ${medal})`;
 }
+
+/** "1.5 MB": a file size for people (Open Cloud). */
+export function fileSize(n: number): string {
+  if (n < 1024) return `${n} B`;
+  const units = ["KB", "MB", "GB", "TB"];
+  let value = n / 1024;
+  let i = 0;
+  while (value >= 1024 && i < units.length - 1) {
+    value /= 1024;
+    i++;
+  }
+  return `${value.toFixed(value < 10 ? 1 : 0)} ${units[i]}`;
+}

@@ -18,6 +18,20 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.10.3 — 13:16
+
+- **Open Cloud audit log.** Console > Audit log > **Cloud audit log** lists every upload, download, new folder, rename and
+  delete, and every refused attempt by someone logged in (no permission, no space, a bad name), with the person's Discord
+  name and id, the time, the size and their IP address. Searchable. Only console users can see it.
+- **Open Cloud fixes from end-to-end testing:**
+  - Big uploads on fast connections no longer stop at about 2 GB: upload chunks from a logged-in person skip the per-visitor
+    rate limit (still on for everyone else), and the page waits and retries if the server says it is busy.
+  - Uploads running at the same time can no longer go over the 250 GB limit together: an upload reserves its full size when
+    it starts. Unfinished uploads release it after 2 hours untouched (was a day).
+  - Folders with thousands of files list about 20 times faster (5,000 files: 1.2 s → 0.06 s on the dev PC).
+  - Cloud page: row lines run the full width, dates use the site's format, the folder path shows only inside a folder.
+  To do: nothing beyond the normal update. The new audit log table is created by itself on start.
+
 ## 2026.11.10.2 — 12:50
 
 - **Open Cloud space raised to 250 GB** (was 50 GB). It is one total for all files together, not per file or per person.

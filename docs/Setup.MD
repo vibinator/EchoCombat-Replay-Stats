@@ -209,7 +209,8 @@ permission. Give it on Console > Permissions: **Cloud view** = see and download 
 make folders, rename and delete. Console users have both. Files are kept on the NAS in the data folder
 (`/share/Container/echovr-replay-stats/data/cloud`), so they survive app updates; File Station can also reach them
 there. Space: `ECHOVR_CLOUD_QUOTA_GB` (250 GB by default, for everyone together). Big files are sent in 16 MB pieces, so Cloudflare's
-100 MB limit does not apply; uploads and changes are written to the container log with who did them.
+100 MB limit does not apply. Every upload, download, change and refused attempt is in Console > Audit log >
+Cloud audit log (who, when, file, size, IP; console users only) and in the container log.
 
 ## Run (single server)
 ```

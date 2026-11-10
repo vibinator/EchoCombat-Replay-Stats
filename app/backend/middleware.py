@@ -19,11 +19,12 @@ from fastapi.responses import JSONResponse
 from starlette.datastructures import MutableHeaders
 from starlette.requests import Request
 
-from . import guard
+from . import auth, guard
 from .cache import STATUS_HEADER
 
 PER_VISITOR = ("/api/auth", "/api/admin", "/api/arena", "/api/profiles", "/api/bot", "/api/worker", "/api/cloud")
 WRITES = ("/api/admin/achievements/", "/api/admin/console/", "/api/admin/permissions", "/api/profiles/", "/api/cloud/")
+UPLOAD = "/api/cloud/upload"
 BOT = ("/api/bot/", "/api/worker/")  # the Discord bot and the remote processing PC: POST with their shared secret (checked by the endpoint), no X-EchoVR header
 STATIC_MAX_AGE_S = 4 * 3600
 EDGE_STALE_IF_ERROR_S = 600
@@ -39,7 +40,10 @@ def _refusal(request: Request, settings, limiter, hourly):
         return JSONResponse({"error_code": "read_only", "message": "The website is read-only. Use the admin console (admin.bat)."},
                             status_code=405)  # the allowed writes check the visitor's role themselves
     if settings.scraper_guard:
-        return guard.check(request, limiter, hourly)
+        # upload chunks of a logged-in person are not rate limited (the endpoint still checks Cloud edit); anyone
+        # else's are, like every other request
+        unlimited = path == UPLOAD and auth.unsign(settings, request.cookies.get(auth.SESSION_COOKIE)) is not None
+        return guard.check(request, limiter, hourly, unlimited)
     return None
 
 

@@ -251,6 +251,24 @@ class HiddenReplay(Base):
     hidden_at: Mapped[str]
 
 
+class CloudLog(Base):
+    """Open Cloud audit log (user, 2026-11-10): who uploaded, downloaded, renamed, deleted or made a folder, and who
+    was refused. Console users read it in Console > Audit log > Cloud audit log. Kept across rebuilds."""
+
+    __tablename__ = "cloud_log"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    at: Mapped[str] = mapped_column(index=True)  # UTC, ISO
+    who_id: Mapped[str]  # Discord user id
+    who_name: Mapped[str]
+    action: Mapped[str]  # upload / download / folder / rename / delete / denied
+    path: Mapped[str]  # in the cloud folder; a rename's old path
+    detail: Mapped[str | None]  # rename: the new path; upload: "replaced"; denied: what was tried
+    size: Mapped[int | None]  # bytes: uploads and downloads
+    ok: Mapped[bool]
+    ip: Mapped[str | None]
+
+
 class ConsoleLog(Base):
     """Audit log of console commands (user, 2026-11-02): who ran what, from the website's Console page or admin.bat.
     Kept across rebuilds."""

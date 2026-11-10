@@ -4328,3 +4328,12 @@ button.small {
   gap: 4px 12px;
   white-space: nowrap;
 }
+.cloud-log input[type="search"] {
+  width: min(100%, 420px);
+  margin: 8px 0 12px;
+}
+.cloud-log code {
+  color: var(--muted);
+  font-size: 0.8rem;
+  white-space: nowrap;
+}

@@ -1439,6 +1439,21 @@ const cloudPost = <T>(action: string, body: { path: string; name?: string }) =>
     headers: { ...ADMIN_WRITE, "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
+/** Cloud audit log (console users only): who uploaded, downloaded, changed or was refused what. */
+export interface CloudLogEntry {
+  id: number;
+  at: string; // UTC
+  who: string;
+  who_id: string;
+  action: "upload" | "download" | "folder" | "rename" | "delete" | "denied";
+  path: string;
+  detail: string | null;
+  size: number | null;
+  ok: boolean;
+  ip: string | null;
+}
+export const getCloudLog = (q = "", before?: number) =>
+  send<CloudLogEntry[]>(`/api/cloud/log${query({ q: q || undefined, before, limit: 100 })}`);
 export const getCloud = (path: string) => send<CloudListing>(`/api/cloud/list?${new URLSearchParams({ path })}`);
 /** Opened by the browser itself (a link): no header needed, the login cookie decides. */
 export const cloudDownloadUrl = (path: string) => `/api/cloud/download?${new URLSearchParams({ path })}`;
@@ -1465,7 +1480,7 @@ function sendChunk(url: string, body: Blob, onProgress: (sent: number) => void):
       } catch {
         /* not JSON */
       }
-      fail(Object.assign(new Error(message), { status: xhr.status }));
+      fail(Object.assign(new Error(message), { status: xhr.status, retryAfter: Number(xhr.getResponseHeader("Retry-After")) || 0 }));
     };
     xhr.onerror = () => fail(Object.assign(new Error("Could not reach the server. Check your connection and try again."), { status: 0 }));
     xhr.send(body);
@@ -1481,13 +1496,17 @@ export async function uploadCloudFile(path: string, file: File, overwrite: boole
       path, name: file.name, upload, offset: String(offset), total: String(file.size), overwrite: String(overwrite),
     });
     const body = file.slice(offset, offset + CLOUD_CHUNK);
-    for (let attempt = 0; ; attempt++) {
+    for (let failed = 0, busy = 0; ; ) {
       try {
         await sendChunk(`/api/cloud/upload?${params}`, body, (sent) => onProgress(offset + sent));
         break;
       } catch (e) {
-        const status = (e as { status?: number }).status ?? 0;
-        if (attempt > 0 || (status !== 0 && status < 500)) throw e;
+        const { status = 0, retryAfter = 0 } = e as { status?: number; retryAfter?: number };
+        if (status === 429 && busy++ < 20) { // busy: wait as asked, then the same chunk again
+          await pause(Math.min(Math.max(retryAfter, 1), 60) * 1000);
+          continue;
+        }
+        if (failed++ > 0 || (status !== 0 && status < 500)) throw e;
         await pause(RETRY_MS);
       }
     }

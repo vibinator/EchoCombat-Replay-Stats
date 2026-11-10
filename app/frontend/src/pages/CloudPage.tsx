@@ -4,22 +4,11 @@ import {
   cloudDownloadUrl, deleteCloud, getCloud, getMe, loginUrl, makeCloudFolder, renameCloud, uploadCloudFile,
   type CloudEntry, type CloudListing,
 } from "../api";
-import { Status, TableWrap } from "../components/common";
+import { fileSize } from "../format";
+import { LocalTime, Status, TableWrap } from "../components/common";
 import { EmptyState } from "../components/ui";
 import { useApi } from "../useApi";
 import { usePageTitle } from "../usePageTitle";
-
-function bytes(n: number): string {
-  if (n < 1024) return `${n} B`;
-  const units = ["KB", "MB", "GB", "TB"];
-  let value = n / 1024;
-  let i = 0;
-  while (value >= 1024 && i < units.length - 1) {
-    value /= 1024;
-    i++;
-  }
-  return `${value.toFixed(value < 10 ? 1 : 0)} ${units[i]}`;
-}
 
 const join = (folder: string, name: string) => (folder ? `${folder}/${name}` : name);
 
@@ -156,7 +145,7 @@ function CloudBrowser() {
       }}
     >
       <h1>Cloud</h1>
-      <nav className="cloud-crumbs" aria-label="Folder">
+      {folder && <nav className="cloud-crumbs" aria-label="Folder">
         <button className="link" onClick={() => open("")}>Cloud</button>
         {crumbs.map((part, i) => (
           <span key={i}>
@@ -164,10 +153,10 @@ function CloudBrowser() {
             {i === crumbs.length - 1 ? <strong>{part}</strong> : <button className="link" onClick={() => open(crumbs.slice(0, i + 1).join("/"))}>{part}</button>}
           </span>
         ))}
-      </nav>
+      </nav>}
       {listing && (
         <p className="muted">
-          {bytes(listing.used_bytes)} used{listing.quota_bytes ? ` of ${bytes(listing.quota_bytes)}` : ""}
+          {fileSize(listing.used_bytes)} used{listing.quota_bytes ? ` of ${fileSize(listing.quota_bytes)}` : ""}
           {!canEdit && " · you can download files; changing them needs Cloud edit"}
         </p>
       )}
@@ -207,7 +196,7 @@ function CloudBrowser() {
                   ) : (
                     <div className="progress">
                       <div style={{ width: `${u.size ? (100 * u.sent) / u.size : 100}%` }} />
-                      <span>{u.sent >= u.size ? "Done" : `${bytes(u.sent)} of ${bytes(u.size)}`}</span>
+                      <span>{u.sent >= u.size ? "Done" : `${fileSize(u.sent)} of ${fileSize(u.size)}`}</span>
                     </div>
                   )}
                 </li>
@@ -248,16 +237,18 @@ function CloudBrowser() {
                       <a href={cloudDownloadUrl(join(folder, e.name))} download={e.name}>{e.name}</a>
                     )}
                   </td>
-                  <td data-label="Size" className="num">{e.size === null ? "" : bytes(e.size)}</td>
-                  <td data-label="Changed">{new Date(e.modified * 1000).toLocaleString()}</td>
-                  <td className="cloud-row-actions">
-                    {!e.dir && <a href={cloudDownloadUrl(join(folder, e.name))} download={e.name}>Download</a>}
-                    {canEdit && (
-                      <>
-                        <button className="link" disabled={busy} onClick={() => rename(e)}>Rename</button>
-                        <button className="link danger" disabled={busy} onClick={() => remove(e)}>Delete</button>
-                      </>
-                    )}
+                  <td data-label="Size" className="num">{e.size === null ? "" : fileSize(e.size)}</td>
+                  <td data-label="Changed" className="nowrap"><LocalTime iso={new Date(e.modified * 1000).toISOString()} /></td>
+                  <td>
+                    <div className="cloud-row-actions">
+                      {!e.dir && <a href={cloudDownloadUrl(join(folder, e.name))} download={e.name}>Download</a>}
+                      {canEdit && (
+                        <>
+                          <button className="link" disabled={busy} onClick={() => rename(e)}>Rename</button>
+                          <button className="link danger" disabled={busy} onClick={() => remove(e)}>Delete</button>
+                        </>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}

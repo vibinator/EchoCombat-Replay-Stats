@@ -90,7 +90,7 @@ def _add_missing_indexes(engine: Engine) -> None:
 # Derived tables, children first: a change here keeps `replays` and only recomputes stats.
 DERIVED_TABLES = ("duplicate_matches", "events", "match_player_loadouts", "match_players", "matches")
 # Kept across every rebuild: admin settings are not derived from the share.
-PRESERVED_TABLES = ("app_settings", "player_aliases", "repair_requests", "aggressive_repairs", "hidden_replays", "console_log", "player_profiles", "arena_players", "arena_counted", "nakama_combat_players", "nakama_combat_counted", "discord_profiles", "nakama_accounts")
+PRESERVED_TABLES = ("app_settings", "player_aliases", "repair_requests", "aggressive_repairs", "hidden_replays", "console_log", "cloud_log", "player_profiles", "arena_players", "arena_counted", "nakama_combat_players", "nakama_combat_counted", "discord_profiles", "nakama_accounts")
 
 
 # Combat stats (combat.py): a cache of the recorder's match reports, kept apart from the replay data. Children first.

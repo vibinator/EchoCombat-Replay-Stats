@@ -110,8 +110,9 @@ def _refuse(status: int, code: str, message: str, headers: dict | None = None) -
     return JSONResponse({"error_code": code, "message": message}, status_code=status, headers=headers)
 
 
-def check(request, limiter: RateLimiter | None, hourly: RateLimiter | None = None) -> JSONResponse | None:
-    """None = let the request through; otherwise the refusal to send."""
+def check(request, limiter: RateLimiter | None, hourly: RateLimiter | None = None, unlimited: bool = False) -> JSONResponse | None:
+    """None = let the request through; otherwise the refusal to send. unlimited: skip the rate limit (an Open Cloud
+    upload chunk from a logged-in person, middleware.py): a 5 GB file is 320 requests, which is not scraping."""
     path = request.url.path
     agent = request.headers.get("user-agent", "")
     if AI_CRAWLERS.search(agent):
@@ -125,7 +126,7 @@ def check(request, limiter: RateLimiter | None, hourly: RateLimiter | None = Non
     exempt = bot or path.startswith(HEADER_EXEMPT) or path.endswith(HEADER_EXEMPT_SUFFIXES)
     if not exempt and request.headers.get("x-echovr") != "1":
         return _refuse(403, "automated", "Automated access to this site's data is not allowed.")
-    if limiter is not None and not worker:
+    if limiter is not None and not worker and not unlimited:
         cost = HEAVY_COST if any(h in path for h in HEAVY) else 1
         # the per-minute bucket stops bursts, the hourly one bounds how much one visitor can copy in a day
         wait = max(limiter.take(client_ip(request), cost), hourly.take(client_ip(request), cost) if hourly else 0.0)
