@@ -18,6 +18,11 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.10.26 — 18:19
+
+- **The 25 award-card challenges now end in "(Leaderboard)"** (for example "MVP of Echo Combat (Leaderboard)"), like the
+  "(Weapon)" and "(Combat)" ones, so it is clear they come from the recorder's award cards.
+
 ## 2026.11.10.25 — 18:18
 
 - **Renamed "Saturn Super Star" to "Super Star"** (Combat, one game).
