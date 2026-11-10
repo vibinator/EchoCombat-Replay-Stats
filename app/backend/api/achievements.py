@@ -96,13 +96,15 @@ def _peek() -> dict:
             themes[r.group or "More"] += 1
         else:
             periods[r.period] += 1
+    # the Combat challenges (recorder reports, kept apart from RULES) are listed as one more new theme (user, 2026-11-10)
+    themes["Combat"] = len(combat_achievements.COMBAT_RULES)
     by_id = {r.id: r for r in RULES}
     revealed = [{"id": r.id, "name": r.name, "description": r.description, "rules": rule_notes(r), "period": r.period, "icon": icon_file(r),
                  "estimated": r.estimated, "new": r.new, "group": r.group} for r in map(by_id.get, REVEALED_IDS)]
     shown = {r["icon"] for r in revealed}
     art = [f for f in dict.fromkeys(icon_file(r) for r in RULES if r.icon) if f and f not in shown]
     step = max(1, len(art) // 6)
-    one_game = sum(1 for r in RULES if r.period == "game")  # original and new: every one needs 3+ players per team
+    one_game = sum(1 for r in [*RULES, *combat_achievements.COMBAT_RULES] if r.period == "game")  # original and new: every one needs 3+ players per team
     return {"periods": dict(periods), "new": dict(themes), "revealed": revealed, "icons": art[::step][:6], "one_game": one_game}
 
 

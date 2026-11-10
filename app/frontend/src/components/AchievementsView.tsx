@@ -588,7 +588,7 @@ export function Badge({ a, compact = false }: { a: AchievementRule & Partial<Pic
       <div className="badge-text">
         <strong>
           {a.name}
-          {a.new && <span className="tag" title="Not on the original ECRanked site: uses data it never read">new</span>}
+          {a.new && <span className="tag" title="A newer challenge">new</span>}
         </strong>
         {!compact && ( // compact tiles show the description only on hover (title above) (user, 2026-11-06)
           <span className="muted rule-text">
@@ -763,7 +763,7 @@ function SneakPeek({ peek }: { peek: AchievementPeek }) {
           <strong>{peek.one_game}</strong> “In one game” challenges — every one needs at least 3 players on each team.
         </p>
       )}
-      <h3>From the original ECRanked site</h3>
+      <h3>Classic challenges</h3>
       <div className="cards">
         {GROUPS.filter(([period]) => peek.periods[period]).map(([period, label]) => (
           <div key={period} className="card">
@@ -775,7 +775,7 @@ function SneakPeek({ peek }: { peek: AchievementPeek }) {
       {newTotal > 0 && (
         <>
           <h3>
-            New challenges <span className="tag">new</span> <span className="muted hint">· {newTotal}, built on replay data the original site never read</span>
+            New challenges <span className="tag">new</span> <span className="muted hint">· {newTotal}</span>
           </h3>
           <p className="muted">More being developed.</p>
           <div className="cards">

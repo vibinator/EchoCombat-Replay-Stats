@@ -18,6 +18,12 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.10.22 — 17:59
+
+- **The "Coming soon" sneak peek now counts the Combat challenges** (a "Combat" card under New challenges, and in the
+  "In one game" total) and no longer mentions ECRanked: "Classic challenges" replaces "From the original ECRanked
+  site", the "new" tag says "A newer challenge", and the "built on replay data the original site never read" line is gone.
+
 ## 2026.11.10.21 — 17:56
 
 - **25 new Combat challenges for the game's award cards.** One game, one medal each for winning the card (16: MVP, Guard,
