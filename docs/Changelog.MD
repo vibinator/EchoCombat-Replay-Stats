@@ -18,6 +18,12 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.10.28 — 18:23
+
+- **The 22 Experimental gear challenges now end in their item type: "(Weapon)", "(Ordnance)" or "(Tac Mod)"**, like the Gear
+  mastery ones (Translocator's "Beam Me Up" already had it). Weapons: Starburst, Protostar, Quark and Blazar (and
+  Forbidden Arsenal). Ordnances: Translocator and Dot Field. Tac mod: Overcharge (Overclocked, Full Charge, Charged Up).
+
 ## 2026.11.10.27 — 18:22
 
 - **Renamed Point Taker and Point Guard to "Point Taker (Capture Point)" and "Point Guard (Capture Point)"**, like the other

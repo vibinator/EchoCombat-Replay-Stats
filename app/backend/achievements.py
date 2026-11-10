@@ -779,7 +779,7 @@ def _build_rules() -> list[Rule]:
     # New (80+): data the old site never used. Ids 80-85 and 113 were removed on 2026-11-05 as duplicates (user): 80-85 counted the
     # same games as the experimental gear Veterans, 113 the same as King/Queen of Pubs (id 79).
     rules += [
-        Rule(86, "Forbidden Arsenal", "Use all 4 experimental weapons: Starburst, Protostar, Quark and Blazar", "all", "loadout",
+        Rule(86, "Forbidden Arsenal (Weapon)", "Use all 4 experimental weapons: Starburst, Protostar, Quark and Blazar", "all", "loadout",
              _all_used("weapon", {c for c, _ in UNRELEASED_WEAPONS}), new=True, group="Experimental gear"),
         Rule(87, "Jack of All Trades", "Use all 4 weapons (Pulsar, Nova, Comet and Meteor) in one game", "game", "loadout",
              _all_used("weapon", {c for c, _, _ in WEAPONS}), new=True, group="Gear mastery"),
@@ -808,15 +808,16 @@ def _build_rules() -> list[Rule]:
                 new=True, group="Emotes"),
     ]
 
+    GEAR_TAG = {"weapon": "Weapon", "ordnance": "Ordnance", "tacmod": "Tac Mod"}  # name tag of the experimental gear challenges (user, 2026-11-10)
     # Unreleased gear, now in everyday use (user, 2026-10-31): the replays of 30-31 Oct 2026 show Quark in 75 of 84
     # games and Translocator in 74.
-    now_public = (("weapon", "rifle", "Starburst", "Starburst Stream"), ("weapon", "magnum", "Protostar", "Protostar Power Trip"),
-                  ("weapon", "smg", "Quark", "Quark Storm"), ("ordnance", "loc", "Translocator", "Here, There and Everywhere"))
+    now_public = (("weapon", "rifle", "Starburst", "Starburst Stream (Weapon)"), ("weapon", "magnum", "Protostar", "Protostar Power Trip (Weapon)"),
+                  ("weapon", "smg", "Quark", "Quark Storm (Weapon)"), ("ordnance", "loc", "Translocator", "Here, There and Everywhere (Ordnance)"))
     for i, (slot, code, label, name) in enumerate(now_public, 101):
         rules.append(_ladder(i, name, f"Play games using only {label} in one day", GEAR_ICONS[code],
                              _only_games(slot, code), GEAR_DAY, "day", new=True, group="Experimental gear"))
     for i, (slot, code, label, _) in enumerate(now_public, 105):
-        rules.append(_ladder(i, f"{label} Veteran", f"Play games using {label}", GEAR_ICONS[code], _games_using(slot, code),
+        rules.append(_ladder(i, f"{label} Veteran ({GEAR_TAG[slot]})", f"Play games using {label}", GEAR_ICONS[code], _games_using(slot, code),
                              GEAR_VETERAN,  # released 2026-10-30: the same ladder as the older gear (user, 2026-10-31)
                              new=True, group="Experimental gear"))
     rules += [
@@ -826,7 +827,7 @@ def _build_rules() -> list[Rule]:
              lambda gs: len(gs[0].used("weapon")) / 5, new=True, group="Gear mastery"),
         Rule(111, "Bomb Bay Overload (Ordnance)", "Use 5 different ordnances in one game", "game", None,
              lambda gs: len(gs[0].used("ordnance")) / 5, new=True, group="Gear mastery"),
-        _ladder(112, "Overclocked", "Play games using Overcharge (experimental tac mod)", None, _games_using("tacmod", "buff"), GEAR_VETERAN,
+        _ladder(112, "Overclocked (Tac Mod)", "Play games using Overcharge (experimental tac mod)", None, _games_using("tacmod", "buff"), GEAR_VETERAN,
                 new=True, group="Experimental gear"),
     ]
 
@@ -855,28 +856,28 @@ def _build_rules() -> list[Rule]:
     ]
     # Gear released on 2026-10-30 gets what the older gear has: "only X" in a week (127-130) and Overcharge in a day / week
     # (131-132), on the same ladders (user, 2026-10-31: estimated, the archive holds little of it yet).
-    weekly = (("weapon", "rifle", "Starburst", "Star Power"), ("weapon", "magnum", "Protostar", "Protostar Powerhouse"),
-              ("weapon", "smg", "Quark", "Quark Quake"), ("ordnance", "loc", "Translocator", "Blink and You'll Miss It"))
+    weekly = (("weapon", "rifle", "Starburst", "Star Power (Weapon)"), ("weapon", "magnum", "Protostar", "Protostar Powerhouse (Weapon)"),
+              ("weapon", "smg", "Quark", "Quark Quake (Weapon)"), ("ordnance", "loc", "Translocator", "Blink and You'll Miss It (Ordnance)"))
     for i, (slot, code, label, name) in enumerate(weekly, 127):
         rules.append(_ladder(i, name, f"Play games using only {label} in any 7 days, silver and up on at least {WEEK_MIN_DAYS} different days", GEAR_ICONS[code],
                              _only_games(slot, code, WEEK_MIN_DAYS), GEAR_WEEK, "week", new=True, group="Experimental gear"))
     rules += [
-        _ladder(131, "Full Charge", "Play games using only Overcharge in one day", None,
+        _ladder(131, "Full Charge (Tac Mod)", "Play games using only Overcharge in one day", None,
                 _only_games("tacmod", "buff"), GEAR_DAY, "day", new=True, group="Experimental gear"),
-        _ladder(132, "Charged Up", f"Play games using only Overcharge in any 7 days, silver and up on at least {WEEK_MIN_DAYS} different days", None,
+        _ladder(132, "Charged Up (Tac Mod)", f"Play games using only Overcharge in any 7 days, silver and up on at least {WEEK_MIN_DAYS} different days", None,
                 _only_games("tacmod", "buff", WEEK_MIN_DAYS), GEAR_WEEK, "week", new=True, group="Experimental gear"),
         # Blazar and Dot Field were released too (user, 2026-10-31): the same set as the other new gear
-        _ladder(133, "Blazar Veteran", "Play games using Blazar", "blazar", _games_using("weapon", "chain"), GEAR_VETERAN,
+        _ladder(133, "Blazar Veteran (Weapon)", "Play games using Blazar", "blazar", _games_using("weapon", "chain"), GEAR_VETERAN,
                 new=True, group="Experimental gear"),
-        _ladder(134, "Dot Field Veteran", "Play games using Dot Field", None, _games_using("ordnance", "dot"), GEAR_VETERAN,
+        _ladder(134, "Dot Field Veteran (Ordnance)", "Play games using Dot Field", None, _games_using("ordnance", "dot"), GEAR_VETERAN,
                 new=True, group="Experimental gear"),
-        _ladder(135, "Blazing Trail", "Play games using only Blazar in one day", "blazar",
+        _ladder(135, "Blazing Trail (Weapon)", "Play games using only Blazar in one day", "blazar",
                 _only_games("weapon", "chain"), GEAR_DAY, "day", new=True, group="Experimental gear"),
-        _ladder(136, "Dot to Dot", "Play games using only Dot Field in one day", None,
+        _ladder(136, "Dot to Dot (Ordnance)", "Play games using only Dot Field in one day", None,
                 _only_games("ordnance", "dot"), GEAR_DAY, "day", new=True, group="Experimental gear"),
-        _ladder(137, "Blazar Barrage", f"Play games using only Blazar in any 7 days, silver and up on at least {WEEK_MIN_DAYS} different days", "blazar",
+        _ladder(137, "Blazar Barrage (Weapon)", f"Play games using only Blazar in any 7 days, silver and up on at least {WEEK_MIN_DAYS} different days", "blazar",
                 _only_games("weapon", "chain", WEEK_MIN_DAYS), GEAR_WEEK, "week", new=True, group="Experimental gear"),
-        _ladder(138, "Dot Matrix", f"Play games using only Dot Field in any 7 days, silver and up on at least {WEEK_MIN_DAYS} different days", None,
+        _ladder(138, "Dot Matrix (Ordnance)", f"Play games using only Dot Field in any 7 days, silver and up on at least {WEEK_MIN_DAYS} different days", None,
                 _only_games("ordnance", "dot", WEEK_MIN_DAYS), GEAR_WEEK, "week", new=True, group="Experimental gear"),
     ]
 
