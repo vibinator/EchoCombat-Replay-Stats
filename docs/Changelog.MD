@@ -18,6 +18,11 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.10.27 — 18:22
+
+- **Renamed Point Taker and Point Guard to "Point Taker (Capture Point)" and "Point Guard (Capture Point)"**, like the other
+  Capture Point challenges. (Every Payload challenge already had its "(Payload)" tag.)
+
 ## 2026.11.10.26 — 18:19
 
 - **The 25 award-card challenges now end in "(Leaderboard)"** (for example "MVP of Echo Combat (Leaderboard)"), like the

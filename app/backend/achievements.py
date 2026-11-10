@@ -839,7 +839,7 @@ def _build_rules() -> list[Rule]:
                 new=True, group="Activity"),
         _tiered(118, "Overtime on Kronos II (Activity)", "Games of 10 minutes or longer", None, lambda g: g.play_time_s >= 600, (5, 20, 50, 100, 250), new=True, group="Activity"),
         _tiered(119, "Hot Day Bot (Wins)", "Win games in one day", None, lambda g: g.enough_players and g.won, (3, 5, 8, 12, 18), "day", new=True, group="Wins"),
-        _tiered(120, "Point Taker", "Win Capture Point games", "capture_point", lambda g: g.enough_players and _capture(g) and g.won, (5, 10, 30, 80, 150), new=True, group="Capture Point"),
+        _tiered(120, "Point Taker (Capture Point)", "Win Capture Point games", "capture_point", lambda g: g.enough_players and _capture(g) and g.won, (5, 10, 30, 80, 150), new=True, group="Capture Point"),
         _tiered(121, "Payload Hauler (Payload)", "Win Payload games", "payload", lambda g: g.enough_players and _payload(g) and g.won, (5, 10, 30, 80, 150), new=True, group="Payload"),
         _ladder(122, "Four-Map Tour (Map)", "Win games on all 4 maps (your weakest map sets the count)", None, _v4(_fewest_wins), (1, 3, 6, 12, 20),
                 raise_all_time=False, new=True, group="Wins"),  # eased 2026-11-04 (user): 1/3/6/16/26; was 1/4/10/39/117, platinum reached by ~10 players
@@ -900,7 +900,7 @@ def _build_rules() -> list[Rule]:
              _v4(_full(_both_arms)), new=True, group="Movement"),
         _ladder(145, "Boost Junkie (Movement)", "Keep a high average speed through one whole game, with at least 1 minute in bounds", "speed",
                 _v4(_full(_if_on_the_map(_AvgValue("speed_sum", 1.0)))), (3.5, 4, 4.5, 5.5, 7), "game", " m/s", new=True, group="Movement"),
-        _ladder(146, "Point Guard", "Spend time capturing the point in one Capture Point game (your team's capture progress is rising)",
+        _ladder(146, "Point Guard (Capture Point)", "Spend time capturing the point in one Capture Point game (your team's capture progress is rising)",
                 "capture_point", _v4(lambda gs: gs[0].capture_s / 60 if _capture(gs[0]) else 0.0), (2, 3, 3.5, 4.2, 5), "game", " min",
                 new=True, group="Capture Point"),
         _ladder(147, "Contested Point (Capture Point)", "Spend time in one Capture Point game with both teams on the point (contested)",
