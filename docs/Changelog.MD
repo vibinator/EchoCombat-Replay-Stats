@@ -18,6 +18,10 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.10.25 — 18:18
+
+- **Renamed "Saturn Super Star" to "Super Star"** (Combat, one game).
+
 ## 2026.11.10.24 — 18:16
 
 - **One set of period names everywhere: One Match, One Day, One Week, Cumulative** (the Achievements tabs and the

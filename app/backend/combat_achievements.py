@@ -153,7 +153,7 @@ COMBAT_RULES: list[Rule] = [
     Rule(258, "Comet Headhunter", "Win the Sniper card in one game (the most headshot kills)", "game", None, _total(lambda g: "sniper" in g.awards), new=True, group=GROUP, counted=False),
     Rule(259, "Lone Wolf of Kronos II", "Win the Renegade card in one game (the most solo kills)", "game", None, _total(lambda g: "renegade" in g.awards), new=True, group=GROUP, counted=False),
     Rule(260, "Stun Field Lockdown", "Win the Controller card in one game (the most damage to enemies on the objective)", "game", None, _total(lambda g: "controller" in g.awards), new=True, group=GROUP, counted=False),
-    Rule(261, "Saturn Super Star", "Win the Super Star card in one game (the most eliminations, kills and assists together)", "game", None, _total(lambda g: "super_star" in g.awards), new=True, group=GROUP, counted=False),
+    Rule(261, "Super Star", "Win the Super Star card in one game (the most eliminations, kills and assists together)", "game", None, _total(lambda g: "super_star" in g.awards), new=True, group=GROUP, counted=False),
     Rule(262, "Kronos II Shock Trooper", "Win the Shock Trooper card in one game (the most enemies stunned)", "game", None, _total(lambda g: "shock_trooper" in g.awards), new=True, group=GROUP, counted=False),
     Rule(263, "Capture Point Infiltrator", "Win the Infiltrator card in one game (the most hill captures, Capture Point maps)", "game", None, _total(lambda g: "infiltrator" in g.awards), new=True, group=GROUP, counted=False),
     Rule(264, "Immovable Object on Dyson", "Win the Immovable Object card in one game (the most hill defends, Capture Point maps)", "game", None, _total(lambda g: "immovable_object" in g.awards), new=True, group=GROUP, counted=False),
