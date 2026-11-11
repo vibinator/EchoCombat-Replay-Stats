@@ -452,3 +452,29 @@ def test_spawn_circles_are_the_ones_drawn_in_the_bounds_editor():
     for name, circles in SPAWN_CIRCLES.items():
         b = BOUNDS[name]
         assert all(b.x_min <= x <= b.x_max and b.z_min <= z <= b.z_max and r > 0 for x, z, r in circles), name
+
+
+def test_the_move_to_the_war_room_after_a_round_is_not_a_death(tmp_path):
+    """Best of three on a capture map: 18.5 s after a round that does not decide the match, everybody is moved off the
+    map (user, 2026-11-11). Not deaths; a real death in the next round still is one. 20 frames a second."""
+    from backend.stats import ROUND_MOVE_S
+
+    def match(leave_after_s):
+        frames = []
+        for i in range(1500):  # 75 s
+            blue, orange = rf.player(), rf.player(42, "Other", 1)
+            out = 300 + leave_after_s * 20 <= i < 300 + leave_after_s * 20 + 200  # 10 s away
+            for p, x in ((blue, 2.0), (orange, -2.0)):
+                spot = [500.0, 0.0, 500.0] if out else [x, 0.0, 3.0]
+                p["head"] = {"position": spot, "forward": [0, 0, 1], "left": [1, 0, 0], "up": [0, 1, 0]}
+            frames.append(rf.frame(teams=[{"players": [blue]}, {"players": [orange]}, {}], blue_round_score=int(i >= 300)))
+        path = tmp_path / "r.echoreplay"
+        path.write_bytes(rf.plain(rf.lines_from(frames)))
+        replay = open_replay(path)
+        s = compute(replay.meta, replay.frames())
+        return [p.deaths_est for p in s.players], [e.type for e in s.events if e.type in ("round_won", "death_est", "respawn")]
+
+    # the round is won at 15 s, both are moved off the map 18.5 s later and are back for the next round
+    assert match(18.5) == ([0, 0], ["round_won", "respawn", "respawn"])
+    for real in (3.0, ROUND_MOVE_S[1] + 12):  # killed in the fight that goes on after the round; killed in the next round
+        assert match(real) == ([1, 1], ["round_won", "death_est", "death_est", "respawn", "respawn"])

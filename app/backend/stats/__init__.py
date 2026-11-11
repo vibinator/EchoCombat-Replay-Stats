@@ -10,9 +10,16 @@ from .payload import FINAL_CHECKPOINT, PayloadAccumulator
 from .player import PlayerAccumulator
 from .results import EventRecord, MatchStats, PlayerStats
 
-STATS_VERSION = "14"  # 14: the spawn points are the measured ones (1.5 m, Dyson's two entry tubes too; its bounds reach x = +-110 for them). 13: leaving the play area from a spawn point (maps.SPAWN_CIRCLES) is not a death. 12: play-area bounds of Combustion, Surge and Fission had x and z swapped (maps.BOUNDS): deaths, in-bounds time and everything counted in bounds change on those maps. 11: ping_capped_sum (ping spikes capped at 400 ms in averages, DATA-5; in place, D57). 10: frames_lone_wolf_near (3.5 m, Lone Wolf). 9: no deaths / respawns after the capture match is decided or the payload run is over. 8: the map's load-in spot (maps.LOAD_IN_SPOTS) is no longer a death, in-bounds time or track sample
+STATS_VERSION = "15"  # 15: the move to the war room after a round that does not decide the match is not a death (ROUND_MOVE_S). 14: the spawn points are the measured ones (1.5 m, Dyson's two entry tubes too; its bounds reach x = +-110 for them). 13: leaving the play area from a spawn point (maps.SPAWN_CIRCLES) is not a death. 12: play-area bounds of Combustion, Surge and Fission had x and z swapped (maps.BOUNDS): deaths, in-bounds time and everything counted in bounds change on those maps. 11: ping_capped_sum (ping spikes capped at 400 ms in averages, DATA-5; in place, D57). 10: frames_lone_wolf_near (3.5 m, Lone Wolf). 9: no deaths / respawns after the capture match is decided or the payload run is over. 8: the map's load-in spot (maps.LOAD_IN_SPOTS) is no longer a death, in-bounds time or track sample
 
 CAPTURE_ROUNDS_TO_WIN = 2  # best of three: the round that makes it 2 decides the match
+# After a round that does not decide the match, everybody still on the map is moved to the war room: 18.5 to 18.9 s
+# after the round is won (measured, 3,000 rounds of 2023 and 2026, Dyson and Combustion alike; 5 % and 95 % of the
+# exits). Those moves were counted as deaths: 3.7 to 5.2 a round, about 7 % of all deaths on Dyson (user,
+# 2026-11-11). A death between these two moments after such a round is that move. The fight goes on for some 7 s
+# after a round is won and players come back from 30.8 s on: those deaths and respawns are real and stay. Payload
+# maps have no such move: a run is one round.
+ROUND_MOVE_S = (17.5, 20.5)
 
 MAX_FRAME_GAP_S = 1.0  # cap per-frame time credit so a recording gap does not count as play time
 
@@ -107,11 +114,21 @@ def compute(meta: ReplayMeta, frames: Iterable[Frame], recorder=None) -> MatchSt
             events.append(EventRecord(acc.last_frame, t_s, "player_leave", acc.user_id, acc.team))
     events.sort(key=lambda e: e.frame)
     end_frame = payload_end if has_payload else capture_end
-    if end_frame is not None:  # deaths after the match is over are the players being moved on, not real deaths
-        late = Counter(e.user_id for e in events if e.frame > end_frame and e.type == "death_est")
+    breaks = [(e.frame, e.t_s) for e in events if e.type == "round_won" and e.data
+              and max(e.data.values()) < CAPTURE_ROUNDS_TO_WIN]
+
+    def moved_on(e: EventRecord) -> bool:
+        """Not a real death (or respawn): after the match is over, the players being moved on; and the deaths at the
+        moment everybody is moved to the war room after a round."""
+        if end_frame is not None and e.frame > end_frame:
+            return True
+        return e.type == "death_est" and any(t_s + ROUND_MOVE_S[0] <= e.t_s <= t_s + ROUND_MOVE_S[1] for _, t_s in breaks)
+
+    if end_frame is not None or breaks:
+        late = Counter(e.user_id for e in events if e.type == "death_est" and moved_on(e))
         for user_id, n in late.items():
             players[user_id].deaths -= n
-        events[:] = [e for e in events if not (e.frame > end_frame and e.type in ("death_est", "respawn"))]
+        events[:] = [e for e in events if not (e.type in ("death_est", "respawn") and moved_on(e))]
 
     duration_s = (last.timestamp - meta.started_at).total_seconds()
     mode = MAP_MODES.get(name) or ("payload" if has_payload else "capture_point")

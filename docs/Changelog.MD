@@ -18,6 +18,25 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.11.3 — 00:17
+
+- **The move to the war room after a round is no longer counted as deaths.** On the capture-point maps (Dyson,
+  Combustion: best of three) everybody still on the map is moved to the war room 18.5 to 18.9 s after a round is
+  won. When that round did not decide the match, each of those moves was counted as a death: 3.7 to 5.2 a round,
+  about 7 % of all deaths on Dyson and 6 % on Combustion. A death 17.5 to 20.5 s after such a round is now that
+  move, not a death.
+  - Measured on 3,000 rounds from 2023 and 2026: the timing is the same in both. Matches from 2021 carry no round
+    scores, so nothing changes for them.
+  - Unchanged: after the round that decides the match nothing counted already (since stats version 9). The fight
+    that goes on for some 7 seconds after a round is won, and the players coming back for the next round, still
+    count as real deaths and respawns. Payload maps have no such move (a run is one round; checked: 0.4 % of
+    their deaths fall in a second with four or more).
+- Fewer deaths on Dyson and Combustion, so what reads them moves: deaths per match, Pixel Party!, Pew Pew Proof,
+  Untouchable Chassis, the Deaths heatmap and the death marks on the timeline.
+- **The whole archive is read again after this update** (stats version 15; still one pass for everything since
+  2026.11.10.43). The home page heatmaps count themselves again when it has finished (2026.11.11.2).
+- **To do after updating:** restart the server, and expect the re-read.
+
 ## 2026.11.11.2 — 00:11
 
 - **The home page heatmaps count themselves again once the archive has been read again.** Nobody has to delete

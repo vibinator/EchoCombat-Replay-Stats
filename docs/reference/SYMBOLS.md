@@ -206,9 +206,9 @@ Remote processing (user, 2026-11-02): reading replays is slow on the NAS, so ano
 Finds replays in the read-only share (D25) and queues new or changed files. Never writes to the share.
 - `EXTENSION`:25 / **class ScanState**:29 / **class Snapshot**:42 / _walk:48 / _written_at:69 / dirs_changed:75 / scan_once:85 / **class Scanner**:144 [start:152, scan_soon:155, stop:158, _run:163, _wait_for_change:170]
 
-### `app/backend/stats/__init__.py` (147 lines)
+### `app/backend/stats/__init__.py` (164 lines)
 Frames -> MatchStats in a single pass. No database imports.
-- `STATS_VERSION`:13 / `CAPTURE_ROUNDS_TO_WIN`:15 / `MAX_FRAME_GAP_S`:17 / **class _MatchEvents**:20 [_event:28, add:32] / _capture_point_winner:48 / compute:54
+- `STATS_VERSION`:13 / `CAPTURE_ROUNDS_TO_WIN`:15 / `ROUND_MOVE_S`:22 / `MAX_FRAME_GAP_S`:24 / **class _MatchEvents**:27 [_event:35, add:39] / _capture_point_winner:55 / compute:61
 
 ### `app/backend/stats/map_objects.py` (84 lines)
 Fixed objects per map, measured from real replays (2026-10-31), for drawing the playback.
