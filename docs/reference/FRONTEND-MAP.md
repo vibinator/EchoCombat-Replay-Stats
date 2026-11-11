@@ -45,8 +45,8 @@ lines and CRLF.
 - exports: awardHint:10, AwardBadge:15, AwardBadges:25, AwardGuide:54, WeaponList:96, EventCards:122, CombatSection:140, CombatMatchBody:299, MatchCombatSection:385
 - api.ts calls: getCombatMatch, getCombatPlayer
 
-### `app/frontend/src/components/common.tsx` (176 lines)
-- exports: LocalTime:20, Status:24, isNotFound:39, NotFoundBox:43, TeamBadge:55, gearIconUrl:82, GearIcon:87, GearLabel:93, GearName:104, LoadoutText:114, TableWrap:131, MatchTable:135
+### `app/frontend/src/components/common.tsx` (175 lines)
+- exports: LocalTime:20, Status:24, isNotFound:39, NotFoundBox:43, TeamBadge:55, gearIconUrl:82, GearIcon:87, GearLabel:93, GearName:104, LoadoutText:113, TableWrap:130, MatchTable:134
 
 ### `app/frontend/src/components/GlobalSearch.tsx` (95 lines)
 - exports: GlobalSearch:7
@@ -136,12 +136,12 @@ lines and CRLF.
 - exports: ConsolePage:422
 - api.ts calls: forgetResponses, getConsoleLog, getConsoleOverview, getProcessingStatus, loginUrl, runConsole, searchConsolePlayers
 
-### `app/frontend/src/pages/HomePage.tsx` (409 lines)
-- exports: HomePage:230
+### `app/frontend/src/pages/HomePage.tsx` (408 lines)
+- exports: HomePage:229
 - api.ts calls: getActivity, getLastMatch, getLatestMatches, getLive, getOverview, getPlayersSeen
 
-### `app/frontend/src/pages/LeaderboardPage.tsx` (298 lines)
-- exports: LeaderboardPage:273
+### `app/frontend/src/pages/LeaderboardPage.tsx` (297 lines)
+- exports: LeaderboardPage:272
 - api.ts calls: getLeaderboard
 
 ### `app/frontend/src/pages/MatchesPage.tsx` (158 lines)

@@ -20,7 +20,6 @@ function GearTop({ label, items }: { label: string; items: GearShare[] }) {
         <>
           <strong>
             <GearLabel name={items[0].name} />
-            {items[0].cut && <sup className="cut">cut</sup>}
           </strong>
           <span className="muted">{pct(items[0].share)} of the time</span>
           <ol className="runner-up muted">

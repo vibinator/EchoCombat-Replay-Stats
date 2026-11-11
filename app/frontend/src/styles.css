@@ -439,12 +439,6 @@ td.num {
   font-size: 0.75rem;
 }
 
-.cut {
-  margin-left: 2px;
-  color: var(--muted);
-  font-size: 0.65rem;
-}
-
 .loadout {
   white-space: nowrap;
 }

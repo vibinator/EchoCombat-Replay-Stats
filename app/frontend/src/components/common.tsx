@@ -103,9 +103,8 @@ export function GearLabel({ name }: { name: string }) {
 
 export function GearName({ item }: { item: GearItem }) {
   return (
-    <span title={item.cut ? `${item.code} — cut / unreleased gear` : item.code}>
+    <span title={item.code}>
       <GearLabel name={item.name} />
-      {item.cut && <sup className="cut">cut</sup>}
     </span>
   );
 }

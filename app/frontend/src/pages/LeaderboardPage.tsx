@@ -158,7 +158,6 @@ function ReplayBoard() {
                 {items.map((g) => (
                   <option key={g.code} value={g.code}>
                     {g.name}
-                    {g.cut ? " (cut)" : ""}
                   </option>
                 ))}
               </select>

@@ -81,7 +81,7 @@ def test_per_game_rules_ignore_short_appearances():
 def test_all_time_and_overall():
     games = [game(deaths=10) for _ in range(100)]
     r = by_id(evaluate(games))
-    assert (r[68]["tier"], r[68]["count"]) == ("silver", 1000)  # 1000 deaths
+    assert (r[68]["tier"], r[68]["count"]) == ("silver", 1000)  # 1000 deaths: 150 / 600 / 1200 / 2000
     assert (r[59]["tier"], r[59]["count"]) == ("crown", 100)  # 100 games with Detonator (ordnance id 59)
     assert (r[67]["tier"], r[67]["count"]) == (None, 1)  # one loadout combination, ladder 6 / 12 / ...
     assert 0 < overall(list(r.values())) < 1
@@ -127,7 +127,7 @@ def test_coming_soon_until_the_start_date(tmp_path):
 def test_logic_follows_the_text():
     """Every condition is in the description (user, 2026-10-30)."""
     text = {r.id: r.description for r in RULES}
-    assert "25+ games" in text[73] and "fewer than 5 deaths" in text[43]
+    assert "25+ games" in text[73] and "dying fewer than 5 times a game" in text[43]
     # the counting rules are listed per achievement, not repeated in the description
     notes = {r.id: rule_notes(r) for r in RULES}
     assert "4+ min games" in notes[18] and "4+ min games" in notes[21] and "4+ min games" in notes[43] and "4+ min games" in notes[42]
@@ -176,8 +176,9 @@ def test_teammate_proximity_targets():
     assert by_id(evaluate(over_days(170, 4, 4, 3)))[46]["tier"] is None  # under 10 minutes in bounds
     assert by_id(evaluate(over_days(150, 4, 4, 4)))[46]["tier"] is None
     assert by_id(evaluate(over_days(170, 6, 6)))[46]["tier"] is None  # two days only
-    assert by_id(evaluate([game(mate=140)] * 50))[71]["tier"] == "bronze"
-    assert by_id(evaluate([game(mate=130)] * 50))[71]["tier"] is None
+    assert by_id(evaluate([game(mate=120)] * 50))[71]["tier"] == "bronze"  # 12 / 14 / 16 / 18 % (2026-11-11)
+    assert by_id(evaluate([game(mate=140)] * 50))[71]["tier"] == "silver"
+    assert by_id(evaluate([game(mate=110)] * 50))[71]["tier"] is None
 
 
 def test_new_gear_challenges():
@@ -237,26 +238,26 @@ def test_tiered_achievements():
                 for i in range(n)]
 
     expected = {0: (None, 0.0), 1: ("bronze", 0.25), 3: ("bronze", 0.25 + 2 / 11 / 4), 6: ("bronze", 0.25 + 5 / 11 / 4), 12: ("silver", 0.5),
-                39: ("gold", 0.75), 50: ("gold", 0.75 + 11 / 117 / 4), 156: ("crown", 1.0), 180: ("crown", 1.0)}
+                18: ("gold", 0.75), 20: ("gold", 0.75 + 2 / 4 / 4), 22: ("crown", 1.0), 30: ("crown", 1.0)}  # 1 / 12 / 18 / 22 (2026-11-11)
     for n, (medal, progress) in expected.items():
         r = by_id(evaluate(sweeps(n)))[93]
-        assert (r["tier"], r["count"], r["levels"]) == (medal, n, [1, 12, 39, 156]), n
+        assert (r["tier"], r["count"], r["levels"]) == (medal, n, [1, 12, 18, 22]), n
         assert r["progress"] == pytest.approx(progress, abs=1e-4), n
     rule = next(r for r in RULES if r.id == 93)
-    assert "1 bronze, 12 silver, 39 gold, 156 crown" in rule.description
+    assert "1 bronze, 12 silver, 18 gold, 22 crown" in rule.description
     assert unlock_threshold(rule) == 0.25 and unlock_threshold(next(r for r in RULES if r.id == 69)) == 0.25
     delivery = next(r for r in RULES if r.id == 94)
-    assert "Deliver the payload to the end" in delivery.description and delivery.levels == (1, 12, 39, 94)
+    assert "Deliver the payload to the end" in delivery.description and delivery.levels == (1, 11, 18, 21)
     assert "count" not in by_id(evaluate(sweeps(1)))[87]  # single-step rules unchanged
 
 
 def test_ladders_with_units_and_periods():
     """Per-game ladders count the best game, units are in the text, short games do not count."""
     r = by_id(evaluate([game(top=20.0), game(top=9.0)]))
-    assert (r[23]["tier"], r[23]["count"], r[23]["unit"]) == ("silver", 20.0, " m/s")  # 14 / 20 / 26 / 30
-    assert "14 m/s bronze, 20 m/s silver" in next(x for x in RULES if x.id == 23).description
+    assert (r[23]["tier"], r[23]["count"], r[23]["unit"]) == ("gold", 20.0, " m/s")  # 14 / 18 / 20 / 22
+    assert "14 m/s bronze, 18 m/s silver" in next(x for x in RULES if x.id == 23).description
     r = by_id(evaluate([game(upside=600)]))
-    assert (r[24]["tier"], r[24]["count"]) == ("silver", 60.0)  # 60 % inverted in one 3+ min game: 15 / 52 / 66 / 78 (TUNED_LEVELS)
+    assert (r[24]["tier"], r[24]["count"]) == ("gold", 60.0)  # 60 % inverted in one 3+ min game: 10 / 45 / 55 / 65 (TUNED_LEVELS)
     assert by_id(evaluate([game(upside=900, play=60.0)]))[24]["count"] == 0
 
 
@@ -349,7 +350,7 @@ def test_lone_wolf_uses_its_own_distance():
 
 
 def test_untouchable_is_one_medal_and_needs_a_minute_in_bounds():
-    base = {**game("2026-10-01", deaths=0).__dict__, "team": "blue", "winner": "blue"}
+    base = {**game("2026-10-01", deaths=0, play=400.0).__dict__, "team": "blue", "winner": "blue"}
     assert next(rule for rule in RULES if rule.id == 139).levels == ()  # one win is the whole challenge
     assert by_id(evaluate([Game(**{**base, "in_bounds": 1200})]))[139]["progress"] == 1.0  # exactly 1 minute at 20 Hz
     assert by_id(evaluate([Game(**{**base, "in_bounds": 1199})]))[139]["progress"] == 0
@@ -364,7 +365,7 @@ def test_lone_wolf_has_no_value_before_the_replay_is_read_again():
 
 
 def test_seven_day_upside_down_needs_three_days_and_ten_minutes_in_bounds():
-    assert next(rule for rule in RULES if rule.id == 49).levels == (9.3, 36, 47, 57)
+    assert next(rule for rule in RULES if rule.id == 49).levels == (9, 12, 20, 27)
     def flipped(day, frames=4000):
         return Game(**{**game(day).__dict__, "upside": frames * 3 // 5, "in_bounds": frames})
     assert by_id(evaluate([flipped("2026-10-01"), flipped("2026-10-02"), flipped("2026-10-03")]))[49]["tier"] == "crown"
@@ -375,7 +376,7 @@ def test_seven_day_upside_down_needs_three_days_and_ten_minutes_in_bounds():
 def test_speed_demon_needs_a_minute_in_bounds():
     base = game("2026-10-01").__dict__
     rule = next(rule for rule in RULES if rule.id == 145)
-    assert rule.levels == (3.5, 4.5, 5.25, 6)
+    assert rule.levels == (3.25, 3.75, 4.25, 4.75)
     fast = {**base, "speed_sum": 6.0 * 1200}
     assert by_id(evaluate([Game(**{**fast, "in_bounds": 1200})]))[145]["tier"] == "crown"  # 6 m/s for exactly 1 minute at 20 Hz
     assert by_id(evaluate([Game(**{**fast, "in_bounds": 1199})]))[145]["count"] == 0
@@ -385,7 +386,7 @@ def test_seven_day_speed_needs_three_days_and_ten_minutes_in_bounds():
     base = game("2026-10-01").__dict__  # 20 Hz, 4 m/s below
     def fast(frames, day="2026-10-01"):
         return Game(**{**base, "started_at": f"{day}T20:00:00.000", "in_bounds": frames, "speed_sum": 4.0 * frames})
-    assert next(rule for rule in RULES if rule.id == 48).levels == (2.75, 3.25, 3.5, 3.75)
+    assert next(rule for rule in RULES if rule.id == 48).levels == (2.25, 2.75, 3.25, 3.65)
     assert by_id(evaluate([fast(4000), fast(4000, "2026-10-03"), fast(4000, "2026-10-07")]))[48]["tier"] == "crown"  # exactly 10 minutes, any 3 days of the 7
     assert by_id(evaluate([fast(4000), fast(4000, "2026-10-03"), fast(3999, "2026-10-07")]))[48]["count"] == 0
     assert by_id(evaluate([fast(24000)]))[48]["count"] == 0  # one long game
@@ -395,7 +396,7 @@ def test_seven_day_speed_needs_three_days_and_ten_minutes_in_bounds():
 
 
 def test_seven_day_enemy_share_needs_three_days_and_ten_minutes_in_bounds():
-    assert next(rule for rule in RULES if rule.id == 47).levels == (12, 16, 18, 20)
+    assert next(rule for rule in RULES if rule.id == 47).levels == (8, 9.5, 11, 13)
     def close(day, frames=4000):
         return Game(**{**game(day).__dict__, "near_enemy": frames // 5, "in_bounds": frames})
     assert by_id(evaluate([close("2026-10-01"), close("2026-10-02"), close("2026-10-03")]))[47]["tier"] == "crown"  # 20 % for exactly 10 minutes at 20 Hz
@@ -405,14 +406,14 @@ def test_seven_day_enemy_share_needs_three_days_and_ten_minutes_in_bounds():
 
 def test_can_we_talk_needs_a_minute_in_bounds():
     base = game("2026-10-01").__dict__
-    assert next(rule for rule in RULES if rule.id == 22).levels == (25, 35, 40, 50)
+    assert next(rule for rule in RULES if rule.id == 22).levels == (20, 25, 30, 40)
     close = {**base, "near_enemy": 600}
     assert by_id(evaluate([Game(**{**close, "in_bounds": 1200})]))[22]["tier"] == "crown"  # 50 % for exactly 1 minute at 20 Hz
     assert by_id(evaluate([Game(**{**close, "in_bounds": 1199})]))[22]["count"] == 0
 
 
 def test_seven_day_teammate_share_needs_three_days_and_ten_minutes_in_bounds():
-    assert next(rule for rule in RULES if rule.id == 46).levels == (16, 24, 26, 28)
+    assert next(rule for rule in RULES if rule.id == 46).levels == (16, 19, 21, 23)
     def close(day, frames=4000):
         return Game(**{**game(day).__dict__, "near_mate": frames * 7 // 25, "in_bounds": frames})
     assert by_id(evaluate([close("2026-10-01"), close("2026-10-02"), close("2026-10-03")]))[46]["tier"] == "crown"  # 28 % for exactly 10 minutes at 20 Hz
@@ -422,7 +423,7 @@ def test_seven_day_teammate_share_needs_three_days_and_ten_minutes_in_bounds():
 
 def test_statue_needs_a_minute_in_bounds():
     base = game("2026-10-01").__dict__
-    assert next(rule for rule in RULES if rule.id == 142).levels == (54, 67, 73, 80)
+    assert next(rule for rule in RULES if rule.id == 142).levels == (50, 60, 67.5, 75)
     still = {**base, "stopped": 960}
     assert by_id(evaluate([Game(**{**still, "in_bounds": 1200})]))[142]["tier"] == "crown"  # 80 % for exactly 1 minute at 20 Hz
     assert by_id(evaluate([Game(**{**still, "in_bounds": 1199})]))[142]["count"] == 0
@@ -446,8 +447,8 @@ def test_one_day_targets():
 
 def test_impossible_top_medals_were_lowered():
     levels = {rule.id: rule.levels for rule in RULES}
-    assert levels[72] == (6, 9, 11, 14) and levels[73] == (2.6, 3.0, 3.2, 3.5) and levels[100] == (20, 60, 80, 120)
-    assert levels[146] == (2, 3.5, 4, 4.5) and levels[149] == (2, 4, 5, 6) and levels[150] == (2, 6, 8, 10) and levels[151] == (4, 8, 10, 14)
+    assert levels[72] == (6, 9, 10, 11) and levels[73] == (2.6, 2.85, 3.1, 3.4) and levels[100] == (20, 60, 80, 120)
+    assert levels[146] == (2, 3.5, 4, 4.5) and levels[149] == (2, 4, 5, 6) and levels[150] == (2, 6, 8, 10) and levels[151] == (4, 6, 7, 8)
 
 
 def test_seven_day_map_and_mode_targets():
@@ -542,3 +543,16 @@ def test_test_drive_counts_the_time_in_one_game():
     small.enough_players = False
     assert by_id(evaluate([small]))[pulsar]["progress"] == 0  # a game under 3v3 does not count
     assert medal_times([game("2026-11-05", loadout=("assault", "heal", "det"))])[pulsar][None].startswith("2026-11-05")
+
+
+def test_untouchable_needs_a_game_of_six_minutes():
+    """Untouchable Chassis counts games of 6+ minutes (user, 2026-11-11); the other death achievements keep 4."""
+    base = {**game("2026-10-01", deaths=0).__dict__, "team": "blue", "winner": "blue", "in_bounds": 1200}
+    assert by_id(evaluate([Game(**{**base, "play_time_s": 360.0})]))[139]["progress"] == 1.0
+    assert by_id(evaluate([Game(**{**base, "play_time_s": 359.0})]))[139]["progress"] == 0
+    notes = rule_notes(next(rule for rule in RULES if rule.id == 139))
+    assert "6+ min games" in notes
+    assert notes == ["Best game", "6+ min games", "3+ players per team", "1+ min on the map"]
+    assert next(rule for rule in RULES if rule.id == 139).description == "Win a game without dying"
+    assert "4+ min games" in rule_notes(next(rule for rule in RULES if rule.id == 18))
+    assert by_id(evaluate([game("2026-10-01", deaths=0, play=240.0)]))[18]["count"] == 1  # Toaster: still 4 minutes

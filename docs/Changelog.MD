@@ -18,6 +18,210 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.11.18 — 03:09
+
+- **The small "cut" label is gone everywhere** (user; the home page heatmap choices lost it in 2026.11.10.48): gear
+  names on player and match pages, the "Most popular gear" cards on the home page, and the "(cut)" after a name in
+  the leaderboard's weapon, ordnance and tac mod filters. The hover text of a gear name now shows only its code. The
+  data still says which gear is cut (`cut` in the API answers); nothing shows it.
+- **To do after updating:** restart the server.
+
+## 2026.11.11.17 — 03:03
+
+- **Cyberkinetic Enhancements is harder again** (user): **2.6 / 2.85 / 3.1 / 3.4 m/s** (the previous update had made
+  bronze 2 m/s, which every player with 25+ games reached). Bronze is back at 2.6, held by 68 % of regulars, then 41 /
+  23 / 8 %; the steps are 0.25, 0.25 and 0.3 m/s.
+- **Payload Pedal to the Metal is spread out** (user): **100 / 140 / 175 / 205 seconds** (was 112 / 182 / 198 / 207).
+  The old top three were 9-16 seconds apart because almost every long push ends near 200 seconds. The crown is
+  unchanged at about 7.5 % of regulars; regulars holding each medal: 75 / 51 / 23 / 9 % (was 69 / 20 / 11 / 8).
+- **To do after updating:** restart the server.
+
+## 2026.11.11.16 — 02:51
+
+- **Seven ladders are less tight** (user): the medals were bunched together because these stats barely vary between
+  players. The crowns stay (about 7.5 % of regulars); silver and gold step down, and bronze where needed, so every
+  step is at least 8 % of the crown. The other five bunched ladders (top speed, Tech Support, Robot Wrecking Squad,
+  Roboticide, Contested Point) already met that and are unchanged.
+
+  | Achievement | Was | Now | Regulars holding each medal, was → now |
+  |---|---|---|---|
+  | Full Team Salvo | 40 / 55 / 60 / 67.5 % | 40 / 52.5 / 60 / 67.5 % | 51 / 20 / 15 / 8 → 51 / 31 / 15 / 8 |
+  | Hug Your Frenemy | 10 / 11 / 12 / 13 % | 8 / 9.5 / 11 / 13 % | 41 / 29 / 16 / 10 → 69 / 47 / 29 / 10 |
+  | The Wings of RAD_Wyvern | 2.75 / 3.25 / 3.5 / 3.65 m/s | 2.25 / 2.75 / 3.25 / 3.65 m/s | 59 / 25 / 16 / 8 → 93 / 59 / 25 / 8 |
+  | Cyberkinetic Enhancements | 2.6 / 3 / 3.2 / 3.4 m/s | 2 / 2.5 / 3 / 3.4 m/s | 68 / 31 / 21 / 8 → 100 / 80 / 31 / 8 |
+  | Marathon Bot | 12 / 14 / 16 / 17 min | 12 / 14 / 15.5 / 17 min | 88 / 57 / 29 / 8 → 88 / 57 / 34 / 8 |
+  | Space Statue | 50 / 60 / 70 / 75 % | 50 / 60 / 67.5 / 75 % | 64 / 29 / 16 / 10 → 64 / 29 / 18 / 10 |
+  | Boost Junkie | 3.5 / 4 / 4.5 / 4.75 m/s | 3.25 / 3.75 / 4.25 / 4.75 m/s | 79 / 42 / 15 / 9 → 90 / 59 / 25 / 9 |
+
+  The price is a much easier bronze on Cyberkinetic (everybody who plays 25+ games has it) and Wings; the
+  alternatives measured were stronger widening (every step 12 % of the crown) and raising the crown instead (which
+  puts it at 0-4 % of regulars for five of them).
+- **To do after updating:** restart the server.
+
+## 2026.11.11.15 — 02:40
+
+- **Achievement targets re-set so the top medal is reachable again** (user). The corrected bounds, spawn points and
+  death rules (stats version 16) made many harder and left the crown of most with nobody; measured on the last 100
+  days (1,529 matches, 819 players, 91 "regulars" with 25+ games).
+  - **Skill and stat achievements** (speed, proximity, upside down, deaths, blocking, emotes ...): the crown is held
+    by about **7.5 % of regulars** (about 7 of 91, under 1 % of all players), gold 12-15 %, silver about 20 %.
+  - **Volume and activity achievements** (games played, per map, wins, hours, days, payload and capture point wins):
+    the crown is held by about **5 % of regulars**, gold about 8 %, silver about 13 %. They keep a higher crown
+    because they were set from the whole archive and are lifetime goals (user's choice, option B).
+  - **Gear** (weapon, ordnance and tac mod): one set of numbers per kind of challenge, the same for all gear. Only the
+    Veteran ones changed (5 / 15 / 25 / 40 games, was 5 / 19 / 29 / 49; the median gear now has its crown held by 7 %
+    of regulars). "Only X in a day" and "only X in 7 days" were already at about 9 % and stay.
+  - Unchanged on purpose: Lobby Mime Troupe (user), Quick-Change Chassis (a whole number of loadouts: 5 is held by 30 %
+    and 6 by 2 %, nothing in between), the one-medal Untouchable Chassis and Test Drives, collections (Versatile Bot,
+    5th Loadout, least-used gear), and the achievements already at 5 % or more.
+  - Maps (4) and modes (2) keep identical numbers within each group.
+
+  | Achievement | Was | Now |
+  |---|---|---|
+  | Full Team Salvo | 50 / 69 / 74 / 81% | 40 / 55 / 60 / 67.5% |
+  | Can We Talk About This? | 25 / 35 / 40 / 50% | 20 / 25 / 30 / 40% |
+  | Super Ultra Hyper Turbo | 14 / 20 / 26 / 30 m/s | 14 / 18 / 20 / 22 m/s |
+  | I’m Bat Bot | 15 / 52 / 66 / 78% | 10 / 45 / 55 / 65% |
+  | Tech Support w/RAD_Natalie | 16 / 24 / 26 / 28% | 16 / 19 / 21 / 23% |
+  | Hug Your Frenemy | 12 / 16 / 18 / 20% | 10 / 11 / 12 / 13% |
+  | The Wings of RAD_Wyvern | 2.75 / 3.25 / 3.5 / 3.75 m/s | 2.75 / 3.25 / 3.5 / 3.65 m/s |
+  | I’ɯ ꓭɐʇ ꓭoʇ | 9.3 / 36 / 47 / 57% | 9 / 12 / 20 / 27% |
+  | Pixel Party! | 205 / 810 / 1460 / 2470 | 150 / 600 / 1200 / 2000 |
+  | King of the Hill | 14 / 54 / 95 / 165 | 14 / 54 / 90 / 105 |
+  | Feed the Flamingo | 14 / 51 / 90 / 155 | 14 / 54 / 90 / 105 |
+  | Robot Wrecking Squad | 14 / 17 / 25.4 / 29.2% | 12 / 14 / 16 / 18% |
+  | Roboticide | 6 / 9 / 11 / 14% | 6 / 9 / 10 / 11% |
+  | Cyberkinetic Enhancements | 2.6 / 3 / 3.2 / 3.5 m/s | 2.6 / 3 / 3.2 / 3.4 m/s |
+  | toB taB m'I | 2 / 8 / 26 / 52% | 2 / 8 / 11 / 17% |
+  | Brute Force Attack | 8 / 27 / 50 / 80 | 8 / 27 / 40 / 50 |
+  | Molten Mechanical Mayhem | 7 / 26 / 49 / 80 | 8 / 27 / 40 / 50 |
+  | George and I Go Way Back | 7 / 26 / 45 / 80 | 8 / 27 / 40 / 50 |
+  | Good ol' George | 7 / 26 / 46 / 75 | 8 / 27 / 40 / 50 |
+  | King/Queen of Pubs | 28 / 105 / 190 / 320 | 28 / 105 / 180 / 210 |
+  | Centurion Bot (Wins) | 6 / 36 / 156 / 468 | 6 / 36 / 65 / 80 |
+  | Capture Point Clean Sweep (Capture Point) | 1 / 12 / 39 / 156 | 1 / 12 / 18 / 22 |
+  | Payload Delivered (Payload) | 1 / 12 / 39 / 94 | 1 / 11 / 18 / 21 |
+  | Payload Shutout (Payload) | 1 / 12 / 39 / 94 | 1 / 11 / 15 / 20 |
+  | Payload Roadblock (Payload) | 22 / 60 / 73 / 84 s | 22 / 45 / 60 / 70 s |
+  | Payload Freight Train (Payload) | 3.3 / 15 / 25 / 46 min | 3.3 / 15 / 25 / 35 min |
+  | Lobby Regular (Activity) | 10 / 31 / 47 / 75 | 10 / 14 / 19 / 25 |
+  | Loyal Bot | 6 / 16 / 23 / 32 | 6 / 8 / 10 / 12 |
+  | Ready Every Dawn (Activity) | 4 / 8 / 22 / 47 | 4 / 6 / 8 / 10 |
+  | Time Well Wasted on Kronos II (Activity) | 3.5 / 14 / 26 / 43 h | 3.5 / 14 / 22 / 26 h |
+  | Overtime on Kronos II (Activity) | 6 / 60 / 156 / 390 | 6 / 18 / 25 / 30 |
+  | Hot Day Bot (Wins) | 3 / 8 / 16 / 23 | 3 / 8 / 12 / 15 |
+  | Point Taker (Capture Point) | 6 / 36 / 125 / 234 | 6 / 22 / 30 / 40 |
+  | Payload Hauler (Payload) | 6 / 36 / 125 / 234 | 6 / 22 / 30 / 40 |
+  | Nothing Leaves Kronos II (Payload) | 2 / 36 / 94 / 187 min | 2 / 5.5 / 7 / 8.5 min |
+  | Marathon Bot | 12 / 18 / 27 / 34 min | 12 / 14 / 16 / 17 min |
+  | Capture Point Comeback (Capture Point) | 1 / 18 / 62 / 156 | 1 / 9 / 13 / 15 |
+  | Space Statue (Movement) | 54 / 67 / 73 / 80% | 50 / 60 / 70 / 75% |
+  | Lone Echo (Movement) | 94.6 / 98.2 / 99.1 / 100% | 93 / 97 / 98 / 99% |
+  | Boost Junkie (Movement) | 3.5 / 4.5 / 5.25 / 6 m/s | 3.5 / 4 / 4.5 / 4.75 m/s |
+  | Contested Point (Capture Point) | 2 / 5 / 8.5 / 10.4 min | 2 / 4 / 5 / 5.5 min |
+  | Showbot (Emotes) | 4 / 8 / 10 / 14 | 4 / 6 / 7 / 8 |
+  | All 19 gear Veteran achievements (every weapon, ordnance and tac mod: one set of numbers) | 5 / 19 / 29 / 49 games | 5 / 15 / 25 / 40 games |
+
+  How many regulars hold each medal now (bronze / silver / gold / crown), for a few: Full Team Salvo 51 / 20 / 15 /
+  8 %; Can We Talk About This? 42 / 19 / 14 / 8 %; Lone Echo 77 / 44 / 28 / 14 %; Boost Junkie 79 / 42 / 15 / 9 %;
+  Wins (Centurion Bot) 90 / 17 / 9 / 8 %; King of the Hill 86 / 13 / 8 / 3 %; gear Veteran (median) 43 / 20 / 12 /
+  7 %. They were worked out once from the local recent replays.
+- Caveat: 69 % of the matches in that sample are from the last 13 days (81 a day, against 7 a day before), so the
+  shares will move once the challenge has run for a month; the targets are worth another look then.
+- **To do after updating:** restart the server.
+
+## 2026.11.11.14 — 02:28
+
+- **Full Team Salvo and Can We Talk About This?: the crown is easier, for about 7.5 % of regulars** (user: 3 % was
+  too low). Measured on the last 100 days (91 regulars with 25+ games):
+  - Full Team Salvo: **40 / 55 / 60 / 67.5 %** (was 40 / 55 / 65 / 75): 51 / 20 / 15 / 8 % of regulars hold each
+    medal (before: 51 / 20 / 10 / 3).
+  - Can We Talk About This?: **20 / 25 / 30 / 40 %** (was 20 / 25 / 35 / 50): 42 / 19 / 14 / 8 % of regulars (before:
+    42 / 19 / 10 / 3).
+- **To do after updating:** restart the server.
+
+## 2026.11.11.13 — 02:21
+
+- **Full Team Salvo and Can We Talk About This? are slightly easier** (user): bronze and silver only, gold and crown
+  stay.
+  - Full Team Salvo: **40 / 55 / 65 / 75 %** (was 45 / 60 / 65 / 75).
+  - Can We Talk About This?: **20 / 25 / 35 / 50 %** (was 20 / 30 / 35 / 50).
+  - Over the last 100 days the share of regulars (25+ games) holding each medal goes from 40 / 15 / 10 / 3 % to
+    51 / 20 / 10 / 3 % for Full Team Salvo, and from 42 / 14 / 10 / 3 % to 42 / 19 / 10 / 3 % for Can We Talk About
+    This?. Before the bounds were corrected the intended balance was about 56 / 18 / 10 / 4 %.
+- **To do after updating:** restart the server.
+
+## 2026.11.11.12 — 02:17
+
+- **Untouchable Chassis counts games of 6 minutes or more** (user; it was 4). Measured on the last 100 days: with
+  4 minutes 42 % of regulars (25+ games) held it, almost all from short games (zero-death games are 7.6 % of games
+  of 4-6 minutes and 0.4 % of games of 8 minutes or more); with 6 minutes 21 % of regulars have it, 5 % three
+  times. Still one medal, won or not.
+- **New wording:** "Win a game without dying". What it needs is in the tags under it, as for the other
+  achievements: "Best game · 6+ min games · 3+ players per team · 1+ min on the map" (the last tag is new: the
+  minute on the map used to be in the sentence, which was why a player who never entered the map could not
+  "win without dying").
+- The other death achievements keep 4-minute games.
+- **To do after updating:** restart the server.
+
+## 2026.11.11.11 — 02:11
+
+- **Pixel Party!: the top end is 2,000** (user), the other medals spread to match: **150 / 600 / 1,200 / 2,000**
+  deaths for bronze / silver / gold / crown (150 / 500 / 900 / 1,500 in the previous update). Over the last 100
+  days 72 players reach bronze (9 % of all players, 76 % of regulars), 12 silver, and nobody gold or crown: the
+  most any player died was 990, about 10 a day, so 2,000 asks for roughly 200 days at that pace. A challenge
+  period of 3-4 months will not get there at that rate; it is worth another look once the period has run for a
+  month.
+- **To do after updating:** restart the server.
+
+## 2026.11.11.10 — 02:08
+
+- **Pixel Party! is easier again** (user: slightly): 150 / 500 / 900 / 1,500 deaths for bronze / silver / gold /
+  crown (was 200 / 750 / 1,350 / 2,250 two updates ago, 205 / 810 / 1,460 / 2,470 before the death rules were
+  corrected). In the last 100 days nobody passed 990 deaths and 12 reached 750; with these targets 72 players hold
+  bronze (9 % of all, 76 % of regulars with 25+ games), 15 silver, 2 gold, and the crown asks for half as much again
+  as the best player did. A 3-4 month challenge period gives the best players more time than that sample.
+- **To do after updating:** restart the server.
+
+## 2026.11.11.9 — 01:59
+
+- **The five achievements about deaths are worded more plainly** (the names, targets and how they are counted did
+  not change):
+  - My Other Chassis Is a Toaster: "Play games in which you die no more than 3 times" (was "Finish games with 3
+    deaths or fewer").
+  - Pew Pew Proof: "Play as many games in a row as you can while dying fewer than 5 times a game on average (within
+    any 7 days, on at least 3 different days)" (was "Play games in a row, within any 7 days and on at least 3
+    different days, that average fewer than 5 deaths per game").
+  - Pixel Party!: "Your total number of deaths, all your games added up" (was "Total number of times you died,
+    across all games").
+  - Untouchable Chassis: "Win a game without dying a single time (you need at least 1 minute on the map)" (was "Win
+    a game without dying once, with at least 1 minute in bounds").
+  - Lobby Mime Troupe: "Use emotes in a game in which you never die: the more emotes, the higher the medal" (was
+    "Use as many emotes as you can in one game without dying").
+- **To do after updating:** restart the server.
+
+## 2026.11.11.8 — 01:54
+
+- **Seven achievements have new targets**, slightly easier than before and in round numbers (user). The corrected
+  play-area bounds, spawn points and death rules (stats version 16) had made them harder: measured on the last 100
+  days (1,545 matches, 819 players) by working out every achievement on the old and on the new stats.
+
+  | Achievement | Was (bronze / silver / gold / crown) | Now | Players at or above each medal: before the corrections → with the new targets |
+  |---|---|---|---|
+  | Lone Echo | 94.6 / 98.2 / 99.1 / 100 % | 93 / 97 / 98 / 99 % | 181, 62, 33, 18 → 204, 68, 39, 17 |
+  | Full Team Salvo | 50 / 69 / 74 / 81 % | 45 / 60 / 65 / 75 % | 64, 19, 11, 6 → 70, 23, 16, 6 |
+  | I'm Bat Bot (one game) | 15 / 52 / 66 / 78 % | 10 / 45 / 55 / 65 % | 123, 38, 27, 22 → 146, 39, 28, 22 |
+  | Space Statue | 54 / 67 / 73 / 80 % | 50 / 60 / 70 / 75 % | 115, 33, 19, 7 → 110, 42, 20, 12 |
+  | Boost Junkie | 3.5 / 4.5 / 5.25 / 6 m/s | 3.5 / 4 / 4.5 / 5 m/s | 202, 38, 5, 3 → 218, 78, 22, 3 |
+  | Can We Talk About This? | 25 / 35 / 40 / 50 % | 20 / 30 / 35 / 50 % | 63, 19, 15, 5 → 89, 24, 17, 6 |
+  | Pixel Party! | 205 / 810 / 1,460 / 2,470 | 200 / 750 / 1,350 / 2,250 | 47, 9, 0, 0 → 46, 9, 0, 0 |
+
+- Lobby Mime Troupe keeps its targets (user: easily done by somebody who sets out to). The other achievements that
+  read the corrected numbers were left as they are; most of those got easier (Untouchable Chassis, Pew Pew Proof,
+  Tech Support w/RAD_Natalie, The Wings of RAD_Wyvern, Super Ultra Hyper Turbo, Cyberkinetic Enhancements).
+- **To do after updating:** restart the server. The medals follow the new targets as soon as the achievements are
+  worked out again; the numbers themselves change as the archive is read again (stats version 16).
+
 ## 2026.11.11.7 — 01:33
 
 - **New check: `app/tools/check_deaths.py`.** Counts the deaths of the newest replays twice, by the game's kill
