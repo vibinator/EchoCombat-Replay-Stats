@@ -455,26 +455,46 @@ def test_spawn_circles_are_the_ones_drawn_in_the_bounds_editor():
 
 
 def test_the_move_to_the_war_room_after_a_round_is_not_a_death(tmp_path):
-    """Best of three on a capture map: 18.5 s after a round that does not decide the match, everybody is moved off the
-    map (user, 2026-11-11). Not deaths; a real death in the next round still is one. 20 frames a second."""
-    from backend.stats import ROUND_MOVE_S
+    """Best of three on a capture map: about 18.65 s after a round that does not decide the match, everybody is moved
+    off the map (user, 2026-11-11). Told by the map emptying, anywhere in a wide window after the round: those are not
+    deaths. A death that leaves somebody else on the map is real, whenever it happens. 20 frames a second."""
+    from backend.stats import ROUND_MOVE_WINDOW_S
 
-    def match(leave_after_s):
+    def match(blue_leaves_s, orange_leaves_s, away_s=10.0, dropped_out=False):
+        """The round is won 15 s in; each player is off the map for `away_s` from so many seconds after that (None:
+        stays on it). A head in a headset never holds still: theirs sway a little. `dropped_out`: a third player
+        stands on the map without the slightest movement, as one who has lost the connection does."""
         frames = []
-        for i in range(1500):  # 75 s
+        for i in range(1700):  # 85 s
             blue, orange = rf.player(), rf.player(42, "Other", 1)
-            out = 300 + leave_after_s * 20 <= i < 300 + leave_after_s * 20 + 200  # 10 s away
-            for p, x in ((blue, 2.0), (orange, -2.0)):
-                spot = [500.0, 0.0, 500.0] if out else [x, 0.0, 3.0]
+            for p, x, leaves in ((blue, 2.0, blue_leaves_s), (orange, -2.0, orange_leaves_s)):
+                out = leaves is not None and 300 + leaves * 20 <= i < 300 + (leaves + away_s) * 20
+                spot = [500.0, 0.0, 500.0] if out else [x + 0.001 * (i % 7), 0.0, 3.0]
                 p["head"] = {"position": spot, "forward": [0, 0, 1], "left": [1, 0, 0], "up": [0, 1, 0]}
-            frames.append(rf.frame(teams=[{"players": [blue]}, {"players": [orange]}, {}], blue_round_score=int(i >= 300)))
+            still = rf.player(43, "Gone", 2)
+            still["head"] = {"position": [0.0, 0.0, 8.0], "forward": [0, 0, 1], "left": [1, 0, 0], "up": [0, 1, 0]}
+            teams = [{"players": [blue]}, {"players": [orange, still] if dropped_out else [orange]}, {}]
+            frames.append(rf.frame(teams=teams, blue_round_score=int(i >= 300)))
         path = tmp_path / "r.echoreplay"
         path.write_bytes(rf.plain(rf.lines_from(frames)))
         replay = open_replay(path)
         s = compute(replay.meta, replay.frames())
-        return [p.deaths_est for p in s.players], [e.type for e in s.events if e.type in ("round_won", "death_est", "respawn")]
+        deaths = {p.name: p.deaths_est for p in s.players}
+        return (deaths["Player"], deaths["Other"]), [e.type for e in s.events if e.type in ("death_est", "respawn")]
 
-    # the round is won at 15 s, both are moved off the map 18.5 s later and are back for the next round
-    assert match(18.5) == ([0, 0], ["round_won", "respawn", "respawn"])
-    for real in (3.0, ROUND_MOVE_S[1] + 12):  # killed in the fight that goes on after the round; killed in the next round
-        assert match(real) == ([1, 1], ["round_won", "death_est", "death_est", "respawn", "respawn"])
+    # both moved off the map together, and back for the next round: no deaths, two respawns. Early or late in the
+    # window alike, and with one of them a second behind the other
+    for at in (18.65, ROUND_MOVE_WINDOW_S[0] + 1, ROUND_MOVE_WINDOW_S[1] - 1):
+        assert match(at, at) == ((0, 0), ["respawn", "respawn"]), at
+    assert match(18.65, 19.65) == ((0, 0), ["respawn", "respawn"])
+    # a player who has dropped out and stands frozen on the map does not stop it being everybody
+    assert match(18.65, 18.65, dropped_out=True) == ((0, 0), ["respawn", "respawn"])
+    # only blue leaves, at the very moment the move usually happens: orange is still on the map, so it is a death
+    assert match(18.65, None) == ((1, 0), ["death_est", "respawn"])
+    # blue is killed 6 s before the move and is still away when orange is moved: blue's death is real, orange's is not
+    assert match(12.0, 18.65) == ((1, 0), ["death_est", "respawn", "respawn"])
+    # the map empties, but outside the window (the fight right after the round; the next round): deaths
+    for at in (3.0, ROUND_MOVE_WINDOW_S[1] + 5):
+        assert match(at, at) == ((1, 1), ["death_est", "death_est", "respawn", "respawn"]), at
+    # it empties for a moment only (both back within a second): not the move
+    assert match(18.65, 18.65, away_s=1.0) == ((1, 1), ["death_est", "death_est", "respawn", "respawn"])

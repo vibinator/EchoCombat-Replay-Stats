@@ -18,6 +18,15 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.11.4 — 00:22
+
+- The move to the war room after a round (2026.11.11.3), measured exactly: it happens about **18.65 s** after the
+  round is won. Over 8,388 such exits in 1,660 rounds the first player of a round leaves at 18.64 s (median), half
+  of all exits fall between 18.65 and 18.72 s, 98 % between 18.55 and 20.0 s, the latest at 21.5 s. The spread
+  comes from the recording (20 to 30 frames a second), not from the game. The window in which a death counts as
+  that move now ends at 22 s instead of 20.5 s, so the few late ones are caught too (it starts at 17.5 s as before).
+- **To do after updating:** restart the server, and expect the re-read (stats version 15, as 2026.11.11.3).
+
 ## 2026.11.11.3 — 00:17
 
 - **The move to the war room after a round is no longer counted as deaths.** On the capture-point maps (Dyson,
