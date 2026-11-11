@@ -28,10 +28,10 @@ class Bounds(NamedTuple):
 # map was a "death" (17 % of Combustion's deaths sat on z = -20). Each box now holds its whole map (HEATMAP_LAYOUTS)
 # and none of the rooms players are sent to between lives, which are 150-200 m out on every map; measured on the
 # latest 300 matches per map, time in bounds is 73-76 % on all four (Dyson, which was right, 76 %).
-# Still boxes, not the real outline of each play area (user, 2026-11-10: "much better", but not right): the user
-# draws the outlines with the bounds editor (app/tools/bounds_editor), to replace these.
+# Boxes, not the outline of each play area, and to stay so (user, 2026-11-11: the outline measured in the bounds
+# editor, app/tools/bounds_editor, is not to be used; only its spawn points, SPAWN_CIRCLES below).
 BOUNDS = {
-    "dyson": Bounds(-100, 100, -40, 40),
+    "dyson": Bounds(-110, 110, -40, 40),  # x was +-100: the entry tubes start at x = +-105 (SPAWN_CIRCLES)
     "combustion": Bounds(-20, 60, -100, 100),
     "surge": Bounds(-60, 150, -50, 70),
     "fission": Bounds(-80, 130, -30, 40),
@@ -63,15 +63,18 @@ def is_load_in(position: Vec3, spot: Vec3 | None) -> bool:
     return spot is not None and position[0] == spot[0] and position[1] == spot[1] and position[2] == spot[2]
 
 
-# Spawn points (user, 2026-11-10; drawn with the bounds editor, app/tools/bounds_editor/echo_bounds.json holds the same
-# numbers): (x, z, radius) in metres. A player who leaves the play area from inside one has gone back to the war room
-# by their own choice: not a death. Checked on Dyson, whose bounds were always right: 881 of the latest 71,641
-# estimated deaths (1.2 %) started inside one of its four circles, most of them within a metre of the middle.
+# Spawn points (user, 2026-11-10/11): (x, z, radius) in metres. A player who leaves the play area from inside one has
+# gone back to the war room by their own choice: not a death. Measured, not drawn (the user drew them by hand first
+# and then chose these): the spots players arrive on the map at, from the latest 200 matches of each map
+# (app/tools/bounds_editor/make.py measure_spawns; echo_bounds.json there holds the same numbers). Players arrive
+# within 0.7 m of each spot, and those walking back out leave from within about 1.5 m of it; beyond 2 m the deaths
+# around a spawn point are no more than anywhere else, so every circle is 1.5 m. Dyson's last two are the ends of
+# the tubes along z = 0 that bring players in from outside its minimap picture.
 SPAWN_CIRCLES: dict[str, tuple[tuple[float, float, float], ...]] = {
-    "dyson": ((-16.9, 24, 1.1), (16.9, 24.1, 1), (-34.1, -34.3, 2.2), (34.4, -34.1, 2.1)),
-    "fission": ((-69.6, -3.8, 2.2), (-34.8, 19.7, 3.9), (17.6, 15.7, 3.1), (54.2, 29, 3.6), (119.3, 0.4, 3.3)),
-    "surge": ((-50.7, 26.6, 4.1), (38.9, 56.4, 3.7), (76.8, 52.2, 5.9), (143.8, 12.4, 6.5), (-12.1, -39.5, 7.5), (39.8, 34.3, 1.3)),
-    "combustion": ((37.5, -74, 5.8), (25.1, -79.8, 6.3), (12.1, -75.7, 8.6), (36.7, 75.9, 9.8), (24.5, 80.5, 7.4), (12.7, 75.5, 6.6)),
+    "dyson": ((35.3, -35.3, 1.5), (-35.3, -35.3, 1.5), (-16.9, 24, 1.5), (16.9, 24, 1.5), (105.2, 0, 1.5), (-105.2, 0, 1.5)),
+    "fission": ((54, 27.4, 1.5), (-69.9, -4, 1.5), (119.9, 0, 1.5), (18.2, 15, 1.5), (-34.1, 18.9, 1.5)),
+    "surge": ((-51.3, 26.7, 1.5), (144.5, 12.5, 1.5), (-12.7, -39.7, 1.5), (39.9, 34, 1.5), (76.9, 52.4, 1.5), (38.9, 57.6, 1.5)),
+    "combustion": ((25.7, -82, 1.5), (25.7, 82, 1.5)),
 }
 
 

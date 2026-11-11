@@ -213,8 +213,8 @@ Frames -> MatchStats in a single pass. No database imports.
 ### `app/backend/stats/map_objects.py` (84 lines)
 Fixed objects per map, measured from real replays (2026-10-31), for drawing the playback.
 
-### `app/backend/stats/maps.py` (121 lines)
-- `MAP_NAMES`:5 / `MAP_MODES`:15 / **class Bounds**:18 / `BOUNDS`:33 / map_name:41 / load_in_spot:58 / is_load_in:62 / at_spawn:78 / in_bounds:84 / **class HeatmapLayout**:89 / `MINIMAP_VERSIONS`:105 / minimap_url:108 / `HEATMAP_LAYOUTS`:113
+### `app/backend/stats/maps.py` (124 lines)
+- `MAP_NAMES`:5 / `MAP_MODES`:15 / **class Bounds**:18 / `BOUNDS`:33 / map_name:41 / load_in_spot:58 / is_load_in:62 / at_spawn:81 / in_bounds:87 / **class HeatmapLayout**:92 / `MINIMAP_VERSIONS`:108 / minimap_url:111 / `HEATMAP_LAYOUTS`:116
 
 ### `app/backend/stats/payload.py` (64 lines)
 Payload maps: attacking team, winner, per-player time on the payload (ReplayData "Payload semantics").
@@ -299,9 +299,9 @@ Keeps a local copy of the most recent replays of each map, so analysis does not 
 Build the 3D tracks (tracks3d.bin) of every processed replay that lacks them, so player / Compare 3D heatmaps cover
 - _low_priority:26 / _build:38 / _heights:42 / main:46
 
-### `app/tools/bounds_editor/make.py` (105 lines)
-Bounds editor: draw the play-area outline of each map by hand (user, 2026-11-10: the boxes in stats/maps.py BOUNDS
-- `HERE`:23 / `MATCHES`:32 / `MARGIN_M`:33 / `CELL_M`:34 / `RGB`:35 / window:38 / positions_png:43 / main:80
+### `app/tools/bounds_editor/make.py` (323 lines)
+Bounds editor: review and draw the play-area outline and the spawn points of each map (user, 2026-11-10: the
+- `HERE`:26 / `MATCHES`:35 / `MARGIN_M`:36 / `MARGINS`:40 / `CELL_M`:41 / `RGB`:42 / `OUTLINE_MIN_SAMPLES`:49 / `OUTLINE_CLOSE_M`:50 / `OUTLINE_PAD_M`:51 / `OUTLINE_TOLERANCE_M`:52 / `SPAWN_GATHER_M`:59 / `SPAWN_MIN_SHARE`:60 / `SPAWN_RADIUS_M`:61 / window:64 / _after_war_room:70 / read_tracks:86 / positions_png:109 / _disk:133 / _grow:138 / _reach:146 / _trace:161 / _thin:193 / measure_outline:219 / measure_spawns:250 / main:290
 
 ### `app/tools/e2e/api_sweep.py` (188 lines)
 API end-to-end sweep against a running local server (docs/reference/E2E-TESTING.md).

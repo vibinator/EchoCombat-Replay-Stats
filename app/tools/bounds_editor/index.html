@@ -40,12 +40,14 @@
   </span>
   <span class="group">
     <button id="undo" title="Ctrl + Z">Undo</button>
+    <button id="measured" title="Put this map back to what was measured from the latest matches: the outline of where players are, and the spots they arrive at">Load measured</button>
     <button id="frombox" title="Start this map from the box now in the code, then move its corners and add points">Start from the current box</button>
     <button id="clear" title="Removes this map's outline and its spawn circles (Undo brings them back)">Clear this map</button>
   </span>
   <span class="group">
     <label class="check"><input type="checkbox" id="showpos" checked> Where players are</label>
-    <label class="check"><input type="checkbox" id="showbox" checked> Current box</label>
+    <label class="check"><input type="checkbox" id="showmeasured" checked> Measured</label>
+    <label class="check"><input type="checkbox" id="showbox"> Current box</label>
     <label class="check"><input type="checkbox" id="showgrid" checked> 10 m grid</label>
     <label class="check"><input type="checkbox" id="showfill" checked> Green / red</label>
   </span>
@@ -60,11 +62,12 @@
   <canvas id="c"></canvas>
   <div id="status">–</div>
   <div id="help">
-    <p><b>Click</b> to place points around the play area. <b>Click the first point</b> (or press Enter) to close the outline.</p>
+    <p>Each map opens with what was <b>measured</b> from the latest matches: the outline of where players are, and a circle on every spot they arrive at. Check it and correct it.</p>
+    <p>No outline yet: <b>click</b> to place points around the play area. <b>Click the first point</b> (or press Enter) to close the outline.</p>
     <p>Then: <b>drag</b> a point to move it, <b>click a line</b> to add a point there, <b>right-click</b> a point to remove it.</p>
     <p><b>◯ Spawn circle</b> (or C): <b>drag</b> on the map to draw a circle over a spawn point; then drag its middle to move it, its edge to resize it, right-click to remove it. Press the button again to go back to the outline.</p>
     <p><b>Wheel</b> zooms, <b>right-drag</b> (or Space + drag) moves the view, <b>F</b> shows the whole map.</p>
-    <p><span class="key" style="background:#2fd66f"></span>inside = in bounds &nbsp; <span class="key" style="background:#e63c3c"></span>outside &nbsp; <span class="key" style="background:#35e0ff"></span>where players are &nbsp; <span class="key" style="background:#ffdc3c"></span>current box &nbsp; <span class="key" style="background:#ff9a2e"></span>spawn circle: leaving from here is not a death</p>
+    <p><span class="key" style="background:#2fd66f"></span>inside = in bounds &nbsp; <span class="key" style="background:#e63c3c"></span>outside &nbsp; <span class="key" style="background:#35e0ff"></span>where players are &nbsp; <span class="key" style="background:#ff3cdc"></span>measured (dashed) &nbsp; <span class="key" style="background:#ffdc3c"></span>current box &nbsp; <span class="key" style="background:#ff9a2e"></span>spawn circle: leaving from here is not a death</p>
     <p>Your work is kept in this browser as you go; <b>Save</b> writes the file to hand over.</p>
     <p style="margin:0; text-align:right"><button id="hidehelp">Hide this</button></p>
   </div>
@@ -88,19 +91,25 @@
     return;
   }
   const NAMES = Object.keys(DATA.maps);
-  const STORE = "echo-combat-bounds-v1";
+  const STORE = "echo-combat-bounds-v2"; // v2: a map nobody has touched opens with what was measured
   const HIT = 9; // pixels: how near a click must be to a point or a line
 
   // ---- state: one outline per map, in world metres [x, z]; `closed` once the ring is complete. And its spawn
   // circles [x, z, radius]: spots a player leaves the play area from on the way back to the war room (not a death)
   const empty = () => ({ points: [], closed: false, circles: [] });
-  let shapes = Object.fromEntries(NAMES.map((n) => [n, empty()]));
+  /** What make.py measured for a map (the outline of where players are, a circle on every spot they arrive at). */
+  const measured = (n) => {
+    const m = DATA.maps[n].measured || {};
+    const points = (m.outline || []).map((p) => [p[0], p[1]]);
+    return { points, closed: points.length >= 3, circles: (m.spawns || []).map((c) => [c[0], c[1], c[2]]) };
+  };
+  let shapes = Object.fromEntries(NAMES.map((n) => [n, measured(n)]));
   try {
     const kept = JSON.parse(localStorage.getItem(STORE) || "null");
     if (kept) for (const n of NAMES) if (kept[n] && Array.isArray(kept[n].points)) shapes[n] = { ...empty(), ...kept[n] };
   } catch { /* storage off or damaged: start empty */ }
   let tool = "outline"; // or "circle"
-  const MIN_R = 0.5, DEFAULT_R = 4; // metres: a click without a drag makes a circle of DEFAULT_R
+  const MIN_R = 0.5, DEFAULT_R = 1.5; // metres: a click without a drag makes a circle of DEFAULT_R (what leaving players need, make.py)
   let current = NAMES[0];
   const history = []; // snapshots of `shapes` for undo
   const view = { scale: 4, ox: 0, oy: 0 }; // screen = picture metres * scale + offset
@@ -265,6 +274,26 @@
           }
         }
       }
+    }
+
+    if (document.getElementById("showmeasured").checked && m.measured) {
+      ctx.setLineDash([5, 5]);
+      ctx.strokeStyle = "#ff3cdc";
+      ctx.lineWidth = 1.5;
+      if (m.measured.outline.length >= 3) {
+        path(m.measured.outline, true);
+        ctx.stroke();
+      }
+      ctx.setLineDash([]);
+      ctx.font = "11px system-ui, sans-serif";
+      m.measured.spawns.forEach((c, i) => {
+        const [x, y] = toScreen(c);
+        ctx.beginPath();
+        ctx.moveTo(x - 6, y); ctx.lineTo(x + 6, y); ctx.moveTo(x, y - 6); ctx.lineTo(x, y + 6);
+        ctx.stroke();
+        ctx.fillStyle = "#ff9cf0";
+        ctx.fillText(`${Math.round(m.measured.shares[i] * 100)}% arrive here`, x + 8, y + 14);
+      });
     }
 
     if (document.getElementById("showbox").checked) {
@@ -558,7 +587,8 @@
   document.getElementById("undo").addEventListener("click", undo);
   document.getElementById("clear").addEventListener("click", () => { remember(); shapes[current] = empty(); changed(); });
   document.getElementById("frombox").addEventListener("click", () => { remember(); shapes[current] = { ...shapes[current], points: map().box.map(round), closed: true }; changed(); });
-  for (const id of ["showpos", "showbox", "showgrid", "showfill"]) document.getElementById(id).addEventListener("change", draw);
+  document.getElementById("measured").addEventListener("click", () => { remember(); shapes[current] = measured(current); changed(); });
+  for (const id of ["showpos", "showmeasured", "showbox", "showgrid", "showfill"]) document.getElementById(id).addEventListener("change", draw);
   document.getElementById("save").addEventListener("click", () => {
     const link = document.createElement("a");
     link.href = URL.createObjectURL(new Blob([output() + "\n"], { type: "application/json" }));

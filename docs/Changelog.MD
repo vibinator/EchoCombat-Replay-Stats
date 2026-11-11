@@ -18,6 +18,37 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.11.1 — 00:03
+
+- **The spawn points are now the measured ones** (the orange circles of the bounds editor, 2026.11.10.52), in
+  place of the hand-drawn ones of 2026.11.10.51: Dyson 6, Fission 5, Surge 6, Combustion 2, each 1.5 m. A player who
+  leaves the play area from inside one went back to the war room: not a death.
+  - Combustion has one per side (the middle pod), not three; the hand-drawn circles of 4-10 m would also have
+    hidden real deaths near the spawn points.
+  - Dyson's two extra ones are the ends of the entry tubes along z = 0, at x = ±105. For them to count, **Dyson's
+    bounds now reach x = ±110** (were ±100): the last 5 m of each tube is in bounds. Nothing else about the bounds
+    changed: they stay boxes (the measured outline is not used, user).
+- **The whole archive is read again after this update** (stats version 14; one pass covers this and everything
+  since 2026.11.10.43). It starts by itself at the next start and takes hours on the NAS. Afterwards delete
+  `data/database/map-heat*.npz` and open the home page for the new Deaths heatmap.
+- **To do after updating:** restart the server, and expect the re-read.
+
+## 2026.11.10.52 — 23:59
+
+- **Bounds editor: it now opens with a measured outline and measured spawn points for every map**, from the
+  latest 200 matches of each, to check and correct by hand ("Load measured" puts a map back to them; the dashed
+  magenta line and crosses keep showing what was measured).
+  - **Outline:** the part of the map players are on (cells visited at least 4 times, gaps up to 2.5 m closed,
+    widened by 1.5 m, thinned to about 100-130 corner points a map). The ride from the load-in spot at (0, 0, 0)
+    to the war room is left out; it drew a straight line across every map.
+  - **Spawn points:** where players arrive on the map. They arrive within 0.7 m of fixed spots (Dyson 6,
+    Fission 5, Surge 6, Combustion 2), and players walking back out leave from within about 1.5 m of them, so the
+    circles are 1.5 m. Dyson has two more than the four in the middle: tubes along z = 0 that bring players in
+    from x = ±105, outside its minimap picture (a third of the players of 200 matches used them).
+- Nothing on the website changes with this update; the app still uses the boxes and the hand-drawn circles of
+  2026.11.10.51 until the reviewed file is put in.
+- **To do after updating:** nothing.
+
 ## 2026.11.10.51 — 23:51
 
 - **Going back to the war room is no longer a death.** The spawn points of every map were drawn by hand in the
@@ -86,9 +117,8 @@ Working record of what changed in each release, newest first.
 
   (Latest 300 matches per map; Dyson 76 %. Each box now holds its whole map and none of the rooms players are sent
   to between lives, 150-200 m away.)
-- **Still boxes, not the real outline of each play area** (user: much better than before, but not right). The
-  outlines are to be drawn by hand with the bounds editor (2026.11.10.49) and will replace the boxes; that will need
-  the archive read once more, so it is worth waiting for them before restarting the live server.
+- **Still boxes, not the outline of each play area.** (Decided on 2026-11-11: they stay boxes; only the spawn
+  points were added, 2026.11.11.1.)
 - **What changes on those three maps:** deaths (estimated: Combustion about 7.3 → 6.6 per player per match, Fission
   5.1 → 5.5, Surge 4.5 → 5.0), time in bounds, and everything counted only in bounds: average and top speed, time
   stopped, upside down, near a teammate / enemy, arm, loadout shares. Death places on heatmaps and the timeline too.
