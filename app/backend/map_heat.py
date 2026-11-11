@@ -51,6 +51,11 @@ drawn as a band along the route (PAYLOAD_LAYERS).
 And any layer can be laid against any other ("compare", render_compare): where the one is relatively more often than
 the other, each in its own colour.
 
+After the archive has been read again (a new STATS_VERSION: deaths, bounds, spawn points ... change what a match
+adds) the heat counts itself again without anybody deleting its file (user, 2026-11-11: "I'll just wait for the
+reprocess"): the file remembers the stats version its counts were made under, and only says so when no replay was
+still waiting to be read again at that moment. Until both are true it is due again, checked every RETRY_S.
+
 Time ranges (user, 2026-11-10): besides all time, the last RANGES days. Each range is a MapHeat of its own with its own
 file (map-heat-30d.npz): the matches that started in the range, brought up to date once a day (the day's new matches
 added, those that fell out of the range taken away again: the same two steps as above, a few hundred matches). Their
@@ -78,7 +83,8 @@ from sqlalchemy import select
 from . import heatmaps, tracks
 from .duplicates import counted
 from .gear import ORDNANCES, TACMODS, WEAPONS
-from .models import Event, Match, MatchPlayer, Player
+from .models import Event, Match, MatchPlayer, Player, Replay
+from .stats import STATS_VERSION
 from .stats.map_objects import PAYLOAD_ROUTES
 from .stats.maps import HEATMAP_LAYOUTS
 
@@ -551,6 +557,9 @@ class MapHeat:
         self.revision = 0  # changes whenever the counts do: part of the cache key of the answer
         self.building = False
         self.updated_on: str | None = None  # day the last complete update finished (ISO); None = never finished
+        # STATS_VERSION the counts are complete for: set when a count finishes while no replay waits to be read again
+        self.counted_stats = ""
+        self.pending_at, self.pending = 0.0, False  # _reread_pending, asked at most every RETRY_S
         self.tried_at = 0.0
         self.loaded = False
         self.fresh: bool | None = None  # True: this is the second file of a recount (_recount)
@@ -563,6 +572,7 @@ class MapHeat:
         self.included = {}
         self.posed = set()
         self.updated_on = None
+        self.counted_stats = ""
 
     def _load(self) -> None:
         self._empty()
@@ -575,6 +585,9 @@ class MapHeat:
                 counts = {m: saved[f"counts_{m}"] for m in self.counts}
                 if any(counts[m].shape != self.counts[m].shape for m in counts):
                     return  # a map's extents changed
+                made_under = str(saved["made_under"]) if "made_under" in saved.files else ""
+                if self.fresh and made_under != STATS_VERSION:
+                    return  # a recount begun before the stats changed: begin again
                 payload = {m: saved[f"payload_{m}"] for m in self.payload}
                 if any(payload[m].shape != self.payload[m].shape for m in payload):
                     return  # a route was measured again
@@ -584,6 +597,7 @@ class MapHeat:
                 self.payload = {m: c.astype(np.int64) for m, c in payload.items()}
                 self.posed = {int(r) for r in saved["pose_ids"]}
                 self.updated_on = str(saved["updated_on"]) or None
+                self.counted_stats = str(saved["stats_version"]) if "stats_version" in saved.files else ""
         except FileNotFoundError:
             pass
         except Exception:  # noqa: BLE001 - a damaged or older file: count again
@@ -597,6 +611,7 @@ class MapHeat:
         np.savez_compressed(
             buffer, format=np.int64(FORMAT), cell_m=np.float64(CELL_M), maps=np.array(maps), layers=np.array(LAYERS),
             updated_on=np.array(self.updated_on or ""),
+            stats_version=np.array(self.counted_stats), made_under=np.array(STATS_VERSION),
             replay_ids=np.fromiter(self.included.keys(), dtype=np.int64, count=len(self.included)),
             replay_maps=np.fromiter((index[m] for m in self.included.values()), dtype=np.int8, count=len(self.included)),
             pose_ids=np.fromiter(self.posed, dtype=np.int64, count=len(self.posed)),
@@ -627,6 +642,10 @@ class MapHeat:
             if not self.days and self.updated_on is not None and self.fresh is None:
                 self._recount()
                 return
+            if self.days and self.updated_on is not None and self.counted_stats != STATS_VERSION:
+                with self.lock:  # a time range after a re-read: from nothing (seconds), not only what is new
+                    self._empty()
+                    self.revision += 1
             wanted = self._wanted()
             gone = [(r, m) for r, m in self.included.items() if wanted.get(r) != m]
             new = [(r, m) for r, m in wanted.items() if r not in self.included]
@@ -640,6 +659,7 @@ class MapHeat:
                     self._apply(new[start:start + BATCH], 1)
                 with self.lock:
                     self.updated_on = date.today().isoformat()
+                    self.counted_stats = "" if self._reread_pending(ask=True) else STATS_VERSION
                     self.revision += 1
                     self._save()
             finally:
@@ -655,10 +675,22 @@ class MapHeat:
         fresh.update()
         with self.lock:
             self.counts, self.payload, self.included, self.posed = fresh.counts, fresh.payload, fresh.included, fresh.posed
-            self.updated_on = fresh.updated_on
+            self.updated_on, self.counted_stats = fresh.updated_on, fresh.counted_stats
             self.revision += 1
             self._save()
         fresh.path.unlink(missing_ok=True)
+
+    def _reread_pending(self, ask: bool = False) -> bool:
+        """Is a replay that already has results still waiting to be read again under the current STATS_VERSION? (A
+        new recording waiting for its first read has no stats version and does not count.) Remembered for RETRY_S."""
+        now = time.monotonic()
+        if ask or not self.pending_at or now - self.pending_at >= RETRY_S:
+            with self.sessions() as db:
+                self.pending = db.execute(
+                    select(Replay.id).where(Replay.status.in_(("queued", "processing")), Replay.stats_version.is_not(None),
+                                            Replay.stats_version != STATS_VERSION).limit(1)).first() is not None
+            self.pending_at = now
+        return self.pending
 
     def _deaths(self, replay_ids: list[int]) -> dict[int, tuple[np.ndarray, np.ndarray]]:
         """replay id -> (x, z) in metres of its estimated deaths."""
@@ -748,7 +780,10 @@ class MapHeat:
     def due(self) -> bool:
         """Never finished, or last finished in an earlier month (a time range: on an earlier day)."""
         same = 10 if self.days else 7  # characters of the ISO day that must match
-        return self.updated_on is None or self.updated_on[:same] != date.today().isoformat()[:same]
+        if self.updated_on is None or self.updated_on[:same] != date.today().isoformat()[:same]:
+            return True
+        # counted before (or while) the archive was read again under new stats: again, once that has finished
+        return self.counted_stats != STATS_VERSION and not self._reread_pending()
 
     def release_if_idle(self) -> None:
         """A time range nobody has asked for in IDLE_S gives its counts back (they are in its file). All time stays."""

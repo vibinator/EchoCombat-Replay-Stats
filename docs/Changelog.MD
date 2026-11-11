@@ -18,6 +18,18 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.11.2 — 00:11
+
+- **The home page heatmaps count themselves again once the archive has been read again.** Nobody has to delete
+  `map-heat*.npz` any more: the heat remembers the stats version its counts were made under, and when that is older
+  than the app's and no replay is still waiting to be read again, the next visit to the home page starts a new
+  count (all time: beside the old counts, swapped in when complete; the time ranges: from nothing, seconds). While
+  the re-read is running it waits, looking again every 10 minutes; new recordings waiting for their first read do
+  not hold it up.
+- So after this update: restart, let the re-read finish, and the Deaths heatmap (corrected bounds, spawn points)
+  follows by itself. The "delete the files" steps of the earlier entries are no longer needed.
+- **To do after updating:** restart the server.
+
 ## 2026.11.11.1 — 00:03
 
 - **The spawn points are now the measured ones** (the orange circles of the bounds editor, 2026.11.10.52), in

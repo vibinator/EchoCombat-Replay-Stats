@@ -413,3 +413,44 @@ def test_time_range_counts_only_recent_matches(client, monkeypatch):
     assert later["maps"] == {} and later["matches"] == 0 and later["updated_on"] == Day.at.isoformat()
     assert all(not c.any() for c in heats[30].counts.values()) and not heats[30].included
     assert client.get("/api/overview/map-heat", params={"days": 90}).json()["matches"] == 2
+
+
+def test_counted_again_once_the_archive_has_been_read_again(client, monkeypatch):
+    """A new STATS_VERSION changes what a match adds (deaths, bounds ...): the heat counts itself again by itself, but
+    only when no replay is still waiting to be read again; nobody has to delete its file."""
+    from backend.models import Replay
+    from backend.stats import STATS_VERSION
+
+    client.get("/api/overview/map-heat")
+    heat = client.app.state.map_heat
+    assert heat.counted_stats == STATS_VERSION and not heat.due()
+    before = heat.revision
+
+    monkeypatch.setattr(map_heat, "STATS_VERSION", "next")  # an update with new stats: every replay is queued again
+    with client.app.state.sessionmaker() as db:
+        first, second = db.query(Replay).order_by(Replay.id).all()[:2]
+        first.status, second.status = "queued", "queued"
+        db.commit()
+    heat.pending_at = 0.0
+    assert not heat.due()  # still being read again: wait
+    assert client.get("/api/overview/map-heat").json()["updated_on"] and heat.revision == before
+
+    with client.app.state.sessionmaker() as db:
+        for replay in db.query(Replay).all():
+            replay.status, replay.stats_version = "done", "next"
+        db.commit()
+    heat.pending_at = 0.0
+    assert heat.due()
+    client.get("/api/overview/map-heat")
+    assert heat.counted_stats == "next" and not heat.due() and heat.revision > before
+    again = map_heat.MapHeat(client.app.state.sessionmaker, client.app.state.settings)  # as after a restart
+    again.ensure()
+    assert again.counted_stats == "next" and not again.due()
+
+    # a new recording waiting for its first read does not hold it up
+    with client.app.state.sessionmaker() as db:
+        replay = db.query(Replay).first()
+        replay.status, replay.stats_version = "queued", None
+        db.commit()
+    heat.pending_at = 0.0
+    assert not heat._reread_pending()
