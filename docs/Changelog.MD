@@ -18,6 +18,59 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.11.6 — 01:26
+
+- **Deaths are the game's own kills wherever the recording has them** (user: build it if it makes current and
+  future matches more accurate). Recordings from 4 November 2026 on carry the game's record of the latest kill
+  (`last_kill`: who was killed, by whom, with what). For those matches a death is now a kill: counted at the
+  moment and the place of the kill, with the killer and the weapon kept on the event. Every older replay keeps the
+  estimate (a player leaving the map), the only thing it has.
+- Why it is more accurate, measured on 100 recent matches (2,353 kills, 2,441 estimated deaths):
+  - 96 % of the kills had their estimated death, always 6.5 to 6.95 s later;
+  - 3 % of the estimated deaths were no kill at all (somebody leaving the map another way): no longer counted;
+  - 4 % of the kills had no estimated death (the recording ended first, or the exit was not seen): now counted.
+- One thing the record cannot show: the same player killed again by the same player with the same weapon leaves
+  it unchanged. Those kills (about 4 % of all deaths) are taken from the estimate: a player leaving the map with
+  no kill of theirs 6 to 7.5 s before, while the record still names them, was killed again.
+- Over those 100 matches: Dyson 628 deaths (605 kills in the record + repeats), Combustion 608 (598), Fission 593
+  (575), Surge 588 (575). A handful of kills name nobody among the players (1-2 %, in matches with a single
+  player: a bot or somebody who had left) and are left out.
+- Not changed: the death shows as before everywhere (deaths per match, heatmaps, timeline, achievements); the
+  killer and the weapon are stored but not shown anywhere yet. Totals across the archive now mix the two methods:
+  kills from 4 November 2026 on, the estimate before, which the checks above put within a few percent of each other.
+- **The whole archive is read again after this update** (stats version 16, as 2026.11.11.5: still one pass).
+- **To do after updating:** restart the server, and expect the re-read.
+
+## 2026.11.11.5 — 00:54
+
+- **Deaths now follow the round, as the game does: nobody can be killed once a round is won** (user). The round's
+  end is the round score in the recorded API data going up; nothing is guessed from a clock of the app's own.
+  - What the app counts as a death is the player leaving the map, and that comes 6.6 s after the kill (the killed
+    player lies where they fell first; 95 % within 6.8 s). So a death up to 8 s after a round is won is a kill from
+    just before it, and counts.
+  - After those 8 s nobody leaving the map was killed. On capture-point maps everybody still on the map is moved to
+    the war room about 18.65 s after the round; that was counted as 3.7 to 5.2 deaths a round, about 7 % of all
+    deaths on Dyson. This lasts until 30 s after the round (the first players are back at 30.8 s), or to the end of
+    the recording after the round that decides the match.
+  - The round that decides the match: until now nothing after it counted at all, which also dropped the kills from
+    just before it (about one a match). Those count again.
+  - This replaces the rule of 2026.11.11.3-4 (a fixed window around 18.65 s) with one that needs no timing of the
+    move itself.
+- **Payload maps: a run no longer "ends" when the game timer first reaches zero.** Overtime follows while the
+  attackers hold on, and a checkpoint reached in it sets the timer to 120 s again. The old rule (since stats
+  version 9) dropped every death after that first zero: in 50 recent Fission and Surge matches about a fifth of
+  all kills. A run now ends at its last checkpoint, or at the last moment either timer was running.
+- **Checked against the game's own kill records.** The recorded API data has a `last_kill` field (who was killed,
+  by whom, with what) that the app does not use for stats. Over 100 recent matches the deaths the app now counts
+  are within +1 % to +6 % of those kills on all four maps (Dyson 638 against 605, Combustion 589 / 582, Fission
+  624 / 593, Surge 621 / 593), typically 0 to 1 apart per match. Before these changes Fission and Surge were 10 %
+  and 17 % short.
+- Deaths change on every map, so everything that reads them moves (deaths per match, Pixel Party!, Pew Pew Proof,
+  Untouchable Chassis, the Deaths heatmap, the death marks on the timeline).
+- **The whole archive is read again after this update** (stats version 16; still one pass for everything since
+  2026.11.10.43). The home page heatmaps count themselves again when it has finished.
+- **To do after updating:** restart the server, and expect the re-read.
+
 ## 2026.11.11.4 — 00:22
 
 - The move to the war room after a round (2026.11.11.3), measured exactly: it happens about **18.65 s** after the

@@ -58,8 +58,6 @@ class PlayerAccumulator:
         self.loadouts: Counter[tuple[str, str, str]] = Counter()
 
         self._was_in_bounds: bool | None = None
-        self._head = None  # the head position of the previous frame, and when (seconds into the match) it last changed:
-        self.moved_s = 0.0  # a headset in use never holds perfectly still, a player who has dropped out does (on_map)
         self._last_in_bounds_position = None
         self._loadout: tuple[str, str, str] | None = None
         self._speeds: deque[tuple[float, float]] = deque()  # (t_s, speed), in-bounds only
@@ -89,9 +87,6 @@ class PlayerAccumulator:
             self.ping_capped_sum += min(p.ping, PING_CAP)  # spikes count as PING_CAP in averages (user, 2026-11-07)
             self.ping_frames += 1
 
-        if p.head_position != self._head:
-            self._head = p.head_position
-            self.moved_s = (frame.timestamp - self.started_at).total_seconds()
         loading_in = is_load_in(p.head_position, self.load_in)  # parked at the load-in spot: neither in nor out
         inside = not loading_in and (self.bounds is None or in_bounds(p.head_position, self.bounds))
         if inside:

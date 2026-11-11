@@ -454,27 +454,24 @@ def test_spawn_circles_are_the_ones_drawn_in_the_bounds_editor():
         assert all(b.x_min <= x <= b.x_max and b.z_min <= z <= b.z_max and r > 0 for x, z, r in circles), name
 
 
-def test_the_move_to_the_war_room_after_a_round_is_not_a_death(tmp_path):
-    """Best of three on a capture map: about 18.65 s after a round that does not decide the match, everybody is moved
-    off the map (user, 2026-11-11). Told by the map emptying, anywhere in a wide window after the round: those are not
-    deaths. A death that leaves somebody else on the map is real, whenever it happens. 20 frames a second."""
-    from backend.stats import ROUND_MOVE_WINDOW_S
+def test_nobody_is_killed_once_a_round_is_won(tmp_path):
+    """Once a round is won nobody can be killed (user, 2026-11-11; the API's last_kill agrees). A death is seen when the
+    player leaves the map, 6.6 s after the kill: up to KILL_SHOWS_S after the round it is a kill from just before it;
+    after that, leaving the map is no death, until the next round (ROUND_BACK_S) or, after the round that decides the
+    match, to the end. 20 frames a second; the round is won 15 s in."""
+    from backend.stats import KILL_SHOWS_S, ROUND_BACK_S
 
-    def match(blue_leaves_s, orange_leaves_s, away_s=10.0, dropped_out=False):
-        """The round is won 15 s in; each player is off the map for `away_s` from so many seconds after that (None:
-        stays on it). A head in a headset never holds still: theirs sway a little. `dropped_out`: a third player
-        stands on the map without the slightest movement, as one who has lost the connection does."""
+    def match(blue_leaves_s, orange_leaves_s=None, deciding=False, away_s=10.0):
+        """Each player is off the map for `away_s` from so many seconds after the round is won (None: stays on it)."""
         frames = []
         for i in range(1700):  # 85 s
             blue, orange = rf.player(), rf.player(42, "Other", 1)
             for p, x, leaves in ((blue, 2.0, blue_leaves_s), (orange, -2.0, orange_leaves_s)):
                 out = leaves is not None and 300 + leaves * 20 <= i < 300 + (leaves + away_s) * 20
-                spot = [500.0, 0.0, 500.0] if out else [x + 0.001 * (i % 7), 0.0, 3.0]
-                p["head"] = {"position": spot, "forward": [0, 0, 1], "left": [1, 0, 0], "up": [0, 1, 0]}
-            still = rf.player(43, "Gone", 2)
-            still["head"] = {"position": [0.0, 0.0, 8.0], "forward": [0, 0, 1], "left": [1, 0, 0], "up": [0, 1, 0]}
-            teams = [{"players": [blue]}, {"players": [orange, still] if dropped_out else [orange]}, {}]
-            frames.append(rf.frame(teams=teams, blue_round_score=int(i >= 300)))
+                p["head"] = {"position": [500.0, 0.0, 500.0] if out else [x, 0.0, 3.0],
+                             "forward": [0, 0, 1], "left": [1, 0, 0], "up": [0, 1, 0]}
+            won = (2 if deciding else 1) if i >= 300 else (1 if deciding else 0)
+            frames.append(rf.frame(teams=[{"players": [blue]}, {"players": [orange]}, {}], blue_round_score=won))
         path = tmp_path / "r.echoreplay"
         path.write_bytes(rf.plain(rf.lines_from(frames)))
         replay = open_replay(path)
@@ -482,19 +479,106 @@ def test_the_move_to_the_war_room_after_a_round_is_not_a_death(tmp_path):
         deaths = {p.name: p.deaths_est for p in s.players}
         return (deaths["Player"], deaths["Other"]), [e.type for e in s.events if e.type in ("death_est", "respawn")]
 
-    # both moved off the map together, and back for the next round: no deaths, two respawns. Early or late in the
-    # window alike, and with one of them a second behind the other
-    for at in (18.65, ROUND_MOVE_WINDOW_S[0] + 1, ROUND_MOVE_WINDOW_S[1] - 1):
-        assert match(at, at) == ((0, 0), ["respawn", "respawn"]), at
-    assert match(18.65, 19.65) == ((0, 0), ["respawn", "respawn"])
-    # a player who has dropped out and stands frozen on the map does not stop it being everybody
-    assert match(18.65, 18.65, dropped_out=True) == ((0, 0), ["respawn", "respawn"])
-    # only blue leaves, at the very moment the move usually happens: orange is still on the map, so it is a death
-    assert match(18.65, None) == ((1, 0), ["death_est", "respawn"])
-    # blue is killed 6 s before the move and is still away when orange is moved: blue's death is real, orange's is not
-    assert match(12.0, 18.65) == ((1, 0), ["death_est", "respawn", "respawn"])
-    # the map empties, but outside the window (the fight right after the round; the next round): deaths
-    for at in (3.0, ROUND_MOVE_WINDOW_S[1] + 5):
-        assert match(at, at) == ((1, 1), ["death_est", "death_est", "respawn", "respawn"]), at
-    # it empties for a moment only (both back within a second): not the move
-    assert match(18.65, 18.65, away_s=1.0) == ((1, 1), ["death_est", "death_est", "respawn", "respawn"])
+    # everybody moved to the war room 18.65 s after the round, and back for the next one: no deaths
+    assert match(18.65, 18.65) == ((0, 0), ["respawn", "respawn"])
+    # one player leaving on their own while the other stays: no death either, whenever it is in the break
+    for at in (KILL_SHOWS_S + 0.5, 18.65, ROUND_BACK_S - 0.5):
+        assert match(at) == ((0, 0), ["respawn"]), at
+    # killed just before the round was won: seen leaving the map a few seconds after it, and counted
+    assert match(6.6) == ((1, 0), ["death_est", "respawn"])
+    assert match(KILL_SHOWS_S - 0.5, 18.65) == ((1, 0), ["death_est", "respawn", "respawn"])
+    # the next round is on: a death again
+    assert match(ROUND_BACK_S + 2, ROUND_BACK_S + 2) == ((1, 1), ["death_est", "death_est", "respawn", "respawn"])
+    # after the round that decides the match: the kill from just before it counts, nothing after that, to the end
+    assert match(6.6, deciding=True) == ((1, 0), ["death_est"])
+    for at in (KILL_SHOWS_S + 0.5, 18.65, 45.0):
+        assert match(at, at, deciding=True) == ((0, 0), []), at
+
+
+def test_a_payload_run_goes_on_through_overtime(tmp_path):
+    """The game timer reaching zero is not the end of a payload run: overtime follows while the attackers hold on, and
+    a checkpoint reached in it sets the timer again. Deaths there count (until 2026-11-11 everything after the first
+    zero was dropped). The run is over when both timers have stopped, or at the last checkpoint: after that, and the
+    few seconds a kill takes to show, leaving the map is no death. 20 frames a second."""
+    from backend.stats import KILL_SHOWS_S
+
+    def run(leaves_at_s):
+        frames = []
+        for i in range(1600):  # 80 s
+            t = i / 20
+            blue, orange = rf.player(), rf.player(42, "Other", 1)
+            out = leaves_at_s <= t < leaves_at_s + 4
+            blue["head"] = {"position": [500.0, 0.0, 500.0] if out else [2.0, 0.0, 3.0],
+                            "forward": [0, 0, 1], "left": [1, 0, 0], "up": [0, 1, 0]}
+            orange["head"] = {"position": [-2.0, 0.0, 3.0], "forward": [0, 0, 1], "left": [1, 0, 0], "up": [0, 1, 0]}
+            frame = rf.frame(payload=True, teams=[{"players": [blue]}, {"players": [orange]}, {}])
+            if t < 10:  # the game timer runs out ...
+                timers, checkpoint = {"game_timer": 10 - t, "overtime_timer": 0.0}, 0
+            elif t < 20:  # ... overtime: the attackers hold on ...
+                timers, checkpoint = {"game_timer": 0.0, "overtime_timer": 4.0}, 0
+            elif t < 50:  # ... reach the checkpoint, the timer is set again ...
+                timers, checkpoint = {"game_timer": 50 - t, "overtime_timer": 0.0}, 1
+            else:  # ... and fail: both timers stand still to the end of the recording
+                timers, checkpoint = {"game_timer": 0.0, "overtime_timer": 0.0}, 1
+            frame["timers"] = timers
+            frame["payload"]["checkpoint"] = checkpoint
+            frames.append(frame)
+        path = tmp_path / "r.echoreplay"
+        path.write_bytes(rf.plain(rf.lines_from(frames)))
+        replay = open_replay(path)
+        s = compute(replay.meta, replay.frames())
+        return next(p.deaths_est for p in s.players if p.name == "Player")
+
+    assert [run(at) for at in (5, 14, 30, 48)] == [1, 1, 1, 1]  # timer running, overtime, after the checkpoint
+    assert run(50 + KILL_SHOWS_S - 1) == 1  # killed just before the end, seen leaving a few seconds after it
+    assert run(50 + KILL_SHOWS_S + 1) == 0 and run(70) == 0  # the run is over: moved on, not killed
+
+
+def test_deaths_are_the_games_kills_when_the_recording_has_them(tmp_path):
+    """Recordings from 2026-11-04 on carry last_kill. With it a death is a kill: at the moment and the place of the
+    kill, with the killer and the weapon. Leaving the map is then no death by itself; a recording without the field
+    keeps the estimate. 20 frames a second; orange is 'Other', slot 1."""
+    def match(kills, blue_out=(), with_field=True):
+        """`kills`: {second: (killed, killer, weapon)}, standing until the next; blue is off the map in `blue_out`
+        (start, end) seconds."""
+        frames, standing = [], ("", "", "")
+        for i in range(1200):  # 60 s
+            t = i / 20
+            blue, orange = rf.player(), rf.player(42, "Other", 1)
+            out = any(a <= t < b for a, b in blue_out)
+            blue["head"] = {"position": [500.0, 0.0, 500.0] if out else [2.0 + t / 10, 0.0, 3.0],
+                            "forward": [0, 0, 1], "left": [1, 0, 0], "up": [0, 1, 0]}
+            orange["head"] = {"position": [-2.0, 0.0, 3.0], "forward": [0, 0, 1], "left": [1, 0, 0], "up": [0, 1, 0]}
+            standing = kills.get(t, standing)
+            frame = rf.frame(teams=[{"players": [blue]}, {"players": [orange]}, {}])
+            if with_field:
+                frame["last_kill"] = dict(zip(("killed", "killer", "killed_with"), standing))
+            frames.append(frame)
+        path = tmp_path / "r.echoreplay"
+        path.write_bytes(rf.plain(rf.lines_from(frames)))
+        replay = open_replay(path)
+        s = compute(replay.meta, replay.frames())
+        deaths = {p.name: p.deaths_est for p in s.players}
+        return (deaths["Player"], deaths["Other"]), [e for e in s.events if e.type == "death_est"]
+
+    blue_id = str(rf.BIG_USER_ID)
+    # blue is killed at 10 s and leaves the map 6.7 s later: one death, at the kill
+    counts, events = match({10.0: ("Player", "Other", "assault")}, blue_out=[(16.7, 22)])
+    assert counts == (1, 0) and len(events) == 1
+    death = events[0]
+    assert death.t_s == pytest.approx(10.0) and death.user_id == blue_id and death.team == "blue"
+    assert death.data == {"x": 3.0, "z": 3.0, "with": "assault", "by": "42"}  # where blue was when killed
+    # named by number (the slot in the low bits), and a kill whose victim never leaves the map before the end
+    counts, events = match({10.0: ("Player", "Other", "assault"), 30.0: ("playerid:65537", "Player", "0xabc")}, blue_out=[(16.7, 22)])
+    assert counts == (1, 1) and [e.user_id for e in events] == [blue_id, "42"]
+    # leaving the map without having been killed is no death; without the field it is the estimate, as ever
+    assert match({}, blue_out=[(20, 25)])[0] == (0, 0)
+    assert match({30.0: ("Other", "Player", "scout")}, blue_out=[(20, 25)])[0] == (0, 1)
+    assert match({}, blue_out=[(20, 25)], with_field=False)[0] == (1, 0)
+    # killed twice by the same player with the same weapon: the record does not change the second time, the exit
+    # 6.7 s after nothing tells it
+    counts, events = match({10.0: ("Player", "Other", "assault")}, blue_out=[(16.7, 22), (40, 45)])
+    assert counts == (2, 0) and [(round(e.t_s), bool(e.data.get("repeat"))) for e in events] == [(10, False), (40, True)]
+    # ... but not when somebody else was killed in between: the record no longer names blue
+    counts, _ = match({10.0: ("Player", "Other", "assault"), 30.0: ("Other", "Player", "scout")}, blue_out=[(16.7, 22), (40, 45)])
+    assert counts == (1, 1)

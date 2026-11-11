@@ -52,6 +52,11 @@ class Frame:
     orange_points: float | None
     payload: PayloadState | None  # payload maps
     game_timer: float | None
+    overtime_timer: float | None = None  # payload maps: runs while the attackers hold on after the game timer's end
+    # The game's record of the latest kill: (killed, killer, killed_with), each a player's name or "playerid:<n>" and
+    # a weapon code or hash; ("", "", "") before the first kill. None: the recording has no such field (every replay
+    # before 2026-11-04).
+    last_kill: tuple[str, str, str] | None = None
 
 
 @dataclass(frozen=True)

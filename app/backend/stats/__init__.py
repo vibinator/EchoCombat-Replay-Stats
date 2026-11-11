@@ -1,6 +1,5 @@
 """Frames -> MatchStats in a single pass. No database imports."""
 
-from bisect import bisect_left, bisect_right
 from collections import Counter
 from collections.abc import Iterable
 
@@ -11,32 +10,38 @@ from .payload import FINAL_CHECKPOINT, PayloadAccumulator
 from .player import PlayerAccumulator
 from .results import EventRecord, MatchStats, PlayerStats
 
-STATS_VERSION = "16"  # 16: that move is told by everybody leaving the map at once, in a wide window (ROUND_MOVE_WINDOW_S), not by the clock alone. 15: the move to the war room after a round that does not decide the match is not a death. 14: the spawn points are the measured ones (1.5 m, Dyson's two entry tubes too; its bounds reach x = +-110 for them). 13: leaving the play area from a spawn point (maps.SPAWN_CIRCLES) is not a death. 12: play-area bounds of Combustion, Surge and Fission had x and z swapped (maps.BOUNDS): deaths, in-bounds time and everything counted in bounds change on those maps. 11: ping_capped_sum (ping spikes capped at 400 ms in averages, DATA-5; in place, D57). 10: frames_lone_wolf_near (3.5 m, Lone Wolf). 9: no deaths / respawns after the capture match is decided or the payload run is over. 8: the map's load-in spot (maps.LOAD_IN_SPOTS) is no longer a death, in-bounds time or track sample
+STATS_VERSION = "16"  # 16: deaths are the game's own kill records where the recording has them (KILL_TO_EXIT_S); a payload run no longer ends when the game timer first reaches zero (overtime, the next checkpoint: its deaths were all dropped); nobody can be killed once a round is won (ROUND_OVER): after KILL_SHOWS_S no exit is a death until the next round, and the kills from just before the round that decides the match count again. 15: the move to the war room after a round that does not decide the match is not a death. 14: the spawn points are the measured ones (1.5 m, Dyson's two entry tubes too; its bounds reach x = +-110 for them). 13: leaving the play area from a spawn point (maps.SPAWN_CIRCLES) is not a death. 12: play-area bounds of Combustion, Surge and Fission had x and z swapped (maps.BOUNDS): deaths, in-bounds time and everything counted in bounds change on those maps. 11: ping_capped_sum (ping spikes capped at 400 ms in averages, DATA-5; in place, D57). 10: frames_lone_wolf_near (3.5 m, Lone Wolf). 9: no deaths / respawns after the capture match is decided or the payload run is over. 8: the map's load-in spot (maps.LOAD_IN_SPOTS) is no longer a death, in-bounds time or track sample
 
 CAPTURE_ROUNDS_TO_WIN = 2  # best of three: the round that makes it 2 decides the match
-# After a round that does not decide the match, everybody still on the map is moved to the war room about 18.65 s
-# after the round is won. Measured on 8,388 such exits in 1,660 rounds (Dyson and Combustion alike, 2023 and 2026 the
-# same): the first player of a round leaves at 18.64 s (median), half of all exits fall between 18.65 and 18.72 s,
-# 98 % between 18.55 and 20.0 s, the last at 21.5 s. The spread is the recording, not the game: replays hold 20 to
-# 30 frames a second (0.03-0.05 s a frame, for the round's end and for the exit), and the players of one round leave
-# within 0.1 s of each other. Those moves were counted as deaths: 3.7 to 5.2 a round, about 7 % of all deaths on
-# Dyson (user, 2026-11-11). A death between these two moments after such a round is that move. The window is wide
-# Dyson (user, 2026-11-11).
-# The move is told by what it is, not by the clock alone (user, 2026-11-11: "the widest margin for error, but only
-# when everyone teleports"): somewhere in ROUND_MOVE_WINDOW_S after such a round the map empties - the number of
-# players on it drops to none and stays none for ROUND_MOVE_EMPTY_S. The deaths that emptied it are the move: the
-# last one, and before it every death that follows the next within ROUND_MOVE_CHAIN_S (the players of one round
-# leave within 0.1 s of each other, 1.1 s in 99 % of rounds; a straggler up to 2.8 s behind was seen and is still
-# part of it). A death in the
-# window that leaves others on the map is a real one and stays, as does the fight that goes on for some 7 s after
-# a round is won and the players coming back from 30.8 s on. Payload maps have no such move: a run is one round.
-ROUND_MOVE_WINDOW_S = (8.0, 30.0)  # after the round is won: from the end of the fight to just before players come back
-ROUND_MOVE_EMPTY_S = 3.0
-ROUND_MOVE_CHAIN_S = 3.0
-# "Everybody" is everybody who is playing: a player whose head has not moved at all for this long has dropped out
-# and is left standing where they were (seen: one stood in the middle of Dyson through the move while the other
-# three were moved). They are not on the map for this count.
-ROUND_MOVE_FROZEN_S = 5.0
+# Once a round is won nobody can be killed (user, 2026-11-11), and the recorded API data bears it out: `last_kill`
+# changes 0.87 times a round in the 10 s before a round is won and practically never after it. What the app counts
+# as a death is the player leaving the map, and that comes after the kill: 6.6 s after it (median; 95 % within
+# 6.8 s, the killed player lies where they fell first). So:
+# - a death up to KILL_SHOWS_S after a round is won is a kill from just before it, and counts;
+# - after that, a player leaving the map was not killed. About 18.65 s after the round everybody still on it is
+#   moved to the war room (8,388 such exits in 1,660 rounds: half between 18.65 and 18.72 s), which was counted as
+#   3.7 to 5.2 deaths a round, about 7 % of all deaths on Dyson; a few leave by themselves earlier or later;
+# - after a round that does not decide the match this lasts until ROUND_BACK_S: the first players are back on the
+#   map 30.8 s after the round was won, and the next round is on. After the round that decides the match (or the
+#   end of a payload run) it lasts to the end of the recording.
+# The round's end is the round score in the API data going up (blue_round_score / orange_round_score), the end of
+# a payload run its last checkpoint or the game timer reaching zero: no clock of the app's own.
+KILL_SHOWS_S = 8.0
+ROUND_BACK_S = 30.0
+
+# Recordings from 2026-11-04 on carry the game's own record of the latest kill (Frame.last_kill). Where a replay has
+# it, a death is a kill (user, 2026-11-11: "if the new data makes current / future matches more accurate, build
+# this out"); older replays keep the estimate above, the only thing they have. Measured on 100 matches, 2,353 kills
+# against 2,441 estimated deaths: 96 % of the kills had their estimated death, always 6.5 to 6.95 s later (median
+# 6.67 s: the killed player lies where they fell, then is moved out); 3 % of the estimated deaths were no kill at
+# all (somebody leaving the map another way), and 4 % of the kills had no estimated death (the recording ended
+# first, or the exit was not seen).
+# The record only says who was killed last, by whom and with what: the same player killed again by the same player
+# with the same weapon leaves it unchanged, so that kill does not show (4 % of all deaths in those matches). Those
+# are taken from the estimate: a player leaving the map with no kill of theirs KILL_TO_EXIT_S before, while the
+# standing record names them, was killed again.
+KILL_TO_EXIT_S = (6.0, 7.5)  # an exit this long after a kill of the same player is that kill
+KILL_TO_EXIT_TYPICAL_S = 6.67
 
 MAX_FRAME_GAP_S = 1.0  # cap per-frame time credit so a recording gap does not count as play time
 
@@ -69,26 +74,50 @@ class _MatchEvents:
             self._event(frame, "contest_start" if frame.contested else "contest_end")
 
 
-def _round_move(events: list[EventRecord], frame_times: list[float], on_map: list[int], won_s: float) -> list[EventRecord]:
-    """The death events that are everybody being moved to the war room after the round won at `won_s`: [] when the
-    map does not empty in the window (ROUND_MOVE_WINDOW_S and the comment above it)."""
-    start = bisect_left(frame_times, won_s + ROUND_MOVE_WINDOW_S[0])
-    stop = bisect_right(frame_times, won_s + ROUND_MOVE_WINDOW_S[1])
-    for i in range(max(start, 1), stop):
-        if on_map[i] or not on_map[i - 1]:
-            continue  # not the frame the last player left in
-        until = bisect_right(frame_times, frame_times[i] + ROUND_MOVE_EMPTY_S)
-        if any(on_map[i:until]):
-            continue  # somebody was back at once: the map did not empty for good
-        deaths = [e for e in events if e.type == "death_est" and won_s < e.t_s <= frame_times[i]]
-        move, latest = [], frame_times[i]
-        for e in reversed(deaths):  # the last ones, each within the chain of the one after it
-            if latest - e.t_s > ROUND_MOVE_CHAIN_S:
-                break
-            move.append(e)
-            latest = e.t_s
-        return move
-    return []
+def _kill(frame: Frame, t_s: float):
+    """(frame, seconds, killed user id, killer user id, weapon, where the killed player is) of the kill the frame's
+    last_kill has just changed to. A player is named by name or as "playerid:<n>" (the slot in the low 16 bits);
+    None when nobody in the frame answers to it."""
+    everyone = frame.blue + frame.orange
+
+    def who(text: str):
+        if text.startswith("playerid:") and text[9:].isdigit():
+            slot = int(text[9:]) & 0xFFFF
+            return next((p for p in everyone if p.slot == slot), None)
+        return next((p for p in everyone if p.name == text), None)
+
+    killed, killer, weapon = frame.last_kill
+    victim, by = who(killed), who(killer)
+    spot = (victim.head_position[0], victim.head_position[2]) if victim else None
+    return frame.index, round(t_s, 3), victim.user_id if victim else None, by.user_id if by else None, weapon, spot
+
+
+def _deaths_from_kills(events: list[EventRecord], kills: list, players: dict) -> None:
+    """Replace the estimated deaths (players leaving the map) by the game's kills (the comment at KILL_TO_EXIT_S):
+    one death for every kill, where the killed player was, with the killer and the weapon; an estimated death stays
+    only when it must be a kill the record could not show."""
+    estimated = [e for e in events if e.type == "death_est"]
+    deaths: list[EventRecord] = []
+    for frame, t_s, victim, killer, weapon, spot in kills:
+        if victim is None or victim not in players:
+            continue  # nobody in that frame answers to the name: a player who dropped out of the match at that
+            # very moment (the game writes a kill for it; 43 of 2,353 kills, 33 of them never came back). Not a death
+        data = {"x": round(spot[0], 2), "z": round(spot[1], 2), "with": weapon}
+        if killer:
+            data["by"] = killer
+        deaths.append(EventRecord(frame, t_s, "death_est", victim, players[victim].team, data))
+    for e in estimated:
+        mine = [t for _, t, victim, *_ in kills if victim == e.user_id]
+        if any(KILL_TO_EXIT_S[0] <= e.t_s - t <= KILL_TO_EXIT_S[1] for t in mine):
+            continue  # this exit is one of the kills above
+        before = [victim for _, t, victim, *_ in kills if t <= e.t_s - KILL_TO_EXIT_TYPICAL_S]
+        if before and before[-1] == e.user_id:  # the record still names them: killed again the same way
+            deaths.append(EventRecord(e.frame, e.t_s, "death_est", e.user_id, e.team, {**(e.data or {}), "repeat": True}))
+    events[:] = [e for e in events if e.type != "death_est"] + deaths
+    events.sort(key=lambda e: e.frame)
+    counts = Counter(e.user_id for e in deaths)
+    for user_id, acc in players.items():
+        acc.deaths = counts.get(user_id, 0)
 
 
 def _capture_point_winner(last: Frame) -> str | None:
@@ -97,8 +126,9 @@ def _capture_point_winner(last: Frame) -> str | None:
     return "blue" if last.blue_round_score > last.orange_round_score else "orange"
 
 
-def compute(meta: ReplayMeta, frames: Iterable[Frame], recorder=None) -> MatchStats:
-    """`recorder` (backend.tracks.TrackRecorder) optionally collects 2 Hz position tracks."""
+def compute(meta: ReplayMeta, frames: Iterable[Frame], recorder=None, use_kills: bool = True) -> MatchStats:
+    """`recorder` (backend.tracks.TrackRecorder) optionally collects 2 Hz position tracks. `use_kills=False`: deaths
+    by the estimate even when the recording has the game's kill records (app/tools/check_deaths.py compares the two)."""
     name = map_name(meta.map_code)
     bounds = BOUNDS.get(name)
     load_in = LOAD_IN_SPOTS.get(name)
@@ -113,8 +143,15 @@ def compute(meta: ReplayMeta, frames: Iterable[Frame], recorder=None) -> MatchSt
     capture_s = {"blue": 0.0, "orange": 0.0}  # time each team's capture progress was rising
     has_payload = False
     capture_end = payload_end = None  # first frame after which nothing counts as play: players are moved out (fake deaths)
-    frame_times: list[float] = []  # of every frame, seconds into the match, and how many players were on the map in
-    on_map: list[int] = []  # it (in bounds): tells the moment everybody is moved to the war room after a round
+    end_s = None  # when that was, seconds into the match
+    # A payload run is over at its last checkpoint, or when the attackers fail: the last frame a timer was running in.
+    # Not the first time the game timer reaches zero (the rule until 2026-11-11): overtime follows while the
+    # attackers hold on, and a checkpoint reached in it sets the timer to 120 s again and the run goes on. That rule
+    # threw away every death after that moment: about a fifth of the kills in the API data of 50 recent matches.
+    live_frame = live_s = None
+    kills: list[tuple[int, float, str | None, str | None, str, tuple[float, float] | None]] = []  # _kill, in order
+    standing: tuple[str, str, str] | None = None  # last_kill of the previous frame
+    has_kills = False  # the recording carries last_kill
 
     for frame in frames:
         dt = 0.0 if prev is None else min(max((frame.timestamp - prev.timestamp).total_seconds(), 0.0), MAX_FRAME_GAP_S)
@@ -128,15 +165,22 @@ def compute(meta: ReplayMeta, frames: Iterable[Frame], recorder=None) -> MatchSt
         if recorder is not None:
             recorder.add(frame)
         has_payload = has_payload or frame.payload is not None
+        now_s = (frame.timestamp - meta.started_at).total_seconds()
         if capture_end is None and max(frame.blue_round_score, frame.orange_round_score) >= CAPTURE_ROUNDS_TO_WIN:
             capture_end = frame.index
-        if payload_end is None and frame.payload is not None and (
-                frame.payload.checkpoint >= FINAL_CHECKPOINT
-                or (prev is not None and prev.game_timer and frame.game_timer is not None and frame.game_timer <= 0)):
-            payload_end = frame.index
+            end_s = end_s if has_payload else now_s
+        if payload_end is None and frame.payload is not None:
+            if frame.payload.checkpoint >= FINAL_CHECKPOINT:
+                payload_end = frame.index
+                end_s = now_s
+            elif (frame.game_timer or 0) > 0 or (frame.overtime_timer or 0) > 0:
+                live_frame, live_s = frame.index, now_s  # the run is on: a timer is running
         match_events.add(frame)
         payload.add(frame, dt)
-        here, now_s = 0, (frame.timestamp - meta.started_at).total_seconds()
+        if frame.last_kill is not None:
+            if has_kills and frame.last_kill != standing and frame.last_kill[0]:
+                kills.append(_kill(frame, now_s))
+            has_kills, standing = True, frame.last_kill
         for team, own, other in (("blue", frame.blue, frame.orange), ("orange", frame.orange, frame.blue)):
             for p in own:
                 acc = players.get(p.user_id)
@@ -146,13 +190,12 @@ def compute(meta: ReplayMeta, frames: Iterable[Frame], recorder=None) -> MatchSt
                         acc.team = team
                         acc.event(frame, "player_join")
                 acc.add(frame, team, p, dt, own, other)
-                here += acc._was_in_bounds is True and now_s - acc.moved_s < ROUND_MOVE_FROZEN_S
-        frame_times.append(round(now_s, 3))
-        on_map.append(here)
         prev = frame
         count += 1
 
     last = prev
+    if has_payload and payload_end is None and live_frame is not None and live_frame < last.index:
+        payload_end, end_s = live_frame, live_s  # the timers stopped and the recording went on: the attackers failed
     for acc in players.values():
         if acc.last_frame < last.index:
             t_s = round((acc.last_seen - meta.started_at).total_seconds(), 3)
@@ -162,22 +205,21 @@ def compute(meta: ReplayMeta, frames: Iterable[Frame], recorder=None) -> MatchSt
     breaks = [(e.frame, e.t_s) for e in events if e.type == "round_won" and e.data
               and max(e.data.values()) < CAPTURE_ROUNDS_TO_WIN]
 
-    moved = set()  # id() of the death events that are the move to the war room after a round
-    for _, won_s in breaks:
-        moved |= {id(e) for e in _round_move(events, frame_times, on_map, won_s)}
-
-    def moved_on(e: EventRecord) -> bool:
-        """Not a real death (or respawn): after the match is over, the players being moved on; and the deaths at the
-        moment everybody is moved to the war room after a round."""
-        if end_frame is not None and e.frame > end_frame:
+    def not_killed(e: EventRecord) -> bool:
+        """A death that is no kill: the player left the map after a round was over (the comment at KILL_SHOWS_S)."""
+        if end_s is not None and e.frame > end_frame and e.t_s > end_s + KILL_SHOWS_S:
             return True
-        return id(e) in moved
+        return any(won_s + KILL_SHOWS_S < e.t_s <= won_s + ROUND_BACK_S for _, won_s in breaks)
 
     if end_frame is not None or breaks:
-        late = Counter(e.user_id for e in events if e.type == "death_est" and moved_on(e))
+        late = Counter(e.user_id for e in events if e.type == "death_est" and not_killed(e))
         for user_id, n in late.items():
             players[user_id].deaths -= n
-        events[:] = [e for e in events if not (e.type in ("death_est", "respawn") and moved_on(e))]
+        # respawns after the match is over are the players being moved on, as before
+        events[:] = [e for e in events if not ((e.type == "death_est" and not_killed(e))
+                                                or (e.type == "respawn" and end_frame is not None and e.frame > end_frame))]
+    if has_kills and use_kills:
+        _deaths_from_kills(events, kills, players)
 
     duration_s = (last.timestamp - meta.started_at).total_seconds()
     mode = MAP_MODES.get(name) or ("payload" if has_payload else "capture_point")

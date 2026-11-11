@@ -170,6 +170,12 @@ def _payload(d: dict | None) -> PayloadState | None:
     )
 
 
+def _last_kill(k) -> tuple[str, str, str] | None:
+    if not isinstance(k, dict):
+        return None
+    return str(k.get("killed") or ""), str(k.get("killer") or ""), str(k.get("killed_with") or "")
+
+
 def build_frame(index: int, timestamp: datetime, d: dict) -> Frame:
     teams = d["teams"]
     return Frame(
@@ -184,6 +190,8 @@ def build_frame(index: int, timestamp: datetime, d: dict) -> Frame:
         orange_points=d.get("orange_points"),
         payload=_payload(d.get("payload")),
         game_timer=(d.get("timers") or {}).get("game_timer"),
+        overtime_timer=(d.get("timers") or {}).get("overtime_timer"),
+        last_kill=_last_kill(d.get("last_kill")),
     )
 
 

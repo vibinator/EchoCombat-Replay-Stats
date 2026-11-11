@@ -206,9 +206,9 @@ Remote processing (user, 2026-11-02): reading replays is slow on the NAS, so ano
 Finds replays in the read-only share (D25) and queues new or changed files. Never writes to the share.
 - `EXTENSION`:25 / **class ScanState**:29 / **class Snapshot**:42 / _walk:48 / _written_at:69 / dirs_changed:75 / scan_once:85 / **class Scanner**:144 [start:152, scan_soon:155, stop:158, _run:163, _wait_for_change:170]
 
-### `app/backend/stats/__init__.py` (164 lines)
+### `app/backend/stats/__init__.py` (253 lines)
 Frames -> MatchStats in a single pass. No database imports.
-- `STATS_VERSION`:13 / `CAPTURE_ROUNDS_TO_WIN`:15 / `ROUND_MOVE_S`:22 / `MAX_FRAME_GAP_S`:24 / **class _MatchEvents**:27 [_event:35, add:39] / _capture_point_winner:55 / compute:61
+- `STATS_VERSION`:13 / `CAPTURE_ROUNDS_TO_WIN`:15 / `KILL_SHOWS_S`:29 / `ROUND_BACK_S`:30 / `KILL_TO_EXIT_S`:43 / `KILL_TO_EXIT_TYPICAL_S`:44 / `MAX_FRAME_GAP_S`:46 / **class _MatchEvents**:49 [_event:57, add:61] / _kill:77 / _deaths_from_kills:95 / _capture_point_winner:122 / compute:128
 
 ### `app/backend/stats/map_objects.py` (84 lines)
 Fixed objects per map, measured from real replays (2026-10-31), for drawing the playback.
@@ -263,13 +263,13 @@ Echo VR replay parser. No database or web imports.
 ### `app/parser/errors.py` (17 lines)
 - **class ReplayError**:1 / **class UnsupportedReplay**:7 / **class CorruptReplay**:11 / **class IncompleteReplay**:15
 
-### `app/parser/frames.py` (201 lines)
+### `app/parser/frames.py` (209 lines)
 Raw line / JSON -> typed frame. Raises ValueError, KeyError or TypeError for a bad line.
-- `HEX_CODES`:16 / _gear_code:32 / gear_code:42 / `TIMESTAMP_FORMATS`:54 / `_TIMESTAMP`:58 / parse_timestamp:61 / split_line:78 / split_raw:86 / _float_user_id:105 / _vec:117 / _hand:122 / _player:128 / _team:155 / _payload:160 / build_frame:173 / build_meta:190
+- `HEX_CODES`:16 / _gear_code:32 / gear_code:42 / `TIMESTAMP_FORMATS`:54 / `_TIMESTAMP`:58 / parse_timestamp:61 / split_line:78 / split_raw:86 / _float_user_id:105 / _vec:117 / _hand:122 / _player:128 / _team:155 / _payload:160 / _last_kill:173 / build_frame:179 / build_meta:198
 
-### `app/parser/models.py` (67 lines)
+### `app/parser/models.py` (72 lines)
 Typed frame data. Only fields confirmed in docs/ReplayData.MD; add new ones here and in frames.py.
-- **class PlayerFrame**:10 / **class PayloadState**:33 / **class Frame**:43 / **class ReplayMeta**:58
+- **class PlayerFrame**:10 / **class PayloadState**:33 / **class Frame**:43 / **class ReplayMeta**:63
 
 ### `app/parser/reader.py` (498 lines)
 Streaming reader for .echoreplay files (zip or plain text, one `<timestamp>\t<json>` frame per line).
