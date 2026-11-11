@@ -18,6 +18,18 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.11.7 — 01:33
+
+- **New check: `app/tools/check_deaths.py`.** Counts the deaths of the newest replays twice, by the game's kill
+  records and by the estimate from positions, and prints both per map with the matches where they are furthest
+  apart. Read-only. Run on 12 recent matches a map: Combustion 279 by kills / 275 estimated, Dyson 311 / 314,
+  Fission 304 / 304, Surge 215 / 224; the furthest a single match was apart: 5 deaths in 66. Worth running after a
+  game or recorder update: the two should stay within a few percent.
+- Correction to 2026.11.11.6: the 1-2 % of kills that name nobody among the listed players are not bots (there are
+  none). They are players who dropped out of the match at that very moment: of 43 looked at, 33 never came back
+  and 9 were back a minute or more later. The game writes a kill for it; it is not counted as a death.
+- **To do after updating:** nothing beyond the restart and re-read of 2026.11.11.5.
+
 ## 2026.11.11.6 — 01:26
 
 - **Deaths are the game's own kills wherever the recording has them** (user: build it if it makes current and

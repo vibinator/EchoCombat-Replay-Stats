@@ -206,9 +206,9 @@ Remote processing (user, 2026-11-02): reading replays is slow on the NAS, so ano
 Finds replays in the read-only share (D25) and queues new or changed files. Never writes to the share.
 - `EXTENSION`:25 / **class ScanState**:29 / **class Snapshot**:42 / _walk:48 / _written_at:69 / dirs_changed:75 / scan_once:85 / **class Scanner**:144 [start:152, scan_soon:155, stop:158, _run:163, _wait_for_change:170]
 
-### `app/backend/stats/__init__.py` (253 lines)
+### `app/backend/stats/__init__.py` (255 lines)
 Frames -> MatchStats in a single pass. No database imports.
-- `STATS_VERSION`:13 / `CAPTURE_ROUNDS_TO_WIN`:15 / `KILL_SHOWS_S`:29 / `ROUND_BACK_S`:30 / `KILL_TO_EXIT_S`:43 / `KILL_TO_EXIT_TYPICAL_S`:44 / `MAX_FRAME_GAP_S`:46 / **class _MatchEvents**:49 [_event:57, add:61] / _kill:77 / _deaths_from_kills:95 / _capture_point_winner:122 / compute:128
+- `STATS_VERSION`:13 / `CAPTURE_ROUNDS_TO_WIN`:15 / `KILL_SHOWS_S`:29 / `ROUND_BACK_S`:30 / `KILL_TO_EXIT_S`:43 / `KILL_TO_EXIT_TYPICAL_S`:44 / `MAX_FRAME_GAP_S`:46 / **class _MatchEvents**:49 [_event:57, add:61] / _kill:77 / _deaths_from_kills:95 / _capture_point_winner:123 / compute:129
 
 ### `app/backend/stats/map_objects.py` (84 lines)
 Fixed objects per map, measured from real replays (2026-10-31), for drawing the playback.
@@ -302,6 +302,10 @@ Build the 3D tracks (tracks3d.bin) of every processed replay that lacks them, so
 ### `app/tools/bounds_editor/make.py` (323 lines)
 Bounds editor: review and draw the play-area outline and the spawn points of each map (user, 2026-11-10: the
 - `HERE`:26 / `MATCHES`:35 / `MARGIN_M`:36 / `MARGINS`:40 / `CELL_M`:41 / `RGB`:42 / `OUTLINE_MIN_SAMPLES`:49 / `OUTLINE_CLOSE_M`:50 / `OUTLINE_PAD_M`:51 / `OUTLINE_TOLERANCE_M`:52 / `SPAWN_GATHER_M`:59 / `SPAWN_MIN_SHARE`:60 / `SPAWN_RADIUS_M`:61 / window:64 / _after_war_room:70 / read_tracks:86 / positions_png:109 / _disk:133 / _grow:138 / _reach:146 / _trace:161 / _thin:193 / measure_outline:219 / measure_spawns:250 / main:290
+
+### `app/tools/check_deaths.py` (70 lines)
+Check the deaths the app counts against each other: the game's kill records (last_kill, recordings from
+- `LOCAL`:21 / deaths_of:24 / main:38
 
 ### `app/tools/e2e/api_sweep.py` (188 lines)
 API end-to-end sweep against a running local server (docs/reference/E2E-TESTING.md).
