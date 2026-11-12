@@ -18,6 +18,54 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.12.6 — 04:55
+
+- **"Echo Unit Assassin" is now "Kronos II Assassin"** (user's choice): the challenge for winning the Assassin card
+  in one game (the most kills). Only the name changed.
+- **To do after updating:** restart the server.
+
+## 2026.11.12.5 — 04:55
+
+- **"Silent Assassin" is now "Echo Unit Assassin"** (user: the name should sound like Lone Echo / Echo VR / Echo
+  Combat): the challenge for winning the Assassin card in one game (the most kills). Only the name changed.
+- **To do after updating:** restart the server.
+
+## 2026.11.12.4 — 04:54
+
+- **"(Leaderboard)" after a challenge name is now "(Award card)"** (user): all 25 Combat challenges for winning an
+  end-of-match award card, e.g. "Hot Streak (Award card)", "Most Valuable Jack (Award card)". Only the names changed.
+- **To do after updating:** restart the server.
+
+## 2026.11.12.3 — 04:53
+
+- **Ten more award card challenges renamed** (user: a name must fit what the card is, not a map, weapon or gear item
+  it has nothing to do with). Only the names changed: targets, progress and medals already earned stay.
+  - Stun Field Lockdown → **Point Control** (Controller card, one game)
+  - Detonator Strike → **Heavy Hitter** (Cannoneer card, one game)
+  - Nova Strike → **Silent Assassin** (Assassin card, one game)
+  - Comet Headhunter → **Headhunter** (Sniper card, one game)
+  - Repair Matrix Rescue → **Field Medic** (Medic card, one game)
+  - Repair Matrix on Call → **Medic on Call** (Medic card, any 7 days)
+  - Repair Matrix Veteran → **Chief Medic** (total Medic cards; the old name was also the name of a gear challenge)
+  - Dyson Defender → **Point Defender** (Defender card, one game)
+  - Dyson Sentinel → **Sentinel** (total Guard cards)
+  - Immovable Object on Dyson → **Immovable Object** (Immovable Object card, one game)
+- **To do after updating:** restart the server.
+
+## 2026.11.12.2 — 04:50
+
+- **The two Hot Shot challenges renamed again** (user: the card is only the best elimination streak without dying,
+  nothing to do with Combustion, maps or guns): "Combustion Hot Streak" is now **Hot Streak** (win the Hot Shot card
+  in one game) and "Combustion Hot Shot" is now **Streak Master** (total Hot Shot cards won). Only the names changed.
+- **To do after updating:** restart the server.
+
+## 2026.11.12.1 — 04:49
+
+- **Two Combat challenges renamed** (user: the Hot Shot card has nothing to do with the Pulsar): "Pulsar Streak" is
+  now **Combustion Hot Streak** (win the Hot Shot card in one game) and "Pulsar Hot Shot" is now **Combustion Hot
+  Shot** (total Hot Shot cards won). Only the names changed: targets, progress and medals already earned stay.
+- **To do after updating:** restart the server.
+
 ## 2026.11.11.18 — 03:09
 
 - **The small "cut" label is gone everywhere** (user; the home page heatmap choices lost it in 2026.11.10.48): gear
