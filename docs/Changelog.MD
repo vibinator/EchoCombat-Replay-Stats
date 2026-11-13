@@ -18,6 +18,10 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.13.2 — 19:32
+
+- **Cloudflare tunnel connector updated to 2026.11.0** (`docker-compose.yml`; was 2026.10.7): Go update and a Cloudflare Access fix, nothing that changes how the site behaves. Already running on the NAS; the file now matches. Nothing to do.
+
 ## 2026.11.13.1 — 18:52
 
 - **Search finds a match by its replay match ID:** paste the ID from the replay file (the session ID, any letter case) into the top-bar search and the match opens, just like `#12`. Part of the ID works too (at least 6 characters); up to 5 matches are listed, newest first. The site's own match numbers (`#12`) work as before. The search box hint now says so. No restart or re-read needed beyond the normal deploy.
