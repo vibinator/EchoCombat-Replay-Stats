@@ -68,8 +68,8 @@ export function GlobalSearch() {
         ref={input}
         type="search"
         maxLength={64} // the API refuses longer searches
-        placeholder="Search players or #match  ( / )"
-        aria-label="Search players or match id"
+        placeholder="Search players, #match or replay ID  ( / )"
+        aria-label="Search players, match number or replay match id"
         value={q}
         onChange={(e) => {
           setQ(e.target.value);

@@ -78,9 +78,9 @@ Leaderboard (D15): the profile aggregates grouped by player, ranked by one stat.
 ### `app/backend/api/matches.py` (619 lines)
 - player_counts:33 / list_matches:41 / _list_matches:60 / `MAX_THUMBNAILS`:106 / get_thumbnails:111 / _thumbnails:120 / _thumbnail:131 / _thumbnail_for:140 / player_row:146 / get_match:179 / match_detail:183 / repair_note:233 / get_events:246 / _event_data:265 / _match_or_404:273 / _tracks:280 / get_timeline:288 / _timeline:293 / `MATCH_HEATMAP_MODES`:302 / get_match_heatmap:306 / _match_heatmap:320 / get_match_heatmap3d:343 / _match_heatmap3d:355 / `EXPORT_COLUMNS`:380 / export_rows:387 / export_match:400 / get_playback:410 / _playback:416 / `PLAYBACK_EVENTS`:452 / `MAPS_3D`:454 / `PAYLOAD_MODEL_MAPS`:455 / `BUILD_WAIT_S`:456 / `MAX_BUILD_WAITERS`:457 / `FAILED_TTL_S`:458 / _recently_failed:465 / _remember_failure:470 / _tracks3d:479 / get_playback3d:541 / _playback3d:548 / _map_objects:575 / _gear_names:592 / _speeds:596 / _loadout_runs:609
 
-### `app/backend/api/overview.py` (368 lines)
+### `app/backend/api/overview.py` (370 lines)
 Home dashboard, archive activity and global search.
-- overview:21 / _overview:27 / `LATEST_MATCHES`:69 / _latest_matches:72 / latest_matches:78 / processing:87 / last_match:95 / map_heat_cards:104 / _map_heat:136 / `LIVE_HEADERS`:150 / live:154 / _last_ended:162 / activity:170 / `DAY_WINDOW`:177 / _activity:180 / search:212 / _search:218 / _top_gear:234 / `TEAM_WIN_KEYS`:255 / _global_stats:258 / `RANGES`:306 / players_seen:310 / _players_seen:318 / warm:356
+- overview:21 / _overview:27 / `LATEST_MATCHES`:69 / _latest_matches:72 / latest_matches:78 / processing:87 / last_match:95 / map_heat_cards:104 / _map_heat:136 / `LIVE_HEADERS`:150 / live:154 / _last_ended:162 / activity:170 / `DAY_WINDOW`:177 / _activity:180 / search:212 / _search:218 / _top_gear:236 / `TEAM_WIN_KEYS`:257 / _global_stats:260 / `RANGES`:308 / players_seen:312 / _players_seen:320 / warm:358
 
 ### `app/backend/api/permissions.py` (87 lines)
 Permissions page (user, 2026-10-30): console users give or take away Admin (the Status page), the Console and the Preview,

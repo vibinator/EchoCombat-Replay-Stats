@@ -82,7 +82,7 @@ path is in middleware.WRITES / BOT. Console routes need auth.has_console; profil
 | GET | `/api/overview/latest` | latest_matches | app/backend/api/overview.py:77 | The home page's "Latest matches" list on its own: the overview is rebuilt at most every cache_refresh_s (it is |
 | GET | `/api/overview/live` | live | app/backend/api/overview.py:153 | Is a game being played now (the spectator bot is live on Twitch)? The home page's "Game in progress" card |
 | GET | `/api/overview/map-heat` | map_heat_cards | app/backend/api/overview.py:103 |  |
-| GET | `/api/overview/players-seen` | players_seen | app/backend/api/overview.py:309 |  |
+| GET | `/api/overview/players-seen` | players_seen | app/backend/api/overview.py:311 |  |
 | GET | `/api/overview/processing` | processing | app/backend/api/overview.py:86 | Replays still waiting to be read, for the "processing" spinner in the top bar. Not cached: it is the live queu |
 | GET | `/api/players` | search_players | app/backend/api/players.py:35 |  |
 | GET | `/api/players/compare/{user_ids}` | compare_players | app/backend/api/players.py:177 | Profiles of 2-4 players side by side + head-to-head record of the first two. |

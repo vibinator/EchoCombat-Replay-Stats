@@ -224,9 +224,14 @@ def _search(request: Request, q: str, limit: int) -> dict:
             .order_by(games.desc()).limit(limit)
         ).all()
         match = db.get(Match, int(q.lstrip("#"))) if q.lstrip("#").isdigit() else None
+        found = [match] if match else []
+        if not found and len(q) >= 6 and not q.startswith("#"):  # the replay's own match id (session id): whole or part, any letter case
+            found = db.execute(
+                select(Match).where(Match.session_id.icontains(q, autoescape=True)).order_by(Match.started_at.desc()).limit(5)
+            ).scalars().all()
     return {
         "players": [{"user_id": u, "name": n, "games": g} for u, n, g in players],
-        "matches": [match_summary(match)] if match else [],
+        "matches": [match_summary(m) for m in found],
     }
 
 
