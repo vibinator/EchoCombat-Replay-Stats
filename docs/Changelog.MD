@@ -18,6 +18,10 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.14.1 — 02:56
+
+- **Matches played while the UK clocks changed now have the right length:** the recorder writes the PC's clock, so on the last Sunday of March (01:00 GMT -> 02:00 BST) a match running over the change looked an hour longer (match 213393: 67 minutes, really 7) and on the last Sunday of October (02:00 BST -> 01:00 GMT) an hour shorter, even negative (matches 223154, 214777, 211121). The reader now takes out exactly that one-hour step, only at those two moments; every other jump in a replay's clock is left alone. A note appears on the replay when it happens. `PARSER_VERSION` is unchanged, so nothing is re-read by itself: the four matches above (replays 27878, 27025, 28152, 21770) were found by searching the archive and are fixed once they are read again.
+
 ## 2026.11.13.2 — 19:32
 
 - **Cloudflare tunnel connector updated to 2026.11.0** (`docker-compose.yml`; was 2026.10.7): Go update and a Cloudflare Access fix, nothing that changes how the site behaves. Already running on the NAS; the file now matches. Nothing to do.

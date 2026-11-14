@@ -5,9 +5,10 @@ import re
 import struct
 import zipfile
 import zlib
+from calendar import monthrange
 from collections.abc import Iterator
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from .errors import CorruptReplay, IncompleteReplay, UnsupportedReplay
@@ -423,6 +424,44 @@ def _open_lines(path: Path, max_bytes: int, repair: bool | str = False, notes: l
         raise CorruptReplay(f"Damaged zip file: {e}") from e
 
 
+class ClockJumps:
+    """The recorder stamps frames with the PC's wall-clock time (UK: GMT / BST), so a daylight-saving change in the
+    middle of a match adds or removes an hour between two frames (a 7-minute match read as 67). Only a step that is
+    one of the two UK changes is taken out, so every later frame keeps the clock the match started on:
+      - last Sunday of March: 01:00 GMT -> 02:00 BST, a step of +1 hour right after a frame stamped 00:xx;
+      - last Sunday of October: 02:00 BST -> 01:00 GMT, a step of -1 hour right after a frame stamped 01:xx.
+    The step must be an hour within two minutes (frames come every fraction of a second). Any other jump is real."""
+
+    STEP_S = 3600
+    TOLERANCE_S = 120
+    # month -> (sign of the step, hour of the last frame before it)
+    CHANGES = {3: (1, 0), 10: (-1, 1)}
+
+    def __init__(self):
+        self.shift = timedelta(0)
+        self.shifts: list[int] = []  # seconds, in the order they happened
+        self._last: datetime | None = None
+
+    def add(self, raw: datetime) -> None:
+        """Look at the next frame's own (uncorrected) timestamp."""
+        before = self._last
+        self._last = raw
+        if before is None or before.month not in self.CHANGES:
+            return
+        sign, hour = self.CHANGES[before.month]
+        gap = (raw - before).total_seconds()
+        last_sunday = before.weekday() == 6 and before.day + 7 > monthrange(before.year, before.month)[1]
+        if last_sunday and before.hour == hour and abs(gap - sign * self.STEP_S) <= self.TOLERANCE_S:
+            self.shift += timedelta(seconds=sign * self.STEP_S)
+            self.shifts.append(sign * self.STEP_S)
+
+    def fix(self, raw: datetime) -> datetime:
+        return raw - self.shift
+
+    def describe(self) -> str:
+        return " and ".join(f"{s / 3600:+g} h" for s in self.shifts)
+
+
 class ParsedReplay:
     """Metadata is read on construction; frames() streams the file again from the start."""
 
@@ -462,6 +501,7 @@ class ParsedReplay:
         bad_lines = lines_read = index = 0
         last_line_bad = False
         notes: list[str] = []
+        clock = ClockJumps()
         with _open_lines(self.path, self.max_bytes, self.repair, notes) as (_, lines):
             for raw in lines:
                 lines_read += 1
@@ -474,7 +514,8 @@ class ParsedReplay:
                         raise CorruptReplay(f"Too many unreadable lines ({bad_lines} of {lines_read})")
                 try:
                     timestamp, data = split_raw(raw)
-                    frame = build_frame(index, timestamp, data)
+                    clock.add(timestamp)
+                    frame = build_frame(index, clock.fix(timestamp), data)
                 except BAD_LINE_ERRORS:
                     last_line_bad = True
                     continue
@@ -482,6 +523,8 @@ class ParsedReplay:
                 yield frame
 
         self.frame_count = index
+        if clock.shifts:
+            self.warnings.append(f"The recorder's clock jumped {clock.describe()} (daylight saving time); the match time is corrected")
         if last_line_bad:
             self.warnings.append("Last line is truncated (recording was cut off); ignored")
         if bad_lines:

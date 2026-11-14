@@ -1,5 +1,6 @@
 import io
 import zipfile
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -165,3 +166,50 @@ def test_chunked_lines_match_file_iteration():
         data = bytes(rng.choice(b"ab\n\r\t") for _ in range(rng.randint(0, 60)))
         for size in (1, 2, 5, 64):
             assert list(_chunk_lines(io.BytesIO(data), size)) == list(io.BytesIO(data))
+
+
+def _lines_with_clock_step(start: datetime, step_s: float) -> list[str]:
+    """Six frames at 2 Hz; the PC's clock moves by step_s after the third frame."""
+    out = []
+    for i, line in enumerate(rf.lines(6, start=start)):
+        _, _, body = line.partition("	")
+        moved = start + timedelta(seconds=i / 2 + (step_s if i >= 3 else 0))
+        out.append(f"{moved.strftime('%Y-%m-%d %H:%M:%S.%f')}	{body}")
+    return out
+
+
+def _seconds(tmp_path, start, step_s):
+    replay, frames = parse_all(write(tmp_path, rf.plain(_lines_with_clock_step(start, step_s))))
+    return replay, [(f.timestamp - replay.meta.started_at).total_seconds() for f in frames]
+
+
+@pytest.mark.parametrize("start, step_s", [
+    (datetime(2025, 3, 30, 0, 59, 58), 3600),    # 2025: last Sunday of March, 01:00 GMT -> 02:00 BST
+    (datetime(2026, 3, 29, 0, 59, 58), 3600),    # 2026
+    (datetime(2025, 10, 26, 1, 59, 58), -3600),  # last Sunday of October, 02:00 BST -> 01:00 GMT
+    (datetime(2026, 10, 25, 1, 59, 58), -3600),
+])
+def test_uk_clock_change_is_taken_out(tmp_path, start, step_s):
+    replay, seconds = _seconds(tmp_path, start, step_s)
+    assert seconds == pytest.approx([0, 0.5, 1.0, 1.5, 2.0, 2.5], abs=0.01)
+    assert len(replay.warnings) == 1 and "daylight saving" in replay.warnings[0]
+
+
+@pytest.mark.parametrize("start, step_s", [
+    (datetime(2026, 10, 28, 20, 45, 44), 3600),  # a Wednesday evening: no clock changes then
+    (datetime(2026, 3, 22, 0, 59, 58), 3600),    # a Sunday in March, but not the last one
+    (datetime(2026, 10, 18, 1, 59, 58), -3600),  # a Sunday in October, not the last
+    (datetime(2026, 3, 29, 0, 59, 58), -3600),   # March clocks go forward, never back
+    (datetime(2026, 10, 25, 1, 59, 58), 3600),   # October clocks go back, never forward
+    (datetime(2026, 3, 29, 12, 0, 0), 3600),     # the right Sunday, but midday
+    (datetime(2026, 3, 29, 1, 59, 58), 3600),    # not the hour clocks change
+    (datetime(2026, 11, 1, 1, 59, 58), -3600),   # US change date: not UK time
+    (datetime(2026, 3, 8, 1, 59, 58), 3600),
+    (datetime(2026, 3, 29, 0, 59, 58), 1800),    # not a whole hour
+    (datetime(2026, 3, 29, 0, 59, 58), 7200),
+    (datetime(2026, 3, 29, 0, 59, 58), 40),      # a small real gap
+])
+def test_other_clock_jumps_are_kept(tmp_path, start, step_s):
+    replay, seconds = _seconds(tmp_path, start, step_s)
+    assert seconds[-1] == pytest.approx(2.5 + step_s, abs=0.01)
+    assert replay.warnings == []

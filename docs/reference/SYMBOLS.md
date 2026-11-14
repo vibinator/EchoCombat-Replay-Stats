@@ -271,9 +271,9 @@ Raw line / JSON -> typed frame. Raises ValueError, KeyError or TypeError for a b
 Typed frame data. Only fields confirmed in docs/ReplayData.MD; add new ones here and in frames.py.
 - **class PlayerFrame**:10 / **class PayloadState**:33 / **class Frame**:43 / **class ReplayMeta**:63
 
-### `app/parser/reader.py` (498 lines)
+### `app/parser/reader.py` (541 lines)
 Streaming reader for .echoreplay files (zip or plain text, one `<timestamp>\t<json>` frame per line).
-- `ZIP_MAGIC`:17 / `SUPPORTED_MATCH_TYPE`:18 / `MAX_UNCOMPRESSED_BYTES`:19 / `BAD_LINE_ERRORS`:20 / _allowed_bad_lines:23 / _limited:27 / `READ_CHUNK`:36 / `META_CHUNK`:37 / _chunk_lines:40 / `LOCAL_HEADER`:58 / `SALVAGE_CHUNK`:59 / _salvage_zip_lines:62 / `CENTRAL_HEADER`:126 / `CENTRAL_MAGIC`:127 / `FRAME_START`:128 / `SESSION_IN_NAME`:129 / `HOLE`:130 / `CHECK_CHUNK`:131 / `LOOKAHEAD`:132 / `DIFF_UNIT`:133 / _zip_entries:136 / _same_copy:164 / _differences:180 / _is_frame:196 / **class _CheckedInflate**:206 [copy:219, feed:226, _check:249, take:263, finish:268] / _read_one:276 / _read_two:288 / _streams:323 / _frames:347 / _frames_in:360 / _merged:371 / _aggressive_lines:383 / _open_lines:397 / **class ParsedReplay**:426 [_read_meta:440, frames:460] / open_replay:496
+- `ZIP_MAGIC`:18 / `SUPPORTED_MATCH_TYPE`:19 / `MAX_UNCOMPRESSED_BYTES`:20 / `BAD_LINE_ERRORS`:21 / _allowed_bad_lines:24 / _limited:28 / `READ_CHUNK`:37 / `META_CHUNK`:38 / _chunk_lines:41 / `LOCAL_HEADER`:59 / `SALVAGE_CHUNK`:60 / _salvage_zip_lines:63 / `CENTRAL_HEADER`:127 / `CENTRAL_MAGIC`:128 / `FRAME_START`:129 / `SESSION_IN_NAME`:130 / `HOLE`:131 / `CHECK_CHUNK`:132 / `LOOKAHEAD`:133 / `DIFF_UNIT`:134 / _zip_entries:137 / _same_copy:165 / _differences:181 / _is_frame:197 / **class _CheckedInflate**:207 [copy:220, feed:227, _check:250, take:264, finish:269] / _read_one:277 / _read_two:289 / _streams:324 / _frames:348 / _frames_in:361 / _merged:372 / _aggressive_lines:384 / _open_lines:398 / **class ClockJumps**:427 [add:445, fix:458, describe:461] / **class ParsedReplay**:465 [_read_meta:479, frames:499] / open_replay:539
 
 ### `app/admin_console.py` (1130 lines)
 Admin console: the only place data is changed (the website is read-only). Player merges, the challenge
