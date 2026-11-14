@@ -536,6 +536,8 @@ def cmd_status(sessions) -> None:
         repaired = dict(db.execute(select(Replay.warnings.like('["Repaired (aggressive)%'), func.count())
                                    .where(Replay.status == "done", Replay.warnings.like('["Repaired%'))
                                    .group_by(Replay.warnings.like('["Repaired (aggressive)%'))).all())
+        clocks = list(db.scalars(select(Replay.id).where(Replay.status == "done", Replay.warnings.like("%clock probably jumped%"))
+                                 .order_by(Replay.id)))
         merges = db.scalar(select(func.count()).select_from(PlayerAlias))
         players = db.scalar(select(func.count()).select_from(Player))
     print(f"Server: {'running' if server_running() else 'not running'} (http://{SERVER[0]}:{SERVER[1]})")
@@ -557,6 +559,9 @@ def cmd_status(sessions) -> None:
     if repaired:
         print(f"Repaired successfully: {sum(repaired.values())} replays"
               + (f" ({repaired.get(1, 0)} with aggressive repair)" if repaired.get(1) else ""))
+    if clocks:  # worker.clock_warning: a match length that cannot be right
+        print(f"Match length looks wrong (the recorder's clock jumped): {len(clocks)} replays, ids "
+              + ", ".join(map(str, clocks[:10])) + (" ..." if len(clocks) > 10 else ""))
     if stuck or hidden:
         print(f"Cannot be repaired: {stuck} shown on the website, {hidden} hidden")
     print(f"Players: {players}  ·  merges: {merges}")

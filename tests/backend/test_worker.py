@@ -5,7 +5,7 @@ from app_helpers import add, app_client, make_settings, replay_by_path
 from backend.db import open_db
 from backend.models import Replay
 from backend.stats import STATS_VERSION
-from backend.worker import analyse, requeue_unfinished_and_outdated
+from backend.worker import analyse, clock_warning, requeue_unfinished_and_outdated
 from parser import PARSER_VERSION
 
 
@@ -138,3 +138,22 @@ def test_side_pool_that_crashed_is_replaced_and_leaves_the_replay_pool_alone(set
     finally:
         main.shutdown()
         worker._sides["side"].shutdown()
+
+
+class _Stats:
+    def __init__(self, duration_s, *play_times):
+        self.duration_s = duration_s
+        self.players = [type("P", (), {"play_time_s": t})() for t in play_times]
+
+
+@pytest.mark.parametrize("duration, plays, flagged", [
+    (480, (470, 300), False),       # an ordinary match
+    (900, (420,), False),           # someone arrived late and left: 8 min slack is fine
+    (4015, (415, 300), True),       # an hour too long (clocks forward, match 213393)
+    (-3029, (566,), True),          # an hour too short (clocks back)
+    (0, (0,), True),
+])
+def test_clock_warning(duration, plays, flagged):
+    note = clock_warning(_Stats(duration, *plays))
+    assert (note is not None) == flagged
+    assert note is None or "clock probably jumped" in note

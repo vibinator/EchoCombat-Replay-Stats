@@ -144,8 +144,8 @@ Fixes from the 2026-11-07 review (docs/Review-2026-11-07.MD): a busy database po
 ### `tests/backend/test_version.py` (3 tests)
 - test_short_form, test_next_version_counts_per_day, test_version_matches_release_and_changelog
 
-### `tests/backend/test_worker.py` (8 tests)
-- test_valid_replay_is_processed, test_warnings_are_stored, test_analyse_reports_unreadable_file, test_startup_requeues_unfinished_and_outdated, test_pool_crash_requeues_then_fails_repeat_offender, test_crash_while_stopping_leaves_rows_for_next_start, test_side_jobs_run_apart_from_the_replay_pool, test_side_pool_that_crashed_is_replaced_and_leaves_the_replay_pool_alone
+### `tests/backend/test_worker.py` (9 tests)
+- test_valid_replay_is_processed, test_warnings_are_stored, test_analyse_reports_unreadable_file, test_startup_requeues_unfinished_and_outdated, test_pool_crash_requeues_then_fails_repeat_offender, test_crash_while_stopping_leaves_rows_for_next_start, test_side_jobs_run_apart_from_the_replay_pool, test_side_pool_that_crashed_is_replaced_and_leaves_the_replay_pool_alone, test_clock_warning
 
 ### `tests/parser/test_reader.py` (20 tests)
 - test_parses_plain_and_zip, test_payload_fields, test_old_converter_timestamp_format, test_older_loadout_key_names, test_empty_team_has_no_players_key, test_arena_is_unsupported, test_truncated_last_line_is_a_warning, test_few_bad_lines_are_skipped_with_warning, test_many_bad_lines_are_corrupt, test_unreadable_first_frame_is_corrupt, test_single_frame_is_incomplete, test_damaged_zip_is_corrupt, test_zip_without_replay_entry_is_corrupt, test_uncompressed_size_limit, test_real_samples_parse, test_fast_json_path_matches_json, test_fast_json_path_rejects_the_same_lines, test_chunked_lines_match_file_iteration, test_uk_clock_change_is_taken_out, test_other_clock_jumps_are_kept

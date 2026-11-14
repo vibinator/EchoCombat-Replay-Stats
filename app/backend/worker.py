@@ -70,6 +70,22 @@ def save_heights(tracks_file: Path) -> None:
         log.warning("Heights of %s not saved: %s: %s", tracks_file.parent, type(e).__name__, e)
 
 
+CLOCK_SLACK_S = 1200  # a match may be this much longer than its longest-present player's time (checked on 33,500 matches: none is, bar the daylight-saving ones)
+
+
+def clock_warning(stats) -> str | None:
+    """A note when the match length cannot be right: zero or negative, or far longer than anyone was in it. That is
+    what a jump of the recorder's PC clock (daylight saving, a manual change) in the middle of a match looks like; the
+    reader (parser.reader.ClockJumps) takes out the UK changes, anything else lands here for the admin to see."""
+    present = max((p.play_time_s for p in stats.players), default=0.0)
+    if stats.duration_s <= 0:
+        return f"Match length {stats.duration_s:.0f} s is impossible: the recorder's clock probably jumped (daylight saving?)"
+    if stats.duration_s > present + CLOCK_SLACK_S:
+        return (f"Match length {stats.duration_s / 60:.0f} min but nobody was in it for more than {present / 60:.0f} min: "
+                "the recorder's clock probably jumped (daylight saving?)")
+    return None
+
+
 def analyse(path: str, tracks_file: str | None = None, repair: bool | str = False) -> tuple:
     """Runs in a pool process. Returns ("ok", meta, stats, warnings, tracks_saved) or ("failed", code, message).
     Also writes the 2 Hz position tracks (for heatmaps / timeline) to `tracks_file`, and the 5 Hz 3D tracks (3D playback)
@@ -83,6 +99,8 @@ def analyse(path: str, tracks_file: str | None = None, repair: bool | str = Fals
             recorder3d = Track3DRecorder(parsed.meta.started_at, load_in)
         stats = compute(parsed.meta, parsed.frames(), Recorders(recorder, recorder3d) if recorder else None)
         warnings = list(parsed.warnings)
+        if (note := clock_warning(stats)) is not None:
+            warnings.append(note)
         saved = False
         if recorder is not None:
             try:
