@@ -452,10 +452,12 @@ export function HomePage() {
                 <LoadoutTop loadout={g.top_loadout} />
               </div>
 
-              <h2>All time</h2>
-              <p className="muted">
-                Archive {o.first_match_at && dateTime(o.first_match_at).slice(0, 10)} – {o.last_match_at && dateTime(o.last_match_at).slice(0, 10)}
-              </p>
+              <h2>
+                All time{" "}
+                <span className="muted heading-note">
+                  archive {o.first_match_at && dateTime(o.first_match_at).slice(0, 10)} – {o.last_match_at && dateTime(o.last_match_at).slice(0, 10)}
+                </span>
+              </h2>
               <div className="stat-groups">
               <StatGroup title="Archive" n={5}>
                 <div className="card"><span className="label">Matches</span><strong>{o.matches.toLocaleString()}</strong></div>

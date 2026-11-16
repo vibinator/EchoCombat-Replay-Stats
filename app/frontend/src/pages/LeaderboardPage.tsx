@@ -1,5 +1,5 @@
-import type { ReactNode } from "react";
-import { Link, useSearchParams } from "react-router";
+import { useState, type ReactNode } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import { CombatBoard } from "./CombatPage";
 import {
   getGear, getLeaderboard, getLeaderboardOverview, getLeaderboardRecords, getLeaderboardStats,
@@ -9,6 +9,7 @@ import { ShareBar } from "../components/bars";
 import { Status, TableWrap } from "../components/common";
 import { EmptyState, FitText, Skeleton } from "../components/ui";
 import { Avatar, useAvatars } from "../components/Avatar";
+import { COMPARE_MAX, compareTabPath } from "../components/CompareView";
 import { MAPS, MAP_MODE, dateTime, duration, int, num, pct, playerPath, title } from "../format";
 import { useApi } from "../useApi";
 import { usePageTitle } from "../usePageTitle";
@@ -213,6 +214,9 @@ function ReplayBoard() {
   const mode = params.get("mode") ?? "";
   const minGames = Number(params.get("min_games") ?? 10);
   const stats = useApi(getLeaderboardStats, "stats");
+  // players ticked for "Compare selected" (user, 2026-11-16: the Compare page moved to the player profile). Kept while
+  // the stat, filters, view or page change, so players can be picked from different boards; the first ticked opens it.
+  const [picked, setPicked] = useState<Pick[]>([]);
 
   function set(key: string, value: string) {
     const next = new URLSearchParams(params);
@@ -287,13 +291,16 @@ function ReplayBoard() {
       </div>
       {view === "overview" && <Overview period={period} map={map} mode={mode} minGames={minGames} boardLink={boardLink} />}
       {view === "records" && <Records period={period} map={map} mode={mode} />}
-      {view === "board" && <StatBoard stat={stat} period={period} map={map} mode={mode} minGames={minGames} stats={stats.data ?? []} set={set} />}
+      {view === "board" && <StatBoard stat={stat} period={period} map={map} mode={mode} minGames={minGames} stats={stats.data ?? []} set={set} picked={picked} setPicked={setPicked} />}
     </section>
   );
 }
 
-function StatBoard({ stat, period, map, mode, minGames, stats, set }: {
+type Pick = { user_id: string; name: string };
+
+function StatBoard({ stat, period, map, mode, minGames, stats, set, picked, setPicked }: {
   stat: string; period: Period; map: string; mode: string; minGames: number; stats: StatOption[]; set: (key: string, value: string) => void;
+  picked: Pick[]; setPicked: React.Dispatch<React.SetStateAction<Pick[]>>;
 }) {
   const [params] = useSearchParams();
   const offset = Number(params.get("offset") ?? 0);
@@ -316,6 +323,14 @@ function StatBoard({ stat, period, map, mode, minGames, stats, set }: {
   );
 
   const avatars = useAvatars(board.data?.items.map((r) => r.user_id) ?? []);
+  const navigate = useNavigate();
+  const isPicked = (id: string) => picked.some((x) => x.user_id === id);
+  function togglePick(r: LeaderboardRow) {
+    setPicked((now) => (now.some((x) => x.user_id === r.user_id) ? now.filter((x) => x.user_id !== r.user_id) : now.length < COMPARE_MAX ? [...now, { user_id: r.user_id, name: r.name }] : now));
+  }
+  function openCompare() {
+    navigate(compareTabPath(playerPath(picked[0].user_id, picked[0].name), picked.map((x) => x.user_id), period));
+  }
   const hint = stats.find((s) => s.key === stat)?.hint;
 
   const total = board.data?.total ?? 0;
@@ -388,10 +403,25 @@ function StatBoard({ stat, period, map, mode, minGames, stats, set }: {
                 })}
               </div>
             )}
+            <div className="compare-pick" role="status">
+              {picked.length === 0 ? (
+                <span className="muted">Tick up to {COMPARE_MAX} players to compare them side by side.</span>
+              ) : (
+                <>
+                  <span>
+                    {picked.length < 2 ? "Tick one more player to compare: " : "Compare "}
+                    {picked.map((x) => x.name).join(", ")}
+                  </span>
+                  <button type="button" disabled={picked.length < 2} onClick={openCompare}>Compare selected</button>
+                  <button type="button" className="link" onClick={() => setPicked([])}>Clear</button>
+                </>
+              )}
+            </div>
             <TableWrap>
               <table className="stack board">{/* board: on a phone one line per player, tap it for the other columns (Review GUI-5) */}
                 <thead>
                   <tr>
+                    <th className="pick"><span className="sr-only">Compare</span></th>
                     <th className="num">#</th>
                     <th>Player</th>
                     {columns.map(([key, label]) => sortHeader(key, label))}
@@ -407,6 +437,15 @@ function StatBoard({ stat, period, map, mode, minGames, stats, set }: {
                   {board.data.items.map((r) => (
                     // the class toggle only matters under 760 px (styles.css, table.board): it opens the hidden columns
                     <tr key={r.user_id} onClick={(e) => e.currentTarget.classList.toggle("open")}>
+                      <td data-label="Compare" className="pick keep" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          aria-label={`Compare ${r.name}`}
+                          checked={isPicked(r.user_id)}
+                          disabled={!isPicked(r.user_id) && picked.length >= COMPARE_MAX}
+                          onChange={() => togglePick(r)}
+                        />
+                      </td>
                       <td data-label="#" className="num keep rank">
                         {r.rank} <RankChange r={r} />
                       </td>

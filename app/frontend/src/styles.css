@@ -4937,7 +4937,7 @@ tr.cloud-drop-on td {
 
 /* home: headings over the grouped all-time card rows (Records, Fun facts) */
 .cards-head {
-  margin: 16px 0 8px;
+  margin: 10px 0 6px;
   font-size: 1rem;
 }
 /* home: the most used full loadout, three gear names stacked */
@@ -4946,14 +4946,80 @@ tr.cloud-drop-on td {
   flex-direction: column;
   gap: 2px;
 }
-/* home: the less used archive totals, folded away */
-.home-more {
+/* home: compact spacing, so the whole page needs less scrolling (user, 2026-11-16) */
+.home .hero {
+  padding: 16px 16px 10px;
+  margin-bottom: 10px;
+}
+.home .hero h1 {
+  margin: 0 0 2px;
+}
+.home .hero p {
+  margin: 0 0 8px;
+}
+.home .hero .announcement {
+  margin: 0;
+}
+.home h2 {
+  margin: 1.25rem 0 0.5rem;
+}
+.home .panel {
   margin: 12px 0;
 }
-.home-more summary {
-  cursor: pointer;
-  color: var(--muted);
-  margin-bottom: 8px;
+.home .panel h2,
+.home .section-head h2 {
+  margin: 0 0 6px;
+}
+.home .live-latest,
+.home .map-heat-head {
+  margin-top: 1.25rem;
+}
+/* top row: the cards share the full width, so their labels stay on one line */
+.home .home-strip {
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+}
+.home .home-strip .card {
+  padding: 10px 12px;
+}
+/* live video and latest matches: half each, so the video row is not taller than it needs to be */
+.home .live-latest {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+/* most active, players seen and Combat this week side by side on a wide window */
+.home .home-week {
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 12px;
+  margin: 12px 0;
+}
+.home .home-week > .panel {
+  margin: 0;
+}
+.home .active-row {
+  padding: 6px 10px;
+  gap: 10px;
+}
+.home .active-list {
+  gap: 4px;
+}
+.home .map-cards {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+.home .heading-note {
+  margin-left: 8px;
+  font-weight: normal;
+}
+/* all time: labelled groups side by side while they fit */
+.stat-groups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 16px;
+}
+.stat-group {
+  flex-grow: 1;
+  min-width: 0;
+}
+.stat-group .cards {
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
 }
 /* home: Combat this week (a separate source from the replay stats) */
 .combat-week-note {

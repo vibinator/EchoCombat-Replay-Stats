@@ -18,6 +18,26 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.16.14 — 13:24
+
+- **Leaderboard (replay stats) redesign:**
+  - **Opens on "All stats":** a card for every stat with its top 5, grouped (Activity, Movement, Teamwork, Objective, Social, Connection). Click a card's title or "Full board" for the whole ranking with the same filters (new `/api/leaderboard/overview`, from the same scan as the boards). Old `?stat=` links still open that board directly.
+  - **Stat chips instead of the dropdown:** pick a group, then a stat in it.
+  - **Records:** each player's best single match for top speed, distance, average speed, push time, block time, time inverted and emotes, with map, date and a link to the match (counted games only; average speed and time inverted also need a minute in the play area; new `/api/leaderboard/records`).
+  - **Mode filter** (Capture point / Payload); the map list follows the mode.
+  - **New stats:** *Distance travelled* (total km in the play area, from the per-frame speed), *Distance per game*, *Push time / Block time per payload game* (the minimum counts Payload games only), *Emotes per game*. No re-read needed.
+  - **Podium:** gold, silver and bronze medals and accents, bigger pictures, the value large with its label, the context line smaller.
+  - The "Compare selected" ticks stay on the full boards and are now kept when you switch between the cards, records and boards.
+
+## 2026.11.16.13 — 13:22
+
+- **Home page needs less scrolling** (2,315 px instead of 3,156 px at 1920×1080, 2.1 screens instead of 2.9; 3.3 instead of 4.0 at 1366×768):
+  - Smaller gaps: a tighter header, no 32 px gap above panel headings, smaller section gaps, slimmer "Most active" rows.
+  - The top row of cards fills the full width, so the labels stay on one line.
+  - The Twitch video and latest matches split the row half and half (the video row is 448 px instead of 572 px).
+  - Most active, Players seen and Combat this week sit side by side.
+  - All time: the archive dates sit beside the heading, and the Archive, Fun facts, Records and More archive numbers groups sit side by side while they fit. More archive numbers is shown again instead of folded away.
+
 ## 2026.11.16.12 — 13:14
 
 - **Matches list:**
