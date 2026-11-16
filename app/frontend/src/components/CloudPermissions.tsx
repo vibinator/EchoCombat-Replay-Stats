@@ -2,12 +2,13 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import {
   findCloudPeople, getCloudLog, getCloudRule, getCloudRules, setCloudRule,
-  type CloudGrant, type CloudLogEntry, type CloudPrincipal, type CloudRule, type CloudRuleRow, type DiscordEntry,
+  type CloudGrant, type CloudLevel, type CloudLogEntry, type CloudPrincipal, type CloudRule, type CloudRuleRow, type DiscordEntry,
 } from "../api";
 import { LocalTime, Status, TableWrap } from "./common";
 
 const who = (g: { name?: string; id: string }) => (g.name && g.name !== "?" ? g.name : g.id);
 const isId = (text: string) => /^\d{17,20}$/.test(text);
+const LEVEL: Record<CloudLevel, string> = { view: "View", edit: "Edit", admin: "Admin" };
 
 /** A Discord role (from the server's list) or a person: found by name as you type, or by a pasted user id. */
 export function PrincipalPicker({ roles, value, onChange, taken }: {
@@ -113,7 +114,8 @@ export function PrincipalPicker({ roles, value, onChange, taken }: {
   );
 }
 
-/** Console users: who folders / files are shared with (View / Edit) and whether they are private. One item: its
+/** Admins of the folder (Cloud admins, console users, or listed as Admin on it or above it): who folders are shared
+ *  with (View / Edit / Admin) and whether they are private. Folders only: a file follows the folder it is in. One item: its
  *  permissions, who ends up with access, and its history. Several items: one set of permissions for all of them.
  *  Nothing changes until Save; the server checks every change. */
 export function CloudPermissions({ paths, onClose, onSaved }: { paths: string[]; onClose: () => void; onSaved: () => void }) {
@@ -126,9 +128,9 @@ export function CloudPermissions({ paths, onClose, onSaved }: { paths: string[];
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
   const [adding, setAdding] = useState<CloudPrincipal | null>(null);
-  const [level, setLevel] = useState<"view" | "edit">("view");
+  const [level, setLevel] = useState<CloudLevel>("view");
   const [others, setOthers] = useState<CloudRuleRow[]>([]); // rules to copy from
-  const [history, setHistory] = useState<CloudLogEntry[] | null>(null);
+  const [history, setHistory] = useState<CloudLogEntry[] | string | null>(null); // a string: why it cannot be shown
   const key = paths.join("\n");
 
   useEffect(() => {
@@ -187,14 +189,14 @@ export function CloudPermissions({ paths, onClose, onSaved }: { paths: string[];
     if (!open || history) return;
     getCloudLog(path).then(
       (rows) => setHistory(rows.filter((r) => r.path === path || r.path.startsWith(`${path}/`) || r.detail === path).slice(0, 30)),
-      (e: Error) => setError(e.message),
+      () => setHistory("Only console users can read the Cloud audit log (Console > Audit log)."),
     );
   }
 
-  const what = many ? "items" : rule?.dir ? "folder" : "file";
+  const what = many ? "folders" : "folder";
   return (
-    <div className="panel cloud-permissions" role="dialog" aria-label={many ? `Permissions for ${paths.length} items` : `Permissions for ${path}`}>
-      <h2>Permissions: {many ? `${paths.length} items` : path}</h2>
+    <div className="panel cloud-permissions" role="dialog" aria-label={many ? `Permissions for ${paths.length} folders` : `Permissions for ${path}`}>
+      <h2>Permissions: {many ? `${paths.length} folders` : path}</h2>
       {many && <p className="muted cloud-name">{paths.join(" · ")}</p>}
       {error && <p className="error">{error}</p>}
       {!rule ? (
@@ -203,9 +205,11 @@ export function CloudPermissions({ paths, onClose, onSaved }: { paths: string[];
         <>
           <p className="muted">
             {many
-              ? "Save sets the same permissions on every item chosen, in place of the ones they have now (nothing listed and not private: their own permissions are cleared)."
-              : `People with Cloud view or Cloud edit (Console > Permissions) reach this ${what} as usual. Here you share it with others too, or make it private.`}
-            {(many || rule.dir) && " A folder's permissions apply to everything inside it."} Console users always have full access.
+              ? "Save sets the same permissions on every folder chosen, in place of the ones they have now (nothing listed and not private: their own permissions are cleared)."
+              : `People with Cloud view, edit or admin on the whole cloud (Console > Permissions) reach this ${what} as usual. Here you share it with others too, or make it private.`}
+            {" "}A folder's permissions apply to everything inside it, files and folders. View = download; Edit = also upload,
+            new folder, rename and delete; Admin = also these permissions. Cloud admins, console users and the admins of a
+            folder above always keep full access.
           </p>
           {!many && rule.above.map((a) => (
             <p key={a.path} className="muted">
@@ -226,7 +230,7 @@ export function CloudPermissions({ paths, onClose, onSaved }: { paths: string[];
               }}
             />
             <span>
-              <strong>Private</strong>: only the roles and people listed below (and console users) can see {many ? "these items" : `this ${what}`}.
+              <strong>Private</strong>: only the roles and people listed below (and admins) can see {many ? "these folders" : "this folder"}.
               Everyone else loses access, also with Cloud view or Cloud edit. Someone listed with View can only download here.
             </span>
           </label>
@@ -241,12 +245,13 @@ export function CloudPermissions({ paths, onClose, onSaved }: { paths: string[];
                   value={g.level}
                   disabled={busy}
                   onChange={(e) => {
-                    setGrants(grants.map((x) => (x === g ? { ...g, level: e.target.value as "view" | "edit" } : x)));
+                    setGrants(grants.map((x) => (x === g ? { ...g, level: e.target.value as CloudLevel } : x)));
                     setSaved(false);
                   }}
                 >
                   <option value="view">View</option>
                   <option value="edit">Edit</option>
+                  <option value="admin">Admin</option>
                 </select>
                 <button
                   className="link danger"
@@ -261,7 +266,7 @@ export function CloudPermissions({ paths, onClose, onSaved }: { paths: string[];
               </li>
             ))}
             {!grants.length && (
-              <li className="muted">{isPrivate ? "Nobody listed: only console users can see it" : "Not shared with anyone here"}</li>
+              <li className="muted">{isPrivate ? "Nobody listed: only admins can see it" : "Not shared with anyone here"}</li>
             )}
           </ul>
           <form
@@ -277,9 +282,10 @@ export function CloudPermissions({ paths, onClose, onSaved }: { paths: string[];
               onChange={setAdding}
               taken={(type, id) => grants.some((g) => g.type === type && g.id === id)}
             />
-            <select aria-label="Access" value={level} onChange={(e) => setLevel(e.target.value as "view" | "edit")}>
+            <select aria-label="Access" value={level} onChange={(e) => setLevel(e.target.value as CloudLevel)}>
               <option value="view">View (download)</option>
               <option value="edit">Edit (also upload, rename, delete)</option>
+              <option value="admin">Admin (also sets permissions here)</option>
             </select>
             <button type="submit" className="secondary" disabled={busy || !adding}>
               Add
@@ -289,7 +295,7 @@ export function CloudPermissions({ paths, onClose, onSaved }: { paths: string[];
             <label className="cloud-permissions-copy">
               <span className="muted">Or copy the permissions of</span>{" "}
               <select
-                aria-label="Copy the permissions of another item"
+                aria-label="Copy the permissions of another folder"
                 value=""
                 disabled={busy}
                 onChange={(e) => {
@@ -300,7 +306,7 @@ export function CloudPermissions({ paths, onClose, onSaved }: { paths: string[];
                   setSaved(false);
                 }}
               >
-                <option value="">Choose a folder or file…</option>
+                <option value="">Choose a folder…</option>
                 {others.map((o) => (
                   <option key={o.path} value={o.path}>
                     {o.path} ({[o.private ? "private" : "", o.grants.length ? `${o.grants.length} listed` : ""].filter(Boolean).join(", ")})
@@ -316,13 +322,13 @@ export function CloudPermissions({ paths, onClose, onSaved }: { paths: string[];
                 <li>
                   <span className="tag">Console users</span>
                   <span className="permission-name">always</span>
-                  <span className="tag">Edit</span>
+                  <span className="tag">Admin</span>
                 </li>
                 {rule.effective.map((p) => (
                   <li key={`${p.type}-${p.id}`} className={p.level ? undefined : "muted"}>
                     <span className="tag">{p.type === "role" ? "Role" : "Person"}</span>
                     <span className="permission-name">{who(p)}</span>
-                    <span className="tag">{p.level === "edit" ? "Edit" : p.level === "view" ? "View" : "No access"}</span>
+                    <span className="tag">{p.level ? LEVEL[p.level] : "No access"}</span>
                   </li>
                 ))}
               </ul>
@@ -337,6 +343,8 @@ export function CloudPermissions({ paths, onClose, onSaved }: { paths: string[];
               <summary>History</summary>
               {!history ? (
                 <Status loading error={null} />
+              ) : typeof history === "string" ? (
+                <p className="muted">{history}</p>
               ) : history.length === 0 ? (
                 <p className="muted">Nothing in the Cloud audit log for this {what}.</p>
               ) : (
@@ -359,7 +367,7 @@ export function CloudPermissions({ paths, onClose, onSaved }: { paths: string[];
       )}
       <div className="cloud-actions">
         <button disabled={busy || !changed} onClick={save}>
-          {busy ? "Saving…" : many ? `Save for ${paths.length} items` : "Save"}
+          {busy ? "Saving…" : many ? `Save for ${paths.length} folders` : "Save"}
         </button>
         <button className="secondary" disabled={busy} onClick={onClose}>
           {changed && !many ? "Cancel" : "Close"}
@@ -370,7 +378,8 @@ export function CloudPermissions({ paths, onClose, onSaved }: { paths: string[];
   );
 }
 
-/** Console > Permissions: every folder / file with permissions of its own, in one list. */
+/** Every folder / file with permissions of its own that this person is admin of, in one list (Console > Permissions,
+ *  and "All permissions" on the Cloud page). */
 export function CloudRulesOverview() {
   const [rows, setRows] = useState<CloudRuleRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -400,9 +409,10 @@ export function CloudRulesOverview() {
   };
   return (
     <section className="cloud-rules">
-      <h2>Cloud folders and files with their own permissions</h2>
+      <h2>Cloud folders with their own permissions</h2>
       <p className="muted">
-        Set with <strong>Permissions</strong> beside a folder or file on the Cloud page. Everything else follows Cloud view / Cloud edit above.
+        Set with <strong>Permissions</strong> beside a folder on the Cloud page; files follow the folder they are in. Everything else follows the whole-cloud
+        permissions (Cloud view / edit / admin in Console &gt; Permissions).
       </p>
       {error && <p className="error">{error}</p>}
       {!rows ? (
@@ -414,7 +424,7 @@ export function CloudRulesOverview() {
           <table className="stack">
             <thead>
               <tr>
-                <th>Folder / file</th>
+                <th>Folder</th>
                 <th>Who</th>
                 <th>Set by</th>
                 <th aria-label="Actions" />
@@ -423,7 +433,7 @@ export function CloudRulesOverview() {
             <tbody>
               {rows.map((r) => (
                 <tr key={r.path}>
-                  <td data-label="Folder / file" className="cloud-name">
+                  <td data-label="Folder" className="cloud-name">
                     {r.private && <><span className="tag">Private</span>{" "}</>}
                     {!r.exists && <><span className="tag" title="Removed outside the site (File Station). The permissions would apply again to anything that gets this name">Item is gone</span>{" "}</>}
                     {r.exists ? <Link to={link(r)}>{r.path}</Link> : r.path}
@@ -431,7 +441,7 @@ export function CloudRulesOverview() {
                   <td data-label="Who">
                     {r.grants.length
                       ? r.grants.map((g) => `${who(g)} (${g.level})`).join(", ")
-                      : <span className="muted">Console users only</span>}
+                      : <span className="muted">Admins only</span>}
                   </td>
                   <td data-label="Set by" className="nowrap">{r.by} · <LocalTime iso={r.updated_at} /></td>
                   <td>

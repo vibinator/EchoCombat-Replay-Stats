@@ -404,14 +404,17 @@ def test_a_folder_shared_with_someone_without_cloud_access(tmp_path, discord):
                            headers=CONSOLE).status_code == 403
 
 
-def test_a_single_file_can_be_shared(tmp_path, discord):
+def test_permissions_are_set_on_folders_only(tmp_path, discord):
+    """User, 2026-11-16: a file has no permissions of its own, it follows its folder."""
     with app_client(settings(tmp_path)) as client:
         tree(client)
-        assert rule(client, "Team/plan.txt", grants=[("user", NO_ROLE, "view")]).status_code == 200
-        login(client, NO_ROLE)
-        assert names(client) == ["Team"] and names(client, "Team") == ["plan.txt"]
-        assert client.get("/api/cloud/download", params={"path": "Team/plan.txt"}).content == b"plan.txt"
-        assert client.get("/api/cloud/list", params={"path": "Team/Deep"}).status_code == 403
+        r = rule(client, "Team/plan.txt", grants=[("user", NO_ROLE, "view")])
+        assert r.status_code == 400 and r.json()["error_code"] == "folders_only"
+        login(client, MEMBER)
+        assert client.get(RULES, params={"path": "open.txt"}).json()["error_code"] == "folders_only"
+        assert client.get(f"{RULES}/all").json()["rules"] == []
+        rows = {e["name"]: e.get("can_manage") for e in client.get("/api/cloud/list").json()["entries"]}
+        assert rows == {"Secret": True, "Team": True, "open.txt": None}  # no Permissions link on a file
 
 
 def test_a_private_folder_is_hidden_from_everyone_not_listed(tmp_path, discord):
@@ -470,10 +473,15 @@ def test_a_folder_holding_a_private_item_cannot_be_renamed_or_deleted_around_it(
         assert r.status_code == 403 and "holds items" in r.json()["message"]
         assert client.post("/api/cloud/rename", json={"path": "Team", "name": "T2"}, headers=CONSOLE).status_code == 403
         # a deeper rule wins over the private folder above it
-        assert rule(client, "Team/Deep/inner.txt", grants=[("role", DB_ROLE, "view")]).status_code == 200
+        login(client, MEMBER)
+        client.post("/api/cloud/folder", json={"path": "Team/Deep", "name": "Open"}, headers=CONSOLE)
+        put(client, "in.txt", b"x", path="Team/Deep/Open")
+        assert rule(client, "Team/Deep/Open", grants=[("role", DB_ROLE, "view")]).status_code == 200
         login(client, DB_MEMBER)
-        assert names(client, "Team") == ["Deep", "plan.txt"] and names(client, "Team/Deep") == ["inner.txt"]
+        assert names(client, "Team") == ["Deep", "plan.txt"] and names(client, "Team/Deep") == ["Open"]
         assert client.get("/api/cloud/list", params={"path": "Team/Deep"}).json()["limited"] is True
+        assert client.get("/api/cloud/download", params={"path": "Team/Deep/Open/in.txt"}).status_code == 200
+        assert client.get("/api/cloud/download", params={"path": "Team/Deep/inner.txt"}).status_code == 403
 
 
 def test_rules_follow_a_rename_and_come_back_from_the_recycle_bin(tmp_path, discord):
@@ -554,7 +562,7 @@ def test_console_overview_view_as_and_who_gets_in(tmp_path, discord):
         assert rules[0]["grants"][0]["id"] == VIEWER and rules[0]["updated_at"]
 
         # who ends up with what: the role with Cloud edit loses the private folder, the listed person keeps view
-        got = {(p["type"], p["id"]): p["level"] for p in client.get(RULES, params={"path": "Secret/key.txt"}).json()["effective"]}
+        got = {(p["type"], p["id"]): p["level"] for p in client.get(RULES, params={"path": "Secret"}).json()["effective"]}
         assert got == {("user", VIEWER): "view", ("role", DB_ROLE): None}
         got = {(p["type"], p["id"]): p["level"] for p in client.get(RULES, params={"path": "Team/Deep"}).json()["effective"]}
         assert got == {("user", NO_ROLE): "edit", ("role", DB_ROLE): "edit", ("user", VIEWER): "view"}
@@ -631,20 +639,20 @@ def test_admin_level_controls_permissions_where_it_is_given(tmp_path, discord):
         inside = client.get("/api/cloud/list", params={"path": "Team"}).json()
         assert inside["can_manage"] and inside["can_edit"] and inside["inherited"] == {"path": "Team", "private": False}
         assert put(client, "new.txt", b"x", path="Team").json()["done"] is True  # admin includes edit
-        # sets permissions inside Team: share a file, make a subfolder private, make a private folder
+        # sets permissions inside Team: make a subfolder private for one more person, make a private folder
         own = {"type": "user", "id": NO_ROLE, "level": "admin"}
-        r = client.post(RULES, json={"path": "Team/plan.txt", "grants": [{"type": "user", "id": SOMEONE, "level": "view"}]}, headers=CONSOLE)
+        r = client.post(RULES, json={"path": "Team/Deep", "private": True,
+                                     "grants": [{"type": "user", "id": SOMEONE, "level": "view"}]}, headers=CONSOLE)
         assert r.status_code == 200 and r.json()["grants"][0]["id"] == SOMEONE
-        assert client.post(RULES, json={"path": "Team/Deep", "private": True}, headers=CONSOLE).status_code == 200
         assert client.post("/api/cloud/folder", json={"path": "Team", "name": "Board", "private": True}, headers=CONSOLE).status_code == 200
         assert names(client, "Team") == ["Board", "Deep", "new.txt", "plan.txt"]  # a folder's admin keeps what is private in it
-        assert [r["path"] for r in client.get(f"{RULES}/all").json()["rules"]] == ["Team", "Team/Board", "Team/Deep", "Team/plan.txt"]
+        assert [r["path"] for r in client.get(f"{RULES}/all").json()["rules"]] == ["Team", "Team/Board", "Team/Deep"]
         assert client.get("/api/cloud/people", params={"q": "user42"}).status_code == 200
         seen = client.get("/api/cloud/list", params={"path": "Team", "as_type": "user", "as_id": VIEWER}).json()
         assert [e["name"] for e in seen["entries"]] == ["new.txt", "plan.txt"]
         # ... and nowhere else
         assert client.get(RULES, params={"path": "Secret"}).status_code == 403
-        assert client.post(RULES, json={"path": "open.txt", "private": True}, headers=CONSOLE).status_code == 403
+        assert client.post(RULES, json={"path": "Secret", "private": True}, headers=CONSOLE).status_code == 403
         assert client.post("/api/cloud/folder", json={"name": "Mine", "private": True}, headers=CONSOLE).status_code == 403
         assert client.get("/api/cloud/list", params={"as_type": "user", "as_id": VIEWER}).status_code == 403
         assert client.get("/api/cloud/trash").status_code == 403 and client.get("/api/cloud/log").status_code == 403
@@ -673,3 +681,50 @@ def test_admin_level_controls_permissions_where_it_is_given(tmp_path, discord):
         assert client.get("/api/cloud/trash").status_code == 403  # the recycle bin stays with console users
         got = {(p["type"], p["id"]): p["level"] for p in client.get(RULES, params={"path": "Team"}).json()["effective"]}
         assert got == {("user", NO_ROLE): "admin", ("role", DB_ROLE): "admin", ("user", VIEWER): "admin"}
+
+
+def test_move_into_another_folder(tmp_path, discord):
+    """User, 2026-11-16: drag and drop. A file follows the folder it is moved into; a folder takes its own rule along."""
+    MOVE = "/api/cloud/move"
+    with app_client(settings(tmp_path)) as client:
+        tree(client)
+        grant(client, "cloud_edit", "role", DB_ROLE)
+        grant(client, "cloud_view", "user", VIEWER)
+        assert rule(client, "Secret", private=True).status_code == 200
+        assert rule(client, "Team/Deep", grants=[("user", NO_ROLE, "view")]).status_code == 200
+
+        login(client, DB_MEMBER)  # Cloud edit
+        assert client.post(MOVE, json={"path": "open.txt", "to": "Team"}, headers=CONSOLE).json() == {"path": "Team/open.txt"}
+        assert names(client) == ["Team"] and names(client, "Team") == ["Deep", "open.txt", "plan.txt"]
+        assert client.post(MOVE, json={"path": "Team/open.txt", "to": ""}, headers=CONSOLE).json() == {"path": "open.txt"}
+        assert client.post(MOVE, json={"path": "open.txt", "to": ""}, headers=CONSOLE).json()["error_code"] == "exists"
+        assert client.post(MOVE, json={"path": "Team", "to": "Team/Deep"}, headers=CONSOLE).json()["error_code"] == "bad_path"
+        assert client.post(MOVE, json={"path": "Team", "to": "Team"}, headers=CONSOLE).json()["error_code"] == "bad_path"
+        assert client.post(MOVE, json={"path": "nope.txt", "to": "Team"}, headers=CONSOLE).status_code == 404
+        assert client.post(MOVE, json={"path": "open.txt", "to": "Nope"}, headers=CONSOLE).status_code == 404
+        assert client.post(MOVE, json={"path": "open.txt", "to": "../x"}, headers=CONSOLE).status_code == 400
+        assert client.post(MOVE, json={"path": "open.txt", "to": "Team"}).status_code == 405  # no X-EchoVR
+        put(client, "plan.txt", b"other")
+        assert client.post(MOVE, json={"path": "plan.txt", "to": "Team"}, headers=CONSOLE).json()["error_code"] == "exists"
+        # not into, or out of, a folder they cannot change
+        assert client.post(MOVE, json={"path": "open.txt", "to": "Secret"}, headers=CONSOLE).status_code == 403
+        assert client.post(MOVE, json={"path": "Secret/key.txt", "to": ""}, headers=CONSOLE).status_code == 403
+        client.cookies.clear()
+        login(client, VIEWER)  # view only
+        assert client.post(MOVE, json={"path": "open.txt", "to": "Team"}, headers=CONSOLE).status_code == 403
+
+        client.cookies.clear()
+        login(client, MEMBER)  # console: a file moved into the private folder is private from then on
+        assert client.post(MOVE, json={"path": "open.txt", "to": "Secret"}, headers=CONSOLE).json() == {"path": "Secret/open.txt"}
+        # a folder takes its own permissions along
+        assert client.post(MOVE, json={"path": "Team/Deep", "to": ""}, headers=CONSOLE).json() == {"path": "Deep"}
+        assert [r["path"] for r in client.get(f"{RULES}/all").json()["rules"]] == ["Deep", "Secret"]
+        moved = [(r["path"], r["detail"]) for r in client.get("/api/cloud/log", params={"q": "move"}).json() if r["ok"]]
+        assert moved[:2] == [("Team/Deep", "Deep"), ("open.txt", "Secret/open.txt")]
+        client.cookies.clear()
+        login(client, VIEWER)
+        assert names(client) == ["Deep", "Team", "plan.txt"]
+        assert client.get("/api/cloud/download", params={"path": "Secret/open.txt"}).status_code == 403
+        client.cookies.clear()
+        login(client, NO_ROLE)
+        assert names(client) == ["Deep"] and names(client, "Deep") == ["inner.txt"]

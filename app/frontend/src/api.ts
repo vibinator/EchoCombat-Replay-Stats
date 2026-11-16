@@ -1053,7 +1053,7 @@ export interface ProcessingStatus {
 export const getProcessingStatus = () => send<ProcessingStatus>("/api/admin/status");
 
 /** Permissions page: who gets Admin, the Console and the Preview, by Discord role or user id. */
-export type Permission = "admin" | "console" | "preview" | "cloud_view" | "cloud_edit";
+export type Permission = "admin" | "console" | "preview" | "cloud_view" | "cloud_edit" | "cloud_admin";
 export interface DiscordEntry {
   id: string;
   name: string;
@@ -1516,7 +1516,9 @@ export const listCombatMatches = (limit = 30, offset = 0, map?: string) =>
 export const getCombatMatch = (id: string) => request<CombatMatchDetail>(`/api/combat/matches/${encodeURIComponent(id)}`);
 
 // ---- Open Cloud (backend/cloud.py): files for people with Cloud view (download) / Cloud edit (also change) ----------
-export type CloudAccess = "view" | "edit" | null;
+/** view = download; edit = also upload, new folder, rename, delete; admin = also sets permissions */
+export type CloudLevel = "view" | "edit" | "admin";
+export type CloudAccess = CloudLevel | null;
 export interface CloudEntry {
   name: string;
   dir: boolean;
@@ -1525,7 +1527,8 @@ export interface CloudEntry {
   /** scanning: uploaded, waiting for its virus scan (not downloadable yet); unscanned: too big for the virus scan */
   state?: "scanning" | "unscanned";
   can_edit?: boolean; // this person may rename / delete it
-  /** console users only: the item has permissions of its own (private, and with how many roles / people it is shared) */
+  can_manage?: boolean; // this person is its admin: sets its permissions
+  /** its admins only: the item has permissions of its own (private, and with how many roles / people it is shared) */
   private?: boolean;
   shared?: number;
 }
@@ -1533,11 +1536,12 @@ export interface CloudListing {
   path: string;
   entries: CloudEntry[];
   can_edit: boolean; // upload and new folder here
-  can_manage: boolean; // console user: sets the permissions of folders and files
+  can_manage: boolean; // admin of this folder: sets the permissions of everything in it
+  manages: boolean; // admin of something in the cloud: the list of all permissions they control is offered
   limited: boolean; // only what is shared with this person shows (no access to the folder itself)
-  /** console users: the nearest rule on this folder or one above it, which every row here inherits */
+  /** admins of this folder: the nearest rule on it or on a folder above it, which every row here inherits */
   inherited?: { path: string; private: boolean } | null;
-  viewing_as: CloudPrincipal | null; // console users, "View as": whose view this is
+  viewing_as: CloudPrincipal | null; // admins, "View as": whose view this is
   used_bytes: number;
   quota_bytes: number; // 0 = no limit
   trash_bytes: number; // part of used_bytes: deleted files kept in the recycle bin
@@ -1636,7 +1640,7 @@ export const deleteCloud = (path: string) => cloudPost<{ ok: boolean }>("delete"
 export interface CloudGrant {
   type: "role" | "user";
   id: string; // Discord id
-  level: "view" | "edit";
+  level: CloudLevel;
   name?: string;
 }
 export interface CloudRule {
@@ -1646,7 +1650,7 @@ export interface CloudRule {
   grants: CloudGrant[];
   above: { path: string; private: boolean; grants: CloudGrant[] }[]; // rules of the folders it is in, top first
   /** who ends up with what (saved rules + whole-Cloud permissions); level null = no access. Console users not listed */
-  effective: { type: "role" | "user"; id: string; name: string; level: "view" | "edit" | null }[];
+  effective: { type: "role" | "user"; id: string; name: string; level: CloudAccess }[];
   server_roles: DiscordEntry[] | null;
 }
 /** Every folder / file with permissions of its own (Console > Permissions). */
@@ -1659,7 +1663,8 @@ export interface CloudRuleRow {
   updated_at: string; // UTC
   by: string;
 }
-export const getCloudRules = () => send<{ rules: CloudRuleRow[] }>("/api/cloud/permissions/all");
+export const getCloudRules = () =>
+  send<{ rules: CloudRuleRow[]; server_roles: DiscordEntry[] | null }>("/api/cloud/permissions/all");
 /** Find a person's Discord id by name (console users). */
 export const findCloudPeople = (q: string) =>
   send<{ people: { id: string; name: string; from: string }[] }>(`/api/cloud/people?${new URLSearchParams({ q })}`);

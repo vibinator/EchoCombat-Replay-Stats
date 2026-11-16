@@ -105,7 +105,7 @@ def listing(request: Request, path: str = "", as_type: str = "", as_id: str = ""
         if not (acl.visible(item) if e["dir"] else acl.level(item)):
             continue  # not for this person: not even its name
         e["can_edit"] = acl.can_change(item)  # rename / delete
-        if not viewing_as and acl.level(item) == "admin":  # its admin sets its permissions, and sees whether it has any
+        if not viewing_as and e["dir"] and acl.level(item) == "admin":  # a folder's admin sets its permissions
             e["can_manage"] = True
             rule = acl.rules.get(item.casefold())
             if rule:
@@ -204,6 +204,32 @@ def rename(request: Request, body: Target):
     except CloudError as e:
         _fail(request, user, "rename", body.path, e)
     _audit(request, user, "rename", body.path, detail=result["path"])
+    return result
+
+
+class Move(BaseModel):
+    path: str
+    to: str = ""  # the folder it goes into ("" = the top of the cloud)
+
+
+@router.post("/move")
+def move(request: Request, body: Move):
+    """A file or folder into another folder (drag and drop). Needs edit on the item (and on everything in it with its
+    own permissions) and in the folder it goes to. A folder's own permissions go with it; from then on the item
+    follows the folders it is now in."""
+    user, acl = _enter(request, "move", body.path, fresh=True)
+    try:
+        rel, to = cloud_acl.clean(body.path), cloud_acl.clean(body.to)
+        _whole(request, user, acl, "move", body.path, rel)
+        new = cloud_acl.join(to, rel.rpartition("/")[2])
+        level = acl.level(new)
+        if not cloud_acl.edits(level):
+            _deny(request, user, "move", cloud.relative_join(body.to, rel.rpartition("/")[2]), level)
+        result = cloud.move(request.app.state.settings, rel, to)
+        cloud_acl.move(request.app.state.sessionmaker, rel, result["path"], user)
+    except CloudError as e:
+        _fail(request, user, "move", body.path, e)
+    _audit(request, user, "move", body.path, detail=result["path"])
     return result
 
 
@@ -431,7 +457,7 @@ def scan_all(request: Request):
     return {"queued": queued}
 
 
-# --- permissions of one folder or file: its admins (cloud_acl.py; user, 2026-11-16) -------------------------------------
+# --- permissions of one folder: its admins (cloud_acl.py; user, 2026-11-16). Files have none of their own -------------
 
 def _admin(request: Request, action: str, path: str | None = None, fresh: bool = False) -> tuple[dict, cloud_acl.Access]:
     """Admin of `path` (Cloud admin, console user, or listed as Admin on it or on a folder above it). path None: admin
@@ -455,6 +481,8 @@ def _rule_state(request: Request, rel: str) -> dict:
     target = cloud.resolve(settings, rel)
     if not rel or not target.exists():
         raise CloudError(404, "not_found", "Not found")
+    if not target.is_dir():  # user, 2026-11-16: permissions are set on folders only; a file follows its folder
+        raise CloudError(400, "folders_only", "Permissions are set on folders: put the file in a folder and set that folder's permissions")
     name = _names(settings)
 
     def named(grants: list[dict]) -> list[dict]:

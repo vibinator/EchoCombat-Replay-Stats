@@ -20,13 +20,19 @@ const PERMISSIONS: { key: Permission; title: string; gives: string }[] = [
     key: "cloud_view",
     title: "Cloud view",
     gives:
-      "The Cloud page: see and download the files of the whole cloud. Console users have it too. To share one folder or file, or make one private, use Permissions beside it on the Cloud page.",
+      "The Cloud page: see and download the files of the whole cloud. To give View, Edit or Admin on one folder only, or make a folder private, use Permissions beside it on the Cloud page.",
   },
   {
     key: "cloud_edit",
     title: "Cloud edit",
     gives:
       "The Cloud page with changes, in the whole cloud: upload, new folder, rename and delete. Includes Cloud view. Console users have it too.",
+  },
+  {
+    key: "cloud_admin",
+    title: "Cloud admin",
+    gives:
+      "Controls who gets into which folder of the whole cloud (Permissions on the Cloud page), and always sees everything in it. Includes Cloud edit. Console users have it too; the recycle bin, quarantine and audit log stay with them.",
   },
 ];
 

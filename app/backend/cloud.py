@@ -251,6 +251,27 @@ def rename(settings: Settings, rel: str, name: str) -> dict:
     return {"path": relative(settings, target)}
 
 
+def move(settings: Settings, rel: str, to: str | None) -> dict:
+    """A file or folder into another folder, under its own name (user, 2026-11-16: drag and drop on the Cloud page).
+    One rename on the same disk: instant, nothing is copied."""
+    source, folder = resolve(settings, rel), resolve(settings, to)
+    if not rel or not source.exists():
+        raise CloudError(404, "not_found", "Not found")
+    if not folder.is_dir():
+        raise CloudError(404, "not_found", "Folder not found")
+    if folder == source.parent:
+        raise CloudError(409, "exists", f"'{source.name}' is already in this folder")
+    if folder == source or source in folder.parents:
+        raise CloudError(400, "bad_path", "A folder cannot be moved into itself")
+    target = folder / source.name
+    if len(target.relative_to(root(settings)).parts) > MAX_DEPTH:
+        raise CloudError(400, "bad_path", f"Folders can be at most {MAX_DEPTH} deep")
+    if target.exists():
+        raise CloudError(409, "exists", f"'{target.name}' already exists in that folder")
+    source.rename(target)
+    return {"path": relative(settings, target)}
+
+
 def delete(settings: Settings, rel: str, user: dict, rules: list | None = None) -> dict:
     """A file, or a folder with everything in it, into the recycle bin (one rename: instant, nothing is copied or erased).
     rules: its folder / file permissions (cloud_acl.stash), kept in the note for a restore."""

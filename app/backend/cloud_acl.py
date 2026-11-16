@@ -1,5 +1,7 @@
-"""Open Cloud permissions per folder / file (user, 2026-11-16), on top of the whole-Cloud ones (Cloud view / Cloud edit
-on the Permissions page). Console users set them on the Cloud page; the rules live in the table cloud_rules.
+"""Open Cloud permissions per folder (user, 2026-11-16), on top of the whole-Cloud ones (Cloud view / edit / admin on
+the Permissions page). Admins set them on the Cloud page; the rules live in the table cloud_rules. Only folders get
+rules (the user's choice; api/cloud.py refuses a file): a file follows the folder it is in. The checks below work on
+any path all the same.
 
 A rule belongs to one path and has two parts:
 - grants: Discord roles / people with "view" or "edit" here and on everything below. This reaches people without

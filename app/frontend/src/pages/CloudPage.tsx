@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router";
-import { CloudPermissions, PrincipalPicker } from "../components/CloudPermissions";
+import { CloudPermissions, CloudRulesOverview, PrincipalPicker } from "../components/CloudPermissions";
 import { droppedEntries, pickedFolder, readEntries, useUploadQueue, type Picked } from "../components/cloudUploads";
 import {
-  cloudDownloadUrl, deleteCloud, getCloud, getMe, getPermissions, loginUrl, makeCloudFolder, renameCloud,
+  cloudDownloadUrl, deleteCloud, getCloud, getCloudRules, getMe, loginUrl, makeCloudFolder, renameCloud,
   type CloudEntry, type CloudListing, type CloudPrincipal, type DiscordEntry,
 } from "../api";
 import { fileSize } from "../format";
@@ -14,7 +14,8 @@ import { usePageTitle } from "../usePageTitle";
 
 const join = (folder: string, name: string) => (folder ? `${folder}/${name}` : name);
 
-/** Open Cloud: files for Discord members with Cloud view (download) or Cloud edit (also upload, rename, delete). */
+/** Open Cloud: files for Discord members with view (download), edit (also upload, rename, delete) or admin (also the
+ *  permissions), on the whole cloud or on single folders / files. */
 export function CloudPage() {
   usePageTitle("Cloud");
   const me = useApi(getMe, "me");
@@ -38,16 +39,15 @@ export function CloudPage() {
       <section>
         <h1>Cloud</h1>
         <p className="muted">
-          Your Discord account does not have Cloud access. Ask a console user to give it to you on the Permissions page, or to share a
-          folder or file with you.
+          Your Discord account does not have Cloud access. Ask a Cloud admin to give it to you, or to share a folder with you.
         </p>
       </section>
     );
   }
-  return <CloudBrowser isConsole={user.console} />;
+  return <CloudBrowser />;
 }
 
-function CloudBrowser({ isConsole }: { isConsole: boolean }) {
+function CloudBrowser() {
   const [params, setParams] = useSearchParams();
   const folder = params.get("path") ?? "";
   const [listing, setListing] = useState<CloudListing | null>(null);
@@ -55,11 +55,12 @@ function CloudBrowser({ isConsole }: { isConsole: boolean }) {
   const [busy, setBusy] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [reading, setReading] = useState(false); // a dropped folder is being read
-  // console users: the item whose permissions are open is part of the address (Console > Permissions links to it)
-  const permissionsOf = isConsole ? params.get("perm") : null;
-  const [picked, setPicked] = useState<string[]>([]); // console users: rows ticked, to set one set of permissions on all
+  // admins: the item whose permissions are open is part of the address (the list of all permissions links to it)
+  const permissionsOf = params.get("perm");
+  const [picked, setPicked] = useState<string[]>([]); // admins: rows ticked, to set one set of permissions on all
   const [bulk, setBulk] = useState<string[] | null>(null); // their paths, while that dialog is open
-  const [viewAs, setViewAs] = useState<CloudPrincipal | null>(null); // console users: the cloud as this role / person sees it
+  const [viewAs, setViewAs] = useState<CloudPrincipal | null>(null); // admins: this folder as a role / person sees it
+  const [showAll, setShowAll] = useState(false); // admins: the list of every item with its own permissions
   const [choosing, setChoosing] = useState<CloudPrincipal | null | false>(false); // the "View as" picker (false = closed)
   const [roles, setRoles] = useState<DiscordEntry[] | null>(null);
   const filesInput = useRef<HTMLInputElement>(null);
@@ -94,8 +95,9 @@ function CloudBrowser({ isConsole }: { isConsole: boolean }) {
     setParams({ ...(folder ? { path: folder } : {}), ...(item ? { perm: item } : {}) }, { replace: true });
   };
   const canEdit = !!listing?.can_edit && !viewAs; // "View as" only looks
-  const canManage = isConsole && !viewAs;
-  const dialog = !canManage ? null : bulk ?? (permissionsOf ? [permissionsOf] : null);
+  const canManage = !!listing?.can_manage && !viewAs; // admin of this folder
+  const manages = !!listing?.manages && !viewAs; // admin of something here or below
+  const dialog = viewAs ? null : bulk ?? (permissionsOf ? [permissionsOf] : null);
   const queue = useUploadQueue(load);
   useEffect(() => { // React has no prop for it: the folder picker (Windows' "Select folder" dialog)
     folderInput.current?.setAttribute("webkitdirectory", "");
@@ -164,7 +166,7 @@ function CloudBrowser({ isConsole }: { isConsole: boolean }) {
 
   function startViewAs() {
     setChoosing(null);
-    if (!roles) getPermissions().then((s) => setRoles(s.server_roles), () => {});
+    if (!roles) getCloudRules().then((s) => setRoles(s.server_roles), () => {});
   }
 
   const crumbs = folder ? folder.split("/") : [];
@@ -216,17 +218,19 @@ function CloudBrowser({ isConsole }: { isConsole: boolean }) {
         </p>
       )}
       {error && <p className="error">{error}</p>}
-      {canManage && (
+      {manages && (
         <div className="cloud-actions">
-          {folder && <button className="secondary" disabled={busy} onClick={() => setPermissionsOf(folder)}>Permissions of this folder</button>}
+          {canManage && folder && <button className="secondary" disabled={busy} onClick={() => setPermissionsOf(folder)}>Permissions of this folder</button>}
           {picked.length > 0 && (
             <button className="secondary" disabled={busy} onClick={() => setBulk(picked.map((n) => join(folder, n)))}>
               Permissions for {picked.length} selected
             </button>
           )}
-          <button className="secondary" disabled={busy} onClick={startViewAs}>View as…</button>
+          {canManage && <button className="secondary" disabled={busy} onClick={startViewAs}>View as…</button>}
+          <button className="secondary" onClick={() => setShowAll(!showAll)}>{showAll ? "Hide all permissions" : "All permissions"}</button>
         </div>
       )}
+      {manages && showAll && <CloudRulesOverview />}
       {canManage && choosing !== false && (
         <form
           className="panel permission-add cloud-view-as-form"
@@ -330,7 +334,7 @@ function CloudBrowser({ isConsole }: { isConsole: boolean }) {
                     {e.state === "unscanned" && (
                       <span className="tag" title="Too big for the virus scan: it was not checked">Not scanned</span>
                     )}{e.state === "unscanned" && " "}
-                    {canManage && (
+                    {e.can_manage && !viewAs && (
                       <input
                         type="checkbox"
                         className="cloud-pick"
@@ -339,7 +343,7 @@ function CloudBrowser({ isConsole }: { isConsole: boolean }) {
                         onChange={(ev) => setPicked(ev.target.checked ? [...picked, e.name] : picked.filter((n) => n !== e.name))}
                       />
                     )}
-                    {canManage && !e.private && !e.shared && listing.inherited && (
+                    {canManage && e.dir && !e.private && !e.shared && listing.inherited && (
                       <><span className="tag" title={`From the folder ${listing.inherited.path}: its permissions apply to everything inside it`}>
                         {listing.inherited.private ? "Private" : "Shared"} (from {listing.inherited.path.split("/").pop()})
                       </span>{" "}</>
@@ -361,7 +365,7 @@ function CloudBrowser({ isConsole }: { isConsole: boolean }) {
                   <td>
                     <div className="cloud-row-actions">
                       {!e.dir && !viewAs && <a href={cloudDownloadUrl(join(folder, e.name))} download={e.name}>Download</a>}
-                      {canManage && (
+                      {e.can_manage && !viewAs && (
                         <button className="link" disabled={busy} onClick={() => setPermissionsOf(join(folder, e.name))}>Permissions</button>
                       )}
                       {e.can_edit && !viewAs && (
