@@ -107,6 +107,17 @@ function CombatThisWeek() {
   );
 }
 
+/** A labelled group of stat cards in the "All time" block. Groups sit side by side while they fit (a group of n cards
+ * asks for about n card widths), so the block takes two rows on a wide window instead of one short row per group. */
+function StatGroup({ title, n, children }: { title: string; n: number; children: React.ReactNode }) {
+  return (
+    <div className="stat-group" style={{ flexBasis: n * 150 }}>
+      <h3 className="cards-head">{title}</h3>
+      <div className="cards">{children}</div>
+    </div>
+  );
+}
+
 const RANGES: [PlayersSeen["range"], string][] = [
   ["24h", "24 hours"],
   ["7d", "7 days"],
@@ -318,7 +329,7 @@ export function HomePage() {
   const latest = polled ?? o?.latest ?? [];
 
   return (
-    <section>
+    <section className="home">
       <div className="hero">
         <h1>Echo Combat Stats</h1>
         <p className="muted">Match and player statistics from the Echo Combat replay archive.</p>
@@ -340,7 +351,7 @@ export function HomePage() {
             </EmptyState>
           ) : (
             <>
-              <div className="cards">
+              <div className="cards home-strip">
                 <LastMatchCard fromOverview={o.last_match_at} />
                 <div className="card">
                   <span className="label">Matches today</span>
@@ -391,7 +402,7 @@ export function HomePage() {
                 </div>
               </div>
 
-              <div className="two-col">
+              <div className="two-col home-week">
                 <section className="panel">
                   <div className="section-head">
                     <h2>Most active this week</h2>
@@ -428,9 +439,8 @@ export function HomePage() {
                   )}
                 </section>
                 <PlayersSeenChart />
+                <CombatThisWeek />
               </div>
-
-              <CombatThisWeek />
 
               <MapHeatCards byMap={o.by_map} total={o.matches} avgByMap={g.avg_match_s_by_map} />
 
@@ -446,7 +456,8 @@ export function HomePage() {
               <p className="muted">
                 Archive {o.first_match_at && dateTime(o.first_match_at).slice(0, 10)} – {o.last_match_at && dateTime(o.last_match_at).slice(0, 10)}
               </p>
-              <div className="cards">
+              <div className="stat-groups">
+              <StatGroup title="Archive" n={5}>
                 <div className="card"><span className="label">Matches</span><strong>{o.matches.toLocaleString()}</strong></div>
                 <div className="card"><span className="label">Players</span><strong>{o.players.toLocaleString()}</strong></div>
                 <div className="card"><span className="label">Time played (all players)</span><strong>{o.player_hours.toLocaleString()} h</strong></div>
@@ -458,10 +469,25 @@ export function HomePage() {
                   ))}
                 </div>
                 <div className="card"><span className="label">Players per match</span><strong>{num(g.avg_players_per_match)}</strong></div>
-              </div>
-
-              <h3 className="cards-head">Records</h3>
-              <div className="cards">
+              </StatGroup>
+              {g.fun && (
+                <StatGroup title="Fun facts" n={4}>
+                  <div className="card"><span className="label">Emotes used</span><strong>{int(g.fun.emotes)}</strong></div>
+                  <div className="card" title="Share of all play time spent upside down">
+                    <span className="label">Upside down</span><strong>{pct(g.fun.upside_down_share)}</strong>
+                    <span className="muted">of all play time</span>
+                  </div>
+                  <div className="card" title="Share of play time with the left-hand setting">
+                    <span className="label">Left-handed</span><strong>{pct(g.fun.left_arm_share)}</strong>
+                    <span className="muted">of play time</span>
+                  </div>
+                  <div className="card" title="Share of player appearances that left before the match ended">
+                    <span className="label">Left early</span><strong>{pct(g.fun.left_early_share)}</strong>
+                    <span className="muted">of players in a match</span>
+                  </div>
+                </StatGroup>
+              )}
+              <StatGroup title="Records" n={6}>
                 <div className="card">
                   <span className="label">Longest match</span>
                   <strong>{g.longest_match ? <Link to={`/matches/${g.longest_match.id}`}>{duration(g.longest_match.duration_s)}</Link> : "–"}</strong>
@@ -497,36 +523,12 @@ export function HomePage() {
                     <span className="muted">blue – orange · of {int(g.capture_wins.blue + g.capture_wins.orange)} decided</span>
                   </div>
                 )}
+              </StatGroup>
+              <StatGroup title="More archive numbers" n={2}>
+                <div className="card"><span className="label">Recorded replay time</span><strong>{g.recorded_hours.toLocaleString()} h</strong></div>
+                <div className="card" title="Estimated from players leaving the play area"><span className="label">Deaths (est.)</span><strong>{g.deaths_est.toLocaleString()}</strong></div>
+              </StatGroup>
               </div>
-
-              {g.fun && (
-                <>
-                  <h3 className="cards-head">Fun facts</h3>
-                  <div className="cards">
-                    <div className="card"><span className="label">Emotes used</span><strong>{int(g.fun.emotes)}</strong></div>
-                    <div className="card" title="Share of all play time spent upside down">
-                      <span className="label">Upside down</span><strong>{pct(g.fun.upside_down_share)}</strong>
-                      <span className="muted">of all play time</span>
-                    </div>
-                    <div className="card" title="Share of play time with the left-hand setting">
-                      <span className="label">Left-handed</span><strong>{pct(g.fun.left_arm_share)}</strong>
-                      <span className="muted">of play time on the left-hand setting</span>
-                    </div>
-                    <div className="card" title="Share of player appearances that left before the match ended">
-                      <span className="label">Left early</span><strong>{pct(g.fun.left_early_share)}</strong>
-                      <span className="muted">of players in a match</span>
-                    </div>
-                  </div>
-                </>
-              )}
-
-              <details className="home-more">
-                <summary>More archive numbers</summary>
-                <div className="cards">
-                  <div className="card"><span className="label">Recorded replay time</span><strong>{g.recorded_hours.toLocaleString()} h</strong></div>
-                  <div className="card" title="Estimated from players leaving the play area"><span className="label">Deaths (est.)</span><strong>{g.deaths_est.toLocaleString()}</strong></div>
-                </div>
-              </details>
 
               <ActivityChart />
             </>
