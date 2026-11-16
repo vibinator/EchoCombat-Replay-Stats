@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router";
-import { CloudPermissions, CloudRulesOverview, PrincipalPicker } from "../components/CloudPermissions";
+import { CloudPermissions, CloudRulesOverview, PrincipalSearch } from "../components/CloudPermissions";
 import { droppedEntries, pickedFolder, readEntries, useUploadQueue, type Picked } from "../components/cloudUploads";
 import {
-  cloudDownloadUrl, deleteCloud, getCloud, getCloudRules, getMe, loginUrl, makeCloudFolder, renameCloud,
+  cloudDownloadUrl, deleteCloud, getCloud, getCloudRules, getMe, loginUrl, makeCloudFolder, moveCloud, renameCloud,
   type CloudEntry, type CloudListing, type CloudPrincipal, type DiscordEntry,
 } from "../api";
 import { fileSize } from "../format";
@@ -13,6 +13,8 @@ import { useApi } from "../useApi";
 import { usePageTitle } from "../usePageTitle";
 
 const join = (folder: string, name: string) => (folder ? `${folder}/${name}` : name);
+const MOVING = "application/x-echocombat-cloud-item"; // a row of this page being dragged (not files from the PC)
+const isMove = (e: { dataTransfer: DataTransfer }) => e.dataTransfer.types.includes(MOVING);
 
 /** Open Cloud: files for Discord members with view (download), edit (also upload, rename, delete) or admin (also the
  *  permissions), on the whole cloud or on single folders / files. */
@@ -61,7 +63,8 @@ function CloudBrowser() {
   const [bulk, setBulk] = useState<string[] | null>(null); // their paths, while that dialog is open
   const [viewAs, setViewAs] = useState<CloudPrincipal | null>(null); // admins: this folder as a role / person sees it
   const [showAll, setShowAll] = useState(false); // admins: the list of every item with its own permissions
-  const [choosing, setChoosing] = useState<CloudPrincipal | null | false>(false); // the "View as" picker (false = closed)
+  const [choosing, setChoosing] = useState(false); // the "View as" picker is open
+  const [dropOn, setDropOn] = useState<string | null>(null); // the folder a dragged row is over (its path)
   const [roles, setRoles] = useState<DiscordEntry[] | null>(null);
   const filesInput = useRef<HTMLInputElement>(null);
   const folderInput = useRef<HTMLInputElement>(null);
@@ -165,16 +168,38 @@ function CloudBrowser() {
   }
 
   function startViewAs() {
-    setChoosing(null);
+    setChoosing(!choosing);
     if (!roles) getCloudRules().then((s) => setRoles(s.server_roles), () => {});
   }
+
+  /** Props that make an element a place to drop a dragged row: it moves into the folder `to`. */
+  const dropInto = (to: string) => ({
+    className: dropOn === to ? "cloud-drop-on" : undefined,
+    onDragOver: (e: React.DragEvent) => {
+      if (!isMove(e)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      e.dataTransfer.dropEffect = "move";
+      if (dropOn !== to) setDropOn(to);
+    },
+    onDragLeave: () => setDropOn((now) => (now === to ? null : now)),
+    onDrop: (e: React.DragEvent) => {
+      if (!isMove(e)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      setDropOn(null);
+      const item = e.dataTransfer.getData(MOVING);
+      const parent = item.split("/").slice(0, -1).join("/");
+      if (item && item !== to && parent !== to) act(() => moveCloud(item, to));
+    },
+  });
 
   const crumbs = folder ? folder.split("/") : [];
   return (
     <section
       className="cloud"
       onDragOver={(e) => {
-        if (!canEdit) return;
+        if (!canEdit || isMove(e)) return; // a row being moved is not an upload
         e.preventDefault();
         setDragging(true);
       }}
@@ -182,7 +207,7 @@ function CloudBrowser() {
         if (e.currentTarget === e.target) setDragging(false);
       }}
       onDrop={(e) => {
-        if (!canEdit) return;
+        if (!canEdit || isMove(e)) return;
         e.preventDefault();
         setDragging(false);
         const entries = droppedEntries(e.dataTransfer.items); // must be taken now: the browser empties the list after
@@ -191,11 +216,15 @@ function CloudBrowser() {
     >
       <h1>Cloud</h1>
       {folder && <nav className="cloud-crumbs" aria-label="Folder">
-        <button className="link" onClick={() => open("")}>Cloud</button>
+        <span {...dropInto("")}><button className="link" onClick={() => open("")}>Cloud</button></span>
         {crumbs.map((part, i) => (
           <span key={i}>
             {" / "}
-            {i === crumbs.length - 1 ? <strong>{part}</strong> : <button className="link" onClick={() => open(crumbs.slice(0, i + 1).join("/"))}>{part}</button>}
+            {i === crumbs.length - 1 ? <strong>{part}</strong> : (
+              <span {...dropInto(crumbs.slice(0, i + 1).join("/"))}>
+                <button className="link" onClick={() => open(crumbs.slice(0, i + 1).join("/"))}>{part}</button>
+              </span>
+            )}
           </span>
         ))}
       </nav>}
@@ -231,21 +260,18 @@ function CloudBrowser() {
         </div>
       )}
       {manages && showAll && <CloudRulesOverview />}
-      {canManage && choosing !== false && (
-        <form
-          className="panel permission-add cloud-view-as-form"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (!choosing) return;
-            setViewAs(choosing);
-            setChoosing(false);
-          }}
-        >
-          <span className="muted">See the cloud as</span>
-          <PrincipalPicker roles={roles} value={choosing} onChange={setChoosing} />
-          <button type="submit" disabled={!choosing}>View</button>
-          <button type="button" className="secondary" onClick={() => setChoosing(false)}>Cancel</button>
-        </form>
+      {canManage && choosing && (
+        <div className="panel cloud-view-as-form">
+          <span className="muted">See this folder as a role or a person would (click one):</span>
+          <PrincipalSearch
+            roles={roles}
+            placeholder="Click for the roles, or type a name"
+            onPick={(p) => {
+              setViewAs(p);
+              setChoosing(false);
+            }}
+          />
+        </div>
       )}
       {dialog && (
         <CloudPermissions paths={dialog} onClose={() => (bulk ? setBulk(null) : setPermissionsOf(null))} onSaved={load} />
@@ -282,7 +308,10 @@ function CloudBrowser() {
               <button type="button" onClick={(e) => { e.stopPropagation(); filesInput.current?.click(); }}>Upload files</button>
               <button type="button" className="secondary" onClick={(e) => { e.stopPropagation(); folderInput.current?.click(); }}>Upload folder</button>
             </span>
-            <span className="muted">Many files at once, folders with everything inside them; more can be added while it uploads.</span>
+            <span className="muted">
+              Many files at once, folders with everything inside them; more can be added while it uploads. To move a file or
+              folder, drag its row onto a folder below (or onto the path above).
+            </span>
           </div>
           <input ref={filesInput} type="file" multiple hidden onChange={(e) => {
             upload(Array.from(e.target.files ?? [], (file) => ({ file, dir: "" })));
@@ -312,7 +341,7 @@ function CloudBrowser() {
             </thead>
             <tbody>
               {folder && (
-                <tr>
+                <tr {...dropInto(crumbs.slice(0, -1).join("/"))}>
                   <td colSpan={4}>
                     <button className="link" onClick={() => open(crumbs.slice(0, -1).join("/"))}>.. (up one folder)</button>
                   </td>
@@ -329,7 +358,17 @@ function CloudBrowser() {
                   <td />
                 </tr>
               ) : (
-                <tr key={e.name}>
+                <tr
+                  key={e.name}
+                  {...(e.dir && !viewAs ? dropInto(join(folder, e.name)) : {})}
+                  draggable={!!e.can_edit && !viewAs}
+                  title={e.can_edit && !viewAs ? "Drag onto a folder to move it there" : undefined}
+                  onDragStart={(ev) => {
+                    ev.dataTransfer.setData(MOVING, join(folder, e.name));
+                    ev.dataTransfer.effectAllowed = "move";
+                  }}
+                  onDragEnd={() => setDropOn(null)}
+                >
                   <td data-label="Name" className="cloud-name">
                     {e.state === "unscanned" && (
                       <span className="tag" title="Too big for the virus scan: it was not checked">Not scanned</span>
@@ -343,13 +382,13 @@ function CloudBrowser() {
                         onChange={(ev) => setPicked(ev.target.checked ? [...picked, e.name] : picked.filter((n) => n !== e.name))}
                       />
                     )}
-                    {canManage && e.dir && !e.private && !e.shared && listing.inherited && (
+                    {canManage && !e.private && !e.shared && listing.inherited && (
                       <><span className="tag" title={`From the folder ${listing.inherited.path}: its permissions apply to everything inside it`}>
                         {listing.inherited.private ? "Private" : "Shared"} (from {listing.inherited.path.split("/").pop()})
                       </span>{" "}</>
                     )}
                     {e.private && (
-                      <><span className="tag" title="Only the roles and people listed in its permissions (and console users) can see it">Private</span>{" "}</>
+                      <><span className="tag" title="Only the roles and people listed in its permissions (and admins) can see it">Private</span>{" "}</>
                     )}
                     {!e.private && !!e.shared && (
                       <><span className="tag" title={`Shared with ${e.shared} role${e.shared === 1 ? "" : "s"} / people in its permissions`}>Shared</span>{" "}</>

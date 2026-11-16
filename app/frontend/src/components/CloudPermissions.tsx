@@ -9,31 +9,29 @@ import { LocalTime, Status, TableWrap } from "./common";
 const who = (g: { name?: string; id: string }) => (g.name && g.name !== "?" ? g.name : g.id);
 const isId = (text: string) => /^\d{17,20}$/.test(text);
 const LEVEL: Record<CloudLevel, string> = { view: "View", edit: "Edit", admin: "Admin" };
+const LEVEL_HELP = "View = download. Edit = also upload, new folder, rename, move and delete. Admin = also these permissions.";
 
-/** A Discord role (from the server's list) or a person: found by name as you type, or by a pasted user id. */
-export function PrincipalPicker({ roles, value, onChange, taken }: {
+/** One box for roles and people (user, 2026-11-16: adding someone must be easy): click it for the server's roles,
+ *  type a name to find roles and people, or paste a Discord id. One click on a match picks it. */
+export function PrincipalSearch({ roles, onPick, taken, placeholder, disabled }: {
   roles: DiscordEntry[] | null;
-  value: CloudPrincipal | null;
-  onChange: (p: CloudPrincipal | null) => void;
+  onPick: (p: CloudPrincipal) => void;
   taken?: (type: "role" | "user", id: string) => boolean;
+  placeholder?: string;
+  disabled?: boolean;
 }) {
-  const [type, setType] = useState<"role" | "user">("role");
   const [text, setText] = useState("");
-  const [found, setFound] = useState<{ id: string; name: string; from: string }[] | null>(null);
-
-  useEffect(() => { // the form was used (Add): start again
-    if (!value) setText("");
-  }, [value]);
+  const [open, setOpen] = useState(false);
+  const [people, setPeople] = useState<{ id: string; name: string; from: string }[] | null>(null);
   const term = text.trim();
-  const searching = type === "user" && term.length >= 2 && !isId(term) && value?.name !== term;
+  const searching = term.length >= 2 && !isId(term);
+
   useEffect(() => {
-    if (!searching) {
-      setFound(null);
-      return;
-    }
+    setPeople(null);
+    if (!searching) return;
     let current = true;
     const timer = setTimeout(() => { // while typing: one request when they pause
-      findCloudPeople(term).then((r) => current && setFound(r.people), () => current && setFound([]));
+      findCloudPeople(term).then((r) => current && setPeople(r.people), () => current && setPeople([]));
     }, 300);
     return () => {
       current = false;
@@ -41,83 +39,81 @@ export function PrincipalPicker({ roles, value, onChange, taken }: {
     };
   }, [searching, term]);
 
-  function typed(next: string) {
-    setText(next);
-    const clean = next.trim();
-    onChange(type === "role" || isId(clean) ? (clean ? { type, id: clean, name: "?" } : null) : null);
-  }
+  const lower = term.toLowerCase();
+  const roleHits = (roles ?? []).filter((r) => !taken?.("role", r.id) && (!term || r.name.toLowerCase().includes(lower) || r.id === term));
+  const peopleHits = (people ?? []).filter((p) => !taken?.("user", p.id));
+  const pasted = isId(term) && !roleHits.some((r) => r.id === term);
+  const pick = (p: CloudPrincipal) => {
+    onPick(p);
+    setText("");
+    setOpen(false);
+  };
 
   return (
-    <>
-      <select
-        aria-label="A role or a person"
-        value={type}
+    <div className="person-picker" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setOpen(false)}>
+      <input
+        type="search"
+        aria-label="Find a role or a person"
+        placeholder={placeholder ?? "Add a role or a person: click, or type a name"}
+        value={text}
+        disabled={disabled}
+        onFocus={() => setOpen(true)}
         onChange={(e) => {
-          setType(e.target.value as "role" | "user");
-          setText("");
-          onChange(null);
+          setText(e.target.value);
+          setOpen(true);
         }}
-      >
-        <option value="role">Role</option>
-        <option value="user">Person</option>
-      </select>
-      {type === "role" && roles ? (
-        <select
-          aria-label="Role"
-          value={value?.type === "role" ? value.id : ""}
-          onChange={(e) => {
-            const role = roles.find((r) => r.id === e.target.value);
-            onChange(role ? { type: "role", id: role.id, name: role.name } : null);
-          }}
-        >
-          <option value="">Choose a role…</option>
-          {roles.filter((r) => !taken?.("role", r.id)).map((r) => (
-            <option key={r.id} value={r.id}>
-              {r.name}
-            </option>
+      />
+      {open && (
+        <ul className="person-found">
+          {roleHits.map((r) => (
+            <li key={`role-${r.id}`}>
+              <button type="button" className="link" onClick={() => pick({ type: "role", id: r.id, name: r.name })}>
+                <span className="tag">Role</span> {r.name}
+              </button>
+            </li>
           ))}
-        </select>
-      ) : (
-        <span className="person-picker">
-          <input
-            aria-label={type === "role" ? "Role id" : "Name or Discord user id"}
-            placeholder={type === "role" ? "Role id" : "Type a name, or paste a Discord user id"}
-            value={text}
-            onChange={(e) => typed(e.target.value)}
-          />
-          {value?.type === "user" && value.name !== "?" && <code>{value.id}</code>}
-          {searching && found && (
-            <ul className="person-found">
-              {found.filter((p) => !taken?.("user", p.id)).map((p) => (
-                <li key={p.id}>
-                  <button
-                    type="button"
-                    className="link"
-                    onClick={() => {
-                      setText(p.name);
-                      onChange({ type: "user", id: p.id, name: p.name });
-                    }}
-                  >
-                    {p.name}
-                  </button>{" "}
-                  <span className="muted">{p.from}</span> <code>{p.id}</code>
-                </li>
-              ))}
-              {!found.length && (
-                <li className="muted">Nobody found by that name. Paste their Discord user id (right-click the person &gt; Copy User ID).</li>
+          {peopleHits.map((p) => (
+            <li key={`user-${p.id}`}>
+              <button type="button" className="link" onClick={() => pick({ type: "user", id: p.id, name: p.name })}>
+                <span className="tag">Person</span> {p.name}
+              </button>{" "}
+              <span className="muted">{p.from}</span> <code>{p.id}</code>
+            </li>
+          ))}
+          {pasted && (
+            <li>
+              <button type="button" className="link" onClick={() => pick({ type: "user", id: term, name: "?" })}>
+                <span className="tag">Person</span> with Discord id {term}
+              </button>
+              {!roles && (
+                <>
+                  {" · "}
+                  <button type="button" className="link" onClick={() => pick({ type: "role", id: term, name: "?" })}>
+                    <span className="tag">Role</span> with this id
+                  </button>
+                </>
               )}
-            </ul>
+            </li>
           )}
-        </span>
+          {searching && !people && <li className="muted">Looking for people…</li>}
+          {!roleHits.length && !peopleHits.length && !pasted && (!searching || people) && (
+            <li className="muted">
+              {term.length < 2 && !roles
+                ? "Type a name (2 letters or more), or paste a Discord id."
+                : term.length < 2
+                  ? "Every role is already listed. Type a person's name."
+                  : "Nobody found by that name. Paste their Discord user id (in Discord: right-click the person > Copy User ID)."}
+            </li>
+          )}
+        </ul>
       )}
-    </>
+    </div>
   );
 }
 
-/** Admins of the folder (Cloud admins, console users, or listed as Admin on it or above it): who folders are shared
- *  with (View / Edit / Admin) and whether they are private. Folders only: a file follows the folder it is in. One item: its
- *  permissions, who ends up with access, and its history. Several items: one set of permissions for all of them.
- *  Nothing changes until Save; the server checks every change. */
+/** Admins of the folder (Cloud admins, console users, or listed as Admin on it or above it): who a folder is shared
+ *  with (View / Edit / Admin) and whether it is private. Folders only: a file follows the folder it is in.
+ *  One folder: every click is saved at once (add, remove, level, private). Several folders: one list, then Apply. */
 export function CloudPermissions({ paths, onClose, onSaved }: { paths: string[]; onClose: () => void; onSaved: () => void }) {
   const path = paths[0];
   const many = paths.length > 1;
@@ -127,8 +123,6 @@ export function CloudPermissions({ paths, onClose, onSaved }: { paths: string[];
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [adding, setAdding] = useState<CloudPrincipal | null>(null);
-  const [level, setLevel] = useState<CloudLevel>("view");
   const [others, setOthers] = useState<CloudRuleRow[]>([]); // rules to copy from
   const [history, setHistory] = useState<CloudLogEntry[] | string | null>(null); // a string: why it cannot be shown
   const key = paths.join("\n");
@@ -149,39 +143,45 @@ export function CloudPermissions({ paths, onClose, onSaved }: { paths: string[];
     };
   }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const changed = !!rule && (many ? !saved : isPrivate !== rule.private || JSON.stringify(grants) !== JSON.stringify(rule.grants));
-
-  function add() {
-    if (!adding) return;
-    setGrants([...grants.filter((g) => !(g.type === adding.type && g.id === adding.id)),
-      { type: adding.type, id: adding.id, level, name: adding.name }]);
-    setAdding(null);
+  /** One folder: saved now (the list shows it at once; a refusal puts it back). Several: kept until Apply. */
+  async function change(nextPrivate: boolean, nextGrants: CloudGrant[]) {
+    const before = { isPrivate, grants };
+    setPrivate(nextPrivate);
+    setGrants(nextGrants);
     setSaved(false);
-  }
-
-  async function save() {
-    setBusy(true);
     setError(null);
+    if (many) return;
+    setBusy(true);
     try {
-      let now: CloudRule | null = null;
-      for (const p of paths) {
-        const answer = await setCloudRule(p, isPrivate, grants);
-        if (p === path && "grants" in answer) now = answer;
-      }
-      if (now) {
+      const now = await setCloudRule(path, nextPrivate, nextGrants);
+      if ("grants" in now) {
         setRule(now);
-        if (!many) {
-          setPrivate(now.private);
-          setGrants(now.grants);
-        }
+        setPrivate(now.private);
+        setGrants(now.grants);
       }
       setSaved(true);
       setHistory(null);
+      onSaved();
+    } catch (e) {
+      setPrivate(before.isPrivate);
+      setGrants(before.grants);
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function applyToAll() {
+    setBusy(true);
+    setError(null);
+    try {
+      for (const p of paths) await setCloudRule(p, isPrivate, grants);
+      setSaved(true);
     } catch (e) {
       setError((e as Error).message);
     } finally {
       setBusy(false);
-      onSaved(); // also after a failure part-way through several items: the rows show what was set
+      onSaved(); // also after a failure part-way: the rows show what was set
     }
   }
 
@@ -193,107 +193,70 @@ export function CloudPermissions({ paths, onClose, onSaved }: { paths: string[];
     );
   }
 
-  const what = many ? "folders" : "folder";
   return (
     <div className="panel cloud-permissions" role="dialog" aria-label={many ? `Permissions for ${paths.length} folders` : `Permissions for ${path}`}>
-      <h2>Permissions: {many ? `${paths.length} folders` : path}</h2>
+      <div className="cloud-permissions-head">
+        <h2>Who can open {many ? `these ${paths.length} folders` : path}</h2>
+        {busy && <span className="muted">Saving…</span>}
+        {saved && !busy && !error && <span className="ok-note">Saved</span>}
+        <button className="secondary" onClick={onClose}>Close</button>
+      </div>
       {many && <p className="muted cloud-name">{paths.join(" · ")}</p>}
       {error && <p className="error">{error}</p>}
       {!rule ? (
         !error && <Status loading error={null} />
       ) : (
         <>
-          <p className="muted">
-            {many
-              ? "Save sets the same permissions on every folder chosen, in place of the ones they have now (nothing listed and not private: their own permissions are cleared)."
-              : `People with Cloud view, edit or admin on the whole cloud (Console > Permissions) reach this ${what} as usual. Here you share it with others too, or make it private.`}
-            {" "}A folder's permissions apply to everything inside it, files and folders. View = download; Edit = also upload,
-            new folder, rename and delete; Admin = also these permissions. Cloud admins, console users and the admins of a
-            folder above always keep full access.
-          </p>
           {!many && rule.above.map((a) => (
             <p key={a.path} className="muted">
               The folder <strong>{a.path}</strong> above it{" "}
               {a.private ? "is private" : "is shared"}
               {a.grants.length > 0 && `: ${a.grants.map((g) => `${who(g)} (${g.level})`).join(", ")}`}. That applies here
-              too{a.private && !isPrivate ? "; people you add below get access to this one anyway" : ""}.
+              too{a.private && !isPrivate ? "; people you add below get into this folder anyway" : ""}.
             </p>
           ))}
-          <label className="cloud-permissions-private">
-            <input
-              type="checkbox"
-              checked={isPrivate}
-              disabled={busy}
-              onChange={(e) => {
-                setPrivate(e.target.checked);
-                setSaved(false);
-              }}
-            />
-            <span>
-              <strong>Private</strong>: only the roles and people listed below (and admins) can see {many ? "these folders" : "this folder"}.
-              Everyone else loses access, also with Cloud view or Cloud edit. Someone listed with View can only download here.
-            </span>
-          </label>
+          <PrincipalSearch
+            roles={rule.server_roles}
+            disabled={busy}
+            taken={(type, id) => grants.some((g) => g.type === type && g.id === id)}
+            onPick={(p) => change(isPrivate, [...grants, { type: p.type, id: p.id, level: "view", name: p.name }])}
+          />
           <ul className="permission-list">
             {grants.map((g) => (
               <li key={`${g.type}-${g.id}`}>
                 <span className="tag">{g.type === "role" ? "Role" : "Person"}</span>
-                <span className="permission-name">{g.name ?? "?"}</span>
-                <code>{g.id}</code>
+                <span className="permission-name">{who(g)}</span>
                 <select
                   aria-label={`Access for ${who(g)}`}
+                  title={LEVEL_HELP}
                   value={g.level}
                   disabled={busy}
-                  onChange={(e) => {
-                    setGrants(grants.map((x) => (x === g ? { ...g, level: e.target.value as CloudLevel } : x)));
-                    setSaved(false);
-                  }}
+                  onChange={(e) => change(isPrivate, grants.map((x) => (x === g ? { ...g, level: e.target.value as CloudLevel } : x)))}
                 >
                   <option value="view">View</option>
                   <option value="edit">Edit</option>
                   <option value="admin">Admin</option>
                 </select>
-                <button
-                  className="link danger"
-                  disabled={busy}
-                  onClick={() => {
-                    setGrants(grants.filter((x) => x !== g));
-                    setSaved(false);
-                  }}
-                >
+                <button className="link danger" disabled={busy} onClick={() => change(isPrivate, grants.filter((x) => x !== g))}>
                   Remove
                 </button>
               </li>
             ))}
             {!grants.length && (
-              <li className="muted">{isPrivate ? "Nobody listed: only admins can see it" : "Not shared with anyone here"}</li>
+              <li className="muted">{isPrivate ? "Nobody added: only admins can see it" : "Nobody added here yet"}</li>
             )}
           </ul>
-          <form
-            className="permission-add"
-            onSubmit={(e) => {
-              e.preventDefault();
-              add();
-            }}
-          >
-            <PrincipalPicker
-              roles={rule.server_roles}
-              value={adding}
-              onChange={setAdding}
-              taken={(type, id) => grants.some((g) => g.type === type && g.id === id)}
-            />
-            <select aria-label="Access" value={level} onChange={(e) => setLevel(e.target.value as CloudLevel)}>
-              <option value="view">View (download)</option>
-              <option value="edit">Edit (also upload, rename, delete)</option>
-              <option value="admin">Admin (also sets permissions here)</option>
-            </select>
-            <button type="submit" className="secondary" disabled={busy || !adding}>
-              Add
-            </button>
-          </form>
+          <p className="muted">{LEVEL_HELP} New people start with View.</p>
+          <label className="cloud-permissions-private">
+            <input type="checkbox" checked={isPrivate} disabled={busy} onChange={(e) => change(e.target.checked, grants)} />
+            <span>
+              <strong>Private</strong>: only the roles and people above (and admins) can see {many ? "these folders" : "this folder"}.
+              Off: everyone with Cloud view or Cloud edit on the whole cloud gets in as well.
+            </span>
+          </label>
           {others.length > 0 && (
             <label className="cloud-permissions-copy">
-              <span className="muted">Or copy the permissions of</span>{" "}
+              <span className="muted">Same people as another folder:</span>{" "}
               <select
                 aria-label="Copy the permissions of another folder"
                 value=""
@@ -301,12 +264,12 @@ export function CloudPermissions({ paths, onClose, onSaved }: { paths: string[];
                 onChange={(e) => {
                   const from = others.find((o) => o.path === e.target.value);
                   if (!from) return;
-                  setPrivate(from.private);
-                  setGrants(from.grants);
-                  setSaved(false);
+                  if (many || (!grants.length && !isPrivate) || window.confirm(`Replace the permissions of ${path} with those of ${from.path}?`)) {
+                    change(from.private, from.grants);
+                  }
                 }}
               >
-                <option value="">Choose a folder…</option>
+                <option value="">Copy from…</option>
                 {others.map((o) => (
                   <option key={o.path} value={o.path}>
                     {o.path} ({[o.private ? "private" : "", o.grants.length ? `${o.grants.length} listed` : ""].filter(Boolean).join(", ")})
@@ -315,9 +278,15 @@ export function CloudPermissions({ paths, onClose, onSaved }: { paths: string[];
               </select>
             </label>
           )}
+          {many && (
+            <div className="cloud-actions">
+              <button disabled={busy || saved} onClick={applyToAll}>{busy ? "Saving…" : `Apply to ${paths.length} folders`}</button>
+              <span className="muted">Replaces the permissions each of them has now.</span>
+            </div>
+          )}
           {!many && (
-            <details className="cloud-permissions-more" open>
-              <summary>Who gets in{changed ? " (as saved now, without your changes above)" : ""}</summary>
+            <details className="cloud-permissions-more">
+              <summary>Check: who gets in</summary>
               <ul className="permission-list">
                 <li>
                   <span className="tag">Console users</span>
@@ -333,8 +302,8 @@ export function CloudPermissions({ paths, onClose, onSaved }: { paths: string[];
                 ))}
               </ul>
               <p className="muted">
-                Everyone with a whole-Cloud permission or named in a rule on the way here. A role stands for someone with only
-                that role; a person with several gets the highest of them.
+                Everyone with a whole-cloud permission or added on this folder or one above it. A role stands for someone with
+                only that role; a person with several gets the highest of them. The admins of a folder above always get in.
               </p>
             </details>
           )}
@@ -346,7 +315,7 @@ export function CloudPermissions({ paths, onClose, onSaved }: { paths: string[];
               ) : typeof history === "string" ? (
                 <p className="muted">{history}</p>
               ) : history.length === 0 ? (
-                <p className="muted">Nothing in the Cloud audit log for this {what}.</p>
+                <p className="muted">Nothing in the Cloud audit log for this folder.</p>
               ) : (
                 <ul className="cloud-permissions-history">
                   {history.map((r) => (
@@ -361,25 +330,17 @@ export function CloudPermissions({ paths, onClose, onSaved }: { paths: string[];
             </details>
           )}
           <p className="muted">
-            Someone who is logged in sees a change within 5 minutes, or at once after logging out and in again.
+            Files have no permissions of their own: a file follows the folder it is in. Someone who is logged in sees a change
+            within 5 minutes, or at once after logging out and in again.
           </p>
         </>
       )}
-      <div className="cloud-actions">
-        <button disabled={busy || !changed} onClick={save}>
-          {busy ? "Saving…" : many ? `Save for ${paths.length} folders` : "Save"}
-        </button>
-        <button className="secondary" disabled={busy} onClick={onClose}>
-          {changed && !many ? "Cancel" : "Close"}
-        </button>
-        {saved && !changed && !error && <span className="ok-note">Saved</span>}
-      </div>
     </div>
   );
 }
 
-/** Every folder / file with permissions of its own that this person is admin of, in one list (Console > Permissions,
- *  and "All permissions" on the Cloud page). */
+/** Every folder with permissions of its own that this person is admin of, in one list (Console > Permissions, and
+ *  "All permissions" on the Cloud page). */
 export function CloudRulesOverview() {
   const [rows, setRows] = useState<CloudRuleRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -391,7 +352,7 @@ export function CloudRulesOverview() {
 
   async function clear(row: CloudRuleRow) {
     if (!window.confirm(`Clear the permissions of ${row.path}?\n\n` +
-      (row.exists ? "It is then open to whoever has access to the folder it is in." : "The item itself is gone; only its left-over permissions are removed."))) return;
+      (row.exists ? "It is then open to whoever has access to the folder it is in." : "The folder itself is gone; only its left-over permissions are removed."))) return;
     setBusy(true);
     try {
       await setCloudRule(row.path, false, []);
@@ -411,8 +372,8 @@ export function CloudRulesOverview() {
     <section className="cloud-rules">
       <h2>Cloud folders with their own permissions</h2>
       <p className="muted">
-        Set with <strong>Permissions</strong> beside a folder on the Cloud page; files follow the folder they are in. Everything else follows the whole-cloud
-        permissions (Cloud view / edit / admin in Console &gt; Permissions).
+        Set with <strong>Permissions</strong> beside a folder on the Cloud page; files follow the folder they are in.
+        Everything else follows the whole-cloud permissions (Cloud view / edit / admin in Console &gt; Permissions).
       </p>
       {error && <p className="error">{error}</p>}
       {!rows ? (
@@ -435,7 +396,7 @@ export function CloudRulesOverview() {
                 <tr key={r.path}>
                   <td data-label="Folder" className="cloud-name">
                     {r.private && <><span className="tag">Private</span>{" "}</>}
-                    {!r.exists && <><span className="tag" title="Removed outside the site (File Station). The permissions would apply again to anything that gets this name">Item is gone</span>{" "}</>}
+                    {!r.exists && <><span className="tag" title="Removed outside the site (File Station). The permissions would apply again to anything that gets this name">Folder is gone</span>{" "}</>}
                     {r.exists ? <Link to={link(r)}>{r.path}</Link> : r.path}
                   </td>
                   <td data-label="Who">

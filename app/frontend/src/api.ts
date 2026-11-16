@@ -1610,7 +1610,7 @@ export interface CloudLogEntry {
   at: string; // UTC
   who: string;
   who_id: string;
-  action: "upload" | "download" | "folder" | "rename" | "delete" | "restore" | "purge" | "scan" | "virus" | "release" | "permissions" | "denied";
+  action: "upload" | "download" | "folder" | "rename" | "delete" | "restore" | "purge" | "scan" | "virus" | "release" | "permissions" | "move" | "denied";
   path: string;
   detail: string | null;
   size: number | null;
@@ -1635,6 +1635,13 @@ export const makeCloudFolder = (path: string, name: string, parents = false, isP
   cloudPost<{ path: string }>("folder", { path, name, parents, private: isPrivate });
 export const renameCloud = (path: string, name: string) => cloudPost<{ path: string }>("rename", { path, name });
 export const deleteCloud = (path: string) => cloudPost<{ ok: boolean }>("delete", { path });
+/** Into another folder ("" = the top of the cloud), under its own name. */
+export const moveCloud = (path: string, to: string) =>
+  send<{ path: string }>("/api/cloud/move", {
+    method: "POST",
+    headers: { ...ADMIN_WRITE, "Content-Type": "application/json" },
+    body: JSON.stringify({ path, to }),
+  });
 
 /** Permissions of one folder or file (backend/cloud_acl.py; console users set them on the Cloud page). */
 export interface CloudGrant {

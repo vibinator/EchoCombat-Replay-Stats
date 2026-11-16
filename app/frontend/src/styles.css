@@ -4681,8 +4681,35 @@ button.small {
   background: var(--panel);
 }
 .cloud-view-as-form {
-  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   margin: 12px 0;
+}
+.cloud-permissions-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+.cloud-permissions-head h2 {
+  flex: 1 1 200px;
+}
+.cloud-permissions .person-picker input,
+.cloud-view-as-form .person-picker input {
+  flex: 1 1 100%;
+}
+.person-found .tag {
+  margin-left: 0;
+}
+/* a row being dragged over a folder (row, ".." row or a folder of the path): it will move in there */
+.cloud tr[draggable="true"] {
+  cursor: grab;
+}
+.cloud-drop-on,
+tr.cloud-drop-on td {
+  outline: 2px dashed var(--accent, currentColor);
+  outline-offset: -2px;
 }
 .cloud-pick {
   margin: 0 8px 0 0;

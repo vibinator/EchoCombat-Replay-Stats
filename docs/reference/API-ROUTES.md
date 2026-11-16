@@ -38,23 +38,26 @@ path is in middleware.WRITES / BOT. Console routes need auth.has_console; profil
 | POST | `/api/bot/lookup` | bot_lookup | app/backend/api/profiles.py:364 | Which player a Discord account is linked to (or which account a player is linked to). POST so the secret |
 | POST | `/api/bot/unlink` | bot_unlink | app/backend/api/profiles.py:348 | Remove a link (by Discord account or by player); the bio goes with it. |
 | GET | `/api/challenges` | get_challenges | app/backend/api/achievements.py:72 | The Flamingo Challenge period: only matches inside it count. No start date = not launched yet. |
-| POST | `/api/cloud/delete` | delete | app/backend/api/cloud.py:165 |  |
-| GET | `/api/cloud/download` | download | app/backend/api/cloud.py:90 |  |
-| POST | `/api/cloud/folder` | make_folder | app/backend/api/cloud.py:120 |  |
-| GET | `/api/cloud/list` | listing | app/backend/api/cloud.py:65 |  |
-| GET | `/api/cloud/log` | audit_log | app/backend/api/cloud.py:453 |  |
-| GET | `/api/cloud/permissions` | item_permissions | app/backend/api/cloud.py:413 | Who one folder or file is shared with, whether it is private, and the rules of the folders above it. |
-| POST | `/api/cloud/permissions` | set_item_permissions | app/backend/api/cloud.py:429 | Replaces the permissions of one folder or file (nothing listed and not private: none of its own). |
-| GET | `/api/cloud/quarantine` | quarantine | app/backend/api/cloud.py:338 |  |
-| POST | `/api/cloud/quarantine/delete` | quarantine_delete | app/backend/api/cloud.py:348 |  |
-| POST | `/api/cloud/quarantine/release` | quarantine_release | app/backend/api/cloud.py:359 | A false alarm: a console user lets the file into the cloud. |
-| POST | `/api/cloud/rename` | rename | app/backend/api/cloud.py:146 |  |
-| POST | `/api/cloud/scan-all` | scan_all | app/backend/api/cloud.py:372 | Every file already in the cloud: ClamAV where it is (and VirusTotal after), one at a time in the background. |
-| GET | `/api/cloud/trash` | trash | app/backend/api/cloud.py:191 |  |
-| POST | `/api/cloud/trash/purge` | trash_purge | app/backend/api/cloud.py:220 |  |
-| POST | `/api/cloud/trash/restore` | trash_restore | app/backend/api/cloud.py:207 |  |
-| POST | `/api/cloud/upload` | upload | app/backend/api/cloud.py:260 |  |
-| GET | `/api/cloud/upload/status` | upload_status | app/backend/api/cloud.py:236 | How much of this upload the server already has (user, 2026-11-10: an interrupted upload continues where it |
+| POST | `/api/cloud/delete` | delete | app/backend/api/cloud.py:236 |  |
+| GET | `/api/cloud/download` | download | app/backend/api/cloud.py:120 |  |
+| POST | `/api/cloud/folder` | make_folder | app/backend/api/cloud.py:151 |  |
+| GET | `/api/cloud/list` | listing | app/backend/api/cloud.py:66 | as_type + as_id (console users, "View as"): the folder as that role ("role") or person ("user") sees it. |
+| GET | `/api/cloud/log` | audit_log | app/backend/api/cloud.py:618 |  |
+| POST | `/api/cloud/move` | move | app/backend/api/cloud.py:215 | A file or folder into another folder (drag and drop). Needs edit on the item (and on everything in it with its |
+| GET | `/api/cloud/people` | people | app/backend/api/cloud.py:524 | Find a person's Discord id by name (cloud admins): players seen in matches, people in the cloud audit log, |
+| GET | `/api/cloud/permissions` | item_permissions | app/backend/api/cloud.py:563 | Who one folder or file is shared with, whether it is private, and the rules of the folders above it. |
+| POST | `/api/cloud/permissions` | set_item_permissions | app/backend/api/cloud.py:579 | Replaces the permissions of one folder or file (nothing listed and not private: none of its own). |
+| GET | `/api/cloud/permissions/all` | all_permissions | app/backend/api/cloud.py:502 | Every folder / file with permissions of its own that this person is admin of (all of them for a Cloud admin), |
+| GET | `/api/cloud/quarantine` | quarantine | app/backend/api/cloud.py:409 |  |
+| POST | `/api/cloud/quarantine/delete` | quarantine_delete | app/backend/api/cloud.py:419 |  |
+| POST | `/api/cloud/quarantine/release` | quarantine_release | app/backend/api/cloud.py:430 | A false alarm: a console user lets the file into the cloud. |
+| POST | `/api/cloud/rename` | rename | app/backend/api/cloud.py:191 |  |
+| POST | `/api/cloud/scan-all` | scan_all | app/backend/api/cloud.py:443 | Every file already in the cloud: ClamAV where it is (and VirusTotal after), one at a time in the background. |
+| GET | `/api/cloud/trash` | trash | app/backend/api/cloud.py:262 |  |
+| POST | `/api/cloud/trash/purge` | trash_purge | app/backend/api/cloud.py:291 |  |
+| POST | `/api/cloud/trash/restore` | trash_restore | app/backend/api/cloud.py:278 |  |
+| POST | `/api/cloud/upload` | upload | app/backend/api/cloud.py:331 |  |
+| GET | `/api/cloud/upload/status` | upload_status | app/backend/api/cloud.py:307 | How much of this upload the server already has (user, 2026-11-10: an interrupted upload continues where it |
 | GET | `/api/combat/awards` | award_options | app/backend/api/combat.py:124 | The game's end-of-match awards and how each is earned (no thresholds: the top player of the stat gets the card |
 | GET | `/api/combat/leaderboard` | leaderboard | app/backend/api/combat.py:201 |  |
 | GET | `/api/combat/matches` | matches | app/backend/api/combat.py:253 |  |

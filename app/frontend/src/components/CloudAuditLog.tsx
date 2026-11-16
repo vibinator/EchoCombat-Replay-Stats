@@ -5,7 +5,7 @@ import { LocalTime, Status, TableWrap } from "./common";
 
 const ACTION_LABEL: Record<CloudLogEntry["action"], string> = {
   upload: "Upload", download: "Download", folder: "New folder", rename: "Rename", delete: "Delete", restore: "Restore",
-  purge: "Removed for good", scan: "Virus scan", virus: "Virus found", release: "Released", permissions: "Permissions", denied: "Refused",
+  purge: "Removed for good", scan: "Virus scan", virus: "Virus found", release: "Released", permissions: "Permissions", move: "Move", denied: "Refused",
 };
 
 /** Console users: every upload, download, change and refusal, newest first, with search. */
@@ -79,7 +79,7 @@ export function CloudAuditLog() {
                   </td>
                   <td data-label="File" className="cloud-name">
                     {r.path}
-                    {r.detail && <span className="muted"> {r.action === "rename" ? `→ ${r.detail}` : `(${r.detail})`}</span>}
+                    {r.detail && <span className="muted"> {r.action === "rename" || (r.action === "move" && r.ok) ? `→ ${r.detail}` : `(${r.detail})`}</span>}
                   </td>
                   <td data-label="Size" className="num">{r.size === null ? "" : fileSize(r.size)}</td>
                   <td data-label="IP"><code>{r.ip ?? ""}</code></td>
