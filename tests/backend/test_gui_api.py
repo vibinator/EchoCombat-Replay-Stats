@@ -189,7 +189,7 @@ def test_match_thumbnails_limits(client):
 
 def test_playback(client):
     p = client.get(f"/api/matches/{mid(client, 'dyson/a.echoreplay')}/playback").json()
-    assert p["hz"] == 2 and p["samples"] == 8 and p["image"] == "/minimaps/dyson.png"  # 80 frames = 4 s
+    assert p["hz"] == 2 and p["samples"] == 8 and p["image"] == "/minimaps/dyson.webp"  # 80 frames = 4 s
     blue = next(x for x in p["players"] if x["user_id"] == BLUE)
     u0, v0, team = blue["points"][0]
     u1 = blue["points"][-1][0]

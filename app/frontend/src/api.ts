@@ -108,6 +108,13 @@ interface Reply<T> {
   keep: boolean;
 }
 
+/** The request public/early.js already started for this address while the page's code was downloading, once. */
+function takeEarly(path: string): Promise<Response> | undefined {
+  const early = window.__early?.[path];
+  if (early) delete window.__early![path];
+  return early;
+}
+
 async function fetchReply<T>(path: string, init?: RequestInit): Promise<Reply<T>> {
   const retryable = !init?.method || init.method === "GET";
   let url = path;
@@ -117,7 +124,9 @@ async function fetchReply<T>(path: string, init?: RequestInit): Promise<Reply<T>
     let res: Response;
     try {
       // X-EchoVR: the server answers /api only to this site's own pages (scraper protection, D48)
-      res = await fetch(url, { ...init, signal: timeout.signal, headers: { "X-EchoVR": "1", ...init?.headers } });
+      const ask = () => fetch(url, { ...init, signal: timeout.signal, headers: { "X-EchoVR": "1", ...init?.headers } });
+      const early = attempt === 0 && !init && url === path ? takeEarly(path) : undefined;
+      res = await (early ? early.catch(ask) : ask());
     } catch {
       if (retryable && attempt === 0) {
         await pause(RETRY_MS);
@@ -1209,7 +1218,18 @@ export const getLastMatch = () => send<{ last_match_at: string | null }>("/api/o
 export const getLatestMatches = () => send<MatchSummary[]>("/api/overview/latest");
 /** Is a game being played now (the spectator bot is live on Twitch; live null = could not tell)? Never cached
  * anywhere: no-store for the browser and Cloudflare, and send() keeps no copy. */
-export const getLive = () => send<{ live: boolean | null; since: string | null }>("/api/overview/live");
+type Live = { live: boolean | null; since: string | null };
+const LIVE_SHARE_MS = 5_000;
+let liveAsked: { at: number; answer: Promise<Live> } | null = null;
+/** Never kept (it is the live status), but the two places on the home page that poll it share one request. */
+export const getLive = (): Promise<Live> => {
+  if (!liveAsked || Date.now() - liveAsked.at > LIVE_SHARE_MS) {
+    const asked = { at: Date.now(), answer: send<Live>("/api/overview/live") };
+    asked.answer.catch(() => liveAsked === asked && (liveAsked = null));
+    liveAsked = asked;
+  }
+  return liveAsked.answer;
+};
 export const getActivity = (bucket: "day" | "week" | "month" | "year") =>
   request<{ bucket: string; items: { period: string; matches: number; hours: number; maps: Record<string, number> }[] }>(`/api/overview/activity?bucket=${bucket}`);
 export const getPlayersSeen = (range: PlayersSeen["range"], anchor: PlayersSeen["anchor"]) =>

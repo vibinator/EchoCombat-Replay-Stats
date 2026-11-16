@@ -4,7 +4,7 @@ import { connection, getHealth, getMe, getProcessing, loginUrl, LOGOUT_URL, relo
 import { dateTime, viewerZone } from "./format";
 import { GlobalSearch } from "./components/GlobalSearch";
 import { HomePage } from "./pages/HomePage";
-import { useAchievementsAccess } from "./components/AchievementsView";
+import { useAchievementsAccess } from "./achievementsAccess";
 import { ErrorBoundary, Skeleton } from "./components/ui";
 import { useApi, useWhileVisible } from "./useApi";
 import { usePageTitle } from "./usePageTitle";

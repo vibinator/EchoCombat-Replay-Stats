@@ -48,8 +48,8 @@ log = logging.getLogger(__name__)
 
 STAMP_TTL_S = 2.0  # data_stamp is re-read at most this often: the admin console (another process) shows within it
 MAX_VALUES = 256
-MAX_RESPONSES = 4096
-MAX_RESPONSE_BYTES = 64 * 1024 * 1024  # gzipped answers kept in RAM (a player heatmap is 70-200 KB)
+MAX_RESPONSES = 20_000  # was 4096: the small answers (a match, a profile, a board page) are a few KB each
+MAX_RESPONSE_BYTES = 64 * 1024 * 1024  # gzipped answers kept in RAM (a player heatmap is 70-200 KB); Settings.response_cache_mb
 GZIP_LEVEL = 6  # compressed once per build, sent many times
 STATUS_HEADER = "X-EchoVR-Cache"
 
@@ -378,11 +378,16 @@ def _response_entry(compute: Callable[[], object], stamp: tuple) -> Entry:
     return Entry(stamp, started, gz=gz, etag=etag, size=len(gz) + 256)
 
 
+def _response_bytes(state) -> int:
+    mb = getattr(state.settings, "response_cache_mb", 0)
+    return mb * 1024 * 1024 if mb > 0 else MAX_RESPONSE_BYTES
+
+
 def cached_response(request: Request, name: str, params: tuple, compute: Callable[[], object], stamp=None,
                     daily: bool = True, persist: bool = False) -> Response:
     """The JSON answer compute() returns, cached like cached(), kept gzipped with an ETag. `stamp`, `daily`,
     `persist`: see the module docstring (player heatmaps)."""
-    store = _store(request.app.state, "response_cache", lambda: Store(MAX_RESPONSES, MAX_RESPONSE_BYTES))
+    store = _store(request.app.state, "response_cache", lambda: Store(MAX_RESPONSES, _response_bytes(request.app.state)))
     entry, status = _lookup(request, store, name, params, lambda s: _response_entry(compute, s), stamp, daily,
                             _disk(request.app.state) if persist else None)
     return reply(request, entry, status)
@@ -400,6 +405,17 @@ def prebuild(app, name: str, params: tuple, compute: Callable[[], object], stamp
         return False
     disk.save(key, _response_entry(compute, now))
     return True
+
+
+def json_reply(request: Request, value) -> Response:
+    """An answer that is not kept here (it depends on the visitor, or is cheap to work out), sent the quick way: FastAPI's
+    own encoding of a returned dict walks every value in Python (measured 2026-11-16: 19 ms for the 80 KB achievement
+    list, more than working it out). With an ETag, so a browser that has it gets 304 Not Modified."""
+    body = orjson.dumps(value, option=orjson.OPT_NON_STR_KEYS)
+    etag = f'W/"{hashlib.blake2b(body, digest_size=12).hexdigest()}"'
+    if etag_matches(request.headers.get("if-none-match"), etag):
+        return Response(status_code=304, headers={"ETag": etag})
+    return Response(body, media_type="application/json", headers={"ETag": etag})
 
 
 def etag_matches(header: str | None, etag: str) -> bool:

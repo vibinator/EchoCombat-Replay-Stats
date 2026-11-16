@@ -705,29 +705,9 @@ function Tile({ a }: { a: AnyBadge }) {
   );
 }
 
-/** Small summary for the player page; the full list lives on /achievements. */
-export interface AchievementsAccess {
-  /** this visitor sees achievements: launched, or a Discord preview (null while loading) */
-  visible: boolean | null;
-  launched: boolean;
-  preview: boolean;
-  start: string | null;
-  /** number of achievements available (null while loading) */
-  total: number | null;
-  peek: AchievementPeek | null;
-}
-
-export function useAchievementsAccess(): AchievementsAccess {
-  const d = useApi(getChallenges, "challenge").data;
-  return {
-    visible: d ? d.launched || d.preview : null,
-    launched: !!d?.launched,
-    preview: !!d?.preview,
-    start: d?.start ?? null,
-    total: d?.total ?? null,
-    peek: d?.peek ?? null,
-  };
-}
+// in a file of its own: the top bar (App.tsx) needs only this, not this whole file in the first download
+export { useAchievementsAccess, type AchievementsAccess } from "../achievementsAccess";
+import { useAchievementsAccess } from "../achievementsAccess";
 
 const PEEK_HYPE: Record<string, string> = {
   game: "Peak performance, one game",

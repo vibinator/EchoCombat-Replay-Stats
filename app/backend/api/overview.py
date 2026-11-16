@@ -1,5 +1,6 @@
 """Home dashboard, archive activity and global search."""
 
+import logging
 from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Query, Request, Response
@@ -16,6 +17,7 @@ from .matches import CLOSENESS, match_cards
 from .players import games_of
 
 router = APIRouter(tags=["overview"])
+log = logging.getLogger(__name__)
 
 
 @router.get("/api/overview")
@@ -459,10 +461,39 @@ def warm(app) -> None:
     queries. A new replay still invalidates them like any other result (cache.py)."""
     from types import SimpleNamespace
 
-    request = SimpleNamespace(app=app, headers={})
+    request = SimpleNamespace(app=app, headers={}, cookies={})
     for call in (lambda: overview(request), lambda: activity(request, "day"), lambda: players_seen(request, "24h", "now"),
-                 lambda: map_heat_cards(request, map_heat.TEAM_LAYER, map_heat.VIEWS[0])):
+                 lambda: map_heat_cards(request, map_heat.TEAM_LAYER, map_heat.VIEWS[0]), lambda: _warm_pages(request)):
         try:
             call()
         except Exception:  # noqa: BLE001 - warming is best effort; the real request recomputes and reports errors
             pass
+
+
+def _warm_pages(request) -> None:
+    """The first screens of the Matches and Leaderboard pages and the thumbnails of the newest matches, exactly as the
+    pages ask for them (2026-11-16): after a restart (every update of the site) the first visitor of each waited for
+    the archive-wide build (leaderboard 2.5 s, match list + summary ~1 s on the NAS). Each on its own: one failing
+    does not stop the others."""
+    import json
+
+    from . import leaderboard, matches
+
+    def first_page():
+        page = matches.list_matches(request, None, None, None, None, None, None, None, None, None, True, 24, 0)
+        ids = [m["id"] for m in json.loads(page.body)["items"]]
+        if ids:
+            matches.get_thumbnails(request, ",".join(map(str, ids)))
+
+    def latest():
+        with request.app.state.sessionmaker() as db:
+            ids = [m.id for m, _ in _latest_matches(db)]
+        if ids:
+            matches.get_thumbnails(request, ",".join(map(str, ids)))
+
+    for call in (first_page, latest, lambda: matches.matches_summary(request, None, None, None, None, None, None, None, None, None),
+                 lambda: leaderboard.overview(request, "all", None, None, 10)):
+        try:
+            call()
+        except Exception:  # noqa: BLE001
+            log.debug("Warming a page answer failed", exc_info=True)

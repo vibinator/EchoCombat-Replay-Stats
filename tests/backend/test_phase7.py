@@ -256,7 +256,7 @@ def cells(h: dict, layer: dict) -> list:
 def test_match_heatmap(client):
     mid = match_id(client)
     h = client.get(f"/api/matches/{mid}/heatmap").json()
-    assert (h["map"], h["image"], h["matches"]) == ("dyson", "/minimaps/dyson.png", 1)
+    assert (h["map"], h["image"], h["matches"]) == ("dyson", "/minimaps/dyson.webp", 1)
     layers = {layer["key"]: layer for layer in h["layers"]}
     assert set(layers) == {"blue", "orange"}
     assert len(cells(h, layers["blue"])) > len(cells(h, layers["orange"]))  # blue walks, orange stands

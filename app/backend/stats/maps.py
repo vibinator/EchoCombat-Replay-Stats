@@ -110,7 +110,7 @@ MINIMAP_VERSIONS = {"fission": 2}
 
 def minimap_url(map_code: str) -> str:
     version = MINIMAP_VERSIONS.get(map_code)
-    return f"/minimaps/{map_code}.png" + (f"?v={version}" if version else "")
+    return f"/minimaps/{map_code}.webp" + (f"?v={version}" if version else "")
 
 
 HEATMAP_LAYOUTS = {

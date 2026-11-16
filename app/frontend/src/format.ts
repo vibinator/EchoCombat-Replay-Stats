@@ -120,7 +120,7 @@ const MINIMAP_VERSIONS: Record<string, number> = { fission: 2 };
 /** Address of a map's minimap picture; `small` = the thumbnail (480 px wide). */
 export function minimapUrl(map: string, small = false): string {
   const version = MINIMAP_VERSIONS[map];
-  return `/minimaps/${map}${small ? "_small" : ""}.png${version ? `?v=${version}` : ""}`;
+  return `/minimaps/${map}${small ? "_small" : ""}.webp${version ? `?v=${version}` : ""}`;
 }
 
 export function title(word: string): string {

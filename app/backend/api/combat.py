@@ -6,16 +6,19 @@ numbers (shots, weapons, tac mod use...) exist only for matches that had an even
 ended early: `events_incomplete`)."""
 
 import json
+import time
+import weakref
 from collections import Counter
 
 from fastapi import APIRouter, Path, Query, Request
 from sqlalchemy import case, func, select
 
 from ..aliases import ids_of
+from ..cache import cached_response, current_stamp
 from ..combat import AWARDS, award_name
 from ..errors import ApiError
 from ..gear import ORDNANCES, WEAPONS
-from ..models import CombatMatch, CombatPlayer, Match, PlayerAlias
+from ..models import CombatFile, CombatMatch, CombatPlayer, Match, PlayerAlias
 from .derived import MAP_PATTERN, PERIODS, ID_MAX, period_start, ratio
 
 router = APIRouter(prefix="/api/combat", tags=["combat"])
@@ -107,8 +110,39 @@ def _rates(t: dict) -> dict:
     return t
 
 
+# --- kept answers (2026-11-16) -----------------------------------------------------------------------------------------
+# Until then every combat answer was worked out again for every request (10-30 ms each on the dev PC, 5-12x that on the
+# NAS) and sent without an ETag. They are kept like the replay answers now (cache.py), on a stamp of their own: the
+# match reports read so far (how many, the newest read, their sizes and file times: a report read again changes it),
+# together with the archive's stamp, which also covers player merges made on the Console page.
+STAMP_TTL_S = 2.0
+_stamps: "weakref.WeakKeyDictionary" = weakref.WeakKeyDictionary()  # sessionmaker -> (read at, archive stamp, stamp)
+
+
+def combat_stamp(sessions) -> tuple:
+    archive, now = current_stamp(sessions), time.monotonic()
+    memo = _stamps.get(sessions)
+    if memo is not None and memo[1] == archive and now - memo[0] < STAMP_TTL_S:
+        return memo[2]
+    with sessions() as db:
+        files = db.execute(select(func.count(), func.max(CombatFile.processed_at), func.sum(CombatFile.size_bytes),
+                                  func.max(CombatFile.source_mtime))).one()
+    stamp = (*archive, *files)
+    _stamps[sessions] = (now, archive, stamp)
+    return stamp
+
+
+def _kept(request: Request, name: str, params: tuple, compute):
+    sessions = request.app.state.sessionmaker
+    return cached_response(request, name, params, compute, stamp=lambda: combat_stamp(sessions))
+
+
 @router.get("/summary")
 def summary(request: Request):
+    return _kept(request, "combat-summary", (), lambda: _summary(request))
+
+
+def _summary(request: Request):
     with request.app.state.sessionmaker() as db:
         matches, last, events = db.execute(select(func.count(), func.max(CombatMatch.started_at),
                                                   func.sum(case((CombatMatch.has_events, 1), else_=0)))).one()
@@ -130,6 +164,10 @@ def award_options():
 @router.get("/players/{user_id}")
 def player(request: Request, user_id: str = USER_PATH, period: str = Query("all", pattern=PERIOD_PATTERN),
            map: str | None = Query(None, pattern=MAP_PATTERN)):
+    return _kept(request, "combat-player", (user_id, period, map), lambda: _player(request, user_id, period, map))
+
+
+def _player(request: Request, user_id: str, period: str, map: str | None):
     with request.app.state.sessionmaker() as db:
         main = _main_user(db, user_id)
         where = _where(ids_of(db, main), period, map)
@@ -203,6 +241,11 @@ def leaderboard(request: Request, stat: str = Query("kills", pattern="^(" + "|".
                 period: str = Query("all", pattern=PERIOD_PATTERN), map: str | None = Query(None, pattern=MAP_PATTERN),
                 min_games: int = Query(MIN_GAMES_DEFAULT, ge=1, le=1000), limit: int = Query(50, ge=1, le=200),
                 offset: int = Query(0, ge=0)):
+    return _kept(request, "combat-leaderboard", (stat, period, map, min_games, limit, offset),
+                 lambda: _leaderboard(request, stat, period, map, min_games, limit, offset))
+
+
+def _leaderboard(request: Request, stat: str, period: str, map: str | None, min_games: int, limit: int, offset: int):
     s = func.sum
     where = []
     if start := period_start(period):
@@ -254,6 +297,10 @@ def leaderboard(request: Request, stat: str = Query("kills", pattern="^(" + "|".
 def matches(request: Request, limit: int = Query(30, ge=1, le=200), offset: int = Query(0, ge=0),
             map: str | None = Query(None, pattern=MAP_PATTERN),
             min_players: int = Query(1, ge=0, le=16, description="empty lobbies (0 players) are left out by default")):
+    return _kept(request, "combat-matches", (limit, offset, map, min_players), lambda: _matches(request, limit, offset, map, min_players))
+
+
+def _matches(request: Request, limit: int, offset: int, map: str | None, min_players: int):
     where = [CombatMatch.map == map] if map else []
     with request.app.state.sessionmaker() as db:
         # reports with fewer than min_players players (empty lobbies the recorder sat in) are not matches (Review GUI-7)
@@ -272,6 +319,10 @@ def matches(request: Request, limit: int = Query(30, ge=1, le=200), offset: int 
 
 @router.get("/matches/{session_id}")
 def match(request: Request, session_id: str = SESSION_PATH):
+    return _kept(request, "combat-match", (session_id.upper(),), lambda: _match(request, session_id))
+
+
+def _match(request: Request, session_id: str):
     with request.app.state.sessionmaker() as db:
         m = db.scalar(select(CombatMatch).where(CombatMatch.session_id == session_id.upper()))
         if m is None:

@@ -279,6 +279,11 @@ def _save_avatars(settings: Settings) -> None:
         log.warning("Discord avatar cache not saved: %s", e)
 
 
+# user id -> time.monotonic() until which Discord is not asked again for someone it just failed for and whose picture
+# is not known: without it every view of that profile waited for another failing request (0.6 s each, 2026-11-16)
+_avatar_failed: dict[str, float] = {}
+
+
 def avatar_url(settings: Settings, user_id: str, fresh: bool = False, ask: bool = True) -> str | None:
     """Discord avatar of a user (asked via the bot, remembered AVATAR_CHECK_S), Discord's default one when they have
     none, or None when Discord cannot be asked. Requests are budgeted (AVATAR_MAX_PER_MIN, and a 429 is obeyed): over
@@ -296,6 +301,8 @@ def avatar_url(settings: Settings, user_id: str, fresh: bool = False, ask: bool 
             return None
     elif not hit or hit[0] <= now or fresh:
         if not settings.discord_bot_token:
+            return None
+        if not hit and not fresh and _avatar_failed.get(user_id, 0.0) > mono:
             return None
         if _avatar_budget(mono):
             try:
@@ -315,6 +322,10 @@ def avatar_url(settings: Settings, user_id: str, fresh: bool = False, ask: bool 
                     hit = (now + AVATAR_CHECK_S, r.json().get("avatar"))
             except (httpx.HTTPError, ValueError) as e:
                 log.warning("Discord avatar of %s failed: %s", user_id, e)
+                if not hit:
+                    if len(_avatar_failed) > 10_000:
+                        _avatar_failed.clear()
+                    _avatar_failed[user_id] = mono + ROLE_RETRY_S
                 hit = (now + ROLE_RETRY_S, hit[1]) if hit else None
         elif hit:
             hit = (now + ROLE_RETRY_S, hit[1])  # over budget: keep the old picture, look again soon

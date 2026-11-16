@@ -25,7 +25,7 @@ from ..achievements import RULES, Game, evaluate, icon_file, in_window, medal_ti
 from ..admin_actions import (WINDOW_KEYS, achievements_counting, achievements_launched, achievements_visibility,
                              challenge_window, previews_can_see)
 from .. import achievements as engine, gear as gear_tables
-from ..cache import cached, current_stamp
+from ..cache import cached, current_stamp, json_reply
 from ..db import open_reader
 from ..duplicates import counted
 from ..errors import ApiError
@@ -179,7 +179,7 @@ def player_achievements(request: Request, user_id: str):
     # the Combat cards come from the recorder's reports, apart from the replay answer and its totals (D56)
     items = result["items"] + combat_achievements.player_items(request.app.state.sessionmaker, window, user_id)
     with request.app.state.sessionmaker() as db:
-        return result | {"items": icons.apply(db, items)}  # icons chosen on the Console page (D43)
+        return json_reply(request, result | {"items": icons.apply(db, items)})  # icons chosen on the Console page (D43)
 
 
 OFFLOAD_MIN_GAMES = 100  # a player with fewer games is evaluated at once (a few ms); more: in a helper process
@@ -532,8 +532,28 @@ def achievement_progress(request: Request) -> dict[int, list[float]]:
 def list_achievements(request: Request):
     """The rule catalogue with rarity: share of players (10+ games) who unlocked (25 %+, tiered: bronze) / completed each."""
     require_launched(request)
-    data = _ready_or_start(request) or {"rows": [], "progress": {}}  # no shares yet: the list itself is quick
-    eligible = [data["progress"][pid] for pid, games, _ in data["rows"] if games >= RARITY_MIN_GAMES]
+    sessions = request.app.state.sessionmaker
+    data = _ready_or_start(request)  # None = no shares yet: the list itself is quick
+    out = _rarity(sessions, data) if data is not None else _catalogue([])
+    with sessions() as db:
+        window = counted_window(db)
+        return json_reply(request, icons.apply(db, out + combat_achievements.catalogue(sessions, window)))
+
+
+_rarity_memo: dict[int, tuple[dict, list[dict]]] = {}  # id(sessions) -> (the ranking it was counted from, the catalogue)
+
+
+def _rarity(sessions, data: dict) -> list[dict]:
+    """The catalogue with its shares, counted once per ranking: every rule over every eligible player is ~half a million
+    comparisons in Python (130 ms a request on the dev PC, 2026-11-16), and the ranking only changes every few minutes."""
+    memo = _rarity_memo.get(id(sessions))
+    if memo is None or memo[0] is not data:
+        eligible = [data["progress"][pid] for pid, games, _ in data["rows"] if games >= RARITY_MIN_GAMES]
+        memo = _rarity_memo[id(sessions)] = (data, _catalogue(eligible))
+    return memo[1]
+
+
+def _catalogue(eligible: list) -> list[dict]:
     out = []
     for i, r in enumerate(RULES):
         values = [p[i] for p in eligible]
@@ -543,9 +563,7 @@ def list_achievements(request: Request):
                     "unit": r.unit,
                     "unlocked_share": round(sum(v >= unlock_threshold(r) for v in values) / len(values), 4) if values else None,
                     "completed_share": round(sum(v >= 1 for v in values) / len(values), 4) if values else None})
-    with request.app.state.sessionmaker() as db:
-        window = counted_window(db)
-        return icons.apply(db, out + combat_achievements.catalogue(request.app.state.sessionmaker, window))
+    return out
 
 
 @router.get("/api/achievements/recent")
@@ -557,4 +575,4 @@ def recent_unlocks(request: Request, limit: int = Query(20, ge=1, le=100)):
         combat = combat_achievements.recent(request.app.state.sessionmaker, window)
         replay = (_ready_or_start(request) or {"recent": []})["recent"]
         merged = sorted(replay[:limit] + combat[:limit], key=lambda e: e["at"], reverse=True)
-        return icons.apply(db, merged[:limit])
+        return json_reply(request, icons.apply(db, merged[:limit]))
