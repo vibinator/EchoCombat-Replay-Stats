@@ -54,17 +54,22 @@ function MatchTags({ m }: { m: MatchSummary }) {
   );
 }
 
-/** Blue names on the left, orange on the right, most time played first (as the server sends them). */
-function TeamNames({ players }: { players: NonNullable<MatchSummary["players"]> }) {
+/** Blue names on the left, orange on the right, most time played first (as the server sends them). `max` names per
+ * team, the rest as "+N" (compact rows show one line per team). */
+function TeamNames({ players, max = 6 }: { players: NonNullable<MatchSummary["players"]>; max?: number }) {
   return (
     <div className="match-card-teams">
-      {(["blue", "orange"] as const).map((team) => (
-        <div key={team} className={`match-card-team ${team}`}>
-          {players.filter((p) => p.team === team).slice(0, 6).map((p) => (
-            <span key={p.user_id} className={`name-chip ${team}`}>{p.name}</span>
-          ))}
-        </div>
-      ))}
+      {(["blue", "orange"] as const).map((team) => {
+        const all = players.filter((p) => p.team === team);
+        return (
+          <div key={team} className={`match-card-team ${team}`}>
+            {all.slice(0, max).map((p) => (
+              <span key={p.user_id} className={`name-chip ${team}`}>{p.name}</span>
+            ))}
+            {all.length > max && <span className="name-more muted">+{all.length - max}</span>}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -84,7 +89,7 @@ function dayLabel(iso: string, now = new Date()): string {
   });
 }
 
-function Card({ m, heat }: { m: MatchSummary; heat: string | undefined }) {
+function Card({ m, heat, compact = false }: { m: MatchSummary; heat: string | undefined; compact?: boolean }) {
   return (
     <Link to={`/matches/${m.id}`} className="match-card">
       <MatchThumb map={m.map} heat={heat} />
@@ -104,14 +109,15 @@ function Card({ m, heat }: { m: MatchSummary; heat: string | undefined }) {
           {m.player_count != null && ` · ${m.player_count} players`}
         </span>
         <MatchTags m={m} />
-        {m.players && m.players.length > 0 && <TeamNames players={m.players} />}
+        {m.players && m.players.length > 0 && <TeamNames players={m.players} max={compact ? 4 : 6} />}
       </div>
     </Link>
   );
 }
 
 /** Visual match list: minimap thumbnail with team heat, score, winner, tags and (when loaded) the players' names.
- * `compact`: one short row per match, small thumbnail on the left (home page, beside the live video).
+ * `compact`: one short row per match, small thumbnail on the left (home page, beside the live video); when the list is
+ * wide enough the tags and names sit beside the score (styles.css, container query on .live-latest-matches).
  * `byDay`: a heading over each day's matches (the Matches page; the list is newest first). */
 export function MatchCards({ matches, compact = false, byDay = false }: { matches: MatchSummary[]; compact?: boolean; byDay?: boolean }) {
   const thumbnails = useThumbnails(matches);
@@ -119,7 +125,7 @@ export function MatchCards({ matches, compact = false, byDay = false }: { matche
   if (!byDay || compact) {
     return (
       <div className={compact ? "match-cards compact" : "match-cards"}>
-        {matches.map((m) => <Card key={m.id} m={m} heat={thumbnails[m.id]} />)}
+        {matches.map((m) => <Card key={m.id} m={m} heat={thumbnails[m.id]} compact={compact} />)}
       </div>
     );
   }

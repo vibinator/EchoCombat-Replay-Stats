@@ -66,6 +66,8 @@ def test_processing_is_zero_once_everything_is_read(client):
 def test_latest_matches_are_the_overviews(client):
     latest = client.get("/api/overview/latest").json()
     assert latest and latest == client.get("/api/overview").json()["latest"]
+    # the same card fields as the Matches page with names: the home rows show them when there is room
+    assert all("tags" in m and m["player_count"] and m["players"] for m in latest)
 
 
 def test_last_match_matches_the_overview(client):

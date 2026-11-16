@@ -378,7 +378,7 @@ td.num {
 
 .cards {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); /* the cards share the whole row: no empty columns on a wide screen (user, 2026-11-16) */
   gap: 8px;
 }
 
@@ -2070,11 +2070,21 @@ td.best {
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
+/* the stat groups sit side by side while they fit (each asks for about its own number of cards, LeaderboardPage), so a
+   wide screen holds two or three groups a row instead of one short group and an empty half (user, 2026-11-16) */
+.lb-groups {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 18px;
+}
+.lb-groups > .lb-group {
+  flex-grow: 1;
+  min-width: 0;
+}
 .lb-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 10px;
-  max-width: 1420px; /* five cards a row at most: the bigger groups fill a row, wide screens do not spread them thin */
 }
 .lb-cards.wide { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); margin-top: 14px; }
 .lb-card {
@@ -4981,9 +4991,13 @@ tr.cloud-drop-on td {
 .home .home-strip .card {
   padding: 10px 12px;
 }
-/* live video and latest matches: half each, so the video row is not taller than it needs to be */
-.home .live-latest {
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+/* live video and latest matches fill the row: the video takes half, but stops at 960 px (540 px tall), and the
+   latest matches take the rest, one wide row each (tags and names beside the score: see .match-cards.compact below) */
+@media (min-width: 901px) {
+  .home .live-latest {
+    max-width: none;
+    grid-template-columns: min(960px, calc(50% - 6px)) minmax(0, 1fr);
+  }
 }
 /* most active, players seen and Combat this week side by side on a wide window */
 .home .home-week {
@@ -5074,7 +5088,44 @@ tr.cloud-drop-on td {
 .match-tag.stomp { border-color: var(--bad); color: var(--text); }
 .match-tag.combat { border-color: var(--chart-1); }
 .match-tag.repaired { border-style: dashed; }
-.match-cards.compact .match-tags { display: none; }
+.match-cards.compact .match-tags,
+.match-cards.compact .match-card-teams { display: none; }
+.name-more { font-size: 0.72rem; white-space: nowrap; }
+/* compact rows in a wide list (home "Latest matches" at 620 px or more, on any screen): score and time on the left,
+   tags and the first names of each team (one line per team) on the right; a narrow list keeps the short rows */
+.live-latest-matches { container-type: inline-size; }
+@container (min-width: 620px) {
+  .match-cards.compact .match-card-body {
+    display: grid;
+    grid-template-columns: minmax(190px, 260px) minmax(0, 1fr);
+    grid-auto-flow: column;
+    grid-template-rows: auto auto auto;
+    column-gap: 16px;
+    align-items: center;
+  }
+  .match-cards.compact .match-card-body > :not(.match-tags, .match-card-teams) { grid-column: 1; }
+  .match-cards.compact .match-tags { display: flex; grid-column: 2; grid-row: 1; flex-wrap: nowrap; overflow: hidden; }
+  .match-cards.compact .match-card-teams {
+    display: grid;
+    grid-column: 2;
+    grid-row: 2 / span 2;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 3px;
+  }
+  .match-cards.compact .match-card-team,
+  .match-cards.compact .match-card-team.orange {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: nowrap;
+    overflow: hidden;
+    gap: 4px;
+  }
+  .match-cards.compact .match-card-team .name-chip { flex: 0 1 auto; min-width: 0; }
+  .match-cards.compact .match-card-team.orange .name-chip {
+    border-right: none;
+    border-left: 3px solid var(--orange);
+  }
+}
 .match-card-teams {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -5229,4 +5280,48 @@ tr.cloud-drop-on td {
 @media (max-width: 560px) {
   .tc-row { grid-template-columns: 4.5em minmax(0, 1fr) 5.5em minmax(0, 1fr) 4.5em; gap: 4px; font-size: 0.78rem; }
   .story-end { margin-left: 0; }
+}
+
+/* blue and orange team tables side by side when there is room for both (combat match: 9 columns; replay match: 15
+   columns, so only on very wide screens), one under the other otherwise */
+.team-tables {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 18px;
+}
+.team-tables > * {
+  flex: 1 1 900px;
+  min-width: 0;
+}
+.team-tables .table-wrap {
+  max-width: none; /* side by side, each table fills its own half */
+}
+.team-tables.match-teams > * {
+  flex-basis: 1500px;
+}
+
+/* home, wide screens (1440p, 4K): one grid instead of two rows, so nothing is left empty beside the video.
+   Row 1: video (960 px at most) | latest matches (one column, about as tall as the video) | most active;
+   row 2: players seen (under the video and the matches) | Combat this week. */
+@media (min-width: 2100px) {
+  .home .home-top {
+    display: grid;
+    grid-template-columns: minmax(0, 960px) minmax(0, 1fr) minmax(0, 1fr);
+    gap: 12px;
+    margin: 1.25rem 0 12px;
+  }
+  .home .home-top > .live-latest,
+  .home .home-top > .home-week {
+    display: contents;
+  }
+  .home .home-top .live-latest-col,
+  .home .home-top .home-week > .panel {
+    margin: 0;
+  }
+  .home .home-top .live-latest-matches > .match-cards.compact {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .home .home-top .home-week > :nth-child(2) {
+    grid-column: span 2;
+  }
 }

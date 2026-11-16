@@ -115,20 +115,27 @@ def _list_matches(request: Request, map, mode, player, from_, to, private, min_p
     with request.app.state.sessionmaker() as db:
         total = db.scalar(select(func.count()).select_from(query.subquery()))
         rows = db.execute(query.order_by(Match.started_at.desc()).limit(limit).offset(offset)).all()
-        matches = [m for m, _ in rows]
-        ids = [m.id for m in matches]
-        counts = player_counts(db, ids)
-        combat = set(db.scalars(select(CombatMatch.session_id).where(
-            CombatMatch.session_id.in_({m.session_id for m in matches})))) if matches else set()
-        repaired = {rid for rid, w in db.execute(select(Replay.id, Replay.warnings).where(
-            Replay.id.in_([m.replay_id for m in matches]), Replay.warnings.is_not(None))) if repair_note(w)}
-        names: dict[int, list] = {}
-        if with_players and matches:
-            for match_id, uid, name, team in db.execute(
-                select(MatchPlayer.match_id, Player.user_id, MatchPlayer.name, MatchPlayer.team).join(Player)
-                .where(MatchPlayer.match_id.in_(ids)).order_by(MatchPlayer.play_time_s.desc())
-            ):
-                names.setdefault(match_id, []).append({"user_id": uid, "name": name, "team": team})
+        items = match_cards(db, rows, with_players)
+    return {"items": items, "total": total}
+
+
+def match_cards(db, rows, with_players: bool) -> list[dict]:
+    """Match summaries for the match cards from (Match, CLOSENESS) rows: player count, tags and, with_players, the
+    names (most time played first). Also the home page's "Latest matches"."""
+    matches = [m for m, _ in rows]
+    ids = [m.id for m in matches]
+    counts = player_counts(db, ids)
+    combat = set(db.scalars(select(CombatMatch.session_id).where(
+        CombatMatch.session_id.in_({m.session_id for m in matches})))) if matches else set()
+    repaired = {rid for rid, w in db.execute(select(Replay.id, Replay.warnings).where(
+        Replay.id.in_([m.replay_id for m in matches]), Replay.warnings.is_not(None))) if repair_note(w)}
+    names: dict[int, list] = {}
+    if with_players and matches:
+        for match_id, uid, name, team in db.execute(
+            select(MatchPlayer.match_id, Player.user_id, MatchPlayer.name, MatchPlayer.team).join(Player)
+            .where(MatchPlayer.match_id.in_(ids)).order_by(MatchPlayer.play_time_s.desc())
+        ):
+            names.setdefault(match_id, []).append({"user_id": uid, "name": name, "team": team})
     items = []
     for m, closeness in rows:
         n = counts.get(m.id, 0)
@@ -136,7 +143,7 @@ def _list_matches(request: Request, map, mode, player, from_, to, private, min_p
                  ("repaired", m.replay_id in repaired))
         items.append(match_summary(m, n) | {"final_game_timer": m.final_game_timer, "tags": [t for t, on in flags if on]}
                      | ({"players": names.get(m.id, [])} if with_players else {}))
-    return {"items": items, "total": total}
+    return items
 
 
 # Declared before /{match_id}: otherwise "summary" would be read as a match id.

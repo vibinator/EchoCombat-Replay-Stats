@@ -112,7 +112,7 @@ function TeamTable({ team, players, payload }: { team: Team; players: MatchPlaye
   if (players.length === 0) return null;
   const cols = [...COLUMNS, ...(payload ? ["Push / block*"] : []), "Arm", "Main loadout"];
   return (
-    <>
+    <div className="team-table">
       <h2 className={`team-text ${team}`}>{teamLabel(team)} team</h2>
       <TableWrap>
         <table className="stack">
@@ -162,7 +162,7 @@ function TeamTable({ team, players, payload }: { team: Team; players: MatchPlaye
           </tbody>
         </table>
       </TableWrap>
-    </>
+    </div>
   );
 }
 
@@ -401,8 +401,10 @@ function MatchContent({ id }: { id: number }) {
 
           {tab === "players" && (
             <>
-              <TeamTable team="blue" players={m.teams.blue ?? []} payload={m.mode === "payload"} />
-              <TeamTable team="orange" players={m.teams.orange ?? []} payload={m.mode === "payload"} />
+              <div className="team-tables match-teams">
+                <TeamTable team="blue" players={m.teams.blue ?? []} payload={m.mode === "payload"} />
+                <TeamTable team="orange" players={m.teams.orange ?? []} payload={m.mode === "payload"} />
+              </div>
               <p className="muted footnote">
                 * Estimated. Percentages count time inside the map bounds only. Hover ⓘ for what each column means.
               </p>

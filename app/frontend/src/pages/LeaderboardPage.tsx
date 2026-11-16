@@ -160,8 +160,10 @@ function Overview({ period, map, mode, minGames, boardLink }: { period: Period; 
   for (const b of overview.data.boards) groups.set(b.group, [...(groups.get(b.group) ?? []), b]);
   return (
     <>
+      <div className="lb-groups">
       {[...groups].map(([group, boards]) => (
-        <section key={group} className="lb-group">
+        // a group of n cards asks for about n card widths, and stretches no wider than n roomy cards
+        <section key={group} className="lb-group" style={{ flexBasis: boards.length * 260, maxWidth: boards.length * 420 }}>
           <h2 className="lb-group-title">{group}</h2>
           <div className="lb-cards">
             {boards.map((b) => (
@@ -172,6 +174,7 @@ function Overview({ period, map, mode, minGames, boardLink }: { period: Period; 
           </div>
         </section>
       ))}
+      </div>
       <p className="muted footnote">
         The top 5 of every stat for players with {minGames}+ games in this selection; open a card for the full board.
         Averages and rates count games of 2+ minutes with 2+ players per team; totals count everything.

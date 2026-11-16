@@ -332,6 +332,7 @@ export function CombatMatchBody({ m }: { m: CombatMatchDetail }) {
           )}
         </>
       )}
+      <div className="team-tables">
       {(["blue", "orange"] as const).map((team) => {
         const players = m.players.filter((p) => p.team === team);
         if (players.length === 0) return null;
@@ -367,6 +368,7 @@ export function CombatMatchBody({ m }: { m: CombatMatchDetail }) {
           </div>
         );
       })}
+      </div>
       {m.has_events && (
         <>
           <h3>Shots, weapons and tac mods</h3>

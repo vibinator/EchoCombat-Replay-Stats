@@ -111,7 +111,7 @@ function CombatThisWeek() {
  * asks for about n card widths), so the block takes two rows on a wide window instead of one short row per group. */
 function StatGroup({ title, n, children }: { title: string; n: number; children: React.ReactNode }) {
   return (
-    <div className="stat-group" style={{ flexBasis: n * 150 }}>
+    <div className="stat-group" style={{ flexBasis: n * 150, maxWidth: n * 360 }}>
       <h3 className="cards-head">{title}</h3>
       <div className="cards">{children}</div>
     </div>
@@ -379,6 +379,8 @@ export function HomePage() {
 
               {/* live video left, the newest matches right (compact, scrolls within the video's height); stacked on
                   narrow screens. Each column has its own heading. */}
+              {/* wide screens: one grid of video | latest matches | most active, then players seen | Combat (styles.css) */}
+              <div className="home-top">
               <div className="live-latest">
                 <div className="live-latest-col">
                   <div className="section-head">
@@ -440,6 +442,7 @@ export function HomePage() {
                 </section>
                 <PlayersSeenChart />
                 <CombatThisWeek />
+              </div>
               </div>
 
               <MapHeatCards byMap={o.by_map} total={o.matches} avgByMap={g.avg_match_s_by_map} />

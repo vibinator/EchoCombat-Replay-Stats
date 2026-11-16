@@ -18,6 +18,21 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.16.16 — 13:41
+
+- **Every page checked at 1080p, 1440p, 4K and phone size** (headless browser, snapshot data), to cut wasted space:
+  - **Stat cards fill their row** on every page (player, match, home…): no empty columns on the right on a wide screen.
+  - **Leaderboard:** the stat groups sit side by side while they fit: 3 rows of groups instead of 6 at 1440p (page 1,440 px tall instead of 2,127), and no empty right half.
+  - **Home, 1440p and 4K:** video | latest matches | most active in one row, then players seen | Combat this week, so nothing is left empty beside the video.
+  - **Match pages:** blue and orange team tables side by side when there is room: combat matches from about 1,900 px wide, replay matches (15 columns) on 4K.
+  - **Phones:** fixed the home page's video and latest matches being squeezed side by side (the match cards were cut off at the screen edge). The tab rows on the match and player pages scroll sideways on purpose.
+
+## 2026.11.16.15 — 13:36
+
+- **Home: the live video and "Latest matches" now fill the whole row** on wide windows (no empty space on the right).
+  The video takes half the row, up to 960 px wide, and the latest matches take the rest, in two or three columns when
+  there is room. Before, the row stopped at 1500 px unless the window was over 2100 px wide.
+
 ## 2026.11.16.14 — 13:24
 
 - **Leaderboard (replay stats) redesign:**

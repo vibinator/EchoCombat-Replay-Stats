@@ -12,6 +12,7 @@ from ..errors import ApiError
 from ..gear import ORDNANCES, TACMODS, WEAPONS
 from ..models import Match, MatchPlayer, MatchPlayerLoadout, Player, PlayerAlias, Replay
 from .derived import gear, match_summary, period_start, ratio
+from .matches import CLOSENESS, match_cards
 from .players import games_of
 
 router = APIRouter(tags=["overview"])
@@ -44,7 +45,7 @@ def _overview(request: Request, v: visibility.View = visibility.ALL_SHOWN) -> di
             .where(Match.started_at >= week, m).group_by(Player.id)
             .order_by(func.count().desc(), *([func.sum(won).desc()] if wl else []), Player.id).limit(5)
         ).all()
-        latest = _latest_matches(db)
+        latest = match_cards(db, _latest_matches(db), with_players=True)
         newcomers = _newcomers(db, week)
         globals_ = _global_stats(db)
         if not wl:  # team win rates too (user, 2026-11-02)
@@ -63,7 +64,7 @@ def _overview(request: Request, v: visibility.View = visibility.ALL_SHOWN) -> di
         "last_match_at": last,
         "top_this_week": [{"user_id": u, "name": n, "games": g} | ({} if v.hides(u) else {"wins": w or 0})
                           for u, n, g, w in top_week],
-        "latest": [match_summary(m) for m in latest],
+        "latest": latest,
         "newcomers": newcomers,
     }
 
@@ -97,9 +98,10 @@ def _newcomers(db, week: str) -> dict:
 LATEST_MATCHES = 8  # how many the home page's "Latest matches" list shows
 
 
-def _latest_matches(db) -> list[Match]:
-    """The newest matches (duplicate recordings left out), via the started_at index."""
-    return list(db.scalars(select(Match).where(counted(Match.id)).order_by(Match.started_at.desc()).limit(LATEST_MATCHES)))
+def _latest_matches(db) -> list:
+    """The newest matches as (Match, CLOSENESS) rows for match_cards (duplicate recordings left out), via the
+    started_at index."""
+    return db.execute(select(Match, CLOSENESS).where(counted(Match.id)).order_by(Match.started_at.desc()).limit(LATEST_MATCHES)).all()
 
 
 @router.get("/api/overview/latest")
@@ -108,7 +110,7 @@ def latest_matches(request: Request):
     archive-wide and slow), this reads a handful of rows via an index, so a new match shows within a minute
     (Cloudflare keeps it ECHOVR_EDGE_CACHE_S). Same rows as overview["latest"]."""
     with request.app.state.sessionmaker() as db:
-        return [match_summary(m) for m in _latest_matches(db)]
+        return match_cards(db, _latest_matches(db), with_players=True)
 
 
 @router.get("/api/overview/processing")
