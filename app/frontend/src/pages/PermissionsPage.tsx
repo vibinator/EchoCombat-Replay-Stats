@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Navigate } from "react-router";
 import { changePermission, getPermissions, type DiscordEntry, type Permission, type PermissionState } from "../api";
+import { CloudRulesOverview } from "../components/CloudPermissions";
 import { Status } from "../components/common";
 
 const PERMISSIONS: { key: Permission; title: string; gives: string }[] = [
@@ -77,6 +78,7 @@ export function Permissions() {
               <PermissionCard key={p.key} permission={p.key} title={p.title} gives={p.gives} state={state} busy={busy} change={change} />
             ))}
           </div>
+          <CloudRulesOverview />
         </>
       )}
     </section>

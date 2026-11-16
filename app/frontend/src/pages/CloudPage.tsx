@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router";
-import { CloudPermissions } from "../components/CloudPermissions";
+import { CloudPermissions, PrincipalPicker } from "../components/CloudPermissions";
 import { droppedEntries, pickedFolder, readEntries, useUploadQueue, type Picked } from "../components/cloudUploads";
 import {
-  cloudDownloadUrl, deleteCloud, getCloud, getMe, loginUrl, makeCloudFolder, renameCloud,
-  type CloudEntry, type CloudListing,
+  cloudDownloadUrl, deleteCloud, getCloud, getMe, getPermissions, loginUrl, makeCloudFolder, renameCloud,
+  type CloudEntry, type CloudListing, type CloudPrincipal, type DiscordEntry,
 } from "../api";
 import { fileSize } from "../format";
 import { LocalTime, Status, TableWrap } from "../components/common";
@@ -44,10 +44,10 @@ export function CloudPage() {
       </section>
     );
   }
-  return <CloudBrowser />;
+  return <CloudBrowser isConsole={user.console} />;
 }
 
-function CloudBrowser() {
+function CloudBrowser({ isConsole }: { isConsole: boolean }) {
   const [params, setParams] = useSearchParams();
   const folder = params.get("path") ?? "";
   const [listing, setListing] = useState<CloudListing | null>(null);
@@ -55,22 +55,30 @@ function CloudBrowser() {
   const [busy, setBusy] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [reading, setReading] = useState(false); // a dropped folder is being read
-  const [permissionsOf, setPermissionsOf] = useState<string | null>(null); // console users: the item whose permissions are open
+  // console users: the item whose permissions are open is part of the address (Console > Permissions links to it)
+  const permissionsOf = isConsole ? params.get("perm") : null;
+  const [picked, setPicked] = useState<string[]>([]); // console users: rows ticked, to set one set of permissions on all
+  const [bulk, setBulk] = useState<string[] | null>(null); // their paths, while that dialog is open
+  const [viewAs, setViewAs] = useState<CloudPrincipal | null>(null); // console users: the cloud as this role / person sees it
+  const [choosing, setChoosing] = useState<CloudPrincipal | null | false>(false); // the "View as" picker (false = closed)
+  const [roles, setRoles] = useState<DiscordEntry[] | null>(null);
   const filesInput = useRef<HTMLInputElement>(null);
   const folderInput = useRef<HTMLInputElement>(null);
 
   const load = useCallback(() => {
-    getCloud(folder).then(
+    getCloud(folder, viewAs).then(
       (l) => {
         setListing(l);
         setError(null);
       },
       (e: Error) => setError(e.message),
     );
-  }, [folder]);
+  }, [folder, viewAs]);
   useEffect(() => {
     setListing(null);
-    setPermissionsOf(null);
+    setError(null);
+    setPicked([]);
+    setBulk(null);
     load();
   }, [load]);
   const checking = !!listing?.entries.some((e) => e.state === "scanning");
@@ -81,8 +89,13 @@ function CloudBrowser() {
   }, [checking, load]);
 
   const open = (path: string) => setParams(path ? { path } : {});
-  const canEdit = !!listing?.can_edit;
-  const canManage = !!listing?.can_manage;
+  const setPermissionsOf = (item: string | null) => {
+    setBulk(null);
+    setParams({ ...(folder ? { path: folder } : {}), ...(item ? { perm: item } : {}) }, { replace: true });
+  };
+  const canEdit = !!listing?.can_edit && !viewAs; // "View as" only looks
+  const canManage = isConsole && !viewAs;
+  const dialog = !canManage ? null : bulk ?? (permissionsOf ? [permissionsOf] : null);
   const queue = useUploadQueue(load);
   useEffect(() => { // React has no prop for it: the folder picker (Windows' "Select folder" dialog)
     folderInput.current?.setAttribute("webkitdirectory", "");
@@ -140,9 +153,18 @@ function CloudBrowser() {
     }
   }
 
-  function newFolder() {
-    const name = window.prompt("Folder name");
-    if (name && name.trim()) act(() => makeCloudFolder(folder, name.trim()));
+  function newFolder(isPrivate = false) {
+    const name = window.prompt(isPrivate ? "Name of the private folder (only console users see it until you add people)" : "Folder name");
+    if (!name || !name.trim()) return;
+    act(async () => {
+      const made = await makeCloudFolder(folder, name.trim(), false, isPrivate);
+      if (isPrivate) setPermissionsOf(made.path); // next: who may see it
+    });
+  }
+
+  function startViewAs() {
+    setChoosing(null);
+    if (!roles) getPermissions().then((s) => setRoles(s.server_roles), () => {});
   }
 
   const crumbs = folder ? folder.split("/") : [];
@@ -184,14 +206,55 @@ function CloudBrowser() {
             : !canEdit && " · you can download files; changing them needs edit permission here"}
         </p>
       )}
+      {viewAs && (
+        <p className="cloud-view-as" role="status">
+          <span>
+            Viewing as <strong>{viewAs.name === "?" ? viewAs.id : viewAs.name}</strong> ({viewAs.type === "role" ? "someone with only this role" : "this person"}):
+            what they see here. Nothing can be changed or downloaded in this view.
+          </span>
+          <button className="secondary" onClick={() => setViewAs(null)}>Back to my own view</button>
+        </p>
+      )}
       {error && <p className="error">{error}</p>}
-      {permissionsOf !== null && (
-        <CloudPermissions path={permissionsOf} onClose={() => setPermissionsOf(null)} onSaved={load} />
+      {canManage && (
+        <div className="cloud-actions">
+          {folder && <button className="secondary" disabled={busy} onClick={() => setPermissionsOf(folder)}>Permissions of this folder</button>}
+          {picked.length > 0 && (
+            <button className="secondary" disabled={busy} onClick={() => setBulk(picked.map((n) => join(folder, n)))}>
+              Permissions for {picked.length} selected
+            </button>
+          )}
+          <button className="secondary" disabled={busy} onClick={startViewAs}>View as…</button>
+        </div>
+      )}
+      {canManage && choosing !== false && (
+        <form
+          className="panel permission-add cloud-view-as-form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!choosing) return;
+            setViewAs(choosing);
+            setChoosing(false);
+          }}
+        >
+          <span className="muted">See the cloud as</span>
+          <PrincipalPicker roles={roles} value={choosing} onChange={setChoosing} />
+          <button type="submit" disabled={!choosing}>View</button>
+          <button type="button" className="secondary" onClick={() => setChoosing(false)}>Cancel</button>
+        </form>
+      )}
+      {dialog && (
+        <CloudPermissions paths={dialog} onClose={() => (bulk ? setBulk(null) : setPermissionsOf(null))} onSaved={load} />
       )}
       {canEdit && (
         <>
           <div className="cloud-actions">
-            <button className="secondary" disabled={busy} onClick={newFolder}>New folder</button>
+            <button className="secondary" disabled={busy} onClick={() => newFolder()}>New folder</button>
+            {canManage && (
+              <button className="secondary" disabled={busy} onClick={() => newFolder(true)} title="Private from the moment it exists; then add who may see it">
+                New private folder
+              </button>
+            )}
           </div>
           <div
             className={`upload-drop${dragging ? " dragging" : ""}`}
@@ -267,6 +330,20 @@ function CloudBrowser() {
                     {e.state === "unscanned" && (
                       <span className="tag" title="Too big for the virus scan: it was not checked">Not scanned</span>
                     )}{e.state === "unscanned" && " "}
+                    {canManage && (
+                      <input
+                        type="checkbox"
+                        className="cloud-pick"
+                        aria-label={`Select ${e.name}`}
+                        checked={picked.includes(e.name)}
+                        onChange={(ev) => setPicked(ev.target.checked ? [...picked, e.name] : picked.filter((n) => n !== e.name))}
+                      />
+                    )}
+                    {canManage && !e.private && !e.shared && listing.inherited && (
+                      <><span className="tag" title={`From the folder ${listing.inherited.path}: its permissions apply to everything inside it`}>
+                        {listing.inherited.private ? "Private" : "Shared"} (from {listing.inherited.path.split("/").pop()})
+                      </span>{" "}</>
+                    )}
                     {e.private && (
                       <><span className="tag" title="Only the roles and people listed in its permissions (and console users) can see it">Private</span>{" "}</>
                     )}
@@ -275,7 +352,7 @@ function CloudBrowser() {
                     )}
                     {e.dir ? (
                       <><span className="tag">Folder</span> <button className="link" onClick={() => open(join(folder, e.name))}>{e.name}</button></>
-                    ) : (
+                    ) : viewAs ? e.name : (
                       <a href={cloudDownloadUrl(join(folder, e.name))} download={e.name}>{e.name}</a>
                     )}
                   </td>
@@ -283,11 +360,11 @@ function CloudBrowser() {
                   <td data-label="Changed" className="nowrap"><LocalTime iso={new Date(e.modified * 1000).toISOString()} /></td>
                   <td>
                     <div className="cloud-row-actions">
-                      {!e.dir && <a href={cloudDownloadUrl(join(folder, e.name))} download={e.name}>Download</a>}
+                      {!e.dir && !viewAs && <a href={cloudDownloadUrl(join(folder, e.name))} download={e.name}>Download</a>}
                       {canManage && (
                         <button className="link" disabled={busy} onClick={() => setPermissionsOf(join(folder, e.name))}>Permissions</button>
                       )}
-                      {e.can_edit && (
+                      {e.can_edit && !viewAs && (
                         <>
                           <button className="link" disabled={busy} onClick={() => rename(e)}>Rename</button>
                           <button className="link danger" disabled={busy} onClick={() => remove(e)}>Delete</button>

@@ -4616,6 +4616,81 @@ button.small {
   align-items: center;
   margin: 0;
 }
+.cloud-permissions-more summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.cloud-permissions-more .permission-list {
+  margin: 6px 0;
+}
+.cloud-permissions-more .permission-list li > :last-child {
+  margin-left: auto;
+}
+.cloud-permissions-history {
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.85rem;
+}
+.cloud-permissions-history li {
+  padding: 2px 0;
+  overflow-wrap: anywhere;
+}
+/* a person found by name: the matches open below the box */
+.person-picker {
+  display: flex;
+  flex: 1 1 220px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  min-width: 0;
+}
+.person-picker input {
+  flex: 1 1 160px;
+  min-width: 0;
+}
+.person-picker code,
+.person-found code {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+.person-found {
+  flex: 1 1 100%;
+  max-height: 220px;
+  margin: 0;
+  padding: 6px 10px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  list-style: none;
+}
+.person-found li {
+  padding: 3px 0;
+  overflow-wrap: anywhere;
+}
+/* Cloud page, console users: "View as" banner and picker, row checkboxes; Console: the list of all rules */
+.cloud-view-as {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin: 12px 0;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+.cloud-view-as-form {
+  align-items: center;
+  margin: 12px 0;
+}
+.cloud-pick {
+  margin: 0 8px 0 0;
+  vertical-align: middle;
+}
+.cloud-rules {
+  margin-top: 24px;
+}
 .cloud-log input[type="search"] {
   width: min(100%, 420px);
   margin: 8px 0 12px;
