@@ -1984,6 +1984,7 @@ td.best {
 .podium {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
+  max-width: 960px; /* about the table's width, so the podium sits over it on a wide screen */
   align-items: end;
   gap: 8px;
   margin: 12px 0;
@@ -2073,6 +2074,7 @@ td.best {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
   gap: 10px;
+  max-width: 1420px; /* five cards a row at most: the bigger groups fill a row, wide screens do not spread them thin */
 }
 .lb-cards.wide { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); margin-top: 14px; }
 .lb-card {
