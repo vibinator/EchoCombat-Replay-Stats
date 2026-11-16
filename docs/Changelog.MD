@@ -18,6 +18,14 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.16.19 — 14:00
+
+- **Fixed: the "Compare" button on player profiles did nothing** (since 2026.11.16.12). The Compare page had moved into
+  a Compare tab on the profile, but the tab itself was never added: the button, old `/compare` links and the
+  Leaderboard's "Compare selected" all landed on the profile's Overview. The **Compare** tab is now there (last tab,
+  always shown); the button opens it, other players are added by search (`?vs=`), the heatmap map is kept (`?cmp_map=`),
+  and old links and "Compare selected" open it with their players and period.
+
 ## 2026.11.16.18 — 13:56
 
 - **Home strip: a rolling week with trends instead of the calendar week.** "This week" restarted every Monday (on a

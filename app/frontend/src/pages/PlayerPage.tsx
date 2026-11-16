@@ -12,6 +12,7 @@ import { GearName, MatchTable, NotFoundBox, Status, TableWrap, TeamBadge, isNotF
 import { HEATMAP_CELL_M, HEATMAP_MODES, HeatmapView } from "../components/HeatmapView";
 import { PlayerAvatar, PlayerBio, usePlayerBio } from "../components/PlayerBio";
 import { InfoTip, MoreCard, Skeleton, useActiveTabInView, useColumns } from "../components/ui";
+import { CompareView } from "../components/CompareView";
 import { MAPS, dateTime, hoursMinutes, int, nameSlug, num, pct, periodLabel, playerPath, title } from "../format";
 import { useApi } from "../useApi";
 import { usePageTitle } from "../usePageTitle";
@@ -197,7 +198,7 @@ function GameFacts({ c, onOpen }: { c: CombatPlayerStats | null; onOpen: () => v
   );
 }
 
-function ProfileHeader({ p, combat, onOpenCombat }: { p: PlayerProfile; combat: CombatPlayerStats | null; onOpenCombat: () => void }) {
+function ProfileHeader({ p, combat, onOpenCombat, onCompare }: { p: PlayerProfile; combat: CombatPlayerStats | null; onOpenCombat: () => void; onCompare: () => void }) {
   const main = p.loadouts[0];
   // no `result` while win-loss stats are hidden from players: no form strip then
   const form = p.recent_matches.slice(0, 10).filter((m) => m.result !== undefined);
@@ -237,9 +238,9 @@ function ProfileHeader({ p, combat, onOpenCombat }: { p: PlayerProfile; combat: 
         </div>
       </div>
       <div className="profile-actions">
-        <Link className="button secondary" to={`/compare?players=${p.user_id}`}>
+        <button type="button" className="button secondary" onClick={onCompare}>
           Compare
-        </Link>
+        </button>
       </div>
     </div>
   );
@@ -458,7 +459,7 @@ function PlayerHeatmap({ userId, period, maps }: { userId: string; period: Perio
   );
 }
 
-type PlayerTab = "overview" | "combat" | "achievements" | "gear" | "trends" | "companions" | "heatmap";
+type PlayerTab = "overview" | "combat" | "achievements" | "gear" | "trends" | "companions" | "heatmap" | "compare";
 const PLAYER_TABS: [PlayerTab, string, string][] = [
   ["overview", "Overview", "Recent matches"],
   ["combat", "Recorder stats", "Separate data: kills, damage"],
@@ -467,6 +468,7 @@ const PLAYER_TABS: [PlayerTab, string, string][] = [
   ["trends", "Trends", "How they change over time"],
   ["companions", "Played with", "Teammates and opponents"],
   ["heatmap", "Heatmap", "Where they spend the match"],
+  ["compare", "Compare", "Side by side with others"],
 ];
 
 /** Which parts of the page the period / map filter changes, for the line under it (it used to look like it set every tab). */
@@ -480,6 +482,7 @@ function filterScope(tab: PlayerTab): string {
     case "trends": return `${base} only. Trends always cover all time, by week, month or year.`;
     case "companions": return `${base} only. Played with has its own time window.`;
     case "achievements": return `${base} only. Achievements always count all time.`;
+    case "compare": return `${base}. The comparison follows the period (all its players) but not the map; its heatmaps have their own map choice.`;
   }
 }
 
@@ -508,7 +511,7 @@ export function PlayerPage() {
   const hasCombat = !!combat.data?.matches && !!combat.data.stats;
   // the header's "From the game" line is all time: the same cached request as the tab when no filter is set
   const combatAll = useApi(() => getCombatPlayer(userId, "all"), `combat|${userId}|all|`);
-  const tabs = PLAYER_TABS.filter(([t]) => (t !== "combat" || hasCombat) && (hasGames || t === "overview" || t === "achievements" || t === "combat"));
+  const tabs = PLAYER_TABS.filter(([t]) => (t !== "combat" || hasCombat) && (hasGames || t === "overview" || t === "achievements" || t === "combat" || t === "compare")); // compare always: the header's button opens it
   const asked = params.get("tab") === "beta" ? "combat" : params.get("tab"); // ?tab=beta: older links to this tab
   const tab = tabs.some(([t]) => t === asked) ? (asked as PlayerTab) : "overview";
   const tabStrip = useActiveTabInView(`${tab}|${tabs.length}|${!!p}`);
@@ -539,7 +542,7 @@ export function PlayerPage() {
       {isNotFound(profile.error) ? <PlayerNotFound /> : <Status loading={false} error={profile.error} />}
       {p && (
         <>
-          <ProfileHeader p={p} combat={combatAll.data} onOpenCombat={() => setTab("combat")} />
+          <ProfileHeader p={p} combat={combatAll.data} onOpenCombat={() => setTab("combat")} onCompare={() => setTab("compare")} />
 
           {tab !== "achievements" && <AchievementsStrip userId={p.user_id} onOpen={() => setTab("achievements")} />}
 
@@ -641,6 +644,13 @@ export function PlayerPage() {
           {tab === "trends" && <Trends userId={p.user_id} />}
           {tab === "companions" && <Companions userId={p.user_id} />}
           {tab === "heatmap" && p.stats.games > 0 && <PlayerHeatmap userId={p.user_id} period={period} maps={p.stats.games_by_map} />}
+          {/* the Compare page lives here since 2026.11.16.12: the others in ?vs=, the heatmap map in ?cmp_map= (App.tsx
+              CompareRedirect and the Leaderboard's "Compare selected" link here) */}
+          {tab === "compare" && (
+            <CompareView userId={p.user_id} name={p.name} period={period}
+              others={(params.get("vs") ?? "").split(",").filter(Boolean)} setOthers={(ids) => set("vs", ids.join(","))}
+              map={params.get("cmp_map") || MAPS.find((m) => p.stats.games_by_map[m]) || MAPS[0]} setMap={(m) => set("cmp_map", m)} />
+          )}
         </>
       )}
     </section>
