@@ -38,6 +38,8 @@ class Settings:
     discord_bot_token: str = ""
     discord_guild_id: str = DISCORD_GUILD_ID
     discord_preview_roles: tuple[str, ...] = ()  # role ids; any one of them gives preview access
+    # role and / or user ids that are always Cloud admin (ECHOVR_DISCORD_CLOUD_ADMINS): separate from the preview roles
+    discord_cloud_admins: tuple[str, ...] = ()
     # Shared secret the Discord bot sends (Authorization: Bearer ...) to link Discord accounts to players; "" = off
     bot_link_secret: str = ""
     # "Process replays on another PC" (remote.py): the PC (remote_worker.bat) sends this secret; "" = the endpoints do not exist
@@ -118,6 +120,7 @@ class Settings:
             virustotal_min_engines=int(env("ECHOVR_VIRUSTOTAL_MIN_ENGINES", 3)),
             cloud_quota_gb=float(env("ECHOVR_CLOUD_QUOTA_GB", 250)),
             discord_preview_roles=tuple(r.strip() for r in _secret(env("ECHOVR_DISCORD_PREVIEW_ROLES")).split(",") if r.strip()),
+            discord_cloud_admins=tuple(r.strip() for r in _secret(env("ECHOVR_DISCORD_CLOUD_ADMINS")).split(",") if r.strip()),
         )
 
     @property

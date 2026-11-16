@@ -13,8 +13,9 @@ A rule belongs to one path and has two parts:
 Three levels (user, 2026-11-16): "view" = download; "edit" = also upload, new folder, rename, delete; "admin" = also
 sets the permissions of the item and of everything inside it (and sees who has what there). Admin on the whole cloud
 is the Cloud admin permission, set like Cloud view and Cloud edit on the Cloud page by Cloud admins. The Cloud is
-separate from the Console: a console user has no Cloud permission unless given one. The owner's ids in the YAML
-(ECHOVR_DISCORD_PREVIEW_ROLES) are always Cloud admin, so the cloud cannot be locked.
+separate from the Console: a console user has no Cloud permission unless given one. Admin (the permission) includes
+Cloud admin, and the owner's ids in the YAML (ECHOVR_DISCORD_CLOUD_ADMINS, not the preview roles) are always Cloud admin,
+so the cloud cannot be locked.
 
 A person's level on a path: start with their whole-Cloud level, then walk down from the top folder; each rule on the
 way either adds its grant (the higher level wins) or, when private, replaces the level with its grant. A rule deeper

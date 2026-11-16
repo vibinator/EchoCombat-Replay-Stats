@@ -20,6 +20,7 @@ Working record of what changed in each release, newest first.
 
 ## 2026.11.16.6 — 08:25
 
+- **Cloud admin is separate from the preview roles** (your choice): `ECHOVR_DISCORD_PREVIEW_ROLES` no longer gives Cloud admin. Cloud admin comes from the **Admin** permission (it includes Cloud admin now), the Cloud page, or the new `ECHOVR_DISCORD_CLOUD_ADMINS` in the YAML (role and / or user ids, cannot be removed on the page). If you were Cloud admin only through the preview roles, you now need one of those.
 - **Way back into the Cloud:** the Cloud is separate from the Console, so an admin with no Cloud permission could not open the Cloud page to grant one. `admin.bat cloud-admins --add-user <your Discord user id>` makes a person Cloud admin (`--add-role` for a role; with no options it lists who is).
 
 ## 2026.11.16.5 — 08:16

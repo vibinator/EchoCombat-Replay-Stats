@@ -452,9 +452,10 @@ def cmd_cloud_admins(sessions, settings: Settings, add_user: str | None = None, 
     print("Cloud admins (roles):")
     for r in roles:
         print(f"  {r}")
-    for r in settings.discord_preview_roles:
-        print(f"  {r}   (from ECHOVR_DISCORD_PREVIEW_ROLES, change it there)")
-    if not (users or roles or settings.discord_preview_roles):
+    for r in settings.discord_cloud_admins:
+        print(f"  {r}   (from ECHOVR_DISCORD_CLOUD_ADMINS, change it there)")
+    print("Everyone with the Admin permission is Cloud admin too.")
+    if not (users or roles or settings.discord_cloud_admins):
         print("  none yet")
 
 

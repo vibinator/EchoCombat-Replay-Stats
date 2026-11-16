@@ -32,6 +32,7 @@ npm install
 | `ECHOVR_DISCORD_BOT_TOKEN` | – | Bot that checks the preview role (D41). Secret: never in GitHub |
 | `ECHOVR_BOT_LINK_SECRET` | – | Shared secret the Discord bot sends as `Authorization: Bearer <secret>` to link Discord accounts to players (D54). Unset = bot linking off. Secret: never in GitHub |
 | `ECHOVR_REMOTE_WORKER_SECRET` | – | "Process replays on another PC" (see Remote processing): the PC sends it as `Authorization: Bearer <secret>`. Unset = the endpoints do not exist. Use a long random value; secret: never in GitHub |
+| `ECHOVR_DISCORD_CLOUD_ADMINS` | – | Optional: role id(s) and / or Discord user id(s), comma-separated, that are always Cloud admin and cannot be removed on the Cloud page. Separate from `ECHOVR_DISCORD_PREVIEW_ROLES`. Unset = none (the Admin permission and `admin.bat cloud-admins` still work) |
 | `ECHOVR_DISCORD_PREVIEW_ROLES` | – | Optional: role id(s) and / or Discord user id(s), comma-separated. Those people get the preview **and the website's Console page (admin.bat on the website, D45)**. For the preview alone use admin console option 14 |
 | `ECHOVR_RATE_LIMIT_PER_MIN` | `60` | Scraper protection (D48): website data requests per visitor per minute, bursts up to twice that; heatmaps, playback, compare and downloads count 5. `0` = no limit |
 | `ECHOVR_RATE_LIMIT_PER_HOUR` | `1500` | Same, per visitor per hour (no burst above it). `0` = no hourly limit |
@@ -224,7 +225,7 @@ Giving or removing the role in Discord takes effect within 5 minutes. A login la
 The **Cloud** tab (`https://echocombat.com/cloud`) shows only to people logged in with Discord who have a Cloud
 permission. Cloud admins give it on the Cloud page (All permissions): **Cloud view** = see and download files,
 **Cloud edit** = also upload, make folders, rename, move and delete. The Cloud is separate from the Console: a
-console user gets in only when listed there. The ids in `ECHOVR_DISCORD_PREVIEW_ROLES` are always Cloud admin. **Cloud admin** = also decides who gets into which folder. These cover the whole cloud. For one folder (D61), an
+console user gets in only when listed there. People with the **Admin** permission are Cloud admin too, and so are the ids in `ECHOVR_DISCORD_CLOUD_ADMINS` (see the table; not the preview roles). **Cloud admin** = also decides who gets into which folder. These cover the whole cloud. For one folder (D61), an
 admin presses **Permissions** beside it on the Cloud page: click a Discord role or type a person's name to add them
 (View, Edit or Admin; they get in even without a Cloud permission and see only what is shared with them), and tick
 **Private** to hide the folder from everyone not listed. A folder's permissions apply to everything inside it; files

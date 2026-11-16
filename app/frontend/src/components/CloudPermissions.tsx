@@ -407,7 +407,7 @@ export function CloudAccessPanel() {
                     <li key={`fixed-${e.id}`}>
                       <span className="tag">{e.type === "role" ? "Role" : "Person"}</span>
                       <span className="permission-name">{who(e)}</span>
-                      <span className="tag" title="The owner, set in ECHOVR_DISCORD_PREVIEW_ROLES (the YAML): always Cloud admin, so the cloud cannot be locked">
+                      <span className="tag" title="The owner, set in ECHOVR_DISCORD_CLOUD_ADMINS (the YAML): always Cloud admin, so the cloud cannot be locked">
                         Owner, fixed
                       </span>
                     </li>

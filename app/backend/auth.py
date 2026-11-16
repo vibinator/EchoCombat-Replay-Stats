@@ -478,20 +478,23 @@ def viewer(request: Request) -> dict | None:
 
 def allowed(settings: Settings, db, user_id: str, kind: str, roles: Callable[[], frozenset[str]]) -> bool:
     """Whether a person has permission `kind` ("admin" / "console" / "preview" / "cloud_view" / "cloud_edit" /
-    "cloud_admin"; Cloud admin includes Cloud edit. The Cloud is separate from the Console: a console user has no
-    Cloud permission unless given one): by
+    "cloud_admin"; Cloud admin includes Cloud edit, and Admin includes Cloud admin. The Cloud is separate from the
+    Console: a console user has no Cloud permission unless given one): by
     their user id or one of their Discord roles (Permissions page). ECHOVR_DISCORD_PREVIEW_ROLES ids (YAML) always give
-    the console. Admins and console users also get the preview; console users get Cloud edit, and Cloud edit includes
+    the console, ECHOVR_DISCORD_CLOUD_ADMINS ids Cloud admin. Admins and console users also get the preview; console users get Cloud edit, and Cloud edit includes
     Cloud view. `roles` is only called when an id does not settle it."""
     if kind == "cloud_view" and allowed(settings, db, user_id, "cloud_edit", roles):
         return True
     if kind == "cloud_edit" and allowed(settings, db, user_id, "cloud_admin", roles):
         return True
+    if kind == "cloud_admin" and allowed(settings, db, user_id, "admin", roles):  # Admin includes Cloud admin (user, 2026-11-16)
+        return True
     if kind == "preview" and (allowed(settings, db, user_id, "admin", roles) or allowed(settings, db, user_id, "console", roles)):
         return True
-    # the YAML ids give the Console, so it cannot be locked out of. They do not give the Cloud: Cloud admin is its own
-    # permission, set on the Cloud page or with admin.bat cloud-admins (user, 2026-11-16: separate from the preview roles)
-    ids = set(settings.discord_preview_roles) if kind == "console" else set()
+    # the YAML ids are the owner's and cannot be removed on the page: ECHOVR_DISCORD_PREVIEW_ROLES gives the Console,
+    # ECHOVR_DISCORD_CLOUD_ADMINS gives Cloud admin (user, 2026-11-16: the two are separate)
+    ids = (set(settings.discord_preview_roles) if kind == "console"
+           else set(settings.discord_cloud_admins) if kind == "cloud_admin" else set())
     if user_id in ids | set(discord_roles(db, f"{kind}_user")):
         return True
     role_ids = ids | set(discord_roles(db, kind))

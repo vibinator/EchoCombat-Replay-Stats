@@ -31,8 +31,13 @@ def _server_roles(settings) -> list[dict] | None:
         return None
 
 
+def fixed_ids(settings, kinds: tuple[str, ...]) -> tuple[str, ...]:
+    """The YAML ids that cannot be removed on the page: the preview roles give the Console, the Cloud admin ids Cloud admin."""
+    return settings.discord_cloud_admins if "cloud_admin" in kinds else settings.discord_preview_roles
+
+
 def state(request: Request, kinds: tuple[str, ...] = SITE_PERMISSIONS) -> dict:
-    """The lists of `kinds`, with names. fixed: the YAML ids, which always give the Console (and Cloud admin)."""
+    """The lists of `kinds`, with names. fixed: the YAML ids (fixed_ids)."""
     settings = request.app.state.settings
     server = _server_roles(settings)
     names = {r["id"]: r["name"] for r in server or []}
@@ -40,7 +45,7 @@ def state(request: Request, kinds: tuple[str, ...] = SITE_PERMISSIONS) -> dict:
     with request.app.state.sessionmaker() as db:
         ids = {p: (discord_roles(db, p), discord_roles(db, f"{p}_user")) for p in kinds}
     # without the server's roles the YAML ids cannot be told apart: shown as roles when unsure
-    fixed_kind = {i: "user" if server is not None and i not in server_ids else "role" for i in settings.discord_preview_roles}
+    fixed_kind = {i: "user" if server is not None and i not in server_ids else "role" for i in fixed_ids(settings, kinds)}
     people = auth.user_names(settings, [i for _, users in ids.values() for i in users]
                              + [i for i, kind in fixed_kind.items() if kind == "user"])
     lists = {p: {"roles": [{"id": i, "name": names.get(i, "?")} for i in roles],
@@ -69,8 +74,9 @@ def apply(request: Request, user: dict, change: Change, kinds: tuple[str, ...], 
     if change.permission not in kinds or change.type not in ("role", "user"):
         raise ApiError(400, "bad_permission", "Unknown permission or type")
     discord_id = change.id.strip()
-    if change.permission == fixed_for and discord_id in settings.discord_preview_roles:
-        raise ApiError(400, "fixed", "This id is set in ECHOVR_DISCORD_PREVIEW_ROLES (the YAML): change it there")
+    if change.permission == fixed_for and discord_id in fixed_ids(settings, kinds):
+        name = "ECHOVR_DISCORD_CLOUD_ADMINS" if fixed_for == "cloud_admin" else "ECHOVR_DISCORD_PREVIEW_ROLES"
+        raise ApiError(400, "fixed", f"This id is set in {name} (the YAML): change it there")
     server = _server_roles(settings)
     if not change.remove and server is not None:  # a person's id is not a role, and the other way round
         is_role = discord_id in {r["id"] for r in server}
