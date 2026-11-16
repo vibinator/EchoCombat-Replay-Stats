@@ -18,6 +18,8 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.16.3 — 07:24
+
 ## 2026.11.16.2 — 07:15
 
 - **Cloud: permissions per folder, three levels, and moving by drag and drop** (D61). Until now Cloud view / Cloud edit covered the whole cloud.

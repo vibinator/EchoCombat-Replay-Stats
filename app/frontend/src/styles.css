@@ -2523,9 +2523,20 @@ td.best {
 /* Permissions page: one card per permission */
 .permissions {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  /* six cards: two rows of three (site permissions, then the cloud ones), never five and one left over */
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
-  align-items: start;
+  align-items: stretch;
+}
+@media (max-width: 1100px) {
+  .permissions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 700px) {
+  .permissions {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 .permission-card {
   display: flex;
@@ -2566,6 +2577,28 @@ td.best {
 }
 .permission-list li > :last-child:is(button, .tag[title]) {
   margin-left: auto;
+}
+/* a card's rows: [Role / User] name ......... Remove, the Discord id small under the name */
+.permission-card .permission-list li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0 8px;
+}
+.permission-card .permission-list li > code {
+  grid-column: 2;
+  grid-row: 2;
+}
+.permission-card .permission-list li > :last-child:is(button, .tag[title]) {
+  grid-column: 3;
+  grid-row: 1 / span 2;
+  margin-left: 0;
+}
+.permission-card .permission-list li.muted {
+  display: block;
+}
+.permission-card .permission-add {
+  margin-top: auto; /* the add row sits at the bottom of every card of a row */
 }
 .permission-add {
   display: flex;
@@ -4536,7 +4569,7 @@ button.small {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin: 12px 0 0;
+  margin: 12px 0;
 }
 .cloud-uploads {
   margin: 0 0 16px;
@@ -4698,6 +4731,26 @@ button.small {
 .cloud-permissions .person-picker input,
 .cloud-view-as-form .person-picker input {
   flex: 1 1 100%;
+}
+/* inside these column boxes the picker must not grow: it left tall empty gaps above and below the box */
+.cloud-permissions .person-picker,
+.cloud-view-as-form .person-picker {
+  flex: 0 0 auto;
+}
+.cloud-permissions,
+.cloud-view-as-form {
+  max-width: 760px; /* a form, not a full-width band on a wide screen */
+}
+.cloud-permissions-private,
+.cloud-permissions-copy {
+  font-size: 0.9rem;
+}
+.cloud-permissions .permission-list li {
+  flex-wrap: nowrap;
+}
+.cloud-permissions .permission-list .permission-name {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 .person-found .tag {
   margin-left: 0;

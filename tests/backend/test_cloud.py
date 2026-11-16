@@ -698,8 +698,8 @@ def test_move_into_another_folder(tmp_path, discord):
         assert names(client) == ["Team"] and names(client, "Team") == ["Deep", "open.txt", "plan.txt"]
         assert client.post(MOVE, json={"path": "Team/open.txt", "to": ""}, headers=CONSOLE).json() == {"path": "open.txt"}
         assert client.post(MOVE, json={"path": "open.txt", "to": ""}, headers=CONSOLE).json()["error_code"] == "exists"
-        assert client.post(MOVE, json={"path": "Team", "to": "Team/Deep"}, headers=CONSOLE).json()["error_code"] == "bad_path"
-        assert client.post(MOVE, json={"path": "Team", "to": "Team"}, headers=CONSOLE).json()["error_code"] == "bad_path"
+        # Team holds a folder with its own permissions: moving it needs their admin, Cloud edit is not enough
+        assert client.post(MOVE, json={"path": "Team", "to": "Secret"}, headers=CONSOLE).json()["error_code"] == "admin_only"
         assert client.post(MOVE, json={"path": "nope.txt", "to": "Team"}, headers=CONSOLE).status_code == 404
         assert client.post(MOVE, json={"path": "open.txt", "to": "Nope"}, headers=CONSOLE).status_code == 404
         assert client.post(MOVE, json={"path": "open.txt", "to": "../x"}, headers=CONSOLE).status_code == 400
@@ -715,6 +715,8 @@ def test_move_into_another_folder(tmp_path, discord):
 
         client.cookies.clear()
         login(client, MEMBER)  # console: a file moved into the private folder is private from then on
+        assert client.post(MOVE, json={"path": "Team", "to": "Team/Deep"}, headers=CONSOLE).json()["error_code"] == "bad_path"
+        assert client.post(MOVE, json={"path": "Team", "to": "Team"}, headers=CONSOLE).json()["error_code"] == "bad_path"
         assert client.post(MOVE, json={"path": "open.txt", "to": "Secret"}, headers=CONSOLE).json() == {"path": "Secret/open.txt"}
         # a folder takes its own permissions along
         assert client.post(MOVE, json={"path": "Team/Deep", "to": ""}, headers=CONSOLE).json() == {"path": "Deep"}
@@ -728,3 +730,68 @@ def test_move_into_another_folder(tmp_path, discord):
         client.cookies.clear()
         login(client, NO_ROLE)
         assert names(client) == ["Deep"] and names(client, "Deep") == ["inner.txt"]
+
+
+def test_a_later_chunk_cannot_send_the_file_somewhere_else(tmp_path, discord):
+    """Security review, 2026-11-16: the folder is checked when the file starts AND when it lands."""
+    with app_client(settings(tmp_path)) as client:
+        tree(client)
+        grant(client, "cloud_edit", "role", DB_ROLE)
+        assert rule(client, "Secret", private=True).status_code == 200
+        login(client, DB_MEMBER)
+        upload = secrets.token_hex(16)
+        base = {"upload": upload, "total": 6}
+        ok = client.post("/api/cloud/upload", params=base | {"name": "a.txt", "path": "Team", "offset": 0}, content=b"abc", headers=CONSOLE)
+        assert ok.json()["done"] is False
+        r = client.post("/api/cloud/upload", params=base | {"name": "key.txt", "path": "Secret", "offset": 3, "overwrite": True},
+                        content=b"def", headers=CONSOLE)
+        assert r.status_code == 403
+        assert not list((tmp_path / "data" / "cloud-uploads").glob("*.part"))
+        client.cookies.clear()
+        login(client, MEMBER)
+        assert client.get("/api/cloud/download", params={"path": "Secret/key.txt"}).content == b"key.txt"  # untouched
+        assert names(client, "Secret") == ["key.txt"] and names(client, "Team") == ["Deep", "plan.txt"]
+
+
+def test_a_folder_with_permissions_is_deleted_or_moved_only_by_its_admin(tmp_path, discord):
+    """Security review, 2026-11-16: an editor of a private folder cannot delete it and put an open one in its place."""
+    with app_client(settings(tmp_path)) as client:
+        tree(client)
+        assert rule(client, "Secret", private=True, grants=[("role", DB_ROLE, "edit"), ("user", NO_ROLE, "admin")]).status_code == 200
+        login(client, DB_MEMBER)  # edit inside Secret
+        assert put(client, "mine.txt", b"x", path="Secret").json()["done"] is True
+        assert client.post("/api/cloud/delete", json={"path": "Secret/mine.txt"}, headers=CONSOLE).status_code == 200  # files: yes
+        r = client.post("/api/cloud/delete", json={"path": "Secret"}, headers=CONSOLE)
+        assert r.status_code == 403 and r.json()["error_code"] == "admin_only"
+        assert client.post("/api/cloud/folder", json={"path": "Secret", "name": "Sub"}, headers=CONSOLE).status_code == 200
+        assert client.post("/api/cloud/move", json={"path": "Secret/Sub", "to": "Secret"}, headers=CONSOLE).json()["error_code"] == "exists"
+        r = client.post("/api/cloud/rename", json={"path": "Secret", "name": "Open"}, headers=CONSOLE)
+        assert r.json() == {"path": "Open"}  # a rename keeps the permissions: still private
+        client.cookies.clear()
+        login(client, MEMBER)
+        assert client.get(RULES, params={"path": "Open"}).json()["private"] is True
+        client.cookies.clear()
+        login(client, NO_ROLE)  # its admin may
+        assert client.post("/api/cloud/delete", json={"path": "Open"}, headers=CONSOLE).status_code == 200
+
+
+def test_names_that_differ_only_by_case_are_refused(tmp_path, discord):
+    """Security review, 2026-11-16: on the NAS "Secret" and "SECRET" would be two folders sharing one set of
+    permissions. Only a file system that tells them apart can show it (Linux, like the NAS)."""
+    probe = tmp_path / "Probe"
+    probe.mkdir()
+    if (tmp_path / "PROBE").exists():
+        pytest.skip("this file system does not tell upper from lower case (Windows); runs on Linux, like the NAS")
+    with app_client(settings(tmp_path)) as client:
+        tree(client)
+        grant(client, "cloud_edit", "role", DB_ROLE)
+        assert rule(client, "Secret", private=True, grants=[("role", DB_ROLE, "edit")]).status_code == 200
+        login(client, DB_MEMBER)
+        assert client.post("/api/cloud/folder", json={"name": "SECRET"}, headers=CONSOLE).json()["error_code"] == "exists"
+        assert client.post("/api/cloud/folder", json={"path": "SECRET", "name": "x", "parents": True}, headers=CONSOLE).status_code == 409
+        assert put(client, "OPEN.TXT", b"x").json()["error_code"] == "exists"
+        assert client.post("/api/cloud/rename", json={"path": "Team", "name": "SECRET"}, headers=CONSOLE).status_code == 409
+        assert client.post("/api/cloud/rename", json={"path": "Team", "name": "TEAM"}, headers=CONSOLE).json() == {"path": "TEAM"}
+        client.cookies.clear()
+        login(client, MEMBER)
+        assert client.get(RULES, params={"path": "Secret"}).json()["private"] is True

@@ -7,6 +7,7 @@ it, and so does every refusal of a logged-in person (no permission, no space, a 
 logged: there is nobody to name. Console users read it at /api/cloud/log (Console > Audit log > Cloud audit log)."""
 
 import logging
+import time
 from urllib.parse import quote
 
 from fastapi import APIRouter, Query, Request
@@ -178,14 +179,22 @@ def make_folder(request: Request, body: Target):
     return result
 
 
-def _whole(request: Request, user: dict, acl: cloud_acl.Access, action: str, path: str, rel: str) -> None:
-    """Rename / delete: edit on the item and on everything inside it that has its own permissions."""
+def _whole(request: Request, user: dict, acl: cloud_acl.Access, action: str, path: str, rel: str,
+           takes_rules: bool = False) -> None:
+    """Rename / move / delete: edit on the item and on everything inside it that has its own permissions.
+    takes_rules (move, delete; security review 2026-11-16): a folder with permissions of its own, or holding folders
+    that have them, needs their admin. Otherwise an editor of a private folder could delete it and make a new, open
+    folder under the same name, or move a shared folder to where other people see it."""
     if not acl.can_change(rel):
         level = acl.level(rel)
         if cloud_acl.edits(level):
             _audit(request, user, "denied", path, False, f"{action}: holds items this person cannot change")
             raise ApiError(403, "cloud_only", "This folder holds items you do not have permission to change")
         _deny(request, user, action, path, level)
+    if takes_rules and not acl.owns(rel):
+        _audit(request, user, "denied", path, False, f"{action}: has its own permissions, needs their admin")
+        raise ApiError(403, "admin_only", "This folder has its own permissions (or holds folders that do): only an admin "
+                                          f"of them can {action} it")
 
 
 @router.post("/rename")
@@ -195,8 +204,11 @@ def rename(request: Request, body: Target):
     try:
         rel = cloud_acl.clean(body.path)
         _whole(request, user, acl, "rename", body.path, rel)
-        level = acl.level(cloud_acl.join(rel.rpartition("/")[0], cloud.check_name(body.name)))
-        if not cloud_acl.edits(level):  # the new name has permissions of its own that keep this person out
+        new = cloud_acl.join(rel.rpartition("/")[0], cloud.check_name(body.name))
+        # the folder it is in stays the same and its own permissions go with it: only permissions left on the new
+        # name itself (of something removed outside the site) can keep this person out
+        level = acl.level(new)
+        if new.casefold() != rel.casefold() and new.casefold() in acl.rules and not cloud_acl.edits(level):
             _deny(request, user, "rename", body.path, level)
         result = cloud.rename(request.app.state.settings, rel, body.name)
         if rel and result["path"] != rel:
@@ -220,7 +232,7 @@ def move(request: Request, body: Move):
     user, acl = _enter(request, "move", body.path, fresh=True)
     try:
         rel, to = cloud_acl.clean(body.path), cloud_acl.clean(body.to)
-        _whole(request, user, acl, "move", body.path, rel)
+        _whole(request, user, acl, "move", body.path, rel, takes_rules=True)
         new = cloud_acl.join(to, rel.rpartition("/")[2])
         level = acl.level(new)
         if not cloud_acl.edits(level):
@@ -238,7 +250,7 @@ def delete(request: Request, body: Target):
     user, acl = _enter(request, "delete", body.path, fresh=True)
     try:
         rel = cloud_acl.clean(body.path)
-        _whole(request, user, acl, "delete", body.path, rel)
+        _whole(request, user, acl, "delete", body.path, rel, takes_rules=True)
         gone = cloud.delete(request.app.state.settings, rel, user, cloud_acl.stash(acl, rel) if rel else None)
         cloud_acl.forget(request.app.state.sessionmaker, rel)  # kept in the recycle bin note, back with a restore
     except CloudError as e:
@@ -384,6 +396,13 @@ async def upload(request: Request, name: str, upload: str, offset: int, total: i
             await run_in_threadpool(f.write, block)
     if received < total:
         return {"done": False, "received": received}
+    if not first:  # security review, 2026-11-16: this request's own path and name decide where the file lands, and only
+        # the first chunk's were checked: a later chunk could name a folder this person may not write to
+        try:
+            await run_in_threadpool(_may_upload, request, where, path, name, total)
+        except ApiError:
+            part.unlink(missing_ok=True)
+            raise
     try:
         target = await run_in_threadpool(cloud.upload_target, settings, path, name, overwrite)  # still free?
         replacing = target.is_file()
@@ -521,6 +540,19 @@ def all_permissions(request: Request):
     return {"rules": out, "server_roles": _server_roles(settings)}
 
 
+SEARCHES_PER_MIN = 30  # Discord member searches for everyone together: the bot's rate limit is also needed for logins
+_searches: list[float] = []
+
+
+def _search_budget() -> bool:
+    now = time.monotonic()
+    _searches[:] = [t for t in _searches if now - t < 60]
+    if len(_searches) >= SEARCHES_PER_MIN:
+        return False
+    _searches.append(now)
+    return True
+
+
 @router.get("/people")
 def people(request: Request, q: str = Query("", max_length=60)):
     """Find a person's Discord id by name (cloud admins): players seen in matches, people in the cloud audit log,
@@ -536,7 +568,7 @@ def people(request: Request, q: str = Query("", max_length=60)):
     found: dict[str, dict] = {}
     like = f"%{term}%"
     try:  # the server's own members first: the name the admin knows from Discord
-        if settings.discord_bot_token:
+        if settings.discord_bot_token and _search_budget():
             r = auth._bot_get(settings, f"/guilds/{settings.discord_guild_id}/members/search?query={quote(term)}&limit=10")
             for m in r.json() if r.status_code == 200 else []:
                 u = m.get("user") or {}

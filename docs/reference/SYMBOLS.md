@@ -48,9 +48,9 @@ Discord login for achievement previews (D41). Only GET requests: the website sta
 Small Discord pictures for the name lists (user, 2026-11-06): Players, Leaderboard, Achievements.
 - `MAX_IDS`:22 / pictures:25 / get_avatars:82
 
-### `app/backend/api/cloud.py` (625 lines)
+### `app/backend/api/cloud.py` (657 lines)
 Open Cloud endpoints (cloud.py): Discord login + the Cloud view / Cloud edit permission (Permissions page).
-- `WRITE_BLOCK`:24 / **class BigBlockFileResponse**:27 / _audit:31 / _enter:38 / _deny:51 / _fail:61 / listing:67 / download:121 / **class Target**:144 / make_folder:152 / _whole:181 / rename:192 / **class Move**:210 / move:216 / delete:237 / _require_console:252 / trash:263 / **class TrashChoice**:273 / trash_restore:279 / trash_purge:292 / upload_status:308 / _may_upload:319 / upload:332 / quarantine:410 / quarantine_delete:420 / quarantine_release:431 / scan_all:444 / _admin:462 / _names:473 / _rule_state:479 / all_permissions:503 / people:525 / item_permissions:564 / **class Rule**:573 / set_item_permissions:580 / audit_log:619
+- `WRITE_BLOCK`:25 / **class BigBlockFileResponse**:28 / _audit:32 / _enter:39 / _deny:52 / _fail:62 / listing:68 / download:122 / **class Target**:145 / make_folder:153 / _whole:182 / rename:201 / **class Move**:222 / move:228 / delete:249 / _require_console:264 / trash:275 / **class TrashChoice**:285 / trash_restore:291 / trash_purge:304 / upload_status:320 / _may_upload:331 / upload:344 / quarantine:429 / quarantine_delete:439 / quarantine_release:450 / scan_all:463 / _admin:481 / _names:492 / _rule_state:498 / all_permissions:522 / `SEARCHES_PER_MIN`:543 / _search_budget:547 / people:557 / item_permissions:596 / **class Rule**:605 / set_item_permissions:612 / audit_log:651
 
 ### `app/backend/api/combat.py` (310 lines)
 Combat stats endpoints (user, 2026-11-04): the game's own counters and the event-log numbers from the recorder's match
@@ -113,13 +113,13 @@ Discord login, only for previewing achievements before their launch date (D41). 
 Caches for answers built from the archive: home page, leaderboard, profiles, heatmaps, match views (D53). Keyed on
 - `STAMP_TTL_S`:49 / `MAX_VALUES`:50 / `MAX_RESPONSES`:51 / `MAX_RESPONSE_BYTES`:52 / `GZIP_LEVEL`:53 / `STATUS_HEADER`:54 / bump_generation:59 / data_stamp:64 / current_stamp:73 / **class Entry**:88 / **class Store**:97 [get:108, put:115, drop:125] / `DISK_FORMAT`:136 / `DISK_PRUNE_EVERY`:137 / `DISK_MAX_AGE_S`:138 / **class Disk**:141 [path:147, _read:150, used:162, stamp:169, load:174, save:183, prune:207] / _plain:227 / _disk:232 / _store:245 / _run:263 / _used:277 / _build_now:288 / _refresh:306 / _key:329 / _saving:333 / _lookup:343 / cached:367 / _response_entry:373 / cached_response:381 / prebuild:391 / etag_matches:405 / reply:413
 
-### `app/backend/cloud.py` (498 lines)
+### `app/backend/cloud.py` (531 lines)
 Open Cloud (user, 2026-11-10): file storage on the website for Discord members with the Cloud permission. Two
-- `CHUNK_MAX`:34 / `RESERVE_BYTES`:35 / `STALE_PART_S`:36 / `USAGE_RECOUNT_S`:37 / `TRASH_ID`:38 / `UPLOAD_ID`:39 / `BAD_CHARS`:40 / `MAX_DEPTH`:41 / `WINDOWS_NAMES`:42 / **class CloudError**:49 / root:55 / trash_root:61 / uploads:67 / check_name:73 / resolve:87 / relative_join:104 / make_box:109 / _walk_size:126 / relative:150 / _forget_usage:154 / used_bytes:160 / _adjust_usage:174 / quota_bytes:181 / listing:185 / file_for_download:211 / _make_parents:218 / make_folder:226 / rename:240 / move:254 / delete:275 / _box:291 / _info:300 / trash_items:308 / _free_name:325 / restore:341 / purge:358 / purge_all:368 / purge_expired:379 / _clean_stale_parts:395 / part_path:405 / _reserved:413 / upload_target:425 / start_upload:440 / finish_upload:458 / log:467 / log_rows:482
+- `CHUNK_MAX`:34 / `RESERVE_BYTES`:35 / `STALE_PART_S`:36 / `USAGE_RECOUNT_S`:37 / `TRASH_ID`:38 / `UPLOAD_ID`:39 / `BAD_CHARS`:40 / `MAX_DEPTH`:41 / `WINDOWS_NAMES`:42 / **class CloudError**:49 / root:55 / trash_root:61 / uploads:67 / check_name:73 / _other_case:87 / check_new:100 / resolve:113 / relative_join:133 / make_box:138 / _walk_size:155 / relative:179 / _forget_usage:183 / used_bytes:189 / _adjust_usage:203 / quota_bytes:210 / listing:214 / file_for_download:240 / _make_parents:247 / make_folder:255 / rename:270 / move:285 / delete:307 / _box:323 / _info:332 / trash_items:340 / _free_name:357 / restore:373 / purge:390 / purge_all:400 / purge_expired:411 / _clean_stale_parts:427 / part_path:437 / _reserved:445 / upload_target:457 / start_upload:473 / finish_upload:491 / log:500 / log_rows:515
 
-### `app/backend/cloud_acl.py` (313 lines)
+### `app/backend/cloud_acl.py` (322 lines)
 Open Cloud permissions per folder (user, 2026-11-16), on top of the whole-Cloud ones (Cloud view / edit / admin on
-- `RANK`:40 / `LEVELS`:41 / `MAX_GRANTS`:42 / clean:45 / join:51 / _key:55 / _rest:59 / edits:64 / _higher:69 / **class Access**:73 [_grant:80, level:87, below:104, visible:109, can_change:113, best:117, manages:126] / load:131 / _valid:144 / access:149 / _build:163 / access_as:172 / chain:181 / effective:188 / check_grants:212 / _write:229 / _rows:236 / save:243 / move:256 / stash:273 / forget:280 / put_back:288 / describe:308
+- `RANK`:40 / `LEVELS`:41 / `MAX_GRANTS`:42 / clean:45 / join:54 / _key:58 / _rest:62 / edits:67 / _higher:72 / **class Access**:76 [_grant:83, level:90, below:107, owns:112, visible:118, can_change:122, best:126, manages:135] / load:140 / _valid:153 / access:158 / _build:172 / access_as:181 / chain:190 / effective:197 / check_grants:221 / _write:238 / _rows:245 / save:252 / move:265 / stash:282 / forget:289 / put_back:297 / describe:317
 
 ### `app/backend/combat.py` (340 lines)
 Combat stats from the recorder's match reports (user, 2026-11-04). Completely separate from the replay data: own tables

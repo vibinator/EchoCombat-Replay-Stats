@@ -247,8 +247,14 @@ function CloudBrowser() {
         </p>
       )}
       {error && <p className="error">{error}</p>}
-      {manages && (
+      {(canEdit || manages) && (
         <div className="cloud-actions">
+          {canEdit && <button className="secondary" disabled={busy} onClick={() => newFolder()}>New folder</button>}
+          {canEdit && canManage && (
+            <button className="secondary" disabled={busy} onClick={() => newFolder(true)} title="Private from the moment it exists; then add who may see it">
+              New private folder
+            </button>
+          )}
           {canManage && folder && <button className="secondary" disabled={busy} onClick={() => setPermissionsOf(folder)}>Permissions of this folder</button>}
           {picked.length > 0 && (
             <button className="secondary" disabled={busy} onClick={() => setBulk(picked.map((n) => join(folder, n)))}>
@@ -256,7 +262,9 @@ function CloudBrowser() {
             </button>
           )}
           {canManage && <button className="secondary" disabled={busy} onClick={startViewAs}>View as…</button>}
-          <button className="secondary" onClick={() => setShowAll(!showAll)}>{showAll ? "Hide all permissions" : "All permissions"}</button>
+          {manages && (
+            <button className="secondary" onClick={() => setShowAll(!showAll)}>{showAll ? "Hide all permissions" : "All permissions"}</button>
+          )}
         </div>
       )}
       {manages && showAll && <CloudRulesOverview />}
@@ -278,14 +286,6 @@ function CloudBrowser() {
       )}
       {canEdit && (
         <>
-          <div className="cloud-actions">
-            <button className="secondary" disabled={busy} onClick={() => newFolder()}>New folder</button>
-            {canManage && (
-              <button className="secondary" disabled={busy} onClick={() => newFolder(true)} title="Private from the moment it exists; then add who may see it">
-                New private folder
-              </button>
-            )}
-          </div>
           <div
             className={`upload-drop${dragging ? " dragging" : ""}`}
             role="button"

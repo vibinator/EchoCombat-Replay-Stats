@@ -45,7 +45,10 @@ MAX_GRANTS = 50
 def clean(rel: str | None) -> str:
     """The path as the cloud itself reads it (cloud.resolve: same split, every name checked and trimmed), so a rule
     cannot be dodged with another spelling of the same path. Raises CloudError for a path the cloud refuses."""
-    return "/".join(cloud.check_name(p) for p in (rel or "").replace("\\", "/").split("/") if p)
+    parts = [p for p in (rel or "").replace("\\", "/").split("/") if p]
+    if len(parts) > cloud.MAX_DEPTH:
+        raise CloudError(400, "bad_path", f"Folders can be at most {cloud.MAX_DEPTH} deep")
+    return "/".join(cloud.check_name(p) for p in parts)
 
 
 def join(folder: str, name: str) -> str:
@@ -105,6 +108,12 @@ class Access:
         """The rules on items inside this folder (not the one on the folder itself)."""
         prefix = _key(rel) + "/" if rel else ""
         return [r for k, r in self.rules.items() if k.startswith(prefix)]
+
+    def owns(self, rel: str) -> bool:
+        """Admin of every rule on this item and inside it (delete, move: they take those permissions away from where
+        they are; an editor may not)."""
+        own = self.rules.get(_key(rel))
+        return all(self.level(r["path"]) == "admin" for r in ([own] if own else []) + self.below(rel))
 
     def visible(self, rel: str) -> bool:
         """Shown in a listing, and a folder can be opened: access here, or something further down is shared with them."""

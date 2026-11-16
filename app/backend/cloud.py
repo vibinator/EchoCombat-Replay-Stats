@@ -84,6 +84,32 @@ def check_name(name: str) -> str:
     return name
 
 
+def _other_case(parent: Path, name: str) -> str | None:
+    """A name in this folder that differs from `name` only by upper / lower case."""
+    key = name.casefold()
+    try:
+        with os.scandir(parent) as items:
+            for item in items:
+                if item.name != name and item.name.casefold() == key:
+                    return item.name
+    except OSError:
+        pass
+    return None
+
+
+def check_new(target: Path, moving: Path | None = None) -> None:
+    """A name about to be made must not differ only by letter case from one already in its folder (security review,
+    2026-11-16). Folder permissions are matched without regard to case, so on the NAS (Linux: "Staff" and "STAFF" are
+    two folders) a second spelling would share the first one's permissions, and deleting or renaming it would take
+    them along. On Windows the two are the same file and this never triggers. moving: the item being renamed (a
+    change of its own case is fine)."""
+    if os.path.lexists(target):
+        return
+    other = _other_case(target.parent, target.name)
+    if other and (moving is None or target.parent / other != moving):
+        raise CloudError(409, "exists", f"'{other}' already exists here (names that differ only by upper / lower case are not allowed)")
+
+
 def resolve(settings: Settings, rel: str | None) -> Path:
     """'' or None = the cloud folder itself; 'a/b.txt' = a file below it."""
     base = root(settings)
@@ -93,11 +119,14 @@ def resolve(settings: Settings, rel: str | None) -> Path:
     # Every name is checked (no "..", no separators), so the path cannot leave the cloud folder by itself; only a link
     # planted on the NAS could. Each existing part is looked at once (lstat) and a link is refused. Before: resolve() of the
     # whole path, which on Windows could return another spelling while parallel uploads created its folders (a false refusal)
-    path = base
+    path, there = base, True
     for part in parts:
         path = path / check_name(part)
         if path.is_symlink():
             raise CloudError(400, "bad_path", "That path is outside the cloud folder (links are not followed)")
+        if there and not os.path.lexists(path):  # the first part that is not there yet: no other spelling of it either
+            there = False
+            check_new(path)
     return path
 
 
@@ -233,6 +262,7 @@ def make_folder(settings: Settings, rel: str | None, name: str, parents: bool = 
     target = parent / check_name(name)
     if target.exists():
         raise CloudError(409, "exists", f"'{target.name}' already exists here")
+    check_new(target)
     target.mkdir()
     return {"path": relative(settings, target)}
 
@@ -247,6 +277,7 @@ def rename(settings: Settings, rel: str, name: str) -> dict:
         return {"path": relative(settings, source)}
     if target.exists() and target.name.lower() != source.name.lower():  # a change of case only is fine
         raise CloudError(409, "exists", f"'{target.name}' already exists here")
+    check_new(target, moving=source)
     source.rename(target)
     return {"path": relative(settings, target)}
 
@@ -268,6 +299,7 @@ def move(settings: Settings, rel: str, to: str | None) -> dict:
         raise CloudError(400, "bad_path", f"Folders can be at most {MAX_DEPTH} deep")
     if target.exists():
         raise CloudError(409, "exists", f"'{target.name}' already exists in that folder")
+    check_new(target)
     source.rename(target)
     return {"path": relative(settings, target)}
 
@@ -434,6 +466,7 @@ def upload_target(settings: Settings, rel: str | None, name: str, overwrite: boo
         raise CloudError(409, "exists", f"'{target.name}' is a folder here")
     if target.exists() and not overwrite:
         raise CloudError(409, "exists", f"'{target.name}' already exists here")
+    check_new(target)
     return target
 
 
