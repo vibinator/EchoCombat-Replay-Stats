@@ -511,7 +511,9 @@ def has_console(request: Request, fresh: bool = False) -> bool:
 
 
 def cloud_access(request: Request, fresh: bool = False) -> str | None:
-    """Open Cloud (cloud.py): "edit", "view" or None. fresh: ask Discord now (deleting, renaming, starting an upload)."""
-    if _has(request, "cloud_edit", fresh):
-        return "edit"
-    return "view" if _has(request, "cloud_view") else None
+    """Open Cloud (cloud.py): the most the visitor may do anywhere in it, "edit", "view" or None: their whole-Cloud
+    permission, or a folder / file shared with them (cloud_acl.py). Decides whether the Cloud tab shows; what they may
+    do with one folder or file is checked per request (api/cloud.py)."""
+    from . import cloud_acl  # here: cloud_acl uses this module
+    acl = cloud_acl.access(request, fresh)
+    return acl.best() if acl else None

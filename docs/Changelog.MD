@@ -18,6 +18,17 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.16.1 — 06:42
+
+- **Cloud: permissions per folder and file** (D61). Until now Cloud view / Cloud edit covered the whole cloud. Console users now have a **Permissions** link beside every folder and file on the Cloud page:
+  - **Share:** add Discord roles or people (user id) with **View** (download) or **Edit** (also upload, new folder, rename, delete). It works for people without any Cloud permission too: they get the Cloud tab and see only what is shared with them, plus the folders that lead there (nothing else in those folders).
+  - **Private:** tick it and only the roles / people listed keep access; everyone else no longer sees the item, also with Cloud view or Cloud edit. Someone listed with View can only download there, even with Cloud edit. Nobody listed = console users only.
+  - A folder's permissions apply to everything inside it; a rule further down wins over one above it (share one subfolder of a private folder and those people reach just that). Console users always see and change everything, and see a **Private** / **Shared** tag on items with their own permissions.
+  - Rename and delete need edit on the item and on everything inside it that has its own permissions, so a private folder cannot be removed by deleting the folder around it. Permissions follow a rename, and a deleted item gets them back when it is restored from the recycle bin.
+  - Every permissions change is in the Cloud audit log ("Permissions"), refused attempts on hidden items as "Refused".
+  - Good to know: someone logged in sees a change within 5 minutes (at once after logging out and in). A file removed with File Station keeps its permissions for whatever gets that name next, until a console user clears them. Names that differ only by upper / lower case share one set of permissions.
+  - Nothing to do after the deploy: the new table is made by itself, and everything works as before until a permission is set.
+
 ## 2026.11.14.2 — 02:59
 
 - **Console warns about a match length that cannot be right:** when a replay is read and the match is zero / negative length, or more than 20 minutes longer than anyone was in it (what any jump of the recorder PC's clock looks like, not only the UK changes the reader now corrects), the replay gets a note, and `admin.bat status` lists them ("Match length looks wrong"). Only a note: the match is kept and counted as before. A long match with someone in it all the way is not flagged (the two longest in the archive, 55 and 62 minutes, are fine; checked on 33,500 matches: only the four daylight-saving ones trip it). Applies to replays read from now on; nothing is re-read.

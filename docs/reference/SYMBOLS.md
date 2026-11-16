@@ -48,9 +48,9 @@ Discord login for achievement previews (D41). Only GET requests: the website sta
 Small Discord pictures for the name lists (user, 2026-11-06): Players, Leaderboard, Achievements.
 - `MAX_IDS`:22 / pictures:25 / get_avatars:82
 
-### `app/backend/api/cloud.py` (326 lines)
+### `app/backend/api/cloud.py` (460 lines)
 Open Cloud endpoints (cloud.py): Discord login + the Cloud view / Cloud edit permission (Permissions page).
-- `WRITE_BLOCK`:22 / **class BigBlockFileResponse**:25 / _audit:29 / _require:36 / _fail:48 / listing:54 / download:63 / **class Target**:83 / make_folder:90 / rename:102 / delete:113 / _require_console:125 / trash:136 / **class TrashChoice**:146 / trash_restore:152 / trash_purge:163 / upload_status:179 / upload:191 / quarantine:269 / quarantine_delete:279 / quarantine_release:290 / scan_all:303 / audit_log:320
+- `WRITE_BLOCK`:23 / **class BigBlockFileResponse**:26 / _audit:30 / _enter:37 / _deny:50 / _fail:60 / listing:66 / download:91 / **class Target**:114 / make_folder:121 / _whole:136 / rename:147 / delete:166 / _require_console:181 / trash:192 / **class TrashChoice**:202 / trash_restore:208 / trash_purge:221 / upload_status:237 / _may_upload:248 / upload:261 / quarantine:339 / quarantine_delete:349 / quarantine_release:360 / scan_all:373 / _rule_state:391 / item_permissions:414 / **class Rule**:423 / set_item_permissions:430 / audit_log:454
 
 ### `app/backend/api/combat.py` (310 lines)
 Combat stats endpoints (user, 2026-11-04): the game's own counters and the event-log numbers from the recorder's match
@@ -105,7 +105,7 @@ Replays found in the share (D25). Read-only: files are added by the scanner; rep
 Public Echo Arena matches per player, counted from the live Nakama match list (user, 2026-11-04). Completely
 - `URL`:21 / `MIN_PRESENT_S`:22 / `MIN_TEAM`:23 / `MIN_SEEN`:24 / `TIMEOUT_S`:25 / `MAX_BYTES`:26 / `MAX_BACKOFF_S`:27 / `KEEP_COUNTED_S`:28 / `PRUNE_EVERY_S`:29 / `ACCOUNT_REFRESH_S`:30 / `WINDOW_CHECK_S`:31 / `NON_PLAYER_TEAMS`:32 / `STATUS_OK_POLLS`:33 / _stamp:37 / is_public_arena:42 / is_public_combat:47 / **class _Kind**:52 / **class Tracker**:70 [start:86, stop:90, _fetch:94, _run:101, _in_period:113, poll:123, _collect_accounts:135, _link:166, _poll_kind:177, status:227, _purge:248, _save:259]
 
-### `app/backend/auth.py` (518 lines)
+### `app/backend/auth.py` (520 lines)
 Discord login, only for previewing achievements before their launch date (D41). Login = OAuth2 "identify" (who
 - `API`:23 / `AUTHORIZE_URL`:24 / `SESSION_COOKIE`:25 / `STATE_COOKIE`:26 / `SESSION_DAYS`:27 / `STATE_S`:28 / `ROLE_CHECK_S`:29 / `ROLE_RETRY_S`:30 / `DISCORD_PER_S`:40 / `DISCORD_BURST`:41 / `DISCORD_WAIT_S`:42 / `DISCORD_PAUSE_MAX_S`:43 / `INVALID_WINDOW_S`:44 / `INVALID_MAX`:45 / **class DiscordPaused**:48 / **class DiscordLimiter**:53 [reset:58, acquire:63, record:81] / _send:109 / http_client:117 / enabled:122 / is_discord_id:128 / _bot_get:134 / `SERVER_ROLES_S`:139 / server_roles:143 / check_fixed_ids:157 / user_name:190 / `AVATAR_CHECK_S`:207 / `AVATAR_MAX_PER_MIN`:208 / `AVATAR_FILE`:209 / `AVATAR_KEEP_S`:210 / _avatar_budget:218 / _avatar_path:230 / _load_avatars:234 / _save_avatars:255 / avatar_url:270 / redirect_uri:320 / secure_cookies:324 / _key:330 / _b64:339 / _unb64:343 / sign:347 / unsign:352 / authorize_url:368 / user_from_code:375 / forget_roles:397 / _ask_roles:403 / member_roles:424 / viewer:453 / allowed:467 / _has:485 / has_preview:497 / is_admin:502 / has_console:507 / cloud_access:513
 
@@ -113,9 +113,13 @@ Discord login, only for previewing achievements before their launch date (D41). 
 Caches for answers built from the archive: home page, leaderboard, profiles, heatmaps, match views (D53). Keyed on
 - `STAMP_TTL_S`:49 / `MAX_VALUES`:50 / `MAX_RESPONSES`:51 / `MAX_RESPONSE_BYTES`:52 / `GZIP_LEVEL`:53 / `STATUS_HEADER`:54 / bump_generation:59 / data_stamp:64 / current_stamp:73 / **class Entry**:88 / **class Store**:97 [get:108, put:115, drop:125] / `DISK_FORMAT`:136 / `DISK_PRUNE_EVERY`:137 / `DISK_MAX_AGE_S`:138 / **class Disk**:141 [path:147, _read:150, used:162, stamp:169, load:174, save:183, prune:207] / _plain:227 / _disk:232 / _store:245 / _run:263 / _used:277 / _build_now:288 / _refresh:306 / _key:329 / _saving:333 / _lookup:343 / cached:367 / _response_entry:373 / cached_response:381 / prebuild:391 / etag_matches:405 / reply:413
 
-### `app/backend/cloud.py` (472 lines)
+### `app/backend/cloud.py` (477 lines)
 Open Cloud (user, 2026-11-10): file storage on the website for Discord members with the Cloud permission. Two
-- `CHUNK_MAX`:33 / `RESERVE_BYTES`:34 / `STALE_PART_S`:35 / `USAGE_RECOUNT_S`:36 / `TRASH_ID`:37 / `UPLOAD_ID`:38 / `BAD_CHARS`:39 / `MAX_DEPTH`:40 / `WINDOWS_NAMES`:41 / **class CloudError**:48 / root:54 / trash_root:60 / uploads:66 / check_name:72 / resolve:86 / relative_join:103 / make_box:108 / _walk_size:125 / relative:149 / _forget_usage:153 / used_bytes:159 / _adjust_usage:173 / quota_bytes:180 / listing:184 / file_for_download:210 / _make_parents:217 / make_folder:225 / rename:239 / delete:253 / _box:268 / _info:277 / trash_items:285 / _free_name:302 / restore:318 / purge:332 / purge_all:342 / purge_expired:353 / _clean_stale_parts:369 / part_path:379 / _reserved:387 / upload_target:399 / start_upload:414 / finish_upload:432 / log:441 / log_rows:456
+- `CHUNK_MAX`:34 / `RESERVE_BYTES`:35 / `STALE_PART_S`:36 / `USAGE_RECOUNT_S`:37 / `TRASH_ID`:38 / `UPLOAD_ID`:39 / `BAD_CHARS`:40 / `MAX_DEPTH`:41 / `WINDOWS_NAMES`:42 / **class CloudError**:49 / root:55 / trash_root:61 / uploads:67 / check_name:73 / resolve:87 / relative_join:104 / make_box:109 / _walk_size:126 / relative:150 / _forget_usage:154 / used_bytes:160 / _adjust_usage:174 / quota_bytes:181 / listing:185 / file_for_download:211 / _make_parents:218 / make_folder:226 / rename:240 / delete:254 / _box:270 / _info:279 / trash_items:287 / _free_name:304 / restore:320 / purge:337 / purge_all:347 / purge_expired:358 / _clean_stale_parts:374 / part_path:384 / _reserved:392 / upload_target:404 / start_upload:419 / finish_upload:437 / log:446 / log_rows:461
+
+### `app/backend/cloud_acl.py` (250 lines)
+Open Cloud permissions per folder / file (user, 2026-11-16), on top of the whole-Cloud ones (Cloud view / Cloud edit
+- `RANK`:33 / `MAX_GRANTS`:34 / clean:37 / join:43 / _key:47 / _rest:51 / _higher:56 / **class Access**:60 [_grant:67, level:74, below:89, visible:94, can_change:98, best:102] / load:112 / _valid:124 / access:129 / check_grants:149 / _write:166 / _rows:173 / save:180 / move:193 / stash:210 / forget:217 / put_back:225 / describe:245
 
 ### `app/backend/combat.py` (340 lines)
 Combat stats from the recorder's match reports (user, 2026-11-04). Completely separate from the replay data: own tables
@@ -190,9 +194,9 @@ Merge suggestions for the Console (D34 merges): player records that used the sam
 Every request and answer of the site in one pure ASGI layer (it replaces four @app.middleware layers that cost
 - `PER_VISITOR`:27 / `WRITES`:28 / `UPLOAD`:29 / `BOT`:30 / `STATIC_MAX_AGE_S`:31 / `EDGE_STALE_IF_ERROR_S`:32 / _refusal:35 / _api_cache:52 / _versioned:64 / _static_cache:69 / **class SiteMiddleware**:83
 
-### `app/backend/models.py` (411 lines)
+### `app/backend/models.py` (425 lines)
 Tables as specified in docs/DataModel.MD.
-- **class Replay**:9 / **class Match**:33 / **class DuplicateMatch**:68 / **class Player**:78 / **class MatchPlayer**:88 / **class MatchPlayerLoadout**:125 / **class Event**:138 / **class AppSetting**:152 / **class PlayerProfile**:162 / **class DiscordProfile**:177 / **class NakamaAccount**:190 / **class PlayerAlias**:207 / **class RepairRequest**:217 / **class AggressiveRepair**:226 / **class PriorityReplay**:236 / **class HiddenReplay**:244 / **class CloudLog**:254 / **class ConsoleLog**:272 / **class ArenaPlayer**:289 / **class ArenaCounted**:303 / **class NakamaCombatPlayer**:313 / **class NakamaCombatCounted**:327 / **class CombatFile**:343 / **class CombatMatch**:359 / **class CombatPlayer**:377
+- **class Replay**:9 / **class Match**:33 / **class DuplicateMatch**:68 / **class Player**:78 / **class MatchPlayer**:88 / **class MatchPlayerLoadout**:125 / **class Event**:138 / **class AppSetting**:152 / **class PlayerProfile**:162 / **class DiscordProfile**:177 / **class NakamaAccount**:190 / **class PlayerAlias**:207 / **class RepairRequest**:217 / **class AggressiveRepair**:226 / **class PriorityReplay**:236 / **class HiddenReplay**:244 / **class CloudLog**:254 / **class CloudRule**:272 / **class ConsoleLog**:286 / **class ArenaPlayer**:303 / **class ArenaCounted**:317 / **class NakamaCombatPlayer**:327 / **class NakamaCombatCounted**:341 / **class CombatFile**:357 / **class CombatMatch**:373 / **class CombatPlayer**:391
 
 ### `app/backend/persist.py` (101 lines)
 MatchStats -> database rows. Callers commit, so a match is stored completely or not at all.

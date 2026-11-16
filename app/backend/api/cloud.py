@@ -7,15 +7,17 @@ it, and so does every refusal of a logged-in person (no permission, no space, a 
 logged: there is nobody to name. Console users read it at /api/cloud/log (Console > Audit log > Cloud audit log)."""
 
 import logging
+from urllib.parse import quote
 
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
 
-from .. import antivirus, auth, cloud, guard
+from .. import antivirus, auth, cloud, cloud_acl, guard
 from ..cloud import CloudError
 from ..errors import ApiError
+from .permissions import _server_roles
 
 router = APIRouter(prefix="/api/cloud", tags=["cloud"])
 log = logging.getLogger("uvicorn.error")
@@ -33,16 +35,27 @@ def _audit(request: Request, user: dict, action: str, path: str, ok: bool = True
                 f" -> {detail}" if detail else "", f" ({size} bytes)" if size is not None else "")
 
 
-def _require(request: Request, action: str, path: str, edit: bool = False, fresh: bool = False) -> dict:
+def _enter(request: Request, action: str, path: str, fresh: bool = False) -> tuple[dict, cloud_acl.Access]:
+    """The logged-in person and what they may do (cloud_acl.py). Refused when nothing in the cloud is open to them;
+    what they may do with `path` itself is the endpoint's own check (_deny)."""
     user = auth.viewer(request)
     if not user:
         raise ApiError(401, "login_required", "Log in with Discord to use the cloud")
-    access = auth.cloud_access(request, fresh=fresh)
-    if access is None or (edit and access != "edit"):
-        _audit(request, user, "denied", path, False, f"{action}: {'needs Cloud edit' if access else 'no Cloud access'}")
-        raise ApiError(403, "cloud_only", "You do not have permission to change cloud files" if access
-                       else "You do not have access to the cloud")
-    return user | {"access": access}
+    acl = cloud_acl.access(request, fresh)
+    if not acl.best():
+        _audit(request, user, "denied", path, False, f"{action}: no Cloud access")
+        raise ApiError(403, "cloud_only", "You do not have access to the cloud")
+    return user, acl
+
+
+def _deny(request: Request, user: dict, action: str, path: str, level: str | None, edit: bool = True):
+    """This person may not do this with this folder or file: logged and refused."""
+    if edit and level:
+        why, message = "needs Cloud edit", "You do not have permission to change this file or folder"
+    else:
+        why, message = "no access to this item", "You do not have access to this file or folder"
+    _audit(request, user, "denied", path, False, f"{action}: {why}")
+    raise ApiError(403, "cloud_only", message)
 
 
 def _fail(request: Request, user: dict, action: str, path: str, e: CloudError, size: int | None = None):
@@ -51,20 +64,60 @@ def _fail(request: Request, user: dict, action: str, path: str, e: CloudError, s
 
 
 @router.get("/list")
-def listing(request: Request, path: str = ""):
-    user = _require(request, "list", path)
+def listing(request: Request, path: str = "", as_type: str = "", as_id: str = ""):
+    """as_type + as_id (console users, "View as"): the folder as that role ("role") or person ("user") sees it."""
+    user, acl = _enter(request, "list", path)
+    settings = request.app.state.settings
+    viewing_as = None
+    if as_id:
+        if not acl.console:
+            raise ApiError(403, "console_only", "Only console users can view the cloud as someone else")
+        if as_type not in ("role", "user") or not auth.is_discord_id(as_id):
+            raise ApiError(400, "bad_id", "Choose a role or a person to view as")
+        with request.app.state.sessionmaker() as db:
+            acl = cloud_acl.access_as(settings, db, as_type, as_id, acl.rules)
+        viewing_as = {"type": as_type, "id": as_id, "name": _names(settings)(as_type, as_id)}
     try:
-        return cloud.listing(request.app.state.settings, path) | {"can_edit": user["access"] == "edit"}
+        rel = cloud_acl.clean(path)
+        if not acl.visible(rel):
+            if viewing_as:  # the admin looking, not the person trying: not a refusal for the log
+                raise ApiError(403, "cloud_only", f"{viewing_as['name']} has no access to this folder" if rel
+                               else f"{viewing_as['name']} has no access to the cloud: no Cloud tab")
+            _deny(request, user, "list", path, None, edit=False)
+        result = cloud.listing(settings, rel)
     except CloudError as e:
         raise ApiError(e.status, e.code, e.message) from None  # browsing is not logged, only refusals of access
+    if acl.console and not viewing_as:  # what the folders above (and this one) pass down to every row here
+        above = cloud_acl.chain(acl.rules, rel)
+        passed = next((r for r in reversed(above) if r["private"]), None) or next(
+            (r for r in reversed(above) if r["grants"]), None)
+        result["inherited"] = passed and {"path": passed["path"], "private": passed["private"]}
+    result["viewing_as"] = viewing_as
+    entries = []
+    for e in result["entries"]:
+        item = cloud_acl.join(rel, e["name"])
+        if not (acl.visible(item) if e["dir"] else acl.level(item)):
+            continue  # not for this person: not even its name
+        e["can_edit"] = acl.can_change(item)  # rename / delete
+        rule = acl.rules.get(item.casefold()) if acl.console and not viewing_as else None
+        if rule:  # console users see which items have their own permissions
+            e["private"], e["shared"] = rule["private"], len(rule["grants"])
+        entries.append(e)
+    level = acl.level(rel)
+    # limited: only what is shared with them shows here (they have no access to the folder itself)
+    return result | {"entries": entries, "can_edit": level == "edit", "can_manage": acl.console and not viewing_as,
+                     "limited": level is None}
 
 
 @router.get("/download")
 def download(request: Request, path: str):
-    user = _require(request, "download", path)
+    user, acl = _enter(request, "download", path)
     settings = request.app.state.settings
     try:
-        file = cloud.file_for_download(settings, path)
+        rel = cloud_acl.clean(path)
+        if not acl.level(rel):
+            _deny(request, user, "download", path, None, edit=False)
+        file = cloud.file_for_download(settings, rel)
     except CloudError as e:
         folder, _, name = path.strip("/").rpartition("/")
         if e.code == "not_found" and any(p["name"] == name for p in antivirus.pending_in(settings, folder)):
@@ -84,25 +137,62 @@ class Target(BaseModel):
     path: str = ""
     name: str = ""
     parents: bool = False  # folder: make the missing folders above it too
+    private: bool = False  # folder (console users): private from the moment it exists
 
 
 @router.post("/folder")
 def make_folder(request: Request, body: Target):
     where = cloud.relative_join(body.path, body.name)
-    user = _require(request, "folder", where, edit=True, fresh=True)
+    user, acl = _enter(request, "folder", where, fresh=True)
+    sessions = request.app.state.sessionmaker
     try:
-        result = cloud.make_folder(request.app.state.settings, body.path, body.name, body.parents)
+        folder = cloud_acl.clean(body.path)
+        target = cloud_acl.join(folder, cloud.check_name(body.name))
+        level = acl.level(target)
+        if level != "edit":
+            _deny(request, user, "folder", where, level)
+        if body.private and not acl.console:
+            _audit(request, user, "denied", where, False, "private folder: console only")
+            raise ApiError(403, "console_only", "Only console users can make a private folder")
+        if body.private:  # the rule first: the folder is never there without it
+            if cloud.resolve(request.app.state.settings, target).exists():
+                raise CloudError(409, "exists", f"'{body.name.strip()}' already exists here")
+            cloud_acl.save(sessions, target, True, [], user)
+        try:
+            result = cloud.make_folder(request.app.state.settings, folder, body.name, body.parents)
+        except CloudError:
+            if body.private:
+                cloud_acl.save(sessions, target, False, [], user)
+            raise
     except CloudError as e:
         _fail(request, user, "folder", where, e)
-    _audit(request, user, "folder", result["path"])
+    _audit(request, user, "folder", result["path"], detail="private" if body.private else None)
     return result
+
+
+def _whole(request: Request, user: dict, acl: cloud_acl.Access, action: str, path: str, rel: str) -> None:
+    """Rename / delete: edit on the item and on everything inside it that has its own permissions."""
+    if not acl.can_change(rel):
+        level = acl.level(rel)
+        if level == "edit":
+            _audit(request, user, "denied", path, False, f"{action}: holds items this person cannot change")
+            raise ApiError(403, "cloud_only", "This folder holds items you do not have permission to change")
+        _deny(request, user, action, path, level)
 
 
 @router.post("/rename")
 def rename(request: Request, body: Target):
-    user = _require(request, "rename", body.path, edit=True, fresh=True)
+    user, acl = _enter(request, "rename", body.path, fresh=True)
+    sessions = request.app.state.sessionmaker
     try:
-        result = cloud.rename(request.app.state.settings, body.path, body.name)
+        rel = cloud_acl.clean(body.path)
+        _whole(request, user, acl, "rename", body.path, rel)
+        level = acl.level(cloud_acl.join(rel.rpartition("/")[0], cloud.check_name(body.name)))
+        if level != "edit":  # the new name has permissions of its own that keep this person out
+            _deny(request, user, "rename", body.path, level)
+        result = cloud.rename(request.app.state.settings, rel, body.name)
+        if rel and result["path"] != rel:
+            cloud_acl.move(sessions, rel, result["path"], user)  # its permissions go with it
     except CloudError as e:
         _fail(request, user, "rename", body.path, e)
     _audit(request, user, "rename", body.path, detail=result["path"])
@@ -111,9 +201,12 @@ def rename(request: Request, body: Target):
 
 @router.post("/delete")
 def delete(request: Request, body: Target):
-    user = _require(request, "delete", body.path, edit=True, fresh=True)
+    user, acl = _enter(request, "delete", body.path, fresh=True)
     try:
-        gone = cloud.delete(request.app.state.settings, body.path, user)
+        rel = cloud_acl.clean(body.path)
+        _whole(request, user, acl, "delete", body.path, rel)
+        gone = cloud.delete(request.app.state.settings, rel, user, cloud_acl.stash(acl, rel) if rel else None)
+        cloud_acl.forget(request.app.state.sessionmaker, rel)  # kept in the recycle bin note, back with a restore
     except CloudError as e:
         _fail(request, user, "delete", body.path, e)
     _audit(request, user, "delete", body.path, detail="to the recycle bin", size=gone["size"])
@@ -151,8 +244,10 @@ class TrashChoice(BaseModel):
 @router.post("/trash/restore")
 def trash_restore(request: Request, body: TrashChoice):
     user = _require_console(request, "restore", fresh=True)
-    try:
-        result = cloud.restore(request.app.state.settings, body.id)
+    sessions = request.app.state.sessionmaker
+    try:  # its folder / file permissions come back with it (set just before it is back in the cloud)
+        result = cloud.restore(request.app.state.settings, body.id,
+                               lambda path, rules: cloud_acl.put_back(sessions, path, rules, user))
     except CloudError as e:
         _fail(request, user, "restore", body.id, e)
     _audit(request, user, "restore", result["path"], detail="from the recycle bin", size=result["size"])
@@ -179,12 +274,24 @@ def trash_purge(request: Request, body: TrashChoice):
 def upload_status(request: Request, upload: str, total: int):
     """How much of this upload the server already has (user, 2026-11-10: an interrupted upload continues where it
     stopped). The page derives the upload id from the file and where it goes, so choosing the same file again resumes."""
-    user = _require(request, "upload", "", edit=True)
+    user, _ = _enter(request, "upload", "")  # only this person's own upload; starting one checks the folder (below)
     try:
         part = cloud.part_path(request.app.state.settings, user["id"], upload, total)
     except CloudError as e:
         raise ApiError(e.status, e.code, e.message) from None
     return {"received": part.stat().st_size if part.is_file() else 0}
+
+
+def _may_upload(request: Request, where: str, path: str, name: str, total: int) -> dict:
+    """Edit on the file's own path: the folder's permissions, or the file's own when it has any."""
+    user, acl = _enter(request, "upload", where)
+    try:
+        level = acl.level(cloud_acl.join(cloud_acl.clean(path), cloud.check_name(name)))
+    except CloudError as e:
+        _fail(request, user, "upload", where, e, total)
+    if level != "edit":
+        _deny(request, user, "upload", where, level)
+    return user
 
 
 @router.post("/upload")
@@ -198,7 +305,7 @@ async def upload(request: Request, name: str, upload: str, offset: int, total: i
     first = offset == 0
     if first:  # Cloud edit checked when a file starts (roles remembered up to 5 minutes, not a Discord request per file: a
         # folder of 300 files was 300 Discord requests); its part file is then this person's. Rename / delete ask fresh
-        user = await run_in_threadpool(_require, request, "upload", where, True, False)
+        user = await run_in_threadpool(_may_upload, request, where, path, name, total)
     else:  # later chunks: the login only (no permission queries per 16 MB); the part must be this person's own (below)
         user = auth.viewer(request)
         if not user:
@@ -314,6 +421,140 @@ def scan_all(request: Request):
         request.app.state.antivirus.sweep["running"] = False
     _audit(request, user, "scan", "(all existing files)", detail=f"started: {queued} files")
     return {"queued": queued}
+
+
+# --- permissions of one folder or file: console users (cloud_acl.py; user, 2026-11-16) ----------------------------------
+
+def _names(settings):
+    """(type, Discord id) -> the role's or the person's name, "?" when it cannot be found."""
+    roles = {r["id"]: r["name"] for r in _server_roles(settings) or []}
+    return lambda kind, i: roles.get(i, "?") if kind == "role" else auth.user_name(settings, i)
+
+
+def _rule_state(request: Request, rel: str) -> dict:
+    settings = request.app.state.settings
+    target = cloud.resolve(settings, rel)
+    if not rel or not target.exists():
+        raise CloudError(404, "not_found", "Not found")
+    name = _names(settings)
+
+    def named(grants: list[dict]) -> list[dict]:
+        return [g | {"name": name(g["type"], g["id"])} for g in grants]
+
+    with request.app.state.sessionmaker() as db:
+        rules = cloud_acl.load(db)
+        effective = named(cloud_acl.effective(settings, db, rel, rules))
+    above = cloud_acl.chain(rules, rel, itself=False)
+    own = rules.get(rel.casefold(), {"private": False, "grants": []})
+    return {"path": rel, "dir": target.is_dir(), "private": own["private"], "grants": named(own["grants"]),
+            "above": [{"path": r["path"], "private": r["private"], "grants": named(r["grants"])} for r in above],
+            "effective": effective,  # who ends up with what, all rules and whole-Cloud permissions together
+            "server_roles": _server_roles(settings)}
+
+
+@router.get("/permissions/all")
+def all_permissions(request: Request):
+    """Every folder / file with permissions of its own (Console > Permissions), and whether the item is still there."""
+    _require_console(request, "permissions")
+    settings = request.app.state.settings
+    name = _names(settings)
+    with request.app.state.sessionmaker() as db:
+        rules = cloud_acl.load(db)
+    out = []
+    for rule in sorted(rules.values(), key=lambda r: r["path"].casefold()):
+        try:
+            target = cloud.resolve(settings, rule["path"])
+            exists, is_dir = target.exists(), target.is_dir()
+        except CloudError:
+            exists = is_dir = False
+        out.append({"path": rule["path"], "private": rule["private"], "exists": exists, "dir": is_dir,
+                    "grants": [g | {"name": name(g["type"], g["id"])} for g in rule["grants"]],
+                    "updated_at": rule["updated_at"], "by": rule["by"]})
+    return {"rules": out}
+
+
+@router.get("/people")
+def people(request: Request, q: str = Query("", max_length=60)):
+    """Find a person's Discord id by name (console users): players seen in matches, people in the cloud audit log,
+    and the Discord server's members when the bot may search them. At most 20."""
+    _require_console(request, "people search")
+    term = q.strip()
+    if len(term) < 2:
+        return {"people": []}
+    from sqlalchemy import or_, select
+
+    from ..models import CloudLog, NakamaAccount
+    settings = request.app.state.settings
+    found: dict[str, dict] = {}
+    like = f"%{term}%"
+    try:  # the server's own members first: the name the admin knows from Discord
+        if settings.discord_bot_token:
+            r = auth._bot_get(settings, f"/guilds/{settings.discord_guild_id}/members/search?query={quote(term)}&limit=10")
+            for m in r.json() if r.status_code == 200 else []:
+                u = m.get("user") or {}
+                if auth.is_discord_id(str(u.get("id") or "")):
+                    found[u["id"]] = {"id": u["id"], "name": m.get("nick") or u.get("global_name") or u.get("username") or "?",
+                                      "from": "Discord server"}
+    except Exception as e:  # Discord down or the bot not allowed: the other two sources still answer
+        log.warning("Discord member search failed: %s", e)
+    with request.app.state.sessionmaker() as db:
+        accounts = db.execute(select(NakamaAccount.discord_id, NakamaAccount.display_name, NakamaAccount.username).where(
+            NakamaAccount.discord_id.is_not(None), or_(NakamaAccount.username.ilike(like), NakamaAccount.display_name.ilike(like))
+        ).order_by(NakamaAccount.last_seen_at.desc()).limit(20)).all()
+        logged = db.execute(select(CloudLog.who_id, CloudLog.who_name).where(CloudLog.who_name.ilike(like))
+                            .group_by(CloudLog.who_id).limit(20)).all()
+    for i, shown, username in accounts:
+        if auth.is_discord_id(i or ""):
+            found.setdefault(i, {"id": i, "name": shown or username, "from": "player"})
+    for i, shown in logged:
+        if auth.is_discord_id(i or ""):
+            found.setdefault(i, {"id": i, "name": shown, "from": "used the cloud"})
+    return {"people": list(found.values())[:20]}
+
+
+@router.get("/permissions")
+def item_permissions(request: Request, path: str):
+    """Who one folder or file is shared with, whether it is private, and the rules of the folders above it."""
+    _require_console(request, "permissions")
+    try:
+        return _rule_state(request, cloud_acl.clean(path))
+    except CloudError as e:
+        raise ApiError(e.status, e.code, e.message) from None
+
+
+class Rule(BaseModel):
+    path: str
+    private: bool = False
+    grants: list[dict] = []  # {"type": "role" | "user", "id": Discord id, "level": "view" | "edit"}
+
+
+@router.post("/permissions")
+def set_item_permissions(request: Request, body: Rule):
+    """Replaces the permissions of one folder or file (nothing listed and not private: none of its own)."""
+    user = _require_console(request, "permissions change", fresh=True)
+    try:
+        rel = cloud_acl.clean(body.path)
+        grants = cloud_acl.check_grants(body.grants)
+        if not body.private and not grants and rel and not cloud.resolve(request.app.state.settings, rel).exists():
+            # clearing what a file left behind that was removed with File Station (Console > Permissions)
+            cloud_acl.save(request.app.state.sessionmaker, rel, False, [], user)
+            _audit(request, user, "permissions", rel, detail="cleared (the item is gone)")
+            return {"path": rel, "gone": True}
+        _rule_state(request, rel)  # it must be there
+        server = _server_roles(request.app.state.settings)
+        if server is not None:  # a person's id is not a role, and the other way round (as on the Permissions page)
+            role_ids = {r["id"] for r in server}
+            for g in grants:
+                if g["type"] == "role" and g["id"] not in role_ids:
+                    raise CloudError(400, "not_a_role", f"{g['id']} is not a role in the Discord server. For a person, choose User.")
+                if g["type"] == "user" and g["id"] in role_ids:
+                    raise CloudError(400, "not_a_user", f"{g['id']} is a role, not a person. Choose Role for it.")
+        cloud_acl.save(request.app.state.sessionmaker, rel, body.private, grants, user)
+        state = _rule_state(request, rel)
+    except CloudError as e:
+        _fail(request, user, "permissions", body.path, e)
+    _audit(request, user, "permissions", rel, detail=cloud_acl.describe(body.private, grants))
+    return state
 
 
 @router.get("/log")

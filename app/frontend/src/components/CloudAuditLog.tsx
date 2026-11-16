@@ -5,7 +5,7 @@ import { LocalTime, Status, TableWrap } from "./common";
 
 const ACTION_LABEL: Record<CloudLogEntry["action"], string> = {
   upload: "Upload", download: "Download", folder: "New folder", rename: "Rename", delete: "Delete", restore: "Restore",
-  purge: "Removed for good", scan: "Virus scan", virus: "Virus found", release: "Released", denied: "Refused",
+  purge: "Removed for good", scan: "Virus scan", virus: "Virus found", release: "Released", permissions: "Permissions", denied: "Refused",
 };
 
 /** Console users: every upload, download, change and refusal, newest first, with search. */

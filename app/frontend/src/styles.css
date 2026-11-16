@@ -4585,6 +4585,37 @@ button.small {
   gap: 4px 12px;
   white-space: nowrap;
 }
+/* Cloud page, console users: permissions of one folder / file (reuses .permission-list / .permission-add) */
+.cloud-permissions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 12px 0 16px;
+}
+.cloud-permissions h2,
+.cloud-permissions p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.cloud-permissions-private {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.cloud-permissions-private input {
+  flex: none;
+  margin-top: 4px;
+}
+.cloud-permissions .permission-list li > select {
+  margin-left: auto;
+}
+.cloud-permissions .permission-list li > :last-child:is(button) {
+  margin-left: 0;
+}
+.cloud-permissions .cloud-actions {
+  align-items: center;
+  margin: 0;
+}
 .cloud-log input[type="search"] {
   width: min(100%, 420px);
   margin: 8px 0 12px;

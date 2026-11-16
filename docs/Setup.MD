@@ -223,7 +223,11 @@ Giving or removing the role in Discord takes effect within 5 minutes. A login la
 ### Open Cloud (file storage, D60)
 The **Cloud** tab (`https://echocombat.com/cloud`) shows only to people logged in with Discord who have a Cloud
 permission. Give it on Console > Permissions: **Cloud view** = see and download files, **Cloud edit** = also upload,
-make folders, rename and delete. Console users have both. Files are kept on the NAS in the data folder
+make folders, rename and delete. Console users have both. Those two cover the whole cloud. For one folder or file
+(D61), a console user presses **Permissions** beside it on the Cloud page: add Discord roles or people with View or
+Edit (they get in even without a Cloud permission and see only what is shared with them), and tick **Private** to
+hide it from everyone not listed. A folder's permissions apply to everything inside it; console users always see
+everything. Files are kept on the NAS in the data folder
 (`/share/Container/echovr-replay-stats/data/cloud`), so they survive app updates; File Station can also reach them
 there. Space: `ECHOVR_CLOUD_QUOTA_GB` (250 GB by default, for everyone together). Big files are sent in 16 MB pieces, so Cloudflare's
 100 MB limit does not apply. Every upload, download, change and refused attempt is in Console > Audit log >

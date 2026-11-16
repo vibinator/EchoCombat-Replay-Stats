@@ -1,6 +1,7 @@
 """Open Cloud (user, 2026-11-10): file storage on the website for Discord members with the Cloud permission. Two
 levels (Permissions page): Cloud view = list and download, Cloud edit = also upload, new folder, rename, delete.
-Console users have both.
+Console users have both. On top of that, single folders and files can be shared with people or made private
+(cloud_acl.py, user 2026-11-16).
 
 Files live in <data>/cloud on the NAS (kept across app updates like the database), never in the replay share.
 Uploads arrive in chunks (Cloudflare refuses request bodies over 100 MB on its free plan): each chunk is appended
@@ -250,8 +251,9 @@ def rename(settings: Settings, rel: str, name: str) -> dict:
     return {"path": relative(settings, target)}
 
 
-def delete(settings: Settings, rel: str, user: dict) -> dict:
-    """A file, or a folder with everything in it, into the recycle bin (one rename: instant, nothing is copied or erased)."""
+def delete(settings: Settings, rel: str, user: dict, rules: list | None = None) -> dict:
+    """A file, or a folder with everything in it, into the recycle bin (one rename: instant, nothing is copied or erased).
+    rules: its folder / file permissions (cloud_acl.stash), kept in the note for a restore."""
     path = resolve(settings, rel)
     if not rel or not path.exists():
         raise CloudError(404, "not_found", "Not found")
@@ -259,7 +261,7 @@ def delete(settings: Settings, rel: str, user: dict) -> dict:
     size, is_dir = _walk_size(path), path.is_dir()
     box_id = make_box(trash_root(settings), path, {  # same disk: the space stays counted (the bin is part of the quota)
         "path": relative(settings, path), "dir": is_dir, "size": size, "deleted_at": int(time.time()),
-        "by_id": user["id"], "by_name": user["name"]})
+        "by_id": user["id"], "by_name": user["name"]} | ({"rules": rules} if rules else {}))
     return {"trash_id": box_id, "size": size}
 
 
@@ -315,8 +317,9 @@ def _free_name(target: Path) -> Path:
     raise CloudError(409, "exists", "Too many restored copies with this name")
 
 
-def restore(settings: Settings, trash_id: str) -> dict:
-    """Back where it was (its folders made again if they were deleted too); a new item with its name is kept."""
+def restore(settings: Settings, trash_id: str, placing=None) -> dict:
+    """Back where it was (its folders made again if they were deleted too); a new item with its name is kept.
+    placing(path, rules): called just before the item is moved to `path`, with the permissions from its note."""
     box = _box(settings, trash_id)
     info = _info(box)
     target = resolve(settings, str(info.get("path") or "")) if info.get("path") else None
@@ -324,6 +327,8 @@ def restore(settings: Settings, trash_id: str) -> dict:
         raise CloudError(409, "bad_info", "The recycle bin note of this item is damaged: restore it with File Station")
     _make_parents(target.parent)
     target = _free_name(target)
+    if placing:
+        placing(relative(settings, target), info.get("rules"))
     os.replace(box / "item", target)
     shutil.rmtree(box, ignore_errors=True)
     return {"path": relative(settings, target), "size": int(info.get("size") or 0)}

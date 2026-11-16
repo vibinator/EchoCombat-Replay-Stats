@@ -1524,11 +1524,20 @@ export interface CloudEntry {
   modified: number; // unix seconds
   /** scanning: uploaded, waiting for its virus scan (not downloadable yet); unscanned: too big for the virus scan */
   state?: "scanning" | "unscanned";
+  can_edit?: boolean; // this person may rename / delete it
+  /** console users only: the item has permissions of its own (private, and with how many roles / people it is shared) */
+  private?: boolean;
+  shared?: number;
 }
 export interface CloudListing {
   path: string;
   entries: CloudEntry[];
-  can_edit: boolean;
+  can_edit: boolean; // upload and new folder here
+  can_manage: boolean; // console user: sets the permissions of folders and files
+  limited: boolean; // only what is shared with this person shows (no access to the folder itself)
+  /** console users: the nearest rule on this folder or one above it, which every row here inherits */
+  inherited?: { path: string; private: boolean } | null;
+  viewing_as: CloudPrincipal | null; // console users, "View as": whose view this is
   used_bytes: number;
   quota_bytes: number; // 0 = no limit
   trash_bytes: number; // part of used_bytes: deleted files kept in the recycle bin
@@ -1585,7 +1594,7 @@ export const scanAllCloudFiles = () =>
 export const restoreCloudTrash = (id: string) => trashPost<{ path: string }>("restore", { id });
 export const purgeCloudTrash = (id: string) => trashPost<{ path: string; size: number }>("purge", { id });
 export const emptyCloudTrash = () => trashPost<{ count: number; size: number }>("purge", { all: true });
-const cloudPost = <T>(action: string, body: { path: string; name?: string; parents?: boolean }) =>
+const cloudPost = <T>(action: string, body: { path: string; name?: string; parents?: boolean; private?: boolean }) =>
   send<T>(`/api/cloud/${action}`, {
     method: "POST",
     headers: { ...ADMIN_WRITE, "Content-Type": "application/json" },
@@ -1597,7 +1606,7 @@ export interface CloudLogEntry {
   at: string; // UTC
   who: string;
   who_id: string;
-  action: "upload" | "download" | "folder" | "rename" | "delete" | "restore" | "purge" | "scan" | "virus" | "release" | "denied";
+  action: "upload" | "download" | "folder" | "rename" | "delete" | "restore" | "purge" | "scan" | "virus" | "release" | "permissions" | "denied";
   path: string;
   detail: string | null;
   size: number | null;
@@ -1606,14 +1615,61 @@ export interface CloudLogEntry {
 }
 export const getCloudLog = (q = "", before?: number) =>
   send<CloudLogEntry[]>(`/api/cloud/log${query({ q: q || undefined, before, limit: 100 })}`);
-export const getCloud = (path: string) => send<CloudListing>(`/api/cloud/list?${new URLSearchParams({ path })}`);
+/** A Discord role or person (console users: "View as", pickers). */
+export interface CloudPrincipal {
+  type: "role" | "user";
+  id: string;
+  name: string;
+}
+/** as: console users, the folder as that role or person sees it. */
+export const getCloud = (path: string, as?: CloudPrincipal | null) =>
+  send<CloudListing>(`/api/cloud/list?${new URLSearchParams(as ? { path, as_type: as.type, as_id: as.id } : { path })}`);
 /** Opened by the browser itself (a link): no header needed, the login cookie decides. */
 export const cloudDownloadUrl = (path: string) => `/api/cloud/download?${new URLSearchParams({ path })}`;
 /** parents: also make the missing folders above it (empty folders of an uploaded folder tree). */
-export const makeCloudFolder = (path: string, name: string, parents = false) =>
-  cloudPost<{ path: string }>("folder", { path, name, parents });
+export const makeCloudFolder = (path: string, name: string, parents = false, isPrivate = false) =>
+  cloudPost<{ path: string }>("folder", { path, name, parents, private: isPrivate });
 export const renameCloud = (path: string, name: string) => cloudPost<{ path: string }>("rename", { path, name });
 export const deleteCloud = (path: string) => cloudPost<{ ok: boolean }>("delete", { path });
+
+/** Permissions of one folder or file (backend/cloud_acl.py; console users set them on the Cloud page). */
+export interface CloudGrant {
+  type: "role" | "user";
+  id: string; // Discord id
+  level: "view" | "edit";
+  name?: string;
+}
+export interface CloudRule {
+  path: string;
+  dir: boolean;
+  private: boolean; // only the roles / people listed keep access
+  grants: CloudGrant[];
+  above: { path: string; private: boolean; grants: CloudGrant[] }[]; // rules of the folders it is in, top first
+  /** who ends up with what (saved rules + whole-Cloud permissions); level null = no access. Console users not listed */
+  effective: { type: "role" | "user"; id: string; name: string; level: "view" | "edit" | null }[];
+  server_roles: DiscordEntry[] | null;
+}
+/** Every folder / file with permissions of its own (Console > Permissions). */
+export interface CloudRuleRow {
+  path: string;
+  private: boolean;
+  exists: boolean; // false: removed outside the site, the rule is left over
+  dir: boolean;
+  grants: CloudGrant[];
+  updated_at: string; // UTC
+  by: string;
+}
+export const getCloudRules = () => send<{ rules: CloudRuleRow[] }>("/api/cloud/permissions/all");
+/** Find a person's Discord id by name (console users). */
+export const findCloudPeople = (q: string) =>
+  send<{ people: { id: string; name: string; from: string }[] }>(`/api/cloud/people?${new URLSearchParams({ q })}`);
+export const getCloudRule = (path: string) => send<CloudRule>(`/api/cloud/permissions?${new URLSearchParams({ path })}`);
+export const setCloudRule = (path: string, isPrivate: boolean, grants: CloudGrant[]) =>
+  send<CloudRule | { path: string; gone: true }>("/api/cloud/permissions", {
+    method: "POST",
+    headers: { ...ADMIN_WRITE, "Content-Type": "application/json" },
+    body: JSON.stringify({ path, private: isPrivate, grants: grants.map(({ type, id, level }) => ({ type, id, level })) }),
+  });
 
 // Cloudflare refuses bodies over 100 MB: files go up in chunks (the server allows 90 MB; smaller = finer progress and
 // less to send again after a dropped connection).

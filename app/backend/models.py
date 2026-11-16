@@ -269,6 +269,20 @@ class CloudLog(Base):
     ip: Mapped[str | None]
 
 
+class CloudRule(Base):
+    """Open Cloud permissions of one folder or file (cloud_acl.py; user, 2026-11-16). Kept across rebuilds."""
+
+    __tablename__ = "cloud_rules"
+
+    key: Mapped[str] = mapped_column(primary_key=True)  # the path in lower case (casefold): how rules are matched
+    path: Mapped[str]  # in the cloud folder, as written
+    private: Mapped[bool]  # only the people listed here (and console users) have access
+    grants: Mapped[str]  # JSON list: {"type": "role" | "user", "id": Discord id, "level": "view" | "edit"}
+    updated_at: Mapped[str]
+    by_id: Mapped[str]  # the console user who set it
+    by_name: Mapped[str]
+
+
 class ConsoleLog(Base):
     """Audit log of console commands (user, 2026-11-02): who ran what, from the website's Console page or admin.bat.
     Kept across rebuilds."""

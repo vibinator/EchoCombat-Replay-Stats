@@ -38,21 +38,23 @@ path is in middleware.WRITES / BOT. Console routes need auth.has_console; profil
 | POST | `/api/bot/lookup` | bot_lookup | app/backend/api/profiles.py:364 | Which player a Discord account is linked to (or which account a player is linked to). POST so the secret |
 | POST | `/api/bot/unlink` | bot_unlink | app/backend/api/profiles.py:348 | Remove a link (by Discord account or by player); the bio goes with it. |
 | GET | `/api/challenges` | get_challenges | app/backend/api/achievements.py:72 | The Flamingo Challenge period: only matches inside it count. No start date = not launched yet. |
-| POST | `/api/cloud/delete` | delete | app/backend/api/cloud.py:112 |  |
-| GET | `/api/cloud/download` | download | app/backend/api/cloud.py:62 |  |
-| POST | `/api/cloud/folder` | make_folder | app/backend/api/cloud.py:89 |  |
-| GET | `/api/cloud/list` | listing | app/backend/api/cloud.py:53 |  |
-| GET | `/api/cloud/log` | audit_log | app/backend/api/cloud.py:319 |  |
-| GET | `/api/cloud/quarantine` | quarantine | app/backend/api/cloud.py:268 |  |
-| POST | `/api/cloud/quarantine/delete` | quarantine_delete | app/backend/api/cloud.py:278 |  |
-| POST | `/api/cloud/quarantine/release` | quarantine_release | app/backend/api/cloud.py:289 | A false alarm: a console user lets the file into the cloud. |
-| POST | `/api/cloud/rename` | rename | app/backend/api/cloud.py:101 |  |
-| POST | `/api/cloud/scan-all` | scan_all | app/backend/api/cloud.py:302 | Every file already in the cloud: ClamAV where it is (and VirusTotal after), one at a time in the background. |
-| GET | `/api/cloud/trash` | trash | app/backend/api/cloud.py:135 |  |
-| POST | `/api/cloud/trash/purge` | trash_purge | app/backend/api/cloud.py:162 |  |
-| POST | `/api/cloud/trash/restore` | trash_restore | app/backend/api/cloud.py:151 |  |
-| POST | `/api/cloud/upload` | upload | app/backend/api/cloud.py:190 |  |
-| GET | `/api/cloud/upload/status` | upload_status | app/backend/api/cloud.py:178 | How much of this upload the server already has (user, 2026-11-10: an interrupted upload continues where it |
+| POST | `/api/cloud/delete` | delete | app/backend/api/cloud.py:165 |  |
+| GET | `/api/cloud/download` | download | app/backend/api/cloud.py:90 |  |
+| POST | `/api/cloud/folder` | make_folder | app/backend/api/cloud.py:120 |  |
+| GET | `/api/cloud/list` | listing | app/backend/api/cloud.py:65 |  |
+| GET | `/api/cloud/log` | audit_log | app/backend/api/cloud.py:453 |  |
+| GET | `/api/cloud/permissions` | item_permissions | app/backend/api/cloud.py:413 | Who one folder or file is shared with, whether it is private, and the rules of the folders above it. |
+| POST | `/api/cloud/permissions` | set_item_permissions | app/backend/api/cloud.py:429 | Replaces the permissions of one folder or file (nothing listed and not private: none of its own). |
+| GET | `/api/cloud/quarantine` | quarantine | app/backend/api/cloud.py:338 |  |
+| POST | `/api/cloud/quarantine/delete` | quarantine_delete | app/backend/api/cloud.py:348 |  |
+| POST | `/api/cloud/quarantine/release` | quarantine_release | app/backend/api/cloud.py:359 | A false alarm: a console user lets the file into the cloud. |
+| POST | `/api/cloud/rename` | rename | app/backend/api/cloud.py:146 |  |
+| POST | `/api/cloud/scan-all` | scan_all | app/backend/api/cloud.py:372 | Every file already in the cloud: ClamAV where it is (and VirusTotal after), one at a time in the background. |
+| GET | `/api/cloud/trash` | trash | app/backend/api/cloud.py:191 |  |
+| POST | `/api/cloud/trash/purge` | trash_purge | app/backend/api/cloud.py:220 |  |
+| POST | `/api/cloud/trash/restore` | trash_restore | app/backend/api/cloud.py:207 |  |
+| POST | `/api/cloud/upload` | upload | app/backend/api/cloud.py:260 |  |
+| GET | `/api/cloud/upload/status` | upload_status | app/backend/api/cloud.py:236 | How much of this upload the server already has (user, 2026-11-10: an interrupted upload continues where it |
 | GET | `/api/combat/awards` | award_options | app/backend/api/combat.py:124 | The game's end-of-match awards and how each is earned (no thresholds: the top player of the stat gets the card |
 | GET | `/api/combat/leaderboard` | leaderboard | app/backend/api/combat.py:201 |  |
 | GET | `/api/combat/matches` | matches | app/backend/api/combat.py:253 |  |

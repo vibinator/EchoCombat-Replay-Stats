@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router";
+import { CloudPermissions } from "../components/CloudPermissions";
 import { droppedEntries, pickedFolder, readEntries, useUploadQueue, type Picked } from "../components/cloudUploads";
 import {
   cloudDownloadUrl, deleteCloud, getCloud, getMe, loginUrl, makeCloudFolder, renameCloud,
@@ -36,7 +37,10 @@ export function CloudPage() {
     return (
       <section>
         <h1>Cloud</h1>
-        <p className="muted">Your Discord account does not have Cloud access. Ask a console user to give it to you on the Permissions page.</p>
+        <p className="muted">
+          Your Discord account does not have Cloud access. Ask a console user to give it to you on the Permissions page, or to share a
+          folder or file with you.
+        </p>
       </section>
     );
   }
@@ -51,6 +55,7 @@ function CloudBrowser() {
   const [busy, setBusy] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [reading, setReading] = useState(false); // a dropped folder is being read
+  const [permissionsOf, setPermissionsOf] = useState<string | null>(null); // console users: the item whose permissions are open
   const filesInput = useRef<HTMLInputElement>(null);
   const folderInput = useRef<HTMLInputElement>(null);
 
@@ -65,6 +70,7 @@ function CloudBrowser() {
   }, [folder]);
   useEffect(() => {
     setListing(null);
+    setPermissionsOf(null);
     load();
   }, [load]);
   const checking = !!listing?.entries.some((e) => e.state === "scanning");
@@ -76,6 +82,7 @@ function CloudBrowser() {
 
   const open = (path: string) => setParams(path ? { path } : {});
   const canEdit = !!listing?.can_edit;
+  const canManage = !!listing?.can_manage;
   const queue = useUploadQueue(load);
   useEffect(() => { // React has no prop for it: the folder picker (Windows' "Select folder" dialog)
     folderInput.current?.setAttribute("webkitdirectory", "");
@@ -172,10 +179,15 @@ function CloudBrowser() {
         <p className="muted">
           {fileSize(listing.used_bytes)} used{listing.quota_bytes ? ` of ${fileSize(listing.quota_bytes)}` : ""}
           {listing.trash_bytes > 0 && ` (${fileSize(listing.trash_bytes)} of it in the recycle bin)`}
-          {!canEdit && " · you can download files; changing them needs Cloud edit"}
+          {listing.limited
+            ? " · you see only what is shared with you here"
+            : !canEdit && " · you can download files; changing them needs edit permission here"}
         </p>
       )}
       {error && <p className="error">{error}</p>}
+      {permissionsOf !== null && (
+        <CloudPermissions path={permissionsOf} onClose={() => setPermissionsOf(null)} onSaved={load} />
+      )}
       {canEdit && (
         <>
           <div className="cloud-actions">
@@ -255,6 +267,12 @@ function CloudBrowser() {
                     {e.state === "unscanned" && (
                       <span className="tag" title="Too big for the virus scan: it was not checked">Not scanned</span>
                     )}{e.state === "unscanned" && " "}
+                    {e.private && (
+                      <><span className="tag" title="Only the roles and people listed in its permissions (and console users) can see it">Private</span>{" "}</>
+                    )}
+                    {!e.private && !!e.shared && (
+                      <><span className="tag" title={`Shared with ${e.shared} role${e.shared === 1 ? "" : "s"} / people in its permissions`}>Shared</span>{" "}</>
+                    )}
                     {e.dir ? (
                       <><span className="tag">Folder</span> <button className="link" onClick={() => open(join(folder, e.name))}>{e.name}</button></>
                     ) : (
@@ -266,7 +284,10 @@ function CloudBrowser() {
                   <td>
                     <div className="cloud-row-actions">
                       {!e.dir && <a href={cloudDownloadUrl(join(folder, e.name))} download={e.name}>Download</a>}
-                      {canEdit && (
+                      {canManage && (
+                        <button className="link" disabled={busy} onClick={() => setPermissionsOf(join(folder, e.name))}>Permissions</button>
+                      )}
+                      {e.can_edit && (
                         <>
                           <button className="link" disabled={busy} onClick={() => rename(e)}>Rename</button>
                           <button className="link danger" disabled={busy} onClick={() => remove(e)}>Delete</button>
