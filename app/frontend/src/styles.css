@@ -5035,13 +5035,36 @@ tr.cloud-drop-on td {
   padding: 10px 12px;
 }
 .home .home-strip .sparkline { margin-top: 4px; height: 20px; }
-.seen-line { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; margin: 4px 0 6px; }
-.seen-line .inline-check { margin: 0; font-size: 0.85rem; }
+/* Players seen: one line (title, total, period) and a chart that is short where the panel has a row to itself (wide
+   screens) and fills the panel's height where it stands beside "This week" */
+.players-seen { display: flex; flex-direction: column; }
+.seen-title { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 14px; }
+.seen-chart { position: relative; flex: 1 1 auto; min-height: 76px; margin-top: 6px; }
+.seen-chart > .chart { position: absolute; inset: 0 0 auto; margin: 0; }
+/* This week: the ranked rows fill the height the panel is given. The list is taken out of the flow, so it never makes
+   the panel taller than its row; rows that do not fit whole wrap into a second column, which is cut off. --rows
+   (HomePage): the rows always shown, five, or fewer when there are fewer. */
+.this-week { display: flex; flex-direction: column; }
+.this-week .week-rows {
+  --row: 46px;
+  --row-gap: 4px;
+  position: relative;
+  flex: 1 1 auto;
+  min-height: calc(var(--rows) * var(--row) + (var(--rows) - 1) * var(--row-gap));
+  margin-top: 8px;
+}
+.this-week .week-rows > .active-list {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: var(--row-gap);
+  overflow: hidden;
+}
+.this-week .week-rows .active-row { width: 100%; height: var(--row); }
 .this-week > .tabs { margin: 0 0 8px; }
 .this-week-note { font-size: 0.8rem; margin: -2px 0 8px; }
-.trend-change .trend-value { white-space: nowrap; } /* the rest wraps in a narrow card (phones) */
-.trend-change.up { color: var(--ok); }
-.trend-change.down { color: var(--muted); } /* a drop: plain grey, not red (HomePage, Change) */
 .trend-change .muted { font-weight: normal; }
 /* live video and latest matches fill the row: the video takes half, but stops at 960 px (540 px tall), and the
    latest matches take the rest, one wide row each (tags and names beside the score: see .match-cards.compact below) */
@@ -5083,7 +5106,11 @@ tr.cloud-drop-on td {
 .stat-group {
   flex-grow: 1;
   min-width: 0;
+  /* the groups of a row are one height (the row's tallest); the cards take all of it, so their bottoms line up */
+  display: flex;
+  flex-direction: column;
 }
+.stat-group > .cards { flex: 1 1 auto; }
 .stat-group .cards {
   grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
 }

@@ -18,6 +18,58 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.16.22 — 16:00
+
+The first load of pages nobody has opened since the last restart (user: "stuff that isn't cached, a brand new load
+in"). Measured on the live site first (version 2026.11.16.20): minutes after a restart a match-list filter took 21 s,
+the most active player's profile 13.5 s, the Records board 2.4 s, a match 1 s; the same kinds of request took
+0.1 - 0.3 s ten minutes later. The site restarts with every update, so that window is where first loads are slow.
+Only changes worth more than 10 % were kept (user).
+
+- **After a restart the server builds again what people were opening**, most asked first (`popular.py`). It remembers
+  which public answers are asked for (`<data>/cache/popular.json`, counts fade over days) and, once the database is
+  back in memory, asks itself for the 150 most asked (`ECHOVR_WARM_ANSWERS`, `0` = off), one at a time at no more than
+  half a core. Built by the new version's own code: nothing from before the restart is sent to anyone. On the dev PC
+  with a realistic list of 150 answers (profiles, matches, boards): their first requests after a restart took 2.25 s
+  together (the slowest 357 ms) and now 0.06 s (the slowest 0.7 ms), for 5.5 s of work in the background.
+- **The ahead-of-time builds wait for the database to be read into memory** instead of competing with that read for
+  the disk.
+- **Player profiles: gear picks through a new index** (`ix_events_loadout_player`, gear-change events by player, ~8 MB).
+  They were found by reading every event of every match the player was in (1.3 million rows for the most active
+  player). First build of that profile 305 ms -> 144 ms on the dev PC, an ordinary one 16 -> 9 ms; much more when the
+  rows have to come from the disk. **The first start after this update builds the index once** (0.8 s on the dev PC,
+  expect well under a minute on the NAS).
+- **Home page numbers**: four separate passes over every player of every match became one (overview build 387 ->
+  311 ms; it is built in the background, so this is server time, not waiting time).
+- **The page itself and its scripts / styles are sent from memory**, compressed once: a page address 2.6 -> 0.2 ms, the
+  main script 7.4 -> 0.2 ms per request on the dev PC (it was compressed again for every request), and 4 % smaller.
+- **For reading the log when the site felt slow**: one line at start with the SQLite version and the database size,
+  `Slow answer: <name> <filters> took N s to build` for every build over 2 s, and how many answers were built again
+  after the restart.
+- Looked at and left alone (under 10 %, or nothing cheaper found): replay processing (a set of per-frame savings
+  measured at under 2 %, taken out again), the leaderboard's one pass over the archive, the Records board, heatmaps.
+
+**To do after updating:** add `ECHOVR_WARM_ANSWERS: "150"` to the NAS YAML only if you want a different number (150 is
+the default). The first start takes a little longer once (the new index).
+
+## 2026.11.16.21 — 15:23
+
+Home page, from the user's screenshots on a 2500 px window.
+
+- **No trend line on three cards**: "Matches · last 7 days", "New players · last 7 days" and "New players who came back"
+  no longer say "… vs the 7 days before"; the number, the small line and "0 today" / "77 of 215" stay.
+- **"All time" cards lined up**: the cards of a row are one height across Archive / Fun facts / Records (they were
+  107 / 103 / 142 px) and one width, and every row ends at the right edge. A very wide window gets two full rows
+  (Archive + Fun facts, Records + More archive numbers) instead of 15 cards and two stretched ones left over below.
+- **"This week" fills its panel**: it shows as many ranked players as it has room for (five at least, up to 15) instead
+  of five and an empty panel beside the video; the Combat tabs add kills per death / award cards next to the matches.
+  The overview now carries the 15 most active players of the week (was 5).
+- **"Players seen in Combat" is smaller**: title, total and period on one line, no chart heading, and a short chart
+  (139 px for the whole panel on a wide window, was about 240; beside "This week" it fills that panel's height). The
+  "From the latest match" tick box is gone: when nobody played in the period counted back from now, it counts back
+  from the newest match by itself and says so.
+- The chart's data is asked for early with the range it opens on (7 days; it asked for 24 hours, which was thrown away).
+
 ## 2026.11.16.20 — 14:47
 
 End-to-end pass for load times and layout. Measured on the development PC against a copy of the full archive, old and

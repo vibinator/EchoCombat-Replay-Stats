@@ -21,6 +21,7 @@ from starlette.datastructures import MutableHeaders
 from starlette.requests import Request
 
 from . import auth, guard
+from .popular import SCOPE_MARK
 from .cache import STATUS_HEADER
 from .version import VERSION
 
@@ -111,9 +112,16 @@ class SiteMiddleware:
                     headers["X-EchoVR-Build"] = VERSION
                     per_visitor = path.startswith(PER_VISITOR) or bool(scope.get("state", {}).get("per_visitor"))
                     _api_cache(headers, status, per_visitor, edge_s)
+                    # an answer from the answer cache that anybody may see: remembered as "asked for", so it is built
+                    # again after a restart before someone waits for it (popular.py)
+                    if (status == 200 and not per_visitor and counts is not None and STATUS_HEADER in headers
+                            and scope["method"] == "GET"):
+                        counts.count(path, scope.get("query_string", b"").decode("latin-1"))
                 else:
                     _static_cache(headers, path, status, scope.get("query_string", b""))
             await send(message)
 
-        app = _refusal(request, self.settings, self.limiter, self.hourly) or self.app
+        own = bool(scope.get(SCOPE_MARK))  # the server asking itself (popular.rebuild): not a visitor, not counted
+        counts = None if own else getattr(getattr(scope.get("app"), "state", None), "popular", None)
+        app = (None if own else _refusal(request, self.settings, self.limiter, self.hourly)) or self.app
         await app(scope, receive, send_with_headers)

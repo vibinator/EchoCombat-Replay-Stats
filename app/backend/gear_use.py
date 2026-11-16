@@ -11,7 +11,7 @@ import json
 from collections import Counter
 from collections.abc import Iterable
 
-from sqlalchemy import select
+from sqlalchemy import literal_column, select
 
 from parser.frames import gear_code
 
@@ -38,7 +38,9 @@ def count_picks(changes: Iterable[dict]) -> dict[str, Counter]:
 def _picks(db, *where) -> dict[tuple[int, int], dict[str, Counter]]:
     rows = db.execute(
         select(Event.match_id, Event.player_id, Event.data)
-        .where(Event.type == "loadout_change", Event.data.is_not(None), Event.player_id.is_not(None), *where)
+        # the type written into the statement, not passed beside it: SQLite only uses the gear-change index
+        # (models.Event, ix_events_loadout_player) when it can see that the query asks for exactly those rows
+        .where(Event.type == literal_column("'loadout_change'"), Event.data.is_not(None), Event.player_id.is_not(None), *where)
         .order_by(Event.match_id, Event.player_id, Event.frame, Event.id)
     ).all()
     grouped: dict[tuple[int, int], list[dict]] = {}

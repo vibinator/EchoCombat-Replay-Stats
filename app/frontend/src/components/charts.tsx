@@ -46,9 +46,11 @@ function anchor(i: number, count: number): "middle" | "end" {
   return i === count - 1 ? "end" : "middle";
 }
 
-export function BarChart({ data, title, unit = "", height = 180, color = "var(--chart-1)" }: {
+export function BarChart({ data, title, unit = "", height = 180, color = "var(--chart-1)", caption = true }: {
   data: BarDatum[];
   title: string;
+  /** false: no heading line above the chart (the title still names it for screen readers) */
+  caption?: boolean;
   unit?: string;
   height?: number;
   color?: string;
@@ -71,7 +73,7 @@ export function BarChart({ data, title, unit = "", height = 180, color = "var(--
 
   return (
     <figure className="chart">
-      <figcaption className="chart-title">{title}</figcaption>
+      {caption && <figcaption className="chart-title">{title}</figcaption>}
       <div className="chart-wrap" ref={wrapRef}>
         <svg viewBox={`0 0 ${W} ${height}`} role="img" aria-label={title} onMouseMove={onMove} onMouseLeave={() => setHover(null)}>
           {[0, 0.5, 1].map((f) => (

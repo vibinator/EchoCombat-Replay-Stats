@@ -260,16 +260,22 @@ _refresher = ThreadPoolExecutor(max_workers=2, thread_name_prefix="cache-refresh
 _frames = threading.local()
 
 
-def _run(build: Callable[[tuple], Entry], stamp: tuple) -> Entry:
+SLOW_BUILD_S = 2.0  # a build this long is written to the log: the first thing to look at when the site felt slow
+
+
+def _run(build: Callable[[tuple], Entry], stamp: tuple, key=None) -> Entry:
     frames = getattr(_frames, "stack", None)
     if frames is None:
         frames = _frames.stack = []
-    frame = {"stamp": stamp, "built_at": time.monotonic()}
+    started = time.monotonic()
+    frame = {"stamp": stamp, "built_at": started}
     frames.append(frame)
     try:
         entry = build(stamp)
     finally:
         frames.pop()
+        if key is not None and (took := time.monotonic() - started) >= SLOW_BUILD_S:
+            log.warning("Slow answer: %s %s took %.1f s to build", key[0], key[1], took)
     entry.stamp, entry.built_at = frame["stamp"], frame["built_at"]
     return entry
 
@@ -294,7 +300,7 @@ def _build_now(store: Store, key, build, stamp: tuple, seen: Entry | None) -> En
         if entry is not None and (entry is not seen or entry.stamp == stamp):
             return entry  # built by the request this one waited for
         try:
-            entry = _run(build, stamp)
+            entry = _run(build, stamp, key)
             store.put(key, entry)
             return entry
         finally:
@@ -312,7 +318,7 @@ def _refresh(store: Store, key, build, stamp: tuple) -> None:
 
     def run():
         try:
-            store.put(key, _run(build, stamp))
+            store.put(key, _run(build, stamp, key))
         except ApiError:
             store.drop(key)  # e.g. the player is gone: the next request builds it and reports why
         except Exception:

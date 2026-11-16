@@ -74,8 +74,10 @@ def open_reader(db_path: str, cache_mb: int = 0) -> sessionmaker:
     return sessions
 
 
-def warm(db_path: Path, cache_mb: int) -> None:
-    """Read the database file once in the background so the first visitors do not wait on the disk (D49)."""
+def warm(db_path: Path, cache_mb: int) -> threading.Thread:
+    """Read the database file once in the background so the first visitors do not wait on the disk (D49). Returns the
+    thread: the builds done ahead at start (main.py, warm_caches) wait for it, instead of fetching their rows from
+    the disk one page at a time while this is still reading."""
     def _read():
         left = cache_mb * 1024 * 1024
         try:
@@ -85,7 +87,9 @@ def warm(db_path: Path, cache_mb: int) -> None:
         except OSError:
             pass
 
-    threading.Thread(target=_read, name="db-warm", daemon=True).start()
+    thread = threading.Thread(target=_read, name="db-warm", daemon=True)
+    thread.start()
+    return thread
 
 
 def _add_missing_columns(engine: Engine) -> None:

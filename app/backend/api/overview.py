@@ -34,7 +34,8 @@ def _overview(request: Request, v: visibility.View = visibility.ALL_SHOWN) -> di
     with request.app.state.sessionmaker() as db:
         matches, hours = db.execute(select(func.count(), func.sum(Match.duration_s)).where(m)).one()
         players = db.scalar(select(func.count()).select_from(Player))
-        play_hours = db.scalar(select(func.sum(MatchPlayer.play_time_s)).where(mp))
+        totals = _player_totals(db)
+        play_hours = totals.play_time
         today_n = db.scalar(select(func.count()).select_from(Match).where(Match.started_at >= today, m))
         week_n = db.scalar(select(func.count()).select_from(Match).where(Match.started_at >= week, m))
         by_map = dict(db.execute(select(Match.map, func.count()).where(m).group_by(Match.map)).all())
@@ -45,12 +46,12 @@ def _overview(request: Request, v: visibility.View = visibility.ALL_SHOWN) -> di
             select(Player.user_id, Player.name, func.count().label("games"), func.sum(won).label("wins"))
             .select_from(MatchPlayer).join(Match, Match.id == MatchPlayer.match_id).join(Player)
             .where(Match.started_at >= week, m).group_by(Player.id)
-            .order_by(func.count().desc(), *([func.sum(won).desc()] if wl else []), Player.id).limit(5)
+            .order_by(func.count().desc(), *([func.sum(won).desc()] if wl else []), Player.id).limit(WEEK_TOP)
         ).all()
         latest = match_cards(db, _latest_matches(db), with_players=True)
         newcomers = _newcomers(db, week)
         trend = _trend(db)
-        globals_ = _global_stats(db)
+        globals_ = _global_stats(db, totals)
         if not wl:  # team win rates too (user, 2026-11-02)
             globals_ = visibility.without(globals_, TEAM_WIN_KEYS)
     return {
@@ -73,6 +74,7 @@ def _overview(request: Request, v: visibility.View = visibility.ALL_SHOWN) -> di
     }
 
 
+WEEK_TOP = 15  # "This week, most active" on the home page: it shows as many of them as its panel has room for (five at least)
 RETURN_DAYS = 7  # "came back": played again on a later day, within this many days of the first match
 
 
@@ -343,8 +345,23 @@ def _top_gear(db, limit: int = 3) -> dict[str, list[dict]]:
 TEAM_WIN_KEYS = ("payload_attack_win_rate", "payload_decided", "capture_wins")
 
 
-def _global_stats(db) -> dict:
-    """Archive-wide facts for the home page."""
+def _player_totals(db):
+    """Everything the home page adds up over every player of every match, in one pass over match_players (until
+    2026-11-16 four separate passes: play time, players per match, deaths, and the fun facts; 126 ms -> 50 ms)."""
+    s = func.sum
+    return db.execute(
+        select(func.count().label("slots"), s(MatchPlayer.play_time_s).label("play_time"), s(MatchPlayer.deaths_est).label("deaths"),
+               s(MatchPlayer.emote_count).label("emotes"), s(MatchPlayer.frames_upside_down).label("upside"),
+               s(MatchPlayer.frames_present).label("present"), s(MatchPlayer.frames_left_arm).label("left_arm"),
+               s(MatchPlayer.frames_right_arm).label("right_arm"), s(case((MatchPlayer.left_early, 1), else_=0)).label("left_early"))
+        .where(counted(MatchPlayer.match_id))
+    ).one()
+
+
+def _global_stats(db, totals=None) -> dict:
+    """Archive-wide facts for the home page. `totals`: _player_totals(db) when the caller has it already."""
+    if totals is None:
+        totals = _player_totals(db)
     avg_len, longest_id, longest_s = None, None, None
     m, mp = counted(Match.id), counted(MatchPlayer.match_id)  # duplicate recordings left out (D13)
     n, total_s = db.execute(select(func.count(), func.sum(Match.duration_s)).where(m)).one()
@@ -352,8 +369,7 @@ def _global_stats(db) -> dict:
         avg_len = total_s / n
         longest_id, longest_s = db.execute(
             select(Match.id, Match.duration_s).where(m).order_by(Match.duration_s.desc()).limit(1)).one()
-    slots = db.scalar(select(func.count()).select_from(MatchPlayer).where(mp))
-    deaths = db.scalar(select(func.sum(MatchPlayer.deaths_est)).where(mp))
+    slots, deaths = totals.slots, totals.deaths
     fastest = db.execute(
         select(Player.user_id, Player.name, MatchPlayer.top_speed, MatchPlayer.match_id).join(Player)
         .where(mp).order_by(MatchPlayer.top_speed.desc()).limit(1)
@@ -376,11 +392,8 @@ def _global_stats(db) -> dict:
     ).all())
     by_mode = dict(db.execute(select(Match.mode, func.avg(Match.duration_s)).where(m).group_by(Match.mode)).all())
     by_map = dict(db.execute(select(Match.map, func.avg(Match.duration_s)).where(m).group_by(Match.map)).all())
-    emotes, upside, present, left_arm, right_arm, left_early = db.execute(
-        select(func.sum(MatchPlayer.emote_count), func.sum(MatchPlayer.frames_upside_down), func.sum(MatchPlayer.frames_present),
-               func.sum(MatchPlayer.frames_left_arm), func.sum(MatchPlayer.frames_right_arm),
-               func.sum(case((MatchPlayer.left_early, 1), else_=0))).where(mp)
-    ).one()
+    emotes, upside, present = totals.emotes, totals.upside, totals.present
+    left_arm, right_arm, left_early = totals.left_arm, totals.right_arm, totals.left_early
     return {
         "avg_match_s_by_mode": {k: round(v, 1) for k, v in by_mode.items() if v},
         "avg_match_s_by_map": {k: round(v, 1) for k, v in by_map.items() if v},
@@ -462,7 +475,7 @@ def warm(app) -> None:
     from types import SimpleNamespace
 
     request = SimpleNamespace(app=app, headers={}, cookies={})
-    for call in (lambda: overview(request), lambda: activity(request, "day"), lambda: players_seen(request, "24h", "now"),
+    for call in (lambda: overview(request), lambda: activity(request, "day"), lambda: players_seen(request, "7d", "now"),
                  lambda: map_heat_cards(request, map_heat.TEAM_LAYER, map_heat.VIEWS[0]), lambda: _warm_pages(request)):
         try:
             call()

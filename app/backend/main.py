@@ -1,23 +1,33 @@
+import dataclasses
+import gzip
+import hashlib
+import logging
 import mimetypes
 import os
+import sqlite3
+import stat
 import threading
+import time
 from contextlib import asynccontextmanager
+
+import anyio
 
 from fastapi import FastAPI
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException
 
 from parser import PARSER_VERSION
 
-from . import antivirus, arena, auth, cloud, combat, guard, heights_warm, icons, tracks
+from . import antivirus, arena, auth, cloud, combat, guard, heights_warm, icons, popular, tracks
 from .api import achievements, admin, avatars, arena as arena_api, auth as auth_api, cloud as cloud_api, combat as combat_api, console, imports, profiles, leaderboard, matches, overview, permissions, players, remote_worker, replays
 from .config import PROJECT_ROOT, Settings
 from .db import open_db, warm
 from fastapi.exceptions import RequestValidationError
 
 from .errors import ApiError, api_error_handler, overflow_error_handler, validation_error_handler
+from .cache import etag_matches
 from .middleware import SiteMiddleware
 from .stats import STATS_VERSION
 from .version import APP_VERSION, RELEASED, VERSION
@@ -31,10 +41,88 @@ mimetypes.add_type("image/webp", ".webp")
 mimetypes.add_type("font/woff2", ".woff2")
 
 
+log = logging.getLogger(__name__)
+
+# The page itself and its scripts / styles are sent from memory, compressed once (2026-11-16). Until then every page
+# address went to the disk twice (the address as a file: not there; then index.html) and every script was compressed
+# again for each request (the 283 KB main script: 7.4 ms on the dev PC each time, 5-12x that on the NAS).
+KEPT_SUFFIXES = (".js", ".css", ".html", ".json", ".svg", ".txt")
+KEPT_MAX_BYTES = 2 * 1024 * 1024
+KEPT_CHECK_S = 2.0  # a kept file is looked at on the disk again at most this often (a rebuilt site shows within it)
+
+
+@dataclasses.dataclass
+class KeptFile:
+    checked: float  # time.monotonic() of the last look at the file
+    mtime_ns: int
+    size: int
+    body: bytes
+    gz: bytes  # b"" when compressing does not make it smaller
+    etag: str
+    media_type: str
+
+
 class SinglePageApp(StaticFiles):
     """Serve index.html for client-side routes such as /matches/12."""
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.kept: dict[str, KeptFile] = {}
+        # what an address without a dot can be besides a page: a folder with its own index.html, or a file without an
+        # extension. The built site has neither; if it ever does, those addresses take the usual way
+        self.not_pages: set[str] = set()
+        for folder in self.all_directories:
+            for here, _, files in os.walk(folder):
+                rel = os.path.relpath(here, folder)
+                if rel != "." and "index.html" in files:
+                    self.not_pages.add(rel)
+                self.not_pages.update(os.path.normpath(os.path.join(rel, f)) for f in files if "." not in f)
+
+    def _keep(self, rel: str) -> KeptFile | None:
+        """The file as it is on the disk now (in a worker thread: it reads and compresses). None: not a file to keep."""
+        full, info = self.lookup_path(rel)  # as StaticFiles finds it: never outside the site's folder
+        if info is None or not stat.S_ISREG(info.st_mode) or info.st_size > KEPT_MAX_BYTES:
+            self.kept.pop(rel, None)
+            return None
+        entry = self.kept.get(rel)
+        if entry is not None and (entry.mtime_ns, entry.size) == (info.st_mtime_ns, info.st_size):
+            entry.checked = time.monotonic()
+            return entry
+        with open(full, "rb") as f:
+            body = f.read()
+        gz = gzip.compress(body, 9, mtime=0)
+        entry = KeptFile(time.monotonic(), info.st_mtime_ns, info.st_size, body, gz if len(gz) < len(body) else b"",
+                         f'W/"{hashlib.blake2b(body, digest_size=12).hexdigest()}"',
+                         mimetypes.guess_type(full)[0] or "application/octet-stream")
+        self.kept[rel] = entry
+        return entry
+
+    async def _kept_response(self, rel: str, scope) -> Response | None:
+        entry = self.kept.get(rel)
+        if entry is None or time.monotonic() - entry.checked > KEPT_CHECK_S:
+            entry = await anyio.to_thread.run_sync(self._keep, rel)
+            if entry is None:
+                return None
+        asked = {k: v for k, v in scope["headers"] if k in (b"if-none-match", b"accept-encoding")}
+        headers = {"ETag": entry.etag, "Vary": "Accept-Encoding"}
+        if etag_matches(asked.get(b"if-none-match", b"").decode("latin-1"), entry.etag):
+            return Response(status_code=304, headers=headers)
+        if entry.gz and b"gzip" in asked.get(b"accept-encoding", b""):
+            return Response(entry.gz, media_type=entry.media_type, headers=headers | {"Content-Encoding": "gzip"})
+        return Response(entry.body, media_type=entry.media_type, headers=headers)
+
     async def get_response(self, path, scope):
+        if scope["method"] == "GET":
+            name = os.path.basename(path)
+            rel = None
+            if path in (".", ""):
+                rel = "index.html"
+            elif "." not in name:  # a page address (same rule as below), unless the site has such a folder / file
+                rel = None if path.startswith("api") or path in self.not_pages else "index.html"
+            elif name.endswith(KEPT_SUFFIXES):
+                rel = path
+            if rel is not None and (response := await self._kept_response(rel, scope)) is not None:
+                return response
         try:
             return await super().get_response(path, scope)
         except HTTPException as e:
@@ -53,8 +141,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def lifespan(app: FastAPI):
         engine, app.state.sessionmaker = open_db(settings.db_path, settings.db_cache_mb)
         tracks.set_cache_limit(settings.track_cache_mb)
-        if settings.db_cache_mb > 0:
-            warm(settings.db_path, settings.db_cache_mb)
+        db_warm = warm(settings.db_path, settings.db_cache_mb) if settings.db_cache_mb > 0 else None
+        try:  # for whoever reads the log when something is slow: which SQLite, how big the database is
+            log.warning("Started %s: SQLite %s, database %.0f MB (up to %d MB of it kept in memory)", VERSION,
+                        sqlite3.sqlite_version, settings.db_path.stat().st_size / 1e6, settings.db_cache_mb)
+        except OSError:
+            pass
+        app.state.warm_stop = threading.Event()
+        if settings.warm_answers > 0:
+            app.state.popular = popular.Popular(settings.data_dir)
         app.state.worker = Worker(app.state.sessionmaker, settings)
         app.state.scanner = Scanner(app.state.sessionmaker, settings, on_queued=app.state.worker.notify)
         app.state.worker.start()
@@ -76,9 +171,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             app.state.combat.start()  # the recorder's match reports (combat stats), apart from the replays
 
             def warm_caches():  # the home page first (the first thing people open), then the heavy achievements ranking
+                # ... and all of it only once the database is in memory (db.warm): an update of the site pushes it out
+                # (the new image is written through the same file cache), and builds that had to fetch their rows from
+                # the disk took 10-100x as long (2026-11-16, the live site minutes after a restart)
+                if db_warm is not None:
+                    db_warm.join(timeout=180)
                 overview.warm(app)
                 auth.check_fixed_ids(settings)  # a mistyped staff id in the YAML is logged, not silently granted (SEC-2)
                 achievements.warm(app.state.sessionmaker, previews=auth.enabled(settings))
+                # then what people were opening before the restart, most asked first (popular.py)
+                popular.rebuild(app, settings.warm_answers, app.state.warm_stop, lambda: app.state.worker.busy)
 
             threading.Thread(target=warm_caches, name="warm-caches", daemon=True).start()
             app.state.arena = arena.Tracker(app.state.sessionmaker, settings)
@@ -87,6 +189,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             app.state.heights = heights_warm.HeightsWarmer(app.state.sessionmaker, settings, app.state.worker, app)
             app.state.heights.start()
         yield
+        app.state.warm_stop.set()
+        if getattr(app.state, "popular", None) is not None:
+            app.state.popular.save()
         if settings.auto_scan:
             app.state.scanner.stop()
             app.state.combat.stop()

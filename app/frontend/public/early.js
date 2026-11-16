@@ -31,7 +31,7 @@
   var path = location.pathname, plain = !location.search, m;
   var paths = ["/api/auth/me", "/api/challenges", "/api/health", "/api/overview/processing"];
   if (path === "/") {
-    paths.push("/api/overview", "/api/overview/latest", "/api/overview/activity?bucket=day", "/api/overview/players-seen?range=24h&anchor=now");
+    paths.push("/api/overview", "/api/overview/latest", "/api/overview/activity?bucket=day", "/api/overview/players-seen?range=7d&anchor=now");
   } else if (path === "/matches" && plain) {
     paths.push("/api/matches/summary", "/api/matches?with_players=true&limit=24&offset=0");
   } else if ((m = /^\/matches\/(\d+)$/.exec(path))) {

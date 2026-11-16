@@ -1,6 +1,6 @@
 """Tables as specified in docs/DataModel.MD."""
 
-from sqlalchemy import ForeignKey, Index
+from sqlalchemy import ForeignKey, Index, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .db import Base
@@ -137,7 +137,15 @@ class MatchPlayerLoadout(Base):
 
 class Event(Base):
     __tablename__ = "events"
-    __table_args__ = (Index("ix_events_match_t", "match_id", "t_s"),)
+    __table_args__ = (
+        Index("ix_events_match_t", "match_id", "t_s"),
+        # a player's gear changes, in match and frame order (gear_use.picks_of_player: the picks on a profile). Without it
+        # they were found through ix_events_match_t: every event of every match the player was in, 1.3 million rows for
+        # the most active player (2026-11-16: 235 ms -> 46 ms on the dev PC; 13 s on the NAS just after a restart, when
+        # those rows had to come from the disk). Only the gear-change rows are in it (a tenth of the table, ~8 MB): the
+        # query has to name the type as it is written here for SQLite to use it.
+        Index("ix_events_loadout_player", "player_id", "match_id", "frame", sqlite_where=text("type = 'loadout_change'")),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     match_id: Mapped[int] = mapped_column(ForeignKey("matches.id", ondelete="CASCADE"))

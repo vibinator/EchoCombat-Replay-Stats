@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { getActivity, getCombatBoard, getLastMatch, getLatestMatches, getLive, getOverview, getPlayersSeen, type GearShare, type GlobalStats, type MatchSummary, type PlayersSeen } from "../api";
 import { BarChart, StackedBarChart } from "../components/charts";
@@ -63,6 +63,7 @@ const WEEK_TABS: [WeekTab, string][] = [
   ["kills", "Most kills"],
   ["mvp", "Most MVPs"],
 ];
+const WEEK_ROWS = 15; // asked for; the panel shows as many as it has room for, five at least (styles.css, .week-rows)
 /** one ranked row: the bar is the value against the first row's */
 type WeekRow = { user_id: string; name: string; value: number; unit: string; note?: string };
 
@@ -71,14 +72,16 @@ type WeekRow = { user_id: string; name: string; value: number; unit: string; not
  * counters in the recorder's match reports), said under those two tabs. All three count from Monday. */
 function ThisWeek({ top }: { top: { user_id: string; name: string; games: number; wins?: number }[] }) {
   const [tab, setTab] = useState<WeekTab>("active");
-  const kills = useApi(() => getCombatBoard({ stat: "kills", period: "week", min_games: 1, offset: 0, limit: 5 }), "home-combat-kills");
-  const mvp = useApi(() => getCombatBoard({ stat: "mvp", period: "week", min_games: 1, offset: 0, limit: 5 }), "home-combat-mvp");
+  const kills = useApi(() => getCombatBoard({ stat: "kills", period: "week", min_games: 1, offset: 0, limit: WEEK_ROWS }), "home-combat-kills");
+  const mvp = useApi(() => getCombatBoard({ stat: "mvp", period: "week", min_games: 1, offset: 0, limit: WEEK_ROWS }), "home-combat-mvp");
   const combat = tab === "kills" ? kills : tab === "mvp" ? mvp : null;
   const tabs = kills.error ? WEEK_TABS.slice(0, 1) : WEEK_TABS; // the Combat stats are an extra: no error box on the home page
   const rows: WeekRow[] | null = combat
     ? combat.data
       ? combat.data.items.filter((r) => r.value > 0).map((r) => ({
-          user_id: r.user_id, name: r.name, value: r.value, unit: tab === "kills" ? "kills" : "MVP", note: `${int(r.matches)} matches`,
+          user_id: r.user_id, name: r.name, value: r.value, unit: tab === "kills" ? "kills" : "MVP",
+          // a second number beside the ranked one: kills per death, or all award cards won (MVP is one of them)
+          note: `${int(r.matches)} matches${tab === "kills" ? (r.kd != null ? ` · ${num(r.kd, 1)} K/D` : "") : r.awards > r.mvp ? ` · ${int(r.awards)} awards` : ""}`,
         }))
       : null
     : top.map((p) => ({
@@ -104,6 +107,9 @@ function ThisWeek({ top }: { top: { user_id: string; name: string; games: number
       {!rows && <Skeleton lines={3} />}
       {rows && rows.length === 0 && <p className="muted">{combat ? "No combat matches recorded this week yet." : "No matches recorded this week yet."}</p>}
       {rows && rows.length > 0 && (
+        // the list fills the height the panel is given (wide screens: beside the video and the chart, where five rows
+        // left most of it empty, user 2026-11-16); rows that do not fit whole are not shown
+        <div className="week-rows" style={{ "--rows": Math.min(5, rows.length) } as React.CSSProperties}>
         <ol className="active-list">
           {rows.map((r, i) => (
             <li key={r.user_id} className={`active-row place-${i + 1}`}>
@@ -121,16 +127,21 @@ function ThisWeek({ top }: { top: { user_id: string; name: string; games: number
             </li>
           ))}
         </ol>
+        </div>
       )}
     </section>
   );
 }
 
 /** A labelled group of stat cards in the "All time" block. Groups sit side by side while they fit (a group of n cards
- * asks for about n card widths), so the block takes two rows on a wide window instead of one short row per group. */
+ * asks for about n card widths), so the block takes two rows on a wide window instead of one short row per group.
+ * Lined up (user, 2026-11-16, a 2500 px window): a group takes its share of the spare room by its number of cards, so
+ * every card of a row is the same width; a card also asks for a tenth of the row, so a very wide window gets two full
+ * rows (9 + 8 cards) instead of 15 cards and two stretched ones left over below; and the cards of a row are one
+ * height across the groups (styles.css, .stat-group). */
 function StatGroup({ title, n, children }: { title: string; n: number; children: React.ReactNode }) {
   return (
-    <div className="stat-group" style={{ flexBasis: n * 150, maxWidth: n * 360 }}>
+    <div className="stat-group" style={{ flexBasis: `max(${n * 150}px, ${n * 10}%)`, flexGrow: n, maxWidth: n * 360 }}>
       <h3 className="cards-head">{title}</h3>
       <div className="cards">{children}</div>
     </div>
@@ -143,55 +154,76 @@ const RANGES: [PlayersSeen["range"], string][] = [
   ["30d", "1 month"],
 ];
 
+const SEEN_CHART_PX: [number, number] = [76, 220]; // as short as this where it has a row to itself, taller only to fill a panel
+
+/** The height the layout has given a box, for a chart that fills it. */
+function useBoxHeight(start: number): [(el: HTMLDivElement | null) => void, number] {
+  const [el, setEl] = useState<HTMLDivElement | null>(null);
+  const [height, setHeight] = useState(start);
+  useLayoutEffect(() => {
+    if (!el) return;
+    setHeight(Math.round(el.getBoundingClientRect().height));
+    const observer = new ResizeObserver(([entry]) => setHeight(Math.round(entry.contentRect.height)));
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [el]);
+  return [setEl, height];
+}
+
+/** One line (title, total, period) and a short chart (user, 2026-11-16, twice: "simplify this, make it smaller"). The
+ * "From the latest match" tick box is gone: when nobody played in the period counted back from now (the archive can
+ * stop before now), it is counted back from the newest match by itself, and the line says so. */
 function PlayersSeenChart() {
   const [range, setRange] = useState<PlayersSeen["range"]>("7d"); // 7 days: a quiet day no longer opens on an empty chart (Review GUI-2, user 2026-11-07)
-  const [anchor, setAnchor] = useState<PlayersSeen["anchor"]>("now");
+  const [fromLatest, setFromLatest] = useState(false);
+  const anchor: PlayersSeen["anchor"] = fromLatest ? "latest" : "now";
   const seen = useApi(() => getPlayersSeen(range, anchor), `${range}|${anchor}`);
   const d = seen.data;
+  useEffect(() => {
+    if (d && d.range === range && d.anchor === "now" && d.unique_players === 0) setFromLatest(true);
+  }, [d, range]);
+  const [chartBox, boxHeight] = useBoxHeight(SEEN_CHART_PX[0]);
+  const empty = !!d && d.unique_players === 0;
   return (
-    <section className="panel">
+    <section className="panel players-seen">
       <div className="section-head">
-        <h2>Players seen in Combat</h2>
+        <div className="seen-title">
+          <h2>Players seen in Combat</h2>
+          {d && !empty && (
+            <span className="muted" title={`${dateTime(d.start)} – ${dateTime(d.end)}`}>
+              <strong className="big-number">{d.unique_players.toLocaleString()}</strong> players in {d.matches.toLocaleString()} matches
+              {d.anchor === "latest" && ` · up to the latest match, ${dateTime(d.end).slice(0, 10)}`}
+            </span>
+          )}
+        </div>
         <div className="tabs" role="tablist">
           {RANGES.map(([value, label]) => (
-            <button key={value} role="tab" aria-selected={range === value} className={range === value ? "tab active" : "tab"} onClick={() => setRange(value)}>
+            <button key={value} role="tab" aria-selected={range === value} className={range === value ? "tab active" : "tab"}
+              onClick={() => {
+                setRange(value);
+                setFromLatest(false);
+              }}>
               {label}
             </button>
           ))}
         </div>
       </div>
-      {/* compact (user, 2026-11-16: it took too much room): the total and the "count back" switch share one line,
-          the chart is short */}
-      <div className="seen-line">
-        {d ? (
-          <span className="muted" title={`${dateTime(d.start)} – ${dateTime(d.end)}`}>
-            <strong className="big-number">{d.unique_players.toLocaleString()}</strong> players in {d.matches.toLocaleString()} matches
-          </span>
-        ) : (
-          <span />
-        )}
-        <label className="inline-check" title="The archive may stop before now: count the period back from the newest recorded match">
-          <input type="checkbox" checked={anchor === "latest"} onChange={(e) => setAnchor(e.target.checked ? "latest" : "now")} /> From the latest match
-        </label>
-      </div>
-      {!d && <Skeleton lines={2} />}
-      {d && (
-        <>
-          {d.unique_players === 0 ? (
-            <p className="muted">No matches in this period. Try "From the latest match".</p>
-          ) : (
-            <BarChart
-              title={`Players per ${d.unit}`}
-              height={110}
-              unit=" players"
-              data={d.items.map((i) => ({
-                label: d.unit === "hour" ? i.bucket.slice(11, 13) + "h" : i.bucket.slice(5),
-                tooltip: `${d.unit === "hour" ? `${i.bucket.slice(0, 10)} ${i.bucket.slice(11)}:00` : i.bucket} (UK time)`,
-                value: i.players,
-              }))}
-            />
-          )}
-        </>
+      {(!d || (empty && d.anchor === "now")) && <Skeleton lines={2} />}
+      {d && empty && d.anchor === "latest" && <p className="muted">No matches recorded yet.</p>}
+      {d && !empty && (
+        <div className="seen-chart" ref={chartBox}>
+          <BarChart
+            title={`Players per ${d.unit}`}
+            caption={false}
+            height={Math.max(SEEN_CHART_PX[0], Math.min(SEEN_CHART_PX[1], boxHeight))}
+            unit=" players"
+            data={d.items.map((i) => ({
+              label: d.unit === "hour" ? i.bucket.slice(11, 13) + "h" : i.bucket.slice(5),
+              tooltip: `${d.unit === "hour" ? `${i.bucket.slice(0, 10)} ${i.bucket.slice(11)}:00` : i.bucket} (UK time)`,
+              value: i.players,
+            }))}
+          />
+        </div>
       )}
     </section>
   );
@@ -287,22 +319,6 @@ const TICK_MS = 20_000;
  * match time is asked separately because the overview is rebuilt only every few minutes (and then refreshed too).
  * While the spectator bot is live on Twitch a game is being played: a "Game in progress" card appears beside it
  * (none at all otherwise, user 2026-11-01). */
-/** "▲ 12% vs the 7 days before" (green up, grey within ±5 %); `points`: two shares compared in percentage points
- * ("▲ 5 pts"). A drop is the same number in plain grey with a minus sign, "−12%" (user, 2026-11-16: no red ▼, a quiet
- * week should not read as an alarm; the figure itself is unchanged). Nothing when there is nothing to compare with. */
-function Change({ now, before, points = false }: { now: number; before: number; points?: boolean }) {
-  if (!points && !before) return <span>none the 7 days before</span>;
-  const d = points ? (now - before) * 100 : ((now - before) / before) * 100;
-  const shown = Math.round(Math.abs(d));
-  const dir = shown < (points ? 1 : 5) ? "flat" : d > 0 ? "up" : "down";
-  const arrow = dir === "flat" ? "=" : dir === "up" ? "▲" : "▼";
-  return (
-    <span className={`trend-change ${dir}`}>
-      <span className="trend-value">{dir === "down" ? "−" : `${arrow} `}{shown}{points ? " pts" : "%"}</span> <span className="muted">{points ? "vs the week before" : "vs the 7 days before"}</span>
-    </span>
-  );
-}
-
 /** Map of the newest match, linking to it; mode and score underneath. */
 function RecentlyPlayedCard({ latest }: { latest: MatchSummary | undefined }) {
   return (
@@ -357,7 +373,7 @@ export function HomePage() {
   // the two charts are only drawn once the overview is there; ask for their data now instead of afterwards
   useEffect(() => {
     getActivity("day").catch(() => undefined);
-    getPlayersSeen("24h", "now").catch(() => undefined);
+    getPlayersSeen("7d", "now").catch(() => undefined); // the range the chart opens on
   }, []);
   const o = overview.data;
   const g = o?.global;
@@ -397,16 +413,16 @@ export function HomePage() {
                 <LastMatchCard fromOverview={o.last_match_at} />
                 {o.trend ? (
                   <>
-                    <div className="card" title="Matches started in the last 7 days (to the minute), against the 7 days before. The line: matches per day, last 4 weeks (today so far at the end).">
+                    <div className="card" title="Matches started in the last 7 days (to the minute). The line: matches per day, last 4 weeks (today so far at the end).">
                       <span className="label">Matches · last 7 days</span>
                       <strong>{int(o.trend.matches_7d)}</strong>
-                      <span className="muted"><Change now={o.trend.matches_7d} before={o.trend.matches_prev_7d} /> · {int(o.today)} today</span>
+                      {/* no "vs the 7 days before" on these three cards (user, 2026-11-16): the number and the line are enough */}
+                      <span className="muted">{int(o.today)} today</span>
                       <Sparkline values={o.trend.matches} label="Matches per day, last 4 weeks" />
                     </div>
-                    <div className="card" title="Players whose first recorded match was in the last 7 days, against the 7 days before. The line: new players per day, last 4 weeks.">
+                    <div className="card" title="Players whose first recorded match was in the last 7 days. The line: new players per day, last 4 weeks.">
                       <span className="label">New players · last 7 days</span>
                       <strong>{int(o.trend.new_7d)}</strong>
-                      <span className="muted"><Change now={o.trend.new_7d} before={o.trend.new_prev_7d} /></span>
                       <Sparkline values={o.trend.new_players} label="New players per day, last 4 weeks" />
                     </div>
                   </>
@@ -418,15 +434,10 @@ export function HomePage() {
                   </div>
                 )}
                 {o.newcomers && (
-                  <div className="card" title={`Of the players whose first match was 8 to 14 days ago, the share who played again on a later day within ${o.newcomers.return_days} days. Compared with the players new a week before them.`}>
+                  <div className="card" title={`Of the players whose first match was 8 to 14 days ago, the share who played again on a later day within ${o.newcomers.return_days} days.`}>
                     <span className="label">New players who came back</span>
                     <strong>{pct(o.newcomers.return_rate)}</strong>
-                    <span className="muted">
-                      {o.newcomers.return_rate != null && o.newcomers.prev_return_rate != null && (
-                        <><Change now={o.newcomers.return_rate} before={o.newcomers.prev_return_rate} points /> · </>
-                      )}
-                      {int(o.newcomers.returned)} of {int(o.newcomers.return_group)}
-                    </span>
+                    <span className="muted">{int(o.newcomers.returned)} of {int(o.newcomers.return_group)}</span>
                   </div>
                 )}
                 <RecentlyPlayedCard latest={latest[0]} />

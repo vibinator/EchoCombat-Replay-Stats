@@ -63,6 +63,9 @@ class Settings:
     # ones not asked for the longest go, and their next visitor waits for a rebuild (a heatmap: seconds). 64 MB (the fixed
     # size until 2026-11-16) holds ~400 player heatmaps
     response_cache_mb: int = 64
+    # After a restart (every update of the site) the answers people asked for most before it are built again in the
+    # background, most asked first (popular.py): this many of them. 0 = none, and no list of them is kept (the tests)
+    warm_answers: int = 0
     # The everyone-ranking of the achievements (leaderboard, rarity, medal feed) is the costliest answer to keep current:
     # every refresh reads all games of all players (3.5 s of CPU on the dev PC, 5-12x that on the NAS). It is recalculated
     # at most this often, never more often than cache_refresh_s (user, 2026-11-10: 15 minutes on the website)
@@ -112,6 +115,7 @@ class Settings:
             cache_refresh_s=float(env("ECHOVR_CACHE_REFRESH_S", 300)),
             answer_cache_mb=int(env("ECHOVR_ANSWER_CACHE_MB", 1024)),
             response_cache_mb=int(env("ECHOVR_RESPONSE_CACHE_MB", 1024)),
+            warm_answers=int(env("ECHOVR_WARM_ANSWERS", 150)),
             ranking_refresh_s=float(env("ECHOVR_RANKING_REFRESH_S", 900)),
             edge_cache_s=int(env("ECHOVR_EDGE_CACHE_S", 60)),
             twitch_channel=env("ECHOVR_TWITCH_CHANNEL", "combat_stream_bot"),
