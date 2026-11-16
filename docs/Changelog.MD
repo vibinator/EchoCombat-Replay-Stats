@@ -18,6 +18,23 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.16.12 — 13:14
+
+- **Matches list:**
+  - **Summary strip** above the matches, following the filters: number of matches and average length, blue/orange win split, payload attack/defence split, share of close games and stomps, busiest map (new `/api/matches/summary`).
+  - **Tags on each card:** *Close* (2–1; payload delivered with 30 s or less left, or held at the last checkpoint), *Stomp* (2–0; delivered with 3+ minutes left, or held before the first checkpoint), *Full lobby* (10+ players), *Combat report*, *Repaired*. Hover a tag for why it is there.
+  - Player names split into **blue on the left, orange on the right**, and the cards are grouped under **day headings** (Today, Yesterday, Sat 7 Nov …, on your own clock).
+- **Match page:**
+  - **Match story** under the scoreboard: a bar across the match length with each round won (capture point) or checkpoint reached (payload) at its time, and the result at the end. Hidden for older replays without those events.
+  - **Team comparison**: blue vs orange as mirrored bars: average speed, time near enemies and teammates, deaths, payload time, ping and level (replay data only; rates weighted by play time).
+
+## 2026.11.16.11 — 13:13
+
+- **Compare moved into the player profile and the Leaderboard; "Compare" removed from the top menu.**
+  - Player profiles have a new **Compare** tab: that player is always the first column and their side of the head-to-head, with up to three others added by search. The **Compare** button in the profile header opens it. It follows the profile's period filter; the heatmaps keep their own map choice.
+  - **Leaderboard (replay stats):** tick up to 4 players and press **Compare selected** to open the comparison on the first ticked player's profile. Ticks stay while you change stat, period, map or page, so players can be picked from different boards. The Combat board has no ticks (different data source).
+  - Old `/compare?players=…` links still work: they open the first player's Compare tab with the others, period and map kept (no players: the Leaderboard).
+
 ## 2026.11.16.10 — 13:09
 
 - **"Player not found" page:** its "All players" link (which only showed the 50 most recent players) now goes to the Leaderboard.

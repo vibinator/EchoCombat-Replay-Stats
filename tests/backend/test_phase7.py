@@ -330,7 +330,28 @@ def test_leaderboard(tmp_path):
         lo = c.get("/api/leaderboard", params={"stat": "loadout", "weapon": "assault", "min_games": 1}).json()
         assert lo["items"][0]["value"] > 0 and lo["loadout"]["weapon"]["name"] == "Pulsar"
         assert c.get("/api/leaderboard", params={"stat": "nope"}).json()["error_code"] == "unknown_stat"
-        assert len(c.get("/api/leaderboard/stats").json()) > 10
+        stats = c.get("/api/leaderboard/stats").json()
+        assert len(stats) > 10 and all(s["group"] for s in stats)
+        groups = [s["group"] for s in stats]
+        assert groups == sorted(groups, key=groups.index)  # chips: each group's stats together
+        # leaderboard bundle (2026-11-16): mode filter, distance, per-game stats, stat cards, records
+        dist = c.get("/api/leaderboard", params={"stat": "distance_km", "min_games": 1}).json()
+        assert dist["items"] and all(r["value"] >= 0 for r in dist["items"])
+        assert c.get("/api/leaderboard", params={"stat": "games", "mode": "payload", "min_games": 1}).json()["total"] == 0
+        assert c.get("/api/leaderboard", params={"stat": "games", "mode": "capture_point", "min_games": 1}).json()["total"] == 2
+        assert c.get("/api/leaderboard", params={"mode": "moon"}).status_code == 422
+        assert c.get("/api/leaderboard", params={"stat": "emotes_per_game", "min_games": 1}).status_code == 200
+        assert c.get("/api/leaderboard", params={"stat": "payload_push_per_game", "min_games": 1}).json()["total"] == 0
+        cards = c.get("/api/leaderboard/overview", params={"min_games": 3}).json()["boards"]
+        games = next(b for b in cards if b["stat"] == "games")
+        assert [r["name"] for r in games["items"]] == ["Player", "Other"] and games["total"] == 2
+        assert all(len(b["items"]) <= 5 for b in cards)
+        rec = c.get("/api/leaderboard/records").json()["records"]
+        assert {r["key"] for r in rec} >= {"top_speed", "distance", "emote_count"}
+        for r in rec:  # each player once per record, best first, with the match to open
+            assert len({i["user_id"] for i in r["items"]}) == len(r["items"])
+            assert [i["value"] for i in r["items"]] == sorted((i["value"] for i in r["items"]), reverse=True)
+            assert all(i["match_id"] for i in r["items"])
 
 
 def test_match_export(client):

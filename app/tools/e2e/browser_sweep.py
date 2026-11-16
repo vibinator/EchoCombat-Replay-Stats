@@ -36,7 +36,7 @@ def pages(base: str) -> list[tuple[str, str]]:
         ("match", f"/matches/{mid}"), ("match-gear", f"/matches/{mid}?tab=gear"), ("match-timeline", f"/matches/{mid}?tab=timeline"),
         ("match-heatmap", f"/matches/{mid}?tab=heatmap"), ("match-playback", f"/matches/{mid}?tab=playback"),
         ("players", "/players"), ("players-search", "/players?q=a"), ("player", f"/players/{uid}"), ("player-week", f"/players/{uid}?period=week"),
-        ("compare", f"/compare?players={uid},{uid2}"), ("leaderboard", "/leaderboard"), ("leaderboard-combat", "/leaderboard?board=combat"),
+        ("compare", f"/players/{uid}?tab=compare&vs={uid2}"), ("compare-redirect", f"/compare?players={uid},{uid2}"), ("leaderboard", "/leaderboard"), ("leaderboard-combat", "/leaderboard?board=combat"),
         ("leaderboard-ach", "/leaderboard?stat=achievements"), ("achievements", "/achievements"), ("achievements-player", f"/achievements/{uid}"),
         ("combat-match", f"/combat/{combat[0]['session_id']}" if combat else "/combat"), ("profile", "/profile"),
         ("console", "/console"), ("console-players", "/console?tab=players"), ("console-replays", "/console?tab=replays"),

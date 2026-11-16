@@ -661,7 +661,51 @@ export interface StatOption {
   key: string;
   label: string;
   higher_is_better: boolean;
+  /** chip group on the Leaderboard (Activity, Movement, ...) */
+  group?: string;
+  hint?: string;
 }
+
+export interface StatCardRow {
+  rank: number;
+  user_id: string;
+  name: string;
+  games: number;
+  value: number;
+}
+
+/** Leaderboard stat cards: the top 5 of every replay stat for one filter set */
+export interface LeaderboardOverview {
+  boards: { stat: string; label: string; group: string; hint: string; higher_is_better: boolean; total: number; items: StatCardRow[] }[];
+}
+
+export interface RecordRow {
+  rank: number;
+  user_id: string;
+  name: string;
+  value: number;
+  match_id: number;
+  map: string;
+  started_at: string;
+}
+
+/** Best single matches, each player's best one only */
+export interface LeaderboardRecords {
+  records: { key: string; label: string; unit: "speed" | "metres" | "seconds" | "share" | "count"; items: RecordRow[] }[];
+}
+
+export interface LeaderboardFilter {
+  period: Period;
+  map?: string;
+  mode?: string;
+  min_games?: number;
+}
+
+export const getLeaderboardOverview = (q: LeaderboardFilter) =>
+  request<LeaderboardOverview>(`/api/leaderboard/overview${query({ ...q })}`);
+
+export const getLeaderboardRecords = (q: LeaderboardFilter) =>
+  request<LeaderboardRecords>(`/api/leaderboard/records${query({ ...q })}`);
 
 export interface GearList {
   weapons: GearItem[];
@@ -687,6 +731,7 @@ export interface LeaderboardQuery {
   stat: string;
   period: Period;
   map?: string;
+  mode?: string;
   min_games: number;
   weapon?: string;
   tacmod?: string;

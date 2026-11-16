@@ -1,11 +1,15 @@
+import type { ReactNode } from "react";
 import { Link, useSearchParams } from "react-router";
 import { CombatBoard } from "./CombatPage";
-import { getGear, getLeaderboard, getLeaderboardStats, type LeaderboardRow, type Period } from "../api";
+import {
+  getGear, getLeaderboard, getLeaderboardOverview, getLeaderboardRecords, getLeaderboardStats,
+  type LeaderboardRecords, type LeaderboardRow, type Period, type StatOption,
+} from "../api";
 import { ShareBar } from "../components/bars";
 import { Status, TableWrap } from "../components/common";
 import { EmptyState, FitText, Skeleton } from "../components/ui";
 import { Avatar, useAvatars } from "../components/Avatar";
-import { MAPS, duration, int, num, pct, playerPath, title } from "../format";
+import { MAPS, MAP_MODE, dateTime, duration, int, num, pct, playerPath, title } from "../format";
 import { useApi } from "../useApi";
 import { usePageTitle } from "../usePageTitle";
 
@@ -16,15 +20,31 @@ const PERIODS: [Period, string][] = [
   ["month", "This month"],
   ["all", "All time"],
 ];
+const MODES: [string, string][] = [
+  ["", "All"],
+  ["capture_point", "Capture point"],
+  ["payload", "Payload"],
+];
+/** Board-only parameters: dropped when switching to the stat cards or the records, so a shared link stays short. */
+const BOARD_KEYS = ["stat", "sort", "offset", "weapon", "ordnance", "tacmod", "view"];
 
 function formatValue(stat: string, value: number): string {
   if (stat.startsWith("pct_") || stat === "win_rate" || stat === "achievements") return pct(value);
-  if (stat === "payload_push_s" || stat === "payload_block_s") return duration(value);
+  if (stat.startsWith("payload_push") || stat.startsWith("payload_block")) return duration(value);
   if (stat === "avg_speed" || stat === "top_speed") return `${num(value)} m/s`;
+  if (stat === "distance_km" || stat === "distance_per_game") return `${num(value, stat === "distance_km" ? 1 : 2)} km`;
   if (stat === "avg_ping") return num(value, 0);
-  if (stat === "deaths_per_game_est") return num(value, 2);
+  if (stat === "deaths_per_game_est" || stat === "emotes_per_game") return num(value, 2);
   if (stat === "hours_played" || stat === "loadout") return `${num(value, stat === "loadout" ? 2 : 1)} h`;
   return value.toLocaleString();
+}
+
+function formatRecord(unit: LeaderboardRecords["records"][number]["unit"], value: number): string {
+  if (unit === "speed") return `${num(value, 2)} m/s`;
+  if (unit === "metres") return value >= 1000 ? `${num(value / 1000, 2)} km` : `${int(value)} m`;
+  if (unit === "seconds") return duration(value);
+  if (unit === "share") return pct(value);
+  return int(value);
 }
 
 /** Context columns shown on every board; the one matching the ranked stat is left out (it is the value column). */
@@ -44,12 +64,238 @@ function podiumLine(stat: string, r: LeaderboardRow): string {
   return parts.join(" · ");
 }
 
+/** The stat groups in the order the server lists them (stats are already sorted by group there). */
+function groupsOf(stats: StatOption[]): [string, StatOption[]][] {
+  const groups = new Map<string, StatOption[]>();
+  for (const s of stats) {
+    const g = s.group ?? "Other";
+    groups.set(g, [...(groups.get(g) ?? []), s]);
+  }
+  return [...groups];
+}
+
+type View = "overview" | "board" | "records";
+
+/** Leaderboard navigation (C2, user 2026-11-16): the stat groups as chips, then the group's stats as chips, instead of
+ *  one long dropdown. "All stats" (the stat cards) and "Records" sit at either end. */
+function StatNav({ view, stat, stats, go }: { view: View; stat: string; stats: StatOption[]; go: (view: View, stat?: string) => void }) {
+  const groups = groupsOf(stats);
+  const current = stats.find((s) => s.key === stat)?.group;
+  const inGroup = groups.find(([g]) => g === current)?.[1] ?? [];
+  return (
+    <nav className="lb-nav" aria-label="Leaderboard stats">
+      <div className="lb-chips" role="tablist" aria-label="Stat groups">
+        <button type="button" role="tab" aria-selected={view === "overview"} className={view === "overview" ? "lb-chip active" : "lb-chip"} onClick={() => go("overview")}>
+          All stats
+        </button>
+        {groups.map(([g, items]) => (
+          <button key={g} type="button" role="tab" aria-selected={view === "board" && g === current}
+            className={view === "board" && g === current ? "lb-chip active" : "lb-chip"} onClick={() => go("board", items[0].key)}>
+            {g}
+          </button>
+        ))}
+        <button type="button" role="tab" aria-selected={view === "records"} className={view === "records" ? "lb-chip active" : "lb-chip"} onClick={() => go("records")}>
+          Records
+        </button>
+      </div>
+      {view === "board" && inGroup.length > 1 && (
+        <div className="lb-chips lb-subchips" role="tablist" aria-label={`${current} stats`}>
+          {inGroup.map((s) => (
+            <button key={s.key} type="button" role="tab" aria-selected={s.key === stat} className={s.key === stat ? "lb-chip sub active" : "lb-chip sub"} onClick={() => go("board", s.key)}>
+              {s.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </nav>
+  );
+}
+
+interface CardRow {
+  key: string;
+  rank: number;
+  userId: string;
+  name: string;
+  value: ReactNode;
+  sub?: ReactNode;
+}
+
+/** One stat's top players (B4) or one record's best matches (B2); #1 gets the bigger picture and the gold rank. */
+function StatCard({ heading, hint, rows, more, empty, avatars }: {
+  heading: string; hint?: string; rows: CardRow[]; more?: string; empty: string; avatars: Record<string, string>;
+}) {
+  return (
+    <article className="lb-card">
+      <h3 title={hint || undefined}>{more ? <Link to={more}>{heading}</Link> : heading}</h3>
+      {rows.length === 0 ? (
+        <p className="muted lb-card-empty">{empty}</p>
+      ) : (
+        <ol className="lb-card-list">
+          {rows.map((r) => (
+            <li key={r.key} className={`place-${r.rank}`}>
+              <span className="lb-card-rank">{r.rank}</span>
+              <Avatar name={r.name} url={avatars[r.userId]} size={r.rank === 1 ? 32 : 22} />
+              <span className="lb-card-who">
+                <Link to={playerPath(r.userId, r.name)}><FitText title={r.name}>{r.name}</FitText></Link>
+                {r.sub && <span className="muted lb-card-sub">{r.sub}</span>}
+              </span>
+              <span className="lb-card-value">{r.value}</span>
+            </li>
+          ))}
+        </ol>
+      )}
+      {more && rows.length > 0 && <Link className="lb-card-more" to={more}>Full board →</Link>}
+    </article>
+  );
+}
+
+function Overview({ period, map, mode, minGames, boardLink }: { period: Period; map: string; mode: string; minGames: number; boardLink: (stat: string) => string }) {
+  const overview = useApi(() => getLeaderboardOverview({ period, map: map || undefined, mode: mode || undefined, min_games: minGames }),
+    `lb-overview|${period}|${map}|${mode}|${minGames}`);
+  const avatars = useAvatars(overview.data?.boards.flatMap((b) => b.items.map((r) => r.user_id)) ?? []);
+  if (overview.loading && !overview.data) return <Skeleton cards={8} />;
+  if (!overview.data) return <Status loading={false} error={overview.error} />;
+  const groups = new Map<string, typeof overview.data.boards>();
+  for (const b of overview.data.boards) groups.set(b.group, [...(groups.get(b.group) ?? []), b]);
+  return (
+    <>
+      {[...groups].map(([group, boards]) => (
+        <section key={group} className="lb-group">
+          <h2 className="lb-group-title">{group}</h2>
+          <div className="lb-cards">
+            {boards.map((b) => (
+              <StatCard key={b.stat} heading={b.label} hint={b.hint} more={boardLink(b.stat)} avatars={avatars}
+                empty={`No one with ${minGames}+ games yet`}
+                rows={b.items.map((r) => ({ key: r.user_id, rank: r.rank, userId: r.user_id, name: r.name, value: formatValue(b.stat, r.value) }))} />
+            ))}
+          </div>
+        </section>
+      ))}
+      <p className="muted footnote">
+        The top 5 of every stat for players with {minGames}+ games in this selection; open a card for the full board.
+        Averages and rates count games of 2+ minutes with 2+ players per team; totals count everything.
+      </p>
+    </>
+  );
+}
+
+function Records({ period, map, mode }: { period: Period; map: string; mode: string }) {
+  const records = useApi(() => getLeaderboardRecords({ period, map: map || undefined, mode: mode || undefined }), `lb-records|${period}|${map}|${mode}`);
+  const avatars = useAvatars(records.data?.records.flatMap((r) => r.items.map((i) => i.user_id)) ?? []);
+  if (records.loading && !records.data) return <Skeleton cards={6} />;
+  if (!records.data) return <Status loading={false} error={records.error} />;
+  return (
+    <>
+      <div className="lb-cards wide">
+        {records.data.records.map((rec) => (
+          <StatCard key={rec.key} heading={rec.label} avatars={avatars} empty="No matches in this selection"
+            rows={rec.items.map((i) => ({
+              key: `${i.user_id}-${i.match_id}`, rank: i.rank, userId: i.user_id, name: i.name,
+              value: <Link to={`/matches/${i.match_id}`} title="Open the match">{formatRecord(rec.unit, i.value)}</Link>,
+              sub: `${title(i.map)} · ${dateTime(i.started_at)}`,
+            }))} />
+        ))}
+      </div>
+      <p className="muted footnote">
+        Best single matches, each player&apos;s best one only; click a value to open the match. Counts games of 2+ minutes with
+        2+ players per team; average speed and time inverted also need a minute in the play area.
+      </p>
+    </>
+  );
+}
+
 function ReplayBoard() {
   const [params, setParams] = useSearchParams();
+  const view: View = params.get("view") === "records" ? "records" : params.get("stat") ? "board" : "overview";
   const stat = params.get("stat") ?? "games";
   const period = (params.get("period") as Period) || "all";
   const map = params.get("map") ?? "";
+  const mode = params.get("mode") ?? "";
   const minGames = Number(params.get("min_games") ?? 10);
+  const stats = useApi(getLeaderboardStats, "stats");
+
+  function set(key: string, value: string) {
+    const next = new URLSearchParams(params);
+    if (value) next.set(key, value);
+    else next.delete(key);
+    if (key !== "offset") next.delete("offset");
+    if (key === "stat") next.delete("sort");
+    if (key === "mode" && value && map && MAP_MODE[map] !== value) next.delete("map"); // the map is not played in that mode
+    setParams(next);
+  }
+
+  function go(to: View, toStat?: string) {
+    const next = new URLSearchParams(params);
+    for (const k of BOARD_KEYS) next.delete(k);
+    if (to === "records") next.set("view", "records");
+    if (to === "board" && toStat) next.set("stat", toStat);
+    setParams(next);
+  }
+
+  /** Link to one stat's full board with the current period, mode, map and minimum. */
+  function boardLink(s: string): string {
+    const next = new URLSearchParams(params);
+    for (const k of BOARD_KEYS) next.delete(k);
+    next.set("stat", s);
+    return `?${next.toString()}`;
+  }
+
+  return (
+    <section>
+      <StatNav view={view} stat={stat} stats={stats.data ?? []} go={go} />
+      <div className="filters">
+        <div className="tabs" role="tablist" aria-label="Period">
+          {PERIODS.map(([value, label]) => (
+            <button key={value} role="tab" aria-selected={period === value} className={period === value ? "tab active" : "tab"} onClick={() => set("period", value === "all" ? "" : value)}>
+              {label}
+            </button>
+          ))}
+        </div>
+        <label>
+          Mode
+          <select value={mode} onChange={(e) => set("mode", e.target.value)}>
+            {MODES.map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Map
+          <select value={map} onChange={(e) => set("map", e.target.value)}>
+            <option value="">All</option>
+            {MAPS.filter((m) => !mode || MAP_MODE[m] === mode).map((m) => (
+              <option key={m} value={m}>
+                {title(m)}
+              </option>
+            ))}
+          </select>
+        </label>
+        {view !== "records" && (
+          <label>
+            Min. games
+            <select value={minGames} onChange={(e) => set("min_games", e.target.value === "10" ? "" : e.target.value)}>
+              {[1, 5, 10, 25, 50, 100].map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+      </div>
+      {view === "overview" && <Overview period={period} map={map} mode={mode} minGames={minGames} boardLink={boardLink} />}
+      {view === "records" && <Records period={period} map={map} mode={mode} />}
+      {view === "board" && <StatBoard stat={stat} period={period} map={map} mode={mode} minGames={minGames} stats={stats.data ?? []} set={set} />}
+    </section>
+  );
+}
+
+function StatBoard({ stat, period, map, mode, minGames, stats, set }: {
+  stat: string; period: Period; map: string; mode: string; minGames: number; stats: StatOption[]; set: (key: string, value: string) => void;
+}) {
+  const [params] = useSearchParams();
   const offset = Number(params.get("offset") ?? 0);
   const weapon = params.get("weapon") ?? "";
   const ordnance = params.get("ordnance") ?? "";
@@ -57,12 +303,11 @@ function ReplayBoard() {
   const sortParam = params.get("sort") ?? "";
   const sort = sortParam && sortParam !== stat ? sortParam : "";
 
-  const stats = useApi(getLeaderboardStats, "stats");
   const gear = useApi(getGear, "gear");
   const board = useApi(
     () =>
       getLeaderboard({
-        stat, period, map: map || undefined, min_games: minGames, offset, limit: PAGE_SIZE,
+        stat, period, map: map || undefined, mode: mode || undefined, min_games: minGames, offset, limit: PAGE_SIZE,
         weapon: weapon || undefined, ordnance: ordnance || undefined, tacmod: tacmod || undefined,
         compare: stat !== "achievements",
         sort: sort || undefined,
@@ -71,15 +316,7 @@ function ReplayBoard() {
   );
 
   const avatars = useAvatars(board.data?.items.map((r) => r.user_id) ?? []);
-
-  function set(key: string, value: string) {
-    const next = new URLSearchParams(params);
-    if (value) next.set(key, value);
-    else next.delete(key);
-    if (key !== "offset") next.delete("offset");
-    if (key === "stat") next.delete("sort");
-    setParams(next);
-  }
+  const hint = stats.find((s) => s.key === stat)?.hint;
 
   const total = board.data?.total ?? 0;
   // win-loss columns are left out of the answer while they are hidden from players
@@ -100,48 +337,8 @@ function ReplayBoard() {
   }
 
   return (
-    <section>
-      <div className="filters">
-        <label>
-          Stat
-          <select value={stat} onChange={(e) => set("stat", e.target.value)}>
-            {(stats.data ?? []).map((s) => (
-              <option key={s.key} value={s.key}>
-                {s.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <div className="tabs" role="tablist">
-          {PERIODS.map(([value, label]) => (
-            <button key={value} role="tab" aria-selected={period === value} className={period === value ? "tab active" : "tab"} onClick={() => set("period", value === "all" ? "" : value)}>
-              {label}
-            </button>
-          ))}
-        </div>
-        <label>
-          Map
-          <select value={map} onChange={(e) => set("map", e.target.value)}>
-            <option value="">All</option>
-            {MAPS.map((m) => (
-              <option key={m} value={m}>
-                {title(m)}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Min. games
-          <select value={minGames} onChange={(e) => set("min_games", e.target.value === "10" ? "" : e.target.value)}>
-            {[1, 5, 10, 25, 50, 100].map((n) => (
-              <option key={n} value={n}>
-                {n}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-
+    <>
+      {hint && <p className="muted footnote lb-hint">{hint}</p>}
       {stat === "loadout" && gear.data && (
         <div className="filters">
           {(
@@ -177,17 +374,15 @@ function ReplayBoard() {
               <div className="podium">
                 {[1, 0, 2].map((i) => {
                   const r = board.data!.items[i];
+                  const shown = sort ? (r[sort as keyof LeaderboardRow] as number | null) : r.value;
                   return (
                     <Link key={r.user_id} to={playerPath(r.user_id, r.name)} className={`podium-step place-${r.rank}`}>
-                      <span className="podium-rank">{r.rank}</span>
-                      <Avatar name={r.name} url={avatars[r.user_id]} size={44} />
-                      <strong><FitText title={r.name}>{r.name}</FitText></strong>
-                      <span>
-                        {sort
-                          ? `${(r[sort as keyof LeaderboardRow] as number | null) == null ? "–" : formatValue(sort, r[sort as keyof LeaderboardRow] as number)} ${sortLabel?.toLowerCase()}`
-                          : formatValue(stat, r.value)}
-                      </span>
-                      <span className="muted">{podiumLine(stat, r)}</span>
+                      <span className="podium-medal" aria-label={`Rank ${r.rank}`}>{r.rank}</span>
+                      <Avatar name={r.name} url={avatars[r.user_id]} size={r.rank === 1 ? 64 : 52} />
+                      <strong className="podium-name"><FitText title={r.name}>{r.name}</FitText></strong>
+                      <span className="podium-value">{shown == null ? "–" : formatValue(sort || stat, shown)}</span>
+                      <span className="podium-label">{sort ? sortLabel?.toLowerCase() : board.data!.label.toLowerCase()}</span>
+                      <span className="muted podium-context">{podiumLine(stat, r)}</span>
                     </Link>
                   );
                 })}
@@ -251,7 +446,7 @@ function ReplayBoard() {
             )}
           </>
         ))}
-    </section>
+    </>
   );
 }
 

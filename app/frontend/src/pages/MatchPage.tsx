@@ -6,6 +6,7 @@ import {
 } from "../api";
 import { MatchCombatSection } from "../components/CombatView";
 import { GearName, LoadoutText, LocalTime, NotFoundBox, Status, TableWrap, isNotFound } from "../components/common";
+import { MatchStory, TeamComparison } from "../components/MatchStory";
 import { HEATMAP_CELL_M, HEATMAP_MODES, HeatmapView } from "../components/HeatmapView";
 import { PlaybackCompare, PlaybackView } from "../components/PlaybackView";
 import { TimelineView } from "../components/TimelineView";
@@ -385,7 +386,9 @@ function MatchContent({ id }: { id: number }) {
           )}
 
           <Scoreboard m={m} />
+          <MatchStory m={m} />
           <Highlights m={m} />
+          <TeamComparison m={m} />
 
           <div className="tabs section-tabs" role="tablist" aria-label="Match views" ref={tabStrip}>
             {tabs.map(([t, hint]) => (

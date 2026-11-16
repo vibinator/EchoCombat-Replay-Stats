@@ -1,12 +1,23 @@
 import { useState } from "react";
-import { Link, useSearchParams } from "react-router";
-import { comparePlayers, getPlayer, getPlayerHeatmap3d, getPlayerHeatmapBy, searchPlayers, type Period, type PlayerStats } from "../api";
-import { Status, TableWrap } from "../components/common";
-import { HEATMAP_CELL_M, HeatmapView } from "../components/HeatmapView";
-import { EmptyState, Skeleton, WhenVisible } from "../components/ui";
+import { Link } from "react-router";
+import { comparePlayers, getPlayerHeatmap3d, getPlayerHeatmapBy, searchPlayers, type Period, type PlayerStats } from "../api";
+import { Status, TableWrap } from "./common";
+import { HEATMAP_CELL_M, HeatmapView } from "./HeatmapView";
+import { EmptyState, Skeleton, WhenVisible } from "./ui";
 import { MAPS, duration, int, num, pct, playerPath, title } from "../format";
 import { useApi } from "../useApi";
-import { usePageTitle } from "../usePageTitle";
+
+/** Players in one comparison, the profile's own player included. */
+export const COMPARE_MAX = 4;
+
+/** A player profile's Compare tab, with these players already in it: `ids[0]` is the profile's player, the rest the
+ *  others (?vs=). Used by the old /compare address and the Leaderboard's "Compare selected". */
+export function compareTabPath(path: string, ids: string[], period?: Period): string {
+  const p = new URLSearchParams({ tab: "compare" });
+  if (ids.length > 1) p.set("vs", ids.slice(1, COMPARE_MAX).join(","));
+  if (period && period !== "all") p.set("period", period);
+  return `${path}?${p.toString()}`;
+}
 
 /** A speed, or just "–" when the player has none in this period. */
 const speed = (value: number | null, digits?: number) => (value == null ? "–" : `${num(value, digits)} m/s`);
@@ -42,7 +53,7 @@ function AddPlayer({ onAdd }: { onAdd: (id: string) => void }) {
   return (
     <div>
       <form className="search" onSubmit={(e) => (e.preventDefault(), setTerm(q.trim()))}>
-        <input type="search" maxLength={64} placeholder="Add a player" aria-label="Add a player" value={q} onChange={(e) => setQ(e.target.value)} />
+        <input type="search" maxLength={64} placeholder="Add a player to compare" aria-label="Add a player to compare" value={q} onChange={(e) => setQ(e.target.value)} />
         <button type="submit">Find</button>
       </form>
       {found.data && (
@@ -59,52 +70,30 @@ function AddPlayer({ onAdd }: { onAdd: (id: string) => void }) {
   );
 }
 
-export function ComparePage() {
-  usePageTitle("Compare players");
-  const [params, setParams] = useSearchParams();
-  const ids = (params.get("players") ?? "").split(",").filter(Boolean).slice(0, 4);
-  const period = (params.get("period") as Period) || "all";
-  const map = params.get("map") ?? "dyson";
+/** Compare tab of a player profile (user, 2026-11-16: the Compare page moved here). The profile's player is always the
+ *  first column and the first side of the head-to-head; up to three others are added by search or from the Leaderboard. */
+export function CompareView({ userId, name, others, setOthers, period, map, setMap }: {
+  userId: string; name: string; others: string[]; setOthers: (ids: string[]) => void;
+  period: Period; map: string; setMap: (map: string) => void;
+}) {
+  const ids = [userId, ...others.filter((id) => id !== userId)].slice(0, COMPARE_MAX);
   const data = useApi(() => (ids.length >= 2 ? comparePlayers(ids, period) : Promise.resolve(null)), `${ids.join(",")}|${period}`);
-  // one player picked: no comparison to ask for yet, only their name to show that the pick worked
-  const onlyId = ids.length === 1 ? ids[0] : "";
-  const only = useApi(() => (onlyId ? getPlayer(onlyId, "all") : Promise.resolve(null)), onlyId);
-
-  function setIds(next: string[]) {
-    const p = new URLSearchParams(params);
-    if (next.length) p.set("players", next.join(","));
-    else p.delete("players");
-    setParams(p);
-  }
-  function set(key: string, value: string) {
-    const p = new URLSearchParams(params);
-    p.set(key, value);
-    setParams(p);
-  }
-
   const c = data.data;
+  const remove = (id: string) => setOthers(ids.slice(1).filter((x) => x !== id));
+
   return (
     <section>
-      <h1>Compare players</h1>
-      <p className="muted">Up to four players side by side; head-to-head uses the first two.</p>
-      <div className="filters">
-        {ids.length < 4 && <AddPlayer onAdd={(id) => !ids.includes(id) && setIds([...ids, id])} />}
-        <label>
-          Period
-          <select value={period} onChange={(e) => set("period", e.target.value)}>
-            <option value="all">All time</option>
-            <option value="month">This month</option>
-            <option value="week">This week</option>
-            <option value="day">Today</option>
-          </select>
-        </label>
-      </div>
+      <h2>Compare</h2>
+      <p className="muted">{name} side by side with up to three other players; head-to-head is {name} against the first one added.</p>
+      {ids.length < COMPARE_MAX && (
+        <div className="filters">
+          <AddPlayer onAdd={(id) => !ids.includes(id) && setOthers([...ids.slice(1), id])} />
+        </div>
+      )}
 
-      {ids.length === 0 && <EmptyState title="Pick at least two players">Search above, or use "Compare" on a player page.</EmptyState>}
       {ids.length === 1 && (
-        <EmptyState title="Add one more player to compare">
-          {only.error ? "The player you picked was not found." : <>Picked: {only.data ? <Link to={playerPath(only.data.user_id, only.data.name)}>{only.data.name}</Link> : "…"}</>}{" "}
-          <button className="link danger" aria-label={`Remove ${only.data?.name ?? "this player"}`} onClick={() => setIds([])}>×</button>
+        <EmptyState title="Add a player to compare with">
+          Search above, or tick players on the <Link to="/leaderboard">Leaderboard</Link> and use "Compare selected".
         </EmptyState>
       )}
       {data.loading && <Skeleton lines={6} />}
@@ -116,10 +105,15 @@ export function ComparePage() {
               <thead>
                 <tr>
                   <th>Stat</th>
-                  {c.players.map((p) => (
+                  {c.players.map((p, i) => (
                     <th key={p.user_id} className="num">
-                      <Link to={playerPath(p.user_id, p.name)}>{p.name}</Link>{" "}
-                      <button className="link danger" aria-label={`Remove ${p.name}`} onClick={() => setIds(ids.filter((x) => x !== p.user_id))}>×</button>
+                      {i === 0 ? p.name : <Link to={playerPath(p.user_id, p.name)}>{p.name}</Link>}
+                      {i > 0 && (
+                        <>
+                          {" "}
+                          <button className="link danger" aria-label={`Remove ${p.name}`} onClick={() => remove(p.user_id)}>×</button>
+                        </>
+                      )}
                     </th>
                   ))}
                 </tr>
@@ -178,7 +172,7 @@ export function ComparePage() {
             <h2>Heatmaps</h2>
             <label>
               Map{" "}
-              <select value={map} onChange={(e) => set("map", e.target.value)}>
+              <select value={map} onChange={(e) => setMap(e.target.value)}>
                 {MAPS.map((m) => <option key={m} value={m}>{title(m)}</option>)}
               </select>
             </label>

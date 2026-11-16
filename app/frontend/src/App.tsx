@@ -29,7 +29,6 @@ function page<M>(load: () => Promise<M>, pick: (m: M) => ComponentType) {
 
 const AchievementsPage = page(() => import("./pages/AchievementsPage"), (m) => m.AchievementsPage);
 const CombatMatchPage = page(() => import("./pages/CombatPage"), (m) => m.CombatMatchPage);
-const ComparePage = page(() => import("./pages/ComparePage"), (m) => m.ComparePage);
 const ConsolePage = page(() => import("./pages/ConsolePage"), (m) => m.ConsolePage);
 const ProfilePage = page(() => import("./pages/ProfilePage"), (m) => m.ProfilePage);
 const LeaderboardPage = page(() => import("./pages/LeaderboardPage"), (m) => m.LeaderboardPage);
@@ -112,6 +111,23 @@ function ProcessingIndicator({ pending }: { pending: number }) {
   );
 }
 
+/** The old Compare page (user, 2026-11-16: moved to the Compare tab of a player profile). Bookmarks and shared links
+ *  open the first player's Compare tab with the others, period and heatmap map kept; without a player, the Leaderboard
+ *  (where players are ticked for "Compare selected"). */
+function CompareRedirect() {
+  const { search } = useLocation();
+  const old = new URLSearchParams(search);
+  const ids = (old.get("players") ?? "").split(",").filter(Boolean).slice(0, 4);
+  if (!ids.length) return <Navigate replace to="/leaderboard" />;
+  const next = new URLSearchParams({ tab: "compare" });
+  if (ids.length > 1) next.set("vs", ids.slice(1).join(","));
+  const period = old.get("period");
+  if (period && period !== "all") next.set("period", period);
+  const map = old.get("map");
+  if (map) next.set("cmp_map", map);
+  return <Navigate replace to={`/players/${encodeURIComponent(ids[0])}?${next.toString()}`} />;
+}
+
 /** The old /combat address (bookmarks, shared links) opens the Combat tab of the Leaderboard, filters kept. */
 function CombatRedirect() {
   const { search } = useLocation();
@@ -125,7 +141,6 @@ const NAV = [
   ["/matches", "Matches"],
   ["/leaderboard", "Leaderboard"],
   ["/achievements", "Achievements"],
-  ["/compare", "Compare"],
 ] as const;
 
 /** "2026-11-01T17:05" (UK time, bump_version.py) -> "1 Nov 2026, 17:05" on the viewer's clock */
@@ -217,7 +232,7 @@ function Layout() {
           <Route path="/players" element={<PlayersPage />} />
           <Route path="/players/:userId" element={<PlayerPage />} />
           <Route path="/players/:name/:userId" element={<PlayerPage />} />
-          <Route path="/compare" element={<ComparePage />} />
+          <Route path="/compare" element={<CompareRedirect />} />
           <Route path="/leaderboard" element={<LeaderboardPage />} />
           <Route path="/combat" element={<CombatRedirect />} />
           <Route path="/combat/:id" element={<CombatMatchPage />} />

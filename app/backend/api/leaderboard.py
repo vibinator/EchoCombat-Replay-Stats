@@ -14,7 +14,7 @@ from ..gear import ORDNANCES, TACMODS, WEAPONS
 from ..models import Match, MatchPlayer, MatchPlayerLoadout, Player
 from ..achievements import achiever_facts
 from .achievements import achievement_progress, achievement_ranking, require_launched, visible
-from .derived import MAP_PATTERN, PERIODS, gear, period_start, ratio
+from .derived import MAP_PATTERN, MODE_PATTERN, PERIODS, gear, period_start, ratio
 
 router = APIRouter(prefix="/api/leaderboard", tags=["leaderboard"])
 
@@ -36,6 +36,36 @@ STATS = {
     "payload_push_s": ("Payload push time (est.)", True, lambda r: round(r.push or 0, 1)),
     "payload_block_s": ("Payload block time (est.)", True, lambda r: round(r.block or 0, 1)),
     "emote_count": ("Emotes", True, lambda r: r.emotes or 0),
+    # leaderboard bundle (user, 2026-11-16): distance from the speed already summed per frame, per-game objective / emotes
+    "distance_km": ("Distance travelled", True, lambda r: round((r.distance or 0) / 1000, 2)),
+    "distance_per_game": ("Distance per game", True, lambda r: ratio(r.distance_c, (r.counted or 0) * 1000, 2)),
+    "payload_push_per_game": ("Push time per payload game", True, lambda r: ratio(r.push_c, r.payload_counted, 1)),
+    "payload_block_per_game": ("Block time per payload game", True, lambda r: ratio(r.block_c, r.payload_counted, 1)),
+    "emotes_per_game": ("Emotes per game", True, lambda r: ratio(r.emotes_c, r.counted, 2)),
+}
+# stat -> the games the minimum and the Games column count (default: every game in the selection)
+GAMES_OF = {"payload_push_per_game": lambda r: r.payload_games or 0, "payload_block_per_game": lambda r: r.payload_games or 0}
+
+# Stat chips on the page (C2): stat -> group, in the order the groups are shown
+GROUPS = {
+    "games": "Activity", "hours_played": "Activity", "wins": "Activity", "win_rate": "Activity", "distance_km": "Activity",
+    "avg_speed": "Movement", "top_speed": "Movement", "distance_per_game": "Movement", "pct_stopped": "Movement",
+    "pct_upside_down": "Movement",
+    "pct_near_mate": "Teamwork", "pct_near_enemy": "Teamwork", "deaths_per_game_est": "Teamwork",
+    "payload_push_s": "Objective", "payload_block_s": "Objective", "payload_push_per_game": "Objective",
+    "payload_block_per_game": "Objective",
+    "emote_count": "Social", "emotes_per_game": "Social",
+    "avg_ping": "Connection",
+    "loadout": "Gear", "achievements": "Achievements",
+}
+HINTS = {
+    "distance_km": "Ground covered inside the play area, from the speed in every frame; counts every game.",
+    "distance_per_game": "Average distance covered inside the play area per counted game.",
+    "payload_push_per_game": "Average push time per counted Payload game; the minimum counts Payload games only.",
+    "payload_block_per_game": "Average block time per counted Payload game; the minimum counts Payload games only.",
+    "emotes_per_game": "Average emotes per counted game.",
+    "payload_push_s": "Total push time; the per-game version ranks players who play less fairly.",
+    "payload_block_s": "Total block time; the per-game version ranks players who play less fairly.",
 }
 
 
@@ -51,6 +81,8 @@ def _aggregate(where, strict: bool = True):
 
     ping = func.coalesce(MatchPlayer.ping_capped_sum, MatchPlayer.ping_sum)  # spikes capped once the replay was read again (DATA-5)
     top = func.max(case((Match.counted_for_stats == 1, MatchPlayer.top_speed), else_=None)) if strict else func.max(MatchPlayer.top_speed)
+    metres = MatchPlayer.speed_sum / func.nullif(Match.frame_rate_hz, 0)  # speed summed per frame / frames per second
+    payload = case((Match.mode == "payload", 1), else_=0)
     return (
         select(
             MatchPlayer.player_id, func.count().label("games"), s(c(1)).label("counted"), s(c(won)).label("wins"), s(c(lost)).label("losses"),
@@ -62,13 +94,17 @@ def _aggregate(where, strict: bool = True):
             s(c(MatchPlayer.frames_near_mate)).label("mate"), s(c(MatchPlayer.frames_near_enemy)).label("enemy"),
             s(MatchPlayer.payload_push_s).label("push"), s(MatchPlayer.payload_block_s).label("block"),
             s(MatchPlayer.emote_count).label("emotes"),
+            s(metres).label("distance"), s(c(metres)).label("distance_c"),
+            s(c(MatchPlayer.payload_push_s)).label("push_c"), s(c(MatchPlayer.payload_block_s)).label("block_c"),
+            s(c(MatchPlayer.emote_count)).label("emotes_c"),
+            s(payload).label("payload_games"), s(c(payload)).label("payload_counted"),
         )
         .select_from(MatchPlayer).join(Match, Match.id == MatchPlayer.match_id)
         .where(where).group_by(MatchPlayer.player_id)
     )
 
 
-def _where(period, map, private, shift_days: int = 0):
+def _where(period, map, private, shift_days: int = 0, mode: str | None = None):
     """Match filter; shift_days moves the window back (for rank changes): period windows move back one period,
     all-time stops `shift_days` ago."""
     conditions = [counted(Match.id)]  # duplicate recordings left out (D13)
@@ -87,17 +123,19 @@ def _where(period, map, private, shift_days: int = 0):
         conditions.append(Match.started_at >= start)
     if map:
         conditions.append(Match.map == map)
+    if mode:
+        conditions.append(Match.mode == mode)
     if private is not None:
         conditions.append(Match.private_match == private)
     return and_(True, *conditions)
 
 
-def _aggregate_rows(db, request, period, map, private, shift_days: int = 0):
+def _aggregate_rows(db, request, period, map, private, shift_days: int = 0, mode: str | None = None):
     # one scan computes every stat: keep the rows per filter set so switching the stat (or asking for the rank
     # change arrows, or the per-player summary columns) does not scan the archive again
     strict = request.app.state.settings.counted_stats
-    return cached(request, "leaderboard-aggregate", (period, map, private, shift_days),
-                  lambda: db.execute(_aggregate(_where(period, map, private, shift_days), strict)).all())
+    return cached(request, "leaderboard-aggregate", (period, map, private, shift_days, mode),
+                  lambda: db.execute(_aggregate(_where(period, map, private, shift_days, mode), strict)).all())
 
 
 def _summary(r, wl: bool = True, player_shown: bool = True) -> dict:
@@ -111,9 +149,9 @@ def _summary(r, wl: bool = True, player_shown: bool = True) -> dict:
             "win_rate": STATS["win_rate"][2](r), "hours_played": STATS["hours_played"][2](r)}
 
 
-def _values(db, request, stat, period, map, private, weapon, tacmod, ordnance, shift_days: int = 0):
+def _values(db, request, stat, period, map, private, weapon, tacmod, ordnance, shift_days: int = 0, mode: str | None = None):
     """(label, higher_is_better, [(player_id, games, value)]); shift_days as in _where."""
-    where = _where(period, map, private, shift_days)
+    where = _where(period, map, private, shift_days, mode)
     if stat == "achievements":
         return "Achievements (overall %)", True, achievement_ranking(request)  # career-wide, not shifted
     if stat == "loadout":
@@ -131,8 +169,9 @@ def _values(db, request, stat, period, map, private, weapon, tacmod, ordnance, s
         ).all()
         return "Loadout time (hours)", True, [(r.player_id, r.games, round((r.seconds or 0) / 3600, 3)) for r in rows]
     label, higher, value_of = STATS[stat]
-    rows = _aggregate_rows(db, request, period, map, private, shift_days)
-    return label, higher, [(r.player_id, r.games, value_of(r)) for r in rows]
+    rows = _aggregate_rows(db, request, period, map, private, shift_days, mode)
+    games_of = GAMES_OF.get(stat, lambda r: r.games)
+    return label, higher, [(r.player_id, games_of(r), value_of(r)) for r in rows]
 
 
 def _rank(values, higher: bool, min_games: int) -> list[tuple[int, int, float]]:
@@ -164,10 +203,13 @@ def _resort(ranking, rows, sort: str | None, wl: bool, hidden) -> list[tuple[int
 def list_stats(request: Request):
     launched = visible(request)
     wl = visibility.win_loss(request)
-    return [{"key": k, "label": label, "higher_is_better": hib} for k, (label, hib, _) in STATS.items()
-            if wl or k not in WIN_LOSS_STATS] + [
+    every = [{"key": k, "label": label, "higher_is_better": hib} for k, (label, hib, _) in STATS.items()
+             if wl or k not in WIN_LOSS_STATS] + [
         {"key": "loadout", "label": "Loadout time (hours)", "higher_is_better": True},
     ] + ([{"key": "achievements", "label": "Achievements (overall %)", "higher_is_better": True}] if launched else [])
+    order = list(dict.fromkeys(GROUPS.values()))  # chips: grouped, groups in GROUPS order, stats in STATS order
+    return sorted(({**s, "group": GROUPS[s["key"]], "hint": HINTS.get(s["key"], "")} for s in every),
+                  key=lambda s: order.index(s["group"]))
 
 
 @router.get("")
@@ -176,6 +218,7 @@ def leaderboard(
     stat: str = "games",
     period: str = Query("all", pattern="^(" + "|".join(PERIODS) + ")$"),
     map: str | None = Query(None, pattern=MAP_PATTERN),
+    mode: str | None = Query(None, pattern=MODE_PATTERN),
     private: bool | None = Query(None, description="true / false; omit for all matches (old app had no filter)"),
     min_games: int = Query(10, ge=1, le=100_000),
     weapon: str | None = None,
@@ -199,7 +242,7 @@ def leaderboard(
     for value, table, what in ((weapon, WEAPONS, "weapon"), (tacmod, TACMODS, "tac mod"), (ordnance, ORDNANCES, "ordnance")):
         if value is not None and value not in table:
             raise ApiError(400, "unknown_gear", f"Unknown {what} '{value[:32]}'")
-    params = (stat, period, map, private, min_games, weapon, tacmod, ordnance, compare, limit, offset, v, sort)
+    params = (stat, period, map, private, min_games, weapon, tacmod, ordnance, compare, limit, offset, v, sort, mode)
     if stat == "achievements":  # has its own background-refreshed cache
         require_launched(request)
         return _leaderboard(request, *params)
@@ -207,29 +250,29 @@ def leaderboard(
 
 
 def _leaderboard(request, stat, period, map, private, min_games, weapon, tacmod, ordnance, compare, limit, offset,
-                 v: visibility.View = visibility.ALL_SHOWN, sort: str | None = None):
+                 v: visibility.View = visibility.ALL_SHOWN, sort: str | None = None, mode: str | None = None):
     wl = not v.everything
     with request.app.state.sessionmaker() as db:
         hidden = visibility.hidden_player_ids(db, v)  # hidden one by one
-        label, higher, values = _values(db, request, stat, period, map, private, weapon, tacmod, ordnance)
+        label, higher, values = _values(db, request, stat, period, map, private, weapon, tacmod, ordnance, mode=mode)
         if stat in WIN_LOSS_STATS and hidden:
             values = [x for x in values if x[0] not in hidden]
         previous = {}
         if compare and stat != "achievements":
-            _, _, before = _values(db, request, stat, period, map, private, weapon, tacmod, ordnance, shift_days=7)
+            _, _, before = _values(db, request, stat, period, map, private, weapon, tacmod, ordnance, shift_days=7, mode=mode)
             if stat in WIN_LOSS_STATS and hidden:
                 before = [x for x in before if x[0] not in hidden]
-            before_rows = _aggregate_rows(db, request, period, map, private, 7) if sort else []
+            before_rows = _aggregate_rows(db, request, period, map, private, 7, mode) if sort else []
             previous = {pid: i + 1 for i, (pid, _, _) in
                         enumerate(_resort(_rank(before, higher, min_games), before_rows, sort, wl, hidden))}
         ranking = _rank(values, higher, min_games)
         if sort:
-            ranking = _resort(ranking, _aggregate_rows(db, request, period, map, private), sort, wl, hidden)
+            ranking = _resort(ranking, _aggregate_rows(db, request, period, map, private, mode=mode), sort, wl, hidden)
         page = ranking[offset : offset + limit]
         people = {pid: (name, user_id) for pid, name, user_id in
                   db.execute(select(Player.id, Player.name, Player.user_id).where(Player.id.in_([pid for pid, _, _ in page])))}
         on_page = {pid for pid, _, _ in page}
-        summary = {r.player_id: _summary(r, wl, r.player_id not in hidden) for r in _aggregate_rows(db, request, period, map, private) if r.player_id in on_page}
+        summary = {r.player_id: _summary(r, wl, r.player_id not in hidden) for r in _aggregate_rows(db, request, period, map, private, mode=mode) if r.player_id in on_page}
 
     empty = {"wins": None, "losses": None, "win_rate": None, "hours_played": None} if wl else {"hours_played": None}
     ranked = [
@@ -240,7 +283,7 @@ def _leaderboard(request, stat, period, map, private, min_games, weapon, tacmod,
         for i, (pid, games, value) in enumerate(page)
     ]
     result = {
-        "stat": stat, "label": label, "higher_is_better": higher, "sort": sort, "period": period, "map": map,
+        "stat": stat, "label": label, "higher_is_better": higher, "sort": sort, "period": period, "map": map, "mode": mode,
         "min_games": min_games, "total": len(ranking), "items": ranked,
         # biggest value on the whole board (not just this page): the bars in the value column are scaled to it
         "max_value": max((v for _, _, v in ranking), default=None),
@@ -273,3 +316,117 @@ def list_gear():
     def table(t):
         return [{"code": code, "name": g.display_name, "cut": g.cut} for code, g in sorted(t.items(), key=lambda kv: kv[1].cut)]
     return {"weapons": table(WEAPONS), "tacmods": table(TACMODS), "ordnances": table(ORDNANCES)}
+
+
+OVERVIEW_TOP = 5
+
+
+@router.get("/overview")
+def overview(
+    request: Request,
+    period: str = Query("all", pattern="^(" + "|".join(PERIODS) + ")$"),
+    map: str | None = Query(None, pattern=MAP_PATTERN),
+    mode: str | None = Query(None, pattern=MODE_PATTERN),
+    min_games: int = Query(10, ge=1, le=100_000),
+):
+    """Stat cards (B4): the top OVERVIEW_TOP of every replay stat for one filter set, from the one aggregate scan the
+    boards share. Loadout (needs gear picks) and achievements (career-wide, ignores the filters) keep their own boards."""
+    v = visibility.view(request)
+    params = (period, map, mode, min_games, v)
+    return cached_response(request, "leaderboard-overview", params, lambda: _overview(request, *params))
+
+
+def _overview(request, period, map, mode, min_games, v: visibility.View):
+    wl = not v.everything
+    with request.app.state.sessionmaker() as db:
+        hidden = visibility.hidden_player_ids(db, v)
+        rows = _aggregate_rows(db, request, period, map, None, mode=mode)
+        boards = []
+        order = list(dict.fromkeys(GROUPS.values()))
+        for key, (label, higher, value_of) in sorted(STATS.items(), key=lambda kv: order.index(GROUPS[kv[0]])):
+            if key in WIN_LOSS_STATS and not wl:
+                continue
+            games_of = GAMES_OF.get(key, lambda r: r.games)
+            values = [(r.player_id, games_of(r), value_of(r)) for r in rows
+                      if not (key in WIN_LOSS_STATS and r.player_id in hidden)]
+            ranking = _rank(values, higher, min_games)
+            boards.append((key, label, higher, ranking[:OVERVIEW_TOP], len(ranking)))
+        ids = {pid for _, _, _, top, _ in boards for pid, _, _ in top}
+        people = {pid: (name, user_id) for pid, name, user_id in
+                  db.execute(select(Player.id, Player.name, Player.user_id).where(Player.id.in_(ids)))} if ids else {}
+    return {"period": period, "map": map, "mode": mode, "min_games": min_games, "boards": [
+        {"stat": key, "label": label, "group": GROUPS[key], "hint": HINTS.get(key, ""), "higher_is_better": higher,
+         "total": total,
+         "items": [{"rank": i + 1, "user_id": people[pid][1], "name": people[pid][0], "games": games, "value": value}
+                   for i, (pid, games, value) in enumerate(top)]}
+        for key, label, higher, top, total in boards]}
+
+
+RECORDS_TOP = 10
+RECORD_SCAN = 400  # best single-match rows read per record before keeping each player's best one
+_METRES = MatchPlayer.speed_sum / func.nullif(Match.frame_rate_hz, 0)
+_IN_BOUNDS_S = MatchPlayer.frames_in_bounds / func.nullif(Match.frame_rate_hz, 0)
+# record -> (label, unit for the page, value expression, needs a minute in the play area: rates over a few seconds mislead)
+RECORDS = {
+    "top_speed": ("Top speed", "speed", MatchPlayer.top_speed, False),
+    "distance": ("Distance in one match", "metres", _METRES, False),
+    "avg_speed": ("Average speed in one match", "speed",
+                  MatchPlayer.speed_sum / func.nullif(MatchPlayer.frames_in_bounds, 0), True),
+    "payload_push_s": ("Push time in one match", "seconds", MatchPlayer.payload_push_s, False),
+    "payload_block_s": ("Block time in one match", "seconds", MatchPlayer.payload_block_s, False),
+    "pct_upside_down": ("Time inverted in one match", "share",
+                        MatchPlayer.frames_upside_down * 1.0 / func.nullif(MatchPlayer.frames_in_bounds, 0), True),
+    "emote_count": ("Emotes in one match", "count", MatchPlayer.emote_count, False),
+}
+_DIGITS = {"share": 4, "speed": 2, "metres": 0, "seconds": 1, "count": 0}
+
+
+@router.get("/records")
+def records(
+    request: Request,
+    period: str = Query("all", pattern="^(" + "|".join(PERIODS) + ")$"),
+    map: str | None = Query(None, pattern=MAP_PATTERN),
+    mode: str | None = Query(None, pattern=MODE_PATTERN),
+):
+    """Records (B2): the best single matches, each player's best one only, with the match to open. Counted games only
+    (stats/quality.py) while that rule is on: short or lopsided games are where glitches and empty-server farming live."""
+    params = (period, map, mode)
+    return cached_response(request, "leaderboard-records", params, lambda: _records(request, *params))
+
+
+def _records(request, period, map, mode):
+    where = [_where(period, map, None, mode=mode)]
+    if request.app.state.settings.counted_stats:
+        where.append(Match.counted_for_stats == 1)
+    found = []
+    with request.app.state.sessionmaker() as db:
+        for key, (label, unit, expr, needs_minute) in RECORDS.items():
+            conditions = [*where, expr.is_not(None), expr > 0]
+            if needs_minute:
+                conditions.append(_IN_BOUNDS_S >= 60)
+            rows = db.execute(
+                select(MatchPlayer.player_id, MatchPlayer.match_id, expr.label("value"), Match.map, Match.started_at)
+                .join(Match, Match.id == MatchPlayer.match_id).where(and_(*conditions))
+                .order_by(expr.desc(), Match.started_at).limit(RECORD_SCAN)
+            ).all()
+            best, seen = [], set()
+            for r in rows:  # each player's best match only, so one player cannot fill a card
+                if r.player_id not in seen:
+                    seen.add(r.player_id)
+                    best.append(r)
+                    if len(best) == RECORDS_TOP:
+                        break
+            found.append((key, label, unit, best))
+        ids = {r.player_id for _, _, _, best in found for r in best}
+        people = {pid: (name, user_id) for pid, name, user_id in
+                  db.execute(select(Player.id, Player.name, Player.user_id).where(Player.id.in_(ids)))} if ids else {}
+
+    def value(unit, v):
+        return round(float(v), _DIGITS[unit]) if _DIGITS[unit] else int(round(float(v)))
+
+    return {"period": period, "map": map, "mode": mode, "records": [
+        {"key": key, "label": label, "unit": unit, "items": [
+            {"rank": i + 1, "user_id": people[r.player_id][1], "name": people[r.player_id][0], "value": value(unit, r.value),
+             "match_id": r.match_id, "map": r.map, "started_at": r.started_at}
+            for i, r in enumerate(best)]}
+        for key, label, unit, best in found]}

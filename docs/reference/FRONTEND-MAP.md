@@ -4,11 +4,11 @@ Each file: lines, its exports with line numbers, and which api.ts functions it c
 depends on). Routes are in App.tsx; styling is one file, styles.css (see CSS-MAP.md). No prettier: keep long
 lines and CRLF.
 
-### `app/frontend/src/api.ts` (1789 lines)
-- exports: RateLimitError:7, rateLimit:16, connection:28, siteUpdate:58, reloadOnce:82, forgetAnswers:210, track:313, onAnswerChange:324, forgetResponses:330, Team:335, Page:337, MatchSummary:342, GearItem:359, Loadout:365, GearUse:374, GearUseSet:380, MatchPlayer:386, MatchDetail:411, PlayerListItem:431, getAvatars:441, Period:443, PlayerStats:445, PlayerMatch:475, PlayerProfile:482, MatchFilters:506, listMatches:521, getMatch:524, searchPlayers:526, getPlayer:529, HeatmapLayer:532, Heatmap:540, unpackCells:562, MatchEvent:590, Timeline:600, LeaderboardRow:607, Leaderboard:621, StatOption:633, GearList:639, HeatmapMode:645, getMatchHeatmap:647, getMatchThumbnails:651, getTimeline:654, getPlayerHeatmap:656, LeaderboardQuery:659, getLeaderboard:674, getLeaderboardStats:677, getGear:679, matchExportUrl:681, AchievementRule:683, LEVELS:699, Achievement:701, PlayerAchievements:709, getAchievements:720, listAchievements:723, GearShare:727, GlobalStats:732, Overview:750, PlayersSeen:766, SearchResult:777, PlaybackGear:782, Playback:788, Playback3D:810, TrendPoint:834, Companion:844, Comparison:852, ChallengeWindow:858, AchievementPeek:875, Me:882, getIconChoices:891, setIcon:892, uploadIcon:898, runConsole:906, IconRow:914, ConsoleAchievement:921, getConsoleAchievements:926, CONSOLE_ACHIEVEMENTS_CSV:927, MegaPrizeReport:930, getMegaPrizeWinners:939, CONSOLE_MEGA_PRIZES_CSV:940, MergeCandidate:943, MergeSuggestion:954, getMergeSuggestions:964, ConsoleLogEntry:967, ArenaStatus:981, ConsoleOverview:992, ConsolePlayer:1008, getConsoleOverview:1019, searchConsolePlayers:1020, getConsoleLog:1021, ProcessingStatus:1025, getProcessingStatus:1053, Permission:1056, DiscordEntry:1057, PermissionState:1061, getPermissions:1068, changePermission:1069, AchievementRarity:1076, RecentUnlock:1081, getMe:1093, loginUrl:1095, LOGOUT_URL:1096, getHealth:1098, getOverview:1100, getProcessing:1102, getLastMatch:1104, getLatestMatches:1107, getLive:1110, getActivity:1111, getPlayersSeen:1113, MapHeatLayer:1117, MapHeat:1125, MapHeatView:1142, getMapHeat:1144, search:1146, getPlayback:1148, getTrends:1162, CompanionWindow:1164, getPlayback3d:1166, getCompanions:1167, comparePlayers:1169, getChallenges:1171, getRarity:1172, getRecentUnlocks:1173, Achiever:1176, getAchievers:1189, HeatmapLayerMode:1191, getMatchHeatmapBy:1193, getPlayerHeatmapBy:1195, Heatmap3DLayer:1200, Heatmap3D:1212, getMatchHeatmap3d:1263, getPlayerHeatmap3d:1265, PlayerBioProfile:1270, BIO_MAX:1279, getPlayerBio:1280, savePlayerBio:1281, MyProfile:1289, getMyProfile:1290, saveMyProfile:1291, MegaTopPlayer:1299, ArenaProgress:1308, getArenaProgress:1323, getMegaVisible:1325, MegaPrizeSearch:1328, searchMegaPrizes:1332, CombatWeapon:1335, CombatTotals:1341, CombatEvents:1359, CombatAward:1374, CombatAwardCount:1381, CombatAwardsWon:1386, CombatRecent:1388, CombatPlayerStats:1402, CombatBoardRow:1413, CombatBoard:1428, CombatStatOption:1436, CombatSummary:1443, CombatMatchItem:1450, CombatMatchPlayer:1461, CombatMatchAward:1484, CombatMatchDetail:1491, getCombatPlayer:1505, getCombatBoard:1508, getCombatStats:1511, getCombatAwards:1512, getCombatSummary:1513, listCombatMatches:1514, getCombatMatch:1516, CloudLevel:1520, CloudAccess:1521, CloudEntry:1522, CloudListing:1535, CloudTrashItem:1552, getCloudTrash:1562, CloudQuarantineItem:1570, CloudQuarantine:1579, getCloudQuarantine:1588, deleteQuarantined:1595, releaseQuarantined:1596, scanAllCloudFiles:1597, restoreCloudTrash:1599, purgeCloudTrash:1600, emptyCloudTrash:1601, CloudLogEntry:1609, getCloudLog:1621, CloudPrincipal:1624, getCloud:1630, cloudDownloadUrl:1633, makeCloudFolder:1635, renameCloud:1637, deleteCloud:1638, moveCloud:1640, CloudGrant:1648, CloudRule:1654, CloudRuleRow:1663, CloudEffective:1674, getCloudEffective:1680, CloudPermission:1683, CloudAccessState:1684, getCloudAccess:1689, changeCloudAccess:1690, getCloudRules:1696, findCloudPeople:1699, getCloudRule:1701, setCloudRule:1702, uploadCloudFile:1754
+### `app/frontend/src/api.ts` (1832 lines)
+- exports: RateLimitError:7, rateLimit:16, connection:28, siteUpdate:58, reloadOnce:82, forgetAnswers:210, track:313, onAnswerChange:324, forgetResponses:330, Team:335, Page:337, MatchSummary:342, MatchTag:362, MatchesSummary:365, StoryStep:378, GearItem:382, Loadout:388, GearUse:397, GearUseSet:403, MatchPlayer:409, MatchDetail:434, PlayerListItem:455, getAvatars:465, Period:467, PlayerStats:469, PlayerMatch:499, PlayerProfile:506, MatchFilters:530, listMatches:545, getMatchesSummary:548, getMatch:551, searchPlayers:553, getPlayer:556, HeatmapLayer:559, Heatmap:567, unpackCells:589, MatchEvent:617, Timeline:627, LeaderboardRow:634, Leaderboard:648, StatOption:660, GearList:666, HeatmapMode:672, getMatchHeatmap:674, getMatchThumbnails:678, getTimeline:681, getPlayerHeatmap:683, LeaderboardQuery:686, getLeaderboard:701, getLeaderboardStats:704, getGear:706, matchExportUrl:708, AchievementRule:710, LEVELS:726, Achievement:728, PlayerAchievements:736, getAchievements:747, listAchievements:750, GearShare:754, GlobalStats:759, Newcomers:782, Overview:792, PlayersSeen:809, SearchResult:820, PlaybackGear:825, Playback:831, Playback3D:853, TrendPoint:877, Companion:887, Comparison:895, ChallengeWindow:901, AchievementPeek:918, Me:925, getIconChoices:934, setIcon:935, uploadIcon:941, runConsole:949, IconRow:957, ConsoleAchievement:964, getConsoleAchievements:969, CONSOLE_ACHIEVEMENTS_CSV:970, MegaPrizeReport:973, getMegaPrizeWinners:982, CONSOLE_MEGA_PRIZES_CSV:983, MergeCandidate:986, MergeSuggestion:997, getMergeSuggestions:1007, ConsoleLogEntry:1010, ArenaStatus:1024, ConsoleOverview:1035, ConsolePlayer:1051, getConsoleOverview:1062, searchConsolePlayers:1063, getConsoleLog:1064, ProcessingStatus:1068, getProcessingStatus:1096, Permission:1099, DiscordEntry:1100, PermissionState:1104, getPermissions:1111, changePermission:1112, AchievementRarity:1119, RecentUnlock:1124, getMe:1136, loginUrl:1138, LOGOUT_URL:1139, getHealth:1141, getOverview:1143, getProcessing:1145, getLastMatch:1147, getLatestMatches:1150, getLive:1153, getActivity:1154, getPlayersSeen:1156, MapHeatLayer:1160, MapHeat:1168, MapHeatView:1185, getMapHeat:1187, search:1189, getPlayback:1191, getTrends:1205, CompanionWindow:1207, getPlayback3d:1209, getCompanions:1210, comparePlayers:1212, getChallenges:1214, getRarity:1215, getRecentUnlocks:1216, Achiever:1219, getAchievers:1232, HeatmapLayerMode:1234, getMatchHeatmapBy:1236, getPlayerHeatmapBy:1238, Heatmap3DLayer:1243, Heatmap3D:1255, getMatchHeatmap3d:1306, getPlayerHeatmap3d:1308, PlayerBioProfile:1313, BIO_MAX:1322, getPlayerBio:1323, savePlayerBio:1324, MyProfile:1332, getMyProfile:1333, saveMyProfile:1334, MegaTopPlayer:1342, ArenaProgress:1351, getArenaProgress:1366, getMegaVisible:1368, MegaPrizeSearch:1371, searchMegaPrizes:1375, CombatWeapon:1378, CombatTotals:1384, CombatEvents:1402, CombatAward:1417, CombatAwardCount:1424, CombatAwardsWon:1429, CombatRecent:1431, CombatPlayerStats:1445, CombatBoardRow:1456, CombatBoard:1471, CombatStatOption:1479, CombatSummary:1486, CombatMatchItem:1493, CombatMatchPlayer:1504, CombatMatchAward:1527, CombatMatchDetail:1534, getCombatPlayer:1548, getCombatBoard:1551, getCombatStats:1554, getCombatAwards:1555, getCombatSummary:1556, listCombatMatches:1557, getCombatMatch:1559, CloudLevel:1563, CloudAccess:1564, CloudEntry:1565, CloudListing:1578, CloudTrashItem:1595, getCloudTrash:1605, CloudQuarantineItem:1613, CloudQuarantine:1622, getCloudQuarantine:1631, deleteQuarantined:1638, releaseQuarantined:1639, scanAllCloudFiles:1640, restoreCloudTrash:1642, purgeCloudTrash:1643, emptyCloudTrash:1644, CloudLogEntry:1652, getCloudLog:1664, CloudPrincipal:1667, getCloud:1673, cloudDownloadUrl:1676, makeCloudFolder:1678, renameCloud:1680, deleteCloud:1681, moveCloud:1683, CloudGrant:1691, CloudRule:1697, CloudRuleRow:1706, CloudEffective:1717, getCloudEffective:1723, CloudPermission:1726, CloudAccessState:1727, getCloudAccess:1732, changeCloudAccess:1733, getCloudRules:1739, findCloudPeople:1742, getCloudRule:1744, setCloudRule:1745, uploadCloudFile:1797
 
-### `app/frontend/src/App.tsx` (254 lines)
-- exports: App:247
+### `app/frontend/src/App.tsx` (268 lines)
+- exports: App:261
 - api.ts calls: getProcessing, loginUrl, reloadOnce
 
 ### `app/frontend/src/components/AchievementsView.tsx` (1205 lines)
@@ -52,6 +52,10 @@ lines and CRLF.
 ### `app/frontend/src/components/common.tsx` (175 lines)
 - exports: LocalTime:20, Status:24, isNotFound:39, NotFoundBox:43, TeamBadge:55, gearIconUrl:82, GearIcon:87, GearLabel:93, GearName:104, LoadoutText:113, TableWrap:130, MatchTable:134
 
+### `app/frontend/src/components/CompareView.tsx` (210 lines)
+- exports: COMPARE_MAX:11, compareTabPath:15, CompareView:75
+- api.ts calls: comparePlayers, getPlayerHeatmap3d, getPlayerHeatmapBy, searchPlayers
+
 ### `app/frontend/src/components/GlobalSearch.tsx` (95 lines)
 - exports: GlobalSearch:7
 - api.ts calls: search
@@ -73,16 +77,19 @@ lines and CRLF.
 - exports: Map3DProps:48, Map3D:84
 - api.ts calls: getPlayback3d
 
-### `app/frontend/src/components/MapHeatCards.tsx` (395 lines)
+### `app/frontend/src/components/MapHeatCards.tsx` (396 lines)
 - exports: MapHeatCards:191
 - api.ts calls: getMapHeat
 
 ### `app/frontend/src/components/mapModel3d.ts` (57 lines)
 - exports: MAP_LOOK:8, MAP_LAYER:22, MapMaterial:27, dressMapModel:34
 
-### `app/frontend/src/components/MatchCards.tsx` (67 lines)
-- exports: MatchCards:29
+### `app/frontend/src/components/MatchCards.tsx` (145 lines)
+- exports: MatchCards:116
 - api.ts calls: getMatchThumbnails
+
+### `app/frontend/src/components/MatchStory.tsx` (122 lines)
+- exports: MatchStory:6, TeamComparison:78
 
 ### `app/frontend/src/components/playback3d.ts` (54 lines)
 - exports: Camera3D:3, CameraGroup:5, CAMERAS:7, isCamera:17, isFreeCamera:22, CONTROL_HELP:27, TEAM_COLORS:53
@@ -132,31 +139,27 @@ lines and CRLF.
 - exports: CombatBoard:26, CombatMatchPage:156
 - api.ts calls: getCombatBoard, getCombatMatch, listCombatMatches
 
-### `app/frontend/src/pages/ComparePage.tsx` (216 lines)
-- exports: ComparePage:62
-- api.ts calls: comparePlayers, getPlayer, getPlayerHeatmap3d, getPlayerHeatmapBy, searchPlayers
-
 ### `app/frontend/src/pages/ConsolePage.tsx` (1440 lines)
 - exports: ConsolePage:417
 - api.ts calls: forgetResponses, getConsoleLog, getConsoleOverview, getProcessingStatus, loginUrl, runConsole, searchConsolePlayers
 
-### `app/frontend/src/pages/HomePage.tsx` (408 lines)
-- exports: HomePage:229
-- api.ts calls: getActivity, getLastMatch, getLatestMatches, getLive, getOverview, getPlayersSeen
+### `app/frontend/src/pages/HomePage.tsx` (539 lines)
+- exports: HomePage:301
+- api.ts calls: getActivity, getCombatBoard, getLastMatch, getLatestMatches, getLive, getOverview, getPlayersSeen
 
-### `app/frontend/src/pages/LeaderboardPage.tsx` (297 lines)
-- exports: LeaderboardPage:272
+### `app/frontend/src/pages/LeaderboardPage.tsx` (334 lines)
+- exports: LeaderboardPage:309
 - api.ts calls: getLeaderboard
 
-### `app/frontend/src/pages/MatchesPage.tsx` (158 lines)
-- exports: MatchesPage:14
-- api.ts calls: listMatches
+### `app/frontend/src/pages/MatchesPage.tsx` (224 lines)
+- exports: MatchesPage:77
+- api.ts calls: getMatchesSummary, listMatches
 
-### `app/frontend/src/pages/MatchPage.tsx` (418 lines)
-- exports: MatchPage:310
+### `app/frontend/src/pages/MatchPage.tsx` (421 lines)
+- exports: MatchPage:311
 - api.ts calls: getCombatMatch, getMatch, getMatchHeatmap3d, getMatchHeatmapBy, getPlayback, getTimeline
 
-### `app/frontend/src/pages/PermissionsPage.tsx` (180 lines)
+### `app/frontend/src/pages/PermissionsPage.tsx` (181 lines)
 - exports: PermissionsPage:21, Permissions:26
 - api.ts calls: changePermission, getPermissions
 
@@ -185,6 +188,7 @@ lines and CRLF.
 ### api.ts functions -> endpoints (first /api path each one mentions)
 - getAvatars -> `/api/avatars`
 - listMatches -> `/api/matches`
+- getMatchesSummary -> `/api/matches/summary`
 - getMatch -> `/api/matches/`
 - searchPlayers -> `/api/players`
 - getPlayer -> `/api/players/`
