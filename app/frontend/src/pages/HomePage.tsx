@@ -287,8 +287,9 @@ const TICK_MS = 20_000;
  * match time is asked separately because the overview is rebuilt only every few minutes (and then refreshed too).
  * While the spectator bot is live on Twitch a game is being played: a "Game in progress" card appears beside it
  * (none at all otherwise, user 2026-11-01). */
-/** "▲ 12% vs the 7 days before" (green up, red down, grey within ±5 %); `points`: two shares compared in percentage
- * points ("▲ 5 pts"). Nothing when there is nothing to compare with. */
+/** "▲ 12% vs the 7 days before" (green up, grey within ±5 %); `points`: two shares compared in percentage points
+ * ("▲ 5 pts"). A drop is the same number in plain grey with a minus sign, "−12%" (user, 2026-11-16: no red ▼, a quiet
+ * week should not read as an alarm; the figure itself is unchanged). Nothing when there is nothing to compare with. */
 function Change({ now, before, points = false }: { now: number; before: number; points?: boolean }) {
   if (!points && !before) return <span>none the 7 days before</span>;
   const d = points ? (now - before) * 100 : ((now - before) / before) * 100;
@@ -297,7 +298,7 @@ function Change({ now, before, points = false }: { now: number; before: number; 
   const arrow = dir === "flat" ? "=" : dir === "up" ? "▲" : "▼";
   return (
     <span className={`trend-change ${dir}`}>
-      <span className="trend-value">{arrow} {shown}{points ? " pts" : "%"}</span> <span className="muted">{points ? "vs the week before" : "vs the 7 days before"}</span>
+      <span className="trend-value">{dir === "down" ? "−" : `${arrow} `}{shown}{points ? " pts" : "%"}</span> <span className="muted">{points ? "vs the week before" : "vs the 7 days before"}</span>
     </span>
   );
 }

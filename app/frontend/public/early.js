@@ -3,6 +3,26 @@
 // allows no inline scripts. The addresses must be exactly the ones api.ts builds; one that is never asked for is only
 // a wasted request. Nothing is started when this tab already holds saved answers (a reload shows those at once).
 (function () {
+  // the opened page's own code (a few KB), asked for now instead of once the main script has run. The list of files per
+  // page is written into index.html by the build (vite.config.ts, pageFiles); the addresses mirror the routes in App.tsx
+  try {
+    var route = location.pathname, page =
+      route === "/matches" ? "MatchesPage" : /^\/matches\/./.test(route) ? "MatchPage" :
+      route === "/players" ? "PlayersPage" : /^\/players\/./.test(route) ? "PlayerPage" :
+      route === "/leaderboard" ? "LeaderboardPage" : /^\/achievements(\/|$)/.test(route) ? "AchievementsPage" :
+      /^\/combat\/./.test(route) ? "CombatPage" : route === "/console" ? "ConsolePage" : route === "/cloud" ? "CloudPage" :
+      route === "/profile" ? "ProfilePage" : route === "/permissions" ? "PermissionsPage" : "";
+    var list = document.getElementById("page-files");
+    ((page && list && JSON.parse(list.textContent)[page]) || []).forEach(function (href) {
+      var link = document.createElement("link");
+      link.rel = "modulepreload";
+      link.crossOrigin = "";
+      link.href = href;
+      document.head.appendChild(link);
+    });
+  } catch (e) {
+    /* the page loads its code the usual way */
+  }
   try {
     for (var i = 0; i < sessionStorage.length; i++) if ((sessionStorage.key(i) || "").indexOf("echovr:") === 0) return;
   } catch (e) {

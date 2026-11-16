@@ -5041,7 +5041,7 @@ tr.cloud-drop-on td {
 .this-week-note { font-size: 0.8rem; margin: -2px 0 8px; }
 .trend-change .trend-value { white-space: nowrap; } /* the rest wraps in a narrow card (phones) */
 .trend-change.up { color: var(--ok); }
-.trend-change.down { color: var(--bad); }
+.trend-change.down { color: var(--muted); } /* a drop: plain grey, not red (HomePage, Change) */
 .trend-change .muted { font-weight: normal; }
 /* live video and latest matches fill the row: the video takes half, but stops at 960 px (540 px tall), and the
    latest matches take the rest, one wide row each (tags and names beside the score: see .match-cards.compact below) */
@@ -5385,4 +5385,53 @@ tr.cloud-drop-on td {
   .home .home-top .home-week > .this-week {
     grid-row: span 2;
   }
+}
+
+/* ---- Alignment fixes (end-to-end pass, 2026-11-16) ---- */
+/* Player page goals / "Your next medals": the tile takes the spare height, so the hint under it starts on the same
+   line across the row whether the challenge's name takes one line or two */
+.strip-next > .tile { flex: 1 1 auto; }
+
+/* Match cards: "Combustion" + "Capture point · #39379" did not fit a narrow card's one line, wrapped, and pushed that
+   card's score and names a line below its neighbours'. A card too narrow for the longest pair puts "mode · #id" under
+   the map name on EVERY card, so the cards of a row stay line for line; wider cards keep the one line. */
+.match-card { container-type: inline-size; }
+.match-card-head > strong,
+.match-card-head > .muted { white-space: nowrap; }
+@container (max-width: 325px) {
+  .match-cards:not(.compact) .match-card-head { flex-direction: column; align-items: flex-start; gap: 0; }
+  .match-cards:not(.compact) .match-card-head > .muted { font-size: 0.85em; }
+}
+
+/* Match page: the Blue and Orange tables keep the same columns. Only the name and loadout columns differ in content
+   between the two, so those get a set width (a long name wraps inside it); the number columns then come out alike. */
+@media (min-width: 761px) {
+  .team-tables.match-teams table.stack th:first-child,
+  .team-tables.match-teams table.stack td:first-child { width: 11.5rem; overflow-wrap: anywhere; }
+  .team-tables.match-teams table.stack th:last-child,
+  .team-tables.match-teams table.stack td:last-child { width: 10.5rem; overflow-wrap: anywhere; }
+  /* the combat scoreboards (K / D / A ...) the same way: name and weapons take a set share, the numbers line up */
+  .team-tables:not(.match-teams) table.stack th:first-child,
+  .team-tables:not(.match-teams) table.stack td:first-child { width: 24%; overflow-wrap: anywhere; }
+  .team-tables:not(.match-teams) table.stack th:nth-child(n+2):nth-child(-n+4) { width: 5%; } /* K, D, A */
+  .team-tables:not(.match-teams) table.stack th:nth-child(5) { width: 8%; }
+  .team-tables:not(.match-teams) table.stack th:nth-child(n+6):nth-child(-n+8) { width: 9%; }
+  .team-tables:not(.match-teams) table.stack th:last-child,
+  .team-tables:not(.match-teams) table.stack td:last-child { width: 26%; }
+}
+
+/* Home, latest matches in a narrow list (phones): "Combustion" + "Capture point · #39379" ran off the card's edge and
+   lost the match number. The mode goes (the map and the score line say it); the number always shows. */
+@container (max-width: 420px) {
+  .match-cards.compact .match-mode { display: none; }
+}
+
+/* Tables shown as stacked rows on a phone: a label sits on the line of its value. A link is taller there (touch
+   target), which left "Match" / "Player" / "Date" half a line above their links. */
+@media (max-width: 760px) {
+  table.stack td { align-items: baseline; }
+  /* the loadout: its three lines as one block at the right (icons under each other), "+1 more" on a line below */
+  table.stack td:has(> .loadout.stacked) { flex-wrap: wrap; }
+  table.stack td > .loadout.stacked { margin-left: auto; text-align: left; }
+  table.stack td > .loadout.stacked + .muted { flex-basis: 100%; }
 }

@@ -162,8 +162,10 @@ function Overview({ period, map, mode, minGames, boardLink }: { period: Period; 
     <>
       <div className="lb-groups">
       {[...groups].map(([group, boards]) => (
-        // a group of n cards asks for about n card widths, and stretches no wider than n roomy cards
-        <section key={group} className="lb-group" style={{ flexBasis: boards.length * 260, maxWidth: boards.length * 420 }}>
+        // a group of n cards asks for about n card widths and takes its share of the spare room by n too, so cards are
+        // the same width across the groups of a row and every row ends at the page's right edge (a 420 px cap per card
+        // left the three-card rows short of it, 2026-11-16)
+        <section key={group} className="lb-group" style={{ flexBasis: boards.length * 260, flexGrow: boards.length, maxWidth: boards.length * 600 }}>
           <h2 className="lb-group-title">{group}</h2>
           <div className="lb-cards">
             {boards.map((b) => (

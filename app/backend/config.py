@@ -111,7 +111,7 @@ class Settings:
             track_cache_mb=int(env("ECHOVR_TRACK_CACHE_MB", 512)),
             cache_refresh_s=float(env("ECHOVR_CACHE_REFRESH_S", 300)),
             answer_cache_mb=int(env("ECHOVR_ANSWER_CACHE_MB", 1024)),
-            response_cache_mb=int(env("ECHOVR_RESPONSE_CACHE_MB", 256)),
+            response_cache_mb=int(env("ECHOVR_RESPONSE_CACHE_MB", 1024)),
             ranking_refresh_s=float(env("ECHOVR_RANKING_REFRESH_S", 900)),
             edge_cache_s=int(env("ECHOVR_EDGE_CACHE_S", 60)),
             twitch_channel=env("ECHOVR_TWITCH_CHANNEL", "combat_stream_bot"),

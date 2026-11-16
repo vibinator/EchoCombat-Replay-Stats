@@ -97,7 +97,7 @@ function Card({ m, heat, compact = false }: { m: MatchSummary; heat: string | un
         <div className="match-card-head">
           <strong>{title(m.map)}</strong>
           <span className="muted">
-            {modeLabel(m.mode)} · <span className="match-id">#{m.id}</span>
+            <span className="match-mode">{modeLabel(m.mode)} · </span><span className="match-id">#{m.id}</span>
           </span>
         </div>
         <div className="match-card-score">

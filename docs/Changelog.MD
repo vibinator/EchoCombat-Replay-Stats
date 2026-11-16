@@ -18,6 +18,66 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.16.20 — 14:47
+
+End-to-end pass for load times and layout. Measured on the development PC against a copy of the full archive, old and
+new code side by side, with a browser on a simulated 10 Mbit / 40 ms connection (17 pages, first visit with an empty
+browser cache): **a page is complete after 0.67 s on average, was 0.95 s; the main content shows after 0.52 s, was
+0.83 s; a first visit downloads 230-540 KB, was 430-1,460 KB.** The NAS is 5-12x slower than this PC for the server's
+part, so the server-side gains are larger there.
+
+**Quicker pages**
+- **Pictures are 4-9x smaller.** The background behind the top bar (on every page) is 41 KB, was 275 KB; the map
+  pictures under heatmaps and playback are 100-250 KB, were 0.5-2.3 MB; the thumbnails ~20 KB, were ~100 KB (WebP,
+  same size in pixels; the PNG / JPG files stay for links that still point at them). Heatmap / Playback tabs: 0.8 s,
+  were 1.6 s.
+- **The font comes from the site itself**, not from two Google servers (one request less before text settles, and no
+  visitor address goes to Google). The Content-Security-Policy no longer allows Google's font servers.
+- **Data is asked for while the page's code is still downloading** (`early.js`): the answers every page needs (login,
+  achievements state, version, import queue) and the first answers of Home, Matches, a match, a player and the
+  Leaderboard are already there when the page starts. The opened page's own code is fetched at the same moment.
+- **No loading skeleton on a first visit, and none on the first click on Matches / Leaderboard / Achievements / a
+  player / a match.** React holds a page back until 0.3 s after its skeleton appeared, however quickly the page file
+  arrives; the opened page's file is now loaded before the first render, and the main pages' files are fetched in the
+  background once the browser is idle (not on a "save data" connection).
+- **The first download is 10 % smaller** (88 KB, was 98 KB): the top bar no longer pulls in the whole achievements view.
+- **Home asked for the Twitch live status twice** every time; once now.
+
+**Server: more kept in memory**
+- **Combat stats answers are kept** like the replay ones (leaderboard, player, match list, match, summary): 1 ms, were
+  10-30 ms each on every request, and browsers / Cloudflare get an ETag (304 when unchanged). They follow new match
+  reports and player merges; like every other page they can be up to 5 minutes behind.
+- **Achievements list** (`/api/achievements`): 7 ms, was 130-140 ms per request (the rarity of every challenge was
+  counted again for every visitor; now once per ranking). A player's achievements: 5 ms, was 15 ms.
+- **After a restart the Matches and Leaderboard first screens are built ahead** (with the match thumbnails), as the
+  Home page already was: their first visitor no longer waits for the archive-wide build (leaderboard 2.5 s, match
+  list + summary ~1 s on the NAS). 1.4 s of background work at start on this PC.
+- **Memory for kept answers is a setting**: `ECHOVR_RESPONSE_CACHE_MB` (1024, and 2048 in the NAS YAML: user, "more the better"; it was fixed at 64 MB = about 400 player
+  heatmaps) and up to 20,000 answers (was 4,096). Added to `docker-compose.yml`.
+- A Discord picture lookup that fails is not repeated for 30 s (a profile waited 0.6 s for it on every view).
+- WebP / WOFF2 files are sent with their proper type.
+
+**Layout**
+- Player page, "Your goals" and "Your next medals": the hint under each tile starts on the same line, whether the
+  challenge's name takes one line or two.
+- Leaderboard cards: every row ends at the page's right edge and cards are the same width across the groups of a row
+  (three-card rows stopped ~60 px short).
+- Match cards: "Combustion" + "Capture point · #id" wrapped and pushed that card's score and names a line down. Narrow
+  cards now show "mode · #id" under the map name on every card; on a phone the Home list shows the match number
+  instead of cutting it off.
+- Match page and combat match: the Blue and Orange tables have the same column positions (were up to 28 px apart).
+- Phones: labels sit on the line of their value in stacked tables ("Match", "Date", "Player" were half a line above
+  their links); a player's loadout is one block with "+1 more" below it; the Home chart shows as many axis labels as
+  fit (eight ran into each other).
+
+**Home**
+- The cards' comparison with the week before shows a drop in plain grey with a minus sign ("−20 pts vs the week
+  before") instead of a red ▼; a rise stays a green ▲. The numbers are the same.
+
+**To do after updating:** nothing. The first achievement ranking after this update is worked out from scratch once
+(the code it depends on changed), in the background as usual. Two tests in `test_combat_achievements.py` fail before
+and after this change (medal targets being re-tuned elsewhere); all others pass.
+
 ## 2026.11.16.19 — 14:00
 
 - **Fixed: the "Compare" button on player profiles did nothing** (since 2026.11.16.12). The Compare page had moved into

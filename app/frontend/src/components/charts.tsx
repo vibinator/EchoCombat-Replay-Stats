@@ -32,6 +32,15 @@ function labelled(i: number, count: number, every: number): boolean {
   return (count - 1 - i) % every === 0;
 }
 
+const LABEL_ROOM_PX = 72; // an axis label ("27 Aug", "Wk 45 2026") and the space after it
+
+/** Every how many bars get an axis label: 8 labels at most, fewer in a narrow chart (on a phone eight ran into
+ *  each other: "15 Aug27 Aug8 Sep"). */
+function labelStep(count: number, innerW: number): number {
+  const fit = Math.max(2, Math.min(8, Math.floor(innerW / LABEL_ROOM_PX)));
+  return Math.max(1, Math.ceil(count / fit));
+}
+
 /** The last label ends at the chart's edge instead of being cut off there. */
 function anchor(i: number, count: number): "middle" | "end" {
   return i === count - 1 ? "end" : "middle";
@@ -52,7 +61,7 @@ export function BarChart({ data, title, unit = "", height = 180, color = "var(--
   const slot = innerW / Math.max(1, data.length);
   const gap = Math.min(2, slot * 0.2);
   const y = (v: number) => height - pad.bottom - (v / max) * (height - pad.top - pad.bottom);
-  const labelEvery = Math.max(1, Math.ceil(data.length / 8));
+  const labelEvery = labelStep(data.length, innerW);
 
   function onMove(e: MouseEvent<SVGSVGElement>) {
     const box = e.currentTarget.getBoundingClientRect();
@@ -142,7 +151,7 @@ export function StackedBarChart({ data, series, title, unit = "", height = 180 }
   const slot = innerW / Math.max(1, data.length);
   const gap = Math.min(2, slot * 0.2);
   const y = (v: number) => height - pad.bottom - (v / max) * (height - pad.top - pad.bottom);
-  const labelEvery = Math.max(1, Math.ceil(data.length / 8));
+  const labelEvery = labelStep(data.length, innerW);
 
   function onMove(e: MouseEvent<SVGSVGElement>) {
     const box = e.currentTarget.getBoundingClientRect();

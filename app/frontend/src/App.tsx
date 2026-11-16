@@ -15,29 +15,72 @@ const PAGE_RETRY_MS = 1_500;
  *  or restarting for a moment (asked once more), or the site was updated since this tab opened and the file is gone
  *  (the tab is reloaded, which loads the current site: the skeleton stays until then). Before 2026-11-10 either one
  *  ended in "Something went wrong showing this page" until the visitor reloaded by hand. */
-function page<M>(load: () => Promise<M>, pick: (m: M) => ComponentType) {
-  return lazy(() =>
-    load()
-      .catch(() => new Promise<M>((done, fail) => setTimeout(() => load().then(done, fail), PAGE_RETRY_MS)))
+/** `route`: the addresses this page answers to. A page whose file is already here is shown at once, without the loading
+ *  skeleton: React holds a page back until 300 ms after its skeleton appeared, however quickly the file arrives
+ *  (measured 2026-11-16: every first visit and every first click on a menu item waited for that). So the file of the
+ *  page being opened is fetched before the first render (preloadPage, main.tsx), and the main pages' files once the
+ *  browser is idle (preloadMainPages). */
+const pageFiles: { route: RegExp; main: boolean; fetch: () => Promise<unknown> }[] = [];
+
+function page<M>(load: () => Promise<M>, pick: (m: M) => ComponentType, route: RegExp, main = false) {
+  let ready: ComponentType | null = null;
+  let asked: Promise<M> | null = null;
+  const once = () =>
+    (asked ??= load().then(
+      (m) => {
+        ready = pick(m);
+        return m;
+      },
+      (e: unknown) => {
+        asked = null; // asked again next time
+        throw e;
+      },
+    ));
+  const Lazy = lazy(() =>
+    once()
+      .catch(() => new Promise<M>((done, fail) => setTimeout(() => once().then(done, fail), PAGE_RETRY_MS)))
       .catch((e: unknown) => {
         if (reloadOnce()) return new Promise<M>(() => undefined);
         throw e;
       })
       .then((m) => ({ default: pick(m) })),
   );
+  pageFiles.push({ route, main, fetch: once });
+  return function Page() {
+    const Ready = ready;
+    return Ready ? <Ready /> : <Lazy />;
+  };
 }
 
-const AchievementsPage = page(() => import("./pages/AchievementsPage"), (m) => m.AchievementsPage);
-const CombatMatchPage = page(() => import("./pages/CombatPage"), (m) => m.CombatMatchPage);
-const ConsolePage = page(() => import("./pages/ConsolePage"), (m) => m.ConsolePage);
-const ProfilePage = page(() => import("./pages/ProfilePage"), (m) => m.ProfilePage);
-const LeaderboardPage = page(() => import("./pages/LeaderboardPage"), (m) => m.LeaderboardPage);
-const MatchPage = page(() => import("./pages/MatchPage"), (m) => m.MatchPage);
-const MatchesPage = page(() => import("./pages/MatchesPage"), (m) => m.MatchesPage);
-const PermissionsPage = page(() => import("./pages/PermissionsPage"), (m) => m.PermissionsPage);
-const PlayerPage = page(() => import("./pages/PlayerPage"), (m) => m.PlayerPage);
-const CloudPage = page(() => import("./pages/CloudPage"), (m) => m.CloudPage);
-const PlayersPage = page(() => import("./pages/PlayersPage"), (m) => m.PlayersPage);
+const AchievementsPage = page(() => import("./pages/AchievementsPage"), (m) => m.AchievementsPage, /^\/achievements(\/|$)/, true);
+const CombatMatchPage = page(() => import("./pages/CombatPage"), (m) => m.CombatMatchPage, /^\/combat\/./);
+const ConsolePage = page(() => import("./pages/ConsolePage"), (m) => m.ConsolePage, /^\/console$/);
+const ProfilePage = page(() => import("./pages/ProfilePage"), (m) => m.ProfilePage, /^\/profile$/);
+const LeaderboardPage = page(() => import("./pages/LeaderboardPage"), (m) => m.LeaderboardPage, /^\/leaderboard$/, true);
+const MatchPage = page(() => import("./pages/MatchPage"), (m) => m.MatchPage, /^\/matches\/./, true);
+const MatchesPage = page(() => import("./pages/MatchesPage"), (m) => m.MatchesPage, /^\/matches$/, true);
+const PermissionsPage = page(() => import("./pages/PermissionsPage"), (m) => m.PermissionsPage, /^\/permissions$/);
+const PlayerPage = page(() => import("./pages/PlayerPage"), (m) => m.PlayerPage, /^\/players\/./, true);
+const CloudPage = page(() => import("./pages/CloudPage"), (m) => m.CloudPage, /^\/cloud$/);
+const PlayersPage = page(() => import("./pages/PlayersPage"), (m) => m.PlayersPage, /^\/players$/);
+
+const PRELOAD_WAIT_MS = 3_000;
+
+/** Resolves once the file of the page at `pathname` is here (or failed, or took too long: the page then loads the
+ *  usual way, behind its skeleton). */
+export function preloadPage(pathname: string): Promise<void> {
+  const file = pageFiles.find((f) => f.route.test(pathname));
+  if (!file) return Promise.resolve();
+  return Promise.race([file.fetch().then(() => undefined, () => undefined), new Promise<void>((done) => setTimeout(done, PRELOAD_WAIT_MS))]);
+}
+
+/** The main pages' files, fetched when the browser has nothing else to do: the first click on Matches, Leaderboard,
+ *  a player or a match then shows the page at once. Not on a connection that asks to save data. */
+function preloadMainPages(): void {
+  const saveData = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection?.saveData;
+  if (saveData) return;
+  for (const file of pageFiles) if (file.main) file.fetch().catch(() => undefined);
+}
 
 type Theme = "dark" | "light";
 const THEME_KEY = "echovr-theme";
@@ -163,6 +206,11 @@ function Layout() {
   useEffect(() => setMenuOpen(false), [location.pathname]);
   // The site was updated while this tab was open (api.ts, site updates): the next page change loads the new version,
   // instead of old pages meeting new answers and page files that no longer exist
+  useEffect(() => {
+    const idle = window.requestIdleCallback ?? ((fn: () => void) => window.setTimeout(fn, 1));
+    const timer = window.setTimeout(() => idle(preloadMainPages), 1_500); // after the page's own data and pictures
+    return () => window.clearTimeout(timer);
+  }, []);
   const opened = useRef(location.pathname);
   useEffect(() => {
     if (location.pathname !== opened.current && siteUpdate.available()) reloadOnce();

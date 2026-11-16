@@ -1,3 +1,4 @@
+import mimetypes
 import os
 import threading
 from contextlib import asynccontextmanager
@@ -24,6 +25,10 @@ from .scanner import Scanner
 from .worker import Worker
 
 FRONTEND_DIST = PROJECT_ROOT / "app" / "frontend" / "dist"
+# Python's own table of file types depends on the machine (none for .webp / .woff2 on Windows, nor in a slim Linux
+# image): the minimaps, background and font would go out as application/octet-stream
+mimetypes.add_type("image/webp", ".webp")
+mimetypes.add_type("font/woff2", ".woff2")
 
 
 class SinglePageApp(StaticFiles):
