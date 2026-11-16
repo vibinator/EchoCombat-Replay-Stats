@@ -5097,13 +5097,15 @@ tr.cloud-drop-on td {
 @container (min-width: 620px) {
   .match-cards.compact .match-card-body {
     display: grid;
-    grid-template-columns: minmax(190px, 260px) minmax(0, 1fr);
+    grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
     grid-auto-flow: column;
     grid-template-rows: auto auto auto;
     column-gap: 16px;
     align-items: center;
   }
-  .match-cards.compact .match-card-body > :not(.match-tags, .match-card-teams) { grid-column: 1; }
+  .match-cards.compact .match-card-body > :not(.match-tags, .match-card-teams) { grid-column: 1; min-width: 0; }
+  .match-cards.compact .match-card-head { white-space: nowrap; }
+  .match-cards.compact .match-card-head > .muted { overflow: hidden; text-overflow: ellipsis; }
   .match-cards.compact .match-tags { display: flex; grid-column: 2; grid-row: 1; flex-wrap: nowrap; overflow: hidden; }
   .match-cards.compact .match-card-teams {
     display: grid;
@@ -5112,15 +5114,18 @@ tr.cloud-drop-on td {
     grid-template-columns: minmax(0, 1fr);
     gap: 3px;
   }
+  /* one line per team: names that do not fit wrap onto a second line that is cut off, so a name is shown whole or
+     not at all (no "E…" stubs) */
   .match-cards.compact .match-card-team,
   .match-cards.compact .match-card-team.orange {
     flex-direction: row;
     align-items: center;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
+    height: 1.25rem;
     overflow: hidden;
-    gap: 4px;
+    gap: 3px 4px;
   }
-  .match-cards.compact .match-card-team .name-chip { flex: 0 1 auto; min-width: 0; }
+  .match-cards.compact .match-card-team .name-chip { flex: none; max-width: 100%; }
   .match-cards.compact .match-card-team.orange .name-chip {
     border-right: none;
     border-left: 3px solid var(--orange);

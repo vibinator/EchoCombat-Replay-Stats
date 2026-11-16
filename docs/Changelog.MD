@@ -18,6 +18,20 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.16.17 — 13:47
+
+- **Home "Latest matches": wider rows with more in them.** When the list is 620 px wide or more (any screen from a
+  1366 px laptop up to 4K), each row shows the score and time on the left and, beside them, the tags (Close, Stomp,
+  Full lobby, Combat report…) and up to 5 names per team, one line each (a name that does not fit is left out, never cut
+  to "E…"). Narrow lists (phones) keep the short rows. `/api/overview/latest` and the overview's `latest` now carry the
+  same card fields as the Matches page with names (`tags`, `player_count`, `players`), from one shared helper
+  (`match_cards` in api/matches.py).
+- **Player page: fewer hidden stats.** The stat cards fill one whole row before "More stats": 10 + More at 1080p
+  instead of 6 + More (the first six are still Games, Win rate, Hours, Top / average speed, Wins – losses). Phones
+  still show 6 + More.
+- **Player page: more goals.** "Your goals" fills one row with goals: 5 at least (phones, as before), up to 20 on a
+  wide screen (about 11 at 1080p), still the easiest next medals with at most 2 per theme first.
+
 ## 2026.11.16.16 — 13:41
 
 - **Every page checked at 1080p, 1440p, 4K and phone size** (headless browser, snapshot data), to cut wasted space:
@@ -30,8 +44,8 @@ Working record of what changed in each release, newest first.
 ## 2026.11.16.15 — 13:36
 
 - **Home: the live video and "Latest matches" now fill the whole row** on wide windows (no empty space on the right).
-  The video takes half the row, up to 960 px wide, and the latest matches take the rest, in two or three columns when
-  there is room. Before, the row stopped at 1500 px unless the window was over 2100 px wide.
+  The video takes half the row, up to 960 px wide, and the latest matches take the rest (one wide row per match since
+  2026.11.16.17). Before, the row stopped at 1500 px unless the window was over 2100 px wide.
 
 ## 2026.11.16.14 — 13:24
 

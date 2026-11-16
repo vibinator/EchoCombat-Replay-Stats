@@ -109,7 +109,7 @@ function Card({ m, heat, compact = false }: { m: MatchSummary; heat: string | un
           {m.player_count != null && ` · ${m.player_count} players`}
         </span>
         <MatchTags m={m} />
-        {m.players && m.players.length > 0 && <TeamNames players={m.players} max={compact ? 4 : 6} />}
+        {m.players && m.players.length > 0 && <TeamNames players={m.players} max={compact ? 5 : 6} />}
       </div>
     </Link>
   );
