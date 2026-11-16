@@ -43,8 +43,8 @@ def test_cloud_needs_login_and_permission(tmp_path, discord):
         assert put(client, "a.txt", b"hi").status_code == 403
 
         client.cookies.clear()
-        login(client, MEMBER)  # console users have Cloud edit
-        assert client.get("/api/auth/me").json()["user"]["cloud"] == "edit"
+        login(client, MEMBER)  # console users have everything (Cloud admin)
+        assert client.get("/api/auth/me").json()["user"]["cloud"] == "admin"
         assert put(client, "a.txt", b"hi").json()["done"] is True
         assert "no-store" in client.get("/api/cloud/list").headers["cache-control"]
 
@@ -614,3 +614,62 @@ def test_a_private_folder_is_private_from_the_start(tmp_path, discord):
         assert names(client) == []
         assert client.post("/api/cloud/folder", json={"name": "Mine", "private": True}, headers=CONSOLE).status_code == 403
         assert names(client) == []
+
+
+def test_admin_level_controls_permissions_where_it_is_given(tmp_path, discord):
+    """User, 2026-11-16: three levels. View = download; Edit = also upload, rename, delete; Admin = also the permissions."""
+    with app_client(settings(tmp_path)) as client:
+        tree(client)
+        grant(client, "cloud_view", "user", VIEWER)
+        assert rule(client, "Team", grants=[("user", NO_ROLE, "admin")]).status_code == 200
+
+        login(client, NO_ROLE)  # admin of Team only
+        assert client.get("/api/auth/me").json()["user"]["cloud"] == "admin"
+        top = client.get("/api/cloud/list").json()
+        assert [(e["name"], e.get("can_manage")) for e in top["entries"]] == [("Team", True)]
+        assert top["can_manage"] is False and top["manages"] is True and top["can_edit"] is False
+        inside = client.get("/api/cloud/list", params={"path": "Team"}).json()
+        assert inside["can_manage"] and inside["can_edit"] and inside["inherited"] == {"path": "Team", "private": False}
+        assert put(client, "new.txt", b"x", path="Team").json()["done"] is True  # admin includes edit
+        # sets permissions inside Team: share a file, make a subfolder private, make a private folder
+        own = {"type": "user", "id": NO_ROLE, "level": "admin"}
+        r = client.post(RULES, json={"path": "Team/plan.txt", "grants": [{"type": "user", "id": SOMEONE, "level": "view"}]}, headers=CONSOLE)
+        assert r.status_code == 200 and r.json()["grants"][0]["id"] == SOMEONE
+        assert client.post(RULES, json={"path": "Team/Deep", "private": True}, headers=CONSOLE).status_code == 200
+        assert client.post("/api/cloud/folder", json={"path": "Team", "name": "Board", "private": True}, headers=CONSOLE).status_code == 200
+        assert names(client, "Team") == ["Board", "Deep", "new.txt", "plan.txt"]  # a folder's admin keeps what is private in it
+        assert [r["path"] for r in client.get(f"{RULES}/all").json()["rules"]] == ["Team", "Team/Board", "Team/Deep", "Team/plan.txt"]
+        assert client.get("/api/cloud/people", params={"q": "user42"}).status_code == 200
+        seen = client.get("/api/cloud/list", params={"path": "Team", "as_type": "user", "as_id": VIEWER}).json()
+        assert [e["name"] for e in seen["entries"]] == ["new.txt", "plan.txt"]
+        # ... and nowhere else
+        assert client.get(RULES, params={"path": "Secret"}).status_code == 403
+        assert client.post(RULES, json={"path": "open.txt", "private": True}, headers=CONSOLE).status_code == 403
+        assert client.post("/api/cloud/folder", json={"name": "Mine", "private": True}, headers=CONSOLE).status_code == 403
+        assert client.get("/api/cloud/list", params={"as_type": "user", "as_id": VIEWER}).status_code == 403
+        assert client.get("/api/cloud/trash").status_code == 403 and client.get("/api/cloud/log").status_code == 403
+        # cannot take their own admin away by accident; giving it to someone else as well is fine
+        r = client.post(RULES, json={"path": "Team", "grants": [{"type": "user", "id": NO_ROLE, "level": "edit"}]}, headers=CONSOLE)
+        assert r.json()["error_code"] == "locks_you_out"
+        assert client.post(RULES, json={"path": "Team", "private": True}, headers=CONSOLE).json()["error_code"] == "locks_you_out"
+        both = [own, {"type": "role", "id": DB_ROLE, "level": "admin"}]
+        assert client.post(RULES, json={"path": "Team", "private": True, "grants": both}, headers=CONSOLE).status_code == 200
+
+        client.cookies.clear()
+        login(client, DB_MEMBER)  # admin by role now
+        assert client.get(RULES, params={"path": "Team/Deep"}).status_code == 200
+        client.cookies.clear()
+        login(client, VIEWER)  # whole-Cloud view: Team is private now
+        assert names(client) == ["Secret", "open.txt"]
+
+        # the whole cloud: Cloud admin on the Permissions page
+        grant(client, "cloud_admin", "user", VIEWER)
+        login(client, VIEWER)
+        assert client.get("/api/auth/me").json()["user"]["cloud"] == "admin"
+        top = client.get("/api/cloud/list").json()
+        assert top["can_manage"] and [e["name"] for e in top["entries"]] == ["Secret", "Team", "open.txt"]
+        assert client.post(RULES, json={"path": "Secret", "private": True}, headers=CONSOLE).status_code == 200
+        assert names(client, "Secret") == ["key.txt"] and names(client, "Team/Deep") == ["inner.txt"]
+        assert client.get("/api/cloud/trash").status_code == 403  # the recycle bin stays with console users
+        got = {(p["type"], p["id"]): p["level"] for p in client.get(RULES, params={"path": "Team"}).json()["effective"]}
+        assert got == {("user", NO_ROLE): "admin", ("role", DB_ROLE): "admin", ("user", VIEWER): "admin"}

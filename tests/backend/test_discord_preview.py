@@ -79,7 +79,7 @@ def test_preview_role_sees_achievements_before_launch(tmp_path, discord):
         done = login(client, MEMBER)
         assert done.status_code == 303 and done.headers["location"] == "/achievements"
         assert client.get("/api/auth/me").json()["user"] == {"name": f"user{MEMBER}", "preview": True, "admin": False,
-                                                                    "console": True, "cloud": "edit"}
+                                                                    "console": True, "cloud": "admin"}
         assert client.get("/api/challenges").json()["preview"] is True
         a = client.get(f"/api/players/{BLUE}/achievements").json()
         assert a["games"] == 1 and a["window"] == {"start": None, "end": None}  # whole archive before launch
@@ -341,7 +341,7 @@ def test_console_page_for_yaml_preview_roles_only(tmp_path, discord):
 
         login(client, MEMBER)  # role from ECHOVR_DISCORD_PREVIEW_ROLES
         assert client.get("/api/auth/me").json()["user"] == {"name": f"user{MEMBER}", "preview": True, "admin": False,
-                                                            "console": True, "cloud": "edit"}
+                                                            "console": True, "cloud": "admin"}
         assert client.post("/api/admin/console/status", json={}).status_code == 405  # no X-EchoVR: read-only
         r = client.post("/api/admin/console/status", json={}, headers=CONSOLE).json()
         assert r["ok"] and "Replays: done 1" in r["output"]
