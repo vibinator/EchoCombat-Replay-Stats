@@ -185,6 +185,7 @@ Old `skims.py` `CaculateSkims` run read-only on the 4 plain samples (16 players)
 - Recorded zips hold the frames twice with identical compressed bytes (`.echoreplay` and `images/image.png`): damage in one copy is patched from the other.
 - zlib decodes zeros / foreign data without an error into junk, so each decoded line must parse as a frame; reading stops at the first one that does not. Nothing after a gap in both copies is recoverable (back-references into the lost window).
 - Check (2026-11-02): 12 of the 20 recovered (5 complete via the second copy); the other 8 lost the start of the compressed stream in every copy.
+- Check (2026-11-16, 78 still failing): 60 all zero bytes (up to 44 MB) or empty; 8 paths gone; 11 with data but the stream start lost in every copy. Re-finding a deflate block start works (every ~29 KB in a good replay, no false hits), but with the 32 KB window unknown, 0 lines of 60 KB output were clean: each frame copies the previous one, so the unknown bytes spread to every line. Not recoverable without guessing.
 
 ## Limitations / edge cases / version differences
 - Two scoring schemas by map type: capture-point (`blue_points`/`orange_points`) vs payload (`payload`/`timers`). Parser must treat both as optional.

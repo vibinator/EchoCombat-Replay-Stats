@@ -18,6 +18,17 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.16.6 — 08:25
+
+- **Way back into the Cloud:** the Cloud is separate from the Console, so an admin with no Cloud permission could not open the Cloud page to grant one. `admin.bat cloud-admins --add-user <your Discord user id>` makes a person Cloud admin (`--add-role` for a role; with no options it lists who is).
+
+## 2026.11.16.5 — 08:16
+
+- **Aggressive repair says why a replay cannot be saved** (checked on the 78 replays it was still failing on):
+  - 60 are 0 to 44 MB of zero bytes (the disk wiped them) or empty: the list now says so, instead of "still failing after aggressive repair".
+  - 11 still hold data, but the start of the recorded data is gone in both zip copies. A later block can be found, but every frame is stored as changes to the one before it, so each line stays unreadable (0 clean lines in a test on a good replay). Nothing is guessed, so they stay failed; hide them with `cannot-repair --hide`.
+  - 8 `EchoRecorder/dist/...` paths are not on the share any more: `forget-missing` removes them.
+
 ## 2026.11.16.4 — 07:46
 
 - **The Cloud is separate from the Console** (your choice):

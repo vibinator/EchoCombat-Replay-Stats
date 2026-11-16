@@ -4,10 +4,24 @@ import json
 import secrets
 
 import pytest
-from app_helpers import app_client
+import contextlib
+
+from app_helpers import app_client as _app_client
 from test_discord_preview import CONSOLE, DB_MEMBER, DB_ROLE, MEMBER, NO_ROLE, discord, login, settings  # noqa: F401 (fixture)
 
+from backend import admin_actions as actions
 from backend import cloud
+
+
+
+@contextlib.contextmanager
+def app_client(config):
+    """The owner (MEMBER) is a Cloud admin set the way the console does it: the YAML ids do not give the Cloud."""
+    with _app_client(config) as client:
+        with client.app.state.sessionmaker() as db:
+            actions.add_discord_role(db, "cloud_admin_user", MEMBER)
+        yield client
+
 
 PERMS = "/api/admin/permissions"
 ACCESS = "/api/cloud/access"  # the whole-cloud lists: set by Cloud admins on the Cloud page, not in the Console

@@ -462,6 +462,25 @@ class ClockJumps:
         return " and ".join(f"{s / 3600:+g} h" for s in self.shifts)
 
 
+def _nothing_recoverable(path: Path) -> str:
+    """Why a repair found no frame at all, in words for the admin: an empty file, a file whose bytes were all wiped to
+    zero (same size, nothing in it), or damage that took the start of the recorded data in every copy (the rest cannot
+    be read correctly: each frame is stored as changes to the one before)."""
+    try:
+        size = path.stat().st_size
+        if size == 0:
+            return "the file is empty (0 bytes); nothing to recover"
+        with path.open("rb") as fh:
+            while chunk := fh.read(READ_CHUNK):
+                if chunk.count(0) != len(chunk):
+                    break
+            else:
+                return f"the file is {size / 1024**2:,.1f} MB of zero bytes (its contents were wiped); nothing to recover"
+    except OSError:
+        return "the file could not be read"
+    return "the start of the recorded data is gone in every copy, and frames after it cannot be read correctly without it"
+
+
 class ParsedReplay:
     """Metadata is read on construction; frames() streams the file again from the start."""
 
@@ -491,7 +510,9 @@ class ParsedReplay:
                         raise CorruptReplay("First frame is unreadable") from None
                     skipped += 1
             else:
-                raise IncompleteReplay("Replay contains no readable frames" if self.repair else "Replay contains no frames")
+                if not self.repair:
+                    raise IncompleteReplay("Replay contains no frames")
+                raise IncompleteReplay(f"Replay contains no readable frames: {_nothing_recoverable(self.path)}")
         if meta.match_type != SUPPORTED_MATCH_TYPE:
             raise UnsupportedReplay(f"Only Echo Combat replays are supported (this is {meta.match_type or 'unknown'})")
         return meta

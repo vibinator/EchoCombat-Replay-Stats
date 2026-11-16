@@ -229,3 +229,14 @@ def test_repaired_match_says_so(tmp_path):
         client.app.state.worker.wait_idle()
         match = client.get(f"/api/matches/{replay_by_path(client, 'dyson/broken.echoreplay')['match_id']}").json()
         assert match["repaired"] == {"aggressive": True, "frames": 600}
+
+
+def test_nothing_recoverable_says_why(tmp_path):
+    empty, wiped, lost = (tmp_path / n for n in ("empty.echoreplay", "wiped.echoreplay", "lost.echoreplay"))
+    empty.write_bytes(b"")
+    wiped.write_bytes(bytes(3 * 1024 * 1024))
+    lost.write_bytes(b"\x9d" * 5000)
+    for path, text in ((empty, "empty (0 bytes)"), (wiped, "3.0 MB of zero bytes"), (lost, "start of the recorded data is gone")):
+        for mode in (True, "aggressive"):
+            with pytest.raises(IncompleteReplay, match="no readable frames: .*" + text.replace("(", r"\(").replace(")", r"\)")):
+                open_replay(path, repair=mode)

@@ -19,6 +19,8 @@ rule and the affected replays are re-processed from the original files, so it ca
     admin.bat preview-roles [--server] [--add <role id>] [--remove <role id>]   Discord roles: achievements early
     admin.bat admin-roles [--server] [--add <role id>] [--remove <role id>]     Discord roles: admins (Status page)
     admin.bat admin-users [--add <user id>] [--remove <user id>]   Discord users that are admins (no role needed)
+    admin.bat cloud-admins [--add-user <user id>] [--remove-user <user id>] [--add-role <role id>] [--remove-role <role id>]
+                                       who is Cloud admin (the way back in when nobody can open the Cloud page)
     admin.bat discord-check <discord user id>   what the bot sees for one person: in the server, roles, access
     admin.bat hide-stats [--hide <group>] [--show <group>] [--player <name or id>]   stats hidden from players
                                        (site-wide, or one player's with --player; admins still see them)
@@ -426,6 +428,36 @@ def cmd_discord_roles(sessions, settings: Settings, kind: str, add: str | None =
     return server
 
 
+def cmd_cloud_admins(sessions, settings: Settings, add_user: str | None = None, remove_user: str | None = None,
+                     add_role: str | None = None, remove_role: str | None = None) -> None:
+    """Cloud admins (people and roles). The Cloud is separate from the Console, so an admin or console user has no Cloud
+    access unless made Cloud admin; the Cloud page sets this too, but not when nobody can open it: this is the way in."""
+    with sessions() as db:
+        if add_user:
+            actions.add_discord_role(db, "cloud_admin_user", add_user)
+            print(f"Added. {_discord_user(settings, add_user)} is Cloud admin at their next page load.")
+        if remove_user:
+            actions.remove_discord_role(db, "cloud_admin_user", remove_user)
+            print(f"Removed. {remove_user.strip()} is no longer Cloud admin (unless a role gives it).")
+        if add_role:
+            actions.add_discord_role(db, "cloud_admin", add_role)
+            print(f"Added. Members with role {add_role.strip()} are Cloud admin within 5 minutes.")
+        if remove_role:
+            actions.remove_discord_role(db, "cloud_admin", remove_role)
+            print(f"Removed. Role {remove_role.strip()} no longer gives Cloud admin.")
+        users, roles = actions.discord_roles(db, "cloud_admin_user"), actions.discord_roles(db, "cloud_admin")
+    print("Cloud admins (people):")
+    for u in users:
+        print(f"  {_discord_user(settings, u):<28} {u}")
+    print("Cloud admins (roles):")
+    for r in roles:
+        print(f"  {r}")
+    for r in settings.discord_preview_roles:
+        print(f"  {r}   (from ECHOVR_DISCORD_PREVIEW_ROLES, change it there)")
+    if not (users or roles or settings.discord_preview_roles):
+        print("  none yet")
+
+
 def _discord_user(settings: Settings, user_id: str) -> str:
     return auth.user_name(settings, user_id)
 
@@ -606,7 +638,8 @@ def cmd_repair_aggressive_failed(sessions, yes: bool) -> None:
 
 def describe_replay(r: Replay) -> str:
     if r.error_code in AGGRESSIVE_REPAIRABLE:
-        why = f"{r.error_code}, still failing after aggressive repair"
+        reason = (r.error_message or "").partition("no readable frames: ")[2]  # why repair found nothing, if it says
+        why = f"{r.error_code}, still failing after aggressive repair" + (f": {reason}" if reason else "")
     elif r.error_code in REPAIRABLE:
         why = f"{r.error_code}, still failing after repair"
     else:
@@ -951,7 +984,7 @@ def interactive(sessions, settings: Settings) -> None:
 # --- entry point ------------------------------------------------------------------------------
 
 # subcommands that change something: written to the audit log (Console page) with the Windows / container user
-LOGGED = {"merge", "unmerge", "link-profile", "unlink-profile", "challenge", "mega-period", "preview-roles", "admin-roles", "admin-users", "hide-stats", "repair-failed",
+LOGGED = {"merge", "unmerge", "link-profile", "unlink-profile", "challenge", "mega-period", "preview-roles", "admin-roles", "admin-users", "cloud-admins", "hide-stats", "repair-failed",
           "cannot-repair", "hidden", "reprocess", "repair", "scan", "reprocess-all", "repair-aggressive",
           "repair-aggressive-failed", "remote", "process-missing", "forget-missing"}
 
@@ -1005,6 +1038,8 @@ def main_command(sessions, settings: Settings, args) -> None:
             cmd_discord_roles(sessions, settings, args.command.removesuffix("-roles"), args.add, args.remove, args.server)
         case "admin-users":
             cmd_admin_users(sessions, settings, args.add, args.remove)
+        case "cloud-admins":
+            cmd_cloud_admins(sessions, settings, args.add_user, args.remove_user, args.add_role, args.remove_role)
         case "hide-stats":
             cmd_hide_stats(sessions, args.hide, args.show, args.player, interactive=sys.stdin.isatty())
         case "repair-failed":
@@ -1072,6 +1107,11 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("admin-users", help="Discord users that are admins (no role needed)")
     p.add_argument("--add", metavar="USER_ID", help="make this person an admin")
     p.add_argument("--remove", metavar="USER_ID", help="remove this person")
+    p = sub.add_parser("cloud-admins", help="who is Cloud admin (the way back in when nobody can open the Cloud page)")
+    p.add_argument("--add-user", metavar="USER_ID", help="make this person Cloud admin")
+    p.add_argument("--remove-user", metavar="USER_ID")
+    p.add_argument("--add-role", metavar="ROLE_ID", help="make this Discord role Cloud admin")
+    p.add_argument("--remove-role", metavar="ROLE_ID")
     p = sub.add_parser("hide-stats", help="stats hidden from players (logged-in admins still see them)")
     p.add_argument("--hide", metavar="GROUP", help="hide this group: " + ", ".join(actions.STAT_GROUPS))
     p.add_argument("--show", metavar="GROUP", help="show this group again")

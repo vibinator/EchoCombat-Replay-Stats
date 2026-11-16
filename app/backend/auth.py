@@ -489,8 +489,9 @@ def allowed(settings: Settings, db, user_id: str, kind: str, roles: Callable[[],
         return True
     if kind == "preview" and (allowed(settings, db, user_id, "admin", roles) or allowed(settings, db, user_id, "console", roles)):
         return True
-    # the YAML ids are the owner's: they give the Console and Cloud admin, so neither can be locked out of
-    ids = set(settings.discord_preview_roles) if kind in ("console", "cloud_admin") else set()
+    # the YAML ids give the Console, so it cannot be locked out of. They do not give the Cloud: Cloud admin is its own
+    # permission, set on the Cloud page or with admin.bat cloud-admins (user, 2026-11-16: separate from the preview roles)
+    ids = set(settings.discord_preview_roles) if kind == "console" else set()
     if user_id in ids | set(discord_roles(db, f"{kind}_user")):
         return True
     role_ids = ids | set(discord_roles(db, kind))

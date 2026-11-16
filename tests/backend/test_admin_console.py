@@ -126,3 +126,18 @@ def test_admin_links_a_player_to_a_discord_account_and_reports(tmp_path, capsys)
     console.cmd_unlink_profile(sm, d2, yes=True)
     with sm() as db:
         assert db.scalar(select(PlayerProfile.user_id)) is None
+
+
+def test_cloud_admins_command_is_the_way_back_in(client, sessions, capsys):
+    from backend import auth
+
+    settings = client.app.state.settings
+    with sessions() as db:
+        assert not auth.allowed(settings, db, "123456789012345678", "cloud_admin", lambda: frozenset())
+    console.cmd_cloud_admins(sessions, settings, add_user="123456789012345678")
+    assert "123456789012345678" in capsys.readouterr().out
+    with sessions() as db:
+        assert auth.allowed(settings, db, "123456789012345678", "cloud_admin", lambda: frozenset())
+    console.cmd_cloud_admins(sessions, settings, remove_user="123456789012345678")
+    with sessions() as db:
+        assert not auth.allowed(settings, db, "123456789012345678", "cloud_admin", lambda: frozenset())
