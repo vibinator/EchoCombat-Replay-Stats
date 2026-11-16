@@ -4,7 +4,7 @@ import { LEVELS, getMegaVisible, getAchievements, getArenaProgress, getChallenge
 import { achievementsPath, pct, ruleText } from "../format";
 import { useApi } from "../useApi";
 import { Status } from "./common";
-import { EmptyState } from "./ui";
+import { EmptyState, useColumns } from "./ui";
 
 // Old ecranked.com badge art (app/images -> public/achievements). Tier frames = progress levels
 // 25 / 50 / 75 / 100 % (white / bronze / silver / gold); the lock emblem = below 25 %.
@@ -847,7 +847,10 @@ function stableHash(text: string): number {
   return (h >>> 0) / 4294967296;
 }
 
-const GOALS = 5; // shown on the player page (user, 2026-11-06: five, was three)
+const GOALS = 5; // shown on the player page at least (user, 2026-11-06: five, was three) ...
+const GOALS_MAX = 20; // ... and as many as fill the row on a wider screen (user, 2026-11-16)
+const GOAL_MIN_PX = 150; // as .ach-strip-next in styles.css
+const GOAL_GAP_PX = 8;
 const EASE_BAND = 0.25; // challenges this close in difficulty count as equally easy, and are told apart by the random order
 const AFFINITY_PULL = 0.5; // how much of a medal level a favourite theme is worth
 const GOALS_PER_THEME = 2; // so the five are not all about one thing
@@ -857,7 +860,7 @@ const GOALS_PER_THEME = 2; // so the five are not all about one thing
  *  the most of it already done. A goal is a challenge's NEXT medal: reaching it changes the challenge's level, so it gives way to
  *  another one. The pick is a hash of player + challenge + medal level, not stored anywhere: stable while nothing is completed,
  *  different for every player, nothing to save (the site computes everything on request). */
-function pickGoals(userId: string, items: Achievement[]): { a: Achievement; fraction: number }[] {
+function pickGoals(userId: string, items: Achievement[], count = GOALS): { a: Achievement; fraction: number }[] {
   // Play style (user, 2026-11-06): the themes the player is already busy with (Payload, Capture Point, gear, movement ...) count as
   // easier, so the goals fit what they actually play. A theme's affinity = its challenges with progress, as a share of the player's
   // most active theme (0..1); it takes up to AFFINITY_PULL off a goal's "ease", so a bronze in an unused theme still beats a gold.
@@ -885,9 +888,9 @@ function pickGoals(userId: string, items: Achievement[]): { a: Achievement; frac
     if ((perTheme.get(theme) ?? 0) >= GOALS_PER_THEME) continue;
     perTheme.set(theme, (perTheme.get(theme) ?? 0) + 1);
     picked.push(c);
-    if (picked.length === GOALS) break;
+    if (picked.length === count) break;
   }
-  for (const c of easy) if (picked.length < GOALS && !picked.includes(c)) picked.push(c); // few themes left: fill up anyway
+  for (const c of easy) if (picked.length < count && !picked.includes(c)) picked.push(c); // few themes left: fill up anyway
   return picked.map(({ a, fraction }) => ({ a, fraction }));
 }
 
@@ -925,9 +928,10 @@ function MedalBar({ items, overall, completed }: { items: Achievement[]; overall
 
 function StripBody({ userId, onOpen }: { userId: string; onOpen: () => void }) {
   const d = useApi(() => getAchievements(userId), userId).data;
+  const [goalRow, cols] = useColumns(GOAL_MIN_PX, GOAL_GAP_PX, GOALS);
   if (!d) return null;
   const counted = d.items.filter((a) => a.counted && !a.prize);
-  const next = pickGoals(userId, counted);
+  const next = pickGoals(userId, counted, Math.min(GOALS_MAX, Math.max(GOALS, cols)));
   return (
     <section className="ach-strip" aria-label="Achievements">
       <div className="ach-strip-top">
@@ -944,7 +948,7 @@ function StripBody({ userId, onOpen }: { userId: string; onOpen: () => void }) {
           <p className="muted strip-goals" title="Picked for this player from their easiest next medals, leaning towards what they already play (modes, gear, movement ...). Reach one and it is replaced by another; they slowly get harder as you complete them.">
             Your goals
           </p>
-          <div className="ach-strip-next" aria-label="Your goals">
+          <div className="ach-strip-next" aria-label="Your goals" ref={goalRow}>
             {next.map(({ a, fraction }) => (
               <div key={a.id} className="strip-next">
                 <Tile a={a} />

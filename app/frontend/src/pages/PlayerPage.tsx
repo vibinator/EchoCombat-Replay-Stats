@@ -11,7 +11,7 @@ import { LineChart } from "../components/charts";
 import { GearName, MatchTable, NotFoundBox, Status, TableWrap, TeamBadge, isNotFound } from "../components/common";
 import { HEATMAP_CELL_M, HEATMAP_MODES, HeatmapView } from "../components/HeatmapView";
 import { PlayerAvatar, PlayerBio, usePlayerBio } from "../components/PlayerBio";
-import { InfoTip, MoreCard, Skeleton, useActiveTabInView } from "../components/ui";
+import { InfoTip, MoreCard, Skeleton, useActiveTabInView, useColumns } from "../components/ui";
 import { MAPS, dateTime, hoursMinutes, int, nameSlug, num, pct, periodLabel, playerPath, title } from "../format";
 import { useApi } from "../useApi";
 import { usePageTitle } from "../usePageTitle";
@@ -84,9 +84,12 @@ type CardRow = [string, ReactNode, string?, ReactNode?];
 
 type Averages = NonNullable<PlayerProfile["site_avg"]>;
 
-// the cards always shown at the top (the first HEADLINE_SIZE of these that exist); every other card is under "More stats"
+// the cards always shown at the top (the first HEADLINE_SIZE of these that exist); a wider screen fills the rest of the
+// first row with the other cards in their usual order (user, 2026-11-16: fewer stats hidden); the rest are under "More stats"
 const HEADLINE = ["Games", "Win rate", "Hours played", "Top speed", "Average speed", "Wins – losses", "Deaths / game*"];
 const HEADLINE_SIZE = 6;
+const CARD_MIN_PX = 150; // as .cards in styles.css
+const CARD_GAP_PX = 8;
 
 function StatCard({ row: [label, value, hint, under] }: { row: CardRow }) {
   return (
@@ -107,12 +110,17 @@ function StatCard({ row: [label, value, hint, under] }: { row: CardRow }) {
  */
 function ProfileCards({ rows }: { rows: CardRow[] }) {
   const [open, setOpen] = useState(false);
-  const headline = HEADLINE.map((label) => rows.find(([l]) => l === label)).filter((r): r is CardRow => !!r).slice(0, HEADLINE_SIZE);
-  const rest = rows.filter((r) => !headline.includes(r));
-  const shown = open ? [...headline, ...rest] : headline;
+  const [grid, cols] = useColumns(CARD_MIN_PX, CARD_GAP_PX, HEADLINE_SIZE + 1);
+  const first = HEADLINE.map((label) => rows.find(([l]) => l === label)).filter((r): r is CardRow => !!r).slice(0, HEADLINE_SIZE);
+  const ordered = [...first, ...rows.filter((r) => !first.includes(r))];
+  // one full row: as many cards as fit beside the "More stats" card (all of them when they fit in the row), at least the headline
+  const fit = ordered.length <= cols ? ordered.length : Math.max(first.length, cols - 1);
+  const headline = ordered.slice(0, fit);
+  const rest = ordered.slice(fit);
+  const shown = open ? ordered : headline;
   return (
     <>
-      <div className="cards">
+      <div className="cards" ref={grid}>
         {shown.map((row) => <StatCard key={row[0]} row={row} />)}
         {rest.length > 0 && (
           <MoreCard open={open} count={rest.length} onToggle={() => setOpen(!open)}

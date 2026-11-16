@@ -4599,7 +4599,7 @@ button.small {
 .ach-strip-head .bar { flex: 1 1 140px; min-width: 100px; max-width: 320px; }
 .strip-medals { display: inline-flex; gap: 10px; font-size: 0.85rem; }
 .strip-medals i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 4px; background: var(--tier); }
-.ach-strip-next { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin-top: 10px; }
+.ach-strip-next { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); /* one full row of goals (AchievementsView GOAL_MIN_PX) */ gap: 8px; margin-top: 10px; }
 .strip-next { display: flex; flex-direction: column; gap: 4px; }
 .strip-next > .muted { font-size: 0.78rem; text-align: center; }
 

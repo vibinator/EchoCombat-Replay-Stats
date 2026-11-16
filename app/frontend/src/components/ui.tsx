@@ -1,6 +1,23 @@
 import { Component, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { forgetAnswers, reloadOnce, siteUpdate } from "../api";
 
+/** How many columns of at least `min` px (with `gap` px between) fit in the element, as CSS
+ *  `repeat(auto-fill, minmax(min, 1fr))` lays them out; `fallback` until measured. A callback ref, so it also works for a
+ *  box that appears after loading. Used to show as many cards as fill one row (player page). */
+export function useColumns(min: number, gap: number, fallback = 6): [(el: HTMLElement | null) => void, number] {
+  const [el, setEl] = useState<HTMLElement | null>(null);
+  const [cols, setCols] = useState(fallback);
+  useLayoutEffect(() => {
+    if (!el) return;
+    const measure = (w: number) => setCols(Math.max(1, Math.floor((w + gap) / (min + gap))));
+    measure(el.getBoundingClientRect().width);
+    const ro = new ResizeObserver(([entry]) => measure(entry.contentRect.width));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [el, min, gap]);
+  return [setEl, cols];
+}
+
 /** Renders `children` only once this spot is near the screen: sections far down a page (heatmaps, trends,
  *  teammates) ask the server nothing for visitors who never scroll there. */
 export function WhenVisible({ children, minHeight = 160 }: { children: ReactNode; minHeight?: number }) {
