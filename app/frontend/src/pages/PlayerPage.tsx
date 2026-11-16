@@ -478,7 +478,7 @@ function filterScope(tab: PlayerTab): string {
 function PlayerNotFound() {
   usePageTitle("Player not found");
   return (
-    <NotFoundBox heading="Player not found" links={[["/players", "All players"], ["/", "Home"]]}>
+    <NotFoundBox heading="Player not found" links={[["/leaderboard", "Leaderboard"], ["/", "Home"]]}>
       This player is not in the archive (yet), or the link is wrong.
     </NotFoundBox>
   );

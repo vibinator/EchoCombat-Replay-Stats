@@ -1,14 +1,77 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
-import { listMatches } from "../api";
+import { getMatchesSummary, listMatches, type MatchesSummary } from "../api";
 import { MatchTable, Status } from "../components/common";
 import { MatchCards } from "../components/MatchCards";
 import { Skeleton } from "../components/ui";
-import { MAPS, MAP_MODE, modeLabel, title } from "../format";
+import { MAPS, MAP_MODE, duration, modeLabel, title } from "../format";
 import { useApi } from "../useApi";
 import { usePageTitle } from "../usePageTitle";
 
 const PAGE_SIZE = 24;
+
+const share = (part: number, whole: number) => (whole ? Math.round((part / whole) * 100) : 0);
+
+/** Two sides of one result as a split bar, each side labelled with its name and share (never colour alone). */
+function SplitBar({ left, right, a, b }: { left: [string, string]; right: [string, string]; a: number; b: number }) {
+  const pa = share(a, a + b);
+  return (
+    <div className="split">
+      <div className="split-labels">
+        <span>{left[0]} <strong>{pa}%</strong></span>
+        <span><strong>{100 - pa}%</strong> {right[0]}</span>
+      </div>
+      <div className="split-bar" role="img" aria-label={`${left[0]} ${a}, ${right[0]} ${b}`}>
+        {a > 0 && <span className={left[1]} style={{ flexGrow: a }} title={`${left[0]}: ${a.toLocaleString()} matches`} />}
+        {b > 0 && <span className={right[1]} style={{ flexGrow: b }} title={`${right[0]}: ${b.toLocaleString()} matches`} />}
+      </div>
+    </div>
+  );
+}
+
+/** What the filtered matches add up to: count, who won, length, close games, busiest map. */
+function SummaryStrip({ s }: { s: MatchesSummary }) {
+  if (s.total === 0) return null;
+  const decided = s.blue_wins + s.orange_wins;
+  const payload = s.attack_wins + s.defence_wins;
+  const [topMap, topN] = Object.entries(s.maps)[0] ?? ["", 0];
+  const spread = Object.keys(s.maps).length > 1;
+  return (
+    <div className="match-summary">
+      <div className="ms-tile">
+        <span className="label">Matches</span>
+        <strong>{s.total.toLocaleString()}</strong>
+        {s.avg_duration_s != null && <span className="muted">{duration(s.avg_duration_s)} on average</span>}
+      </div>
+      {decided > 0 && (
+        <div className="ms-tile wide" title={`Matches with a known winner: ${decided.toLocaleString()}`}>
+          <span className="label">Winning side</span>
+          <SplitBar left={["Blue", "blue"]} right={["Orange", "orange"]} a={s.blue_wins} b={s.orange_wins} />
+        </div>
+      )}
+      {payload > 0 && (
+        <div className="ms-tile wide" title={`Payload matches with a known result: ${payload.toLocaleString()}`}>
+          <span className="label">Payload result</span>
+          <SplitBar left={["Attack", "attack"]} right={["Defence", "defence"]} a={s.attack_wins} b={s.defence_wins} />
+        </div>
+      )}
+      {decided > 0 && (
+        <div className="ms-tile" title="Close: 2–1, payload delivered with 30 s or less left, or held at the last checkpoint. Stomp: 2–0, delivered with 3+ min left, or held before the first checkpoint.">
+          <span className="label">Close games</span>
+          <strong>{share(s.close, decided)}%</strong>
+          <span className="muted">stomps {share(s.stomp, decided)}%</span>
+        </div>
+      )}
+      {spread && topMap && (
+        <div className="ms-tile">
+          <span className="label">Busiest map</span>
+          <strong>{title(topMap)}</strong>
+          <span className="muted">{share(topN, s.total)}% of matches</span>
+        </div>
+      )}
+    </div>
+  );
+}
 const FILTERS = ["map", "mode", "from", "to", "player", "min_players", "result", "player_name"] as const;
 
 export function MatchesPage() {
@@ -21,6 +84,9 @@ export function MatchesPage() {
     () => listMatches({ ...filters, with_players: view === "cards" ? "true" : "", limit: PAGE_SIZE, offset }),
     params.toString(),
   );
+  // the strip ignores paging and the view: one answer per set of filters
+  const summaryKey = FILTERS.map((k) => filters[k]).join("|");
+  const summary = useApi(() => getMatchesSummary(filters), `summary|${summaryKey}`);
   const [name, setName] = useState(filters.player_name);
   useEffect(() => setName(filters.player_name), [filters.player_name]);
 
@@ -135,8 +201,8 @@ export function MatchesPage() {
       <Status loading={false} error={result.error} />
       {result.data && (
         <>
-          <p className="muted">{total.toLocaleString()} matches</p>
-          {view === "cards" ? <MatchCards matches={result.data.items} /> : <MatchTable matches={result.data.items} />}
+          {summary.data ? <SummaryStrip s={summary.data} /> : <p className="muted">{total.toLocaleString()} matches</p>}
+          {view === "cards" ? <MatchCards matches={result.data.items} byDay /> : <MatchTable matches={result.data.items} />}
           {total > PAGE_SIZE && (
             <div className="pager">
               <button className="secondary" disabled={offset === 0} onClick={() => set("offset", String(Math.max(0, offset - PAGE_SIZE)))}>

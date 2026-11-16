@@ -354,7 +354,30 @@ export interface MatchSummary {
   winner: Team | null;
   player_count: number | null;
   players?: { user_id: string; name: string; team: Team }[];
+  /** match list only: close / stomp (one of them at most), full (10+ players), combat (report sent), repaired */
+  tags?: MatchTag[];
+  final_game_timer?: number | null;
 }
+
+export type MatchTag = "close" | "stomp" | "full" | "combat" | "repaired";
+
+/** What the filtered match list adds up to (the strip above it). */
+export interface MatchesSummary {
+  total: number;
+  blue_wins: number;
+  orange_wins: number;
+  attack_wins: number;
+  defence_wins: number;
+  avg_duration_s: number | null;
+  close: number;
+  stomp: number;
+  maps: Record<string, number>;
+}
+
+/** A round won (capture point) or a checkpoint reached (payload), in match order. */
+export type StoryStep =
+  | { t_s: number; type: "round"; team: Team | null; blue: number | null; orange: number | null }
+  | { t_s: number; type: "checkpoint"; checkpoint: number | null; time_left_s: number | null };
 
 export interface GearItem {
   code: string;
@@ -426,6 +449,7 @@ export interface MatchDetail extends MatchSummary {
   replay_name: string | null; // the replay file's name (its match id), shown in the page heading
   repaired: { aggressive: boolean; frames: number | null } | null; // read from a damaged file by a repair
   has_combat: boolean; // the recorder sent a combat report for this match (Combat tab); false = do not ask for it
+  story: StoryStep[]; // rounds won / checkpoints reached, for the strip under the scoreboard
 }
 
 export interface PlayerListItem {
@@ -520,6 +544,9 @@ export interface MatchFilters {
 
 export const listMatches = (filters: MatchFilters = {}) =>
   request<Page<MatchSummary>>(`/api/matches${query({ ...filters })}`);
+
+export const getMatchesSummary = (filters: MatchFilters = {}) =>
+  request<MatchesSummary>(`/api/matches/summary${query({ ...filters })}`);
 
 export const getMatch = (id: number) => request<MatchDetail>(`/api/matches/${id}`);
 

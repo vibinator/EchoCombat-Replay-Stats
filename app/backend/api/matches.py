@@ -11,7 +11,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from fastapi import APIRouter, Query, Request
-from sqlalchemy import func, select
+from sqlalchemy import and_, case, func, or_, select
 
 from .. import gear_use, heatmaps, heatmaps3d, tracks, tracks3d
 from ..aliases import alias_map, ids_of
@@ -20,6 +20,7 @@ from ..duplicates import counted
 from ..errors import ApiError
 from ..gear import ORDNANCES, TACMODS, WEAPONS
 from ..gear import lookup as gear_lookup
+from ..stats import CAPTURE_ROUNDS_TO_WIN
 from ..stats.map_objects import CAPTURE_POINTS, PAYLOAD_ROUTES
 from ..stats.maps import HEATMAP_LAYOUTS, minimap_url
 from ..models import AggressiveRepair, CombatMatch, DuplicateMatch, Event, Match, MatchPlayer, MatchPlayerLoadout, Player, RepairRequest, Replay
@@ -57,16 +58,34 @@ def list_matches(
     return cached_response(request, "matches", params, lambda: _list_matches(request, *params))
 
 
-def _list_matches(request: Request, map, mode, player, from_, to, private, min_players, result, player_name,
-                  with_players, limit, offset) -> dict:
-    query = select(Match).where(counted(Match.id))  # a copy of a match recorded twice is listed once (D13)
+# Close / stomp, one definition for the cards and the summary strip (thresholds from the archive, 2026-11-16):
+# capture point 2-1 / 2-0; payload delivered with <= 30 s left (~25 % of deliveries) / >= 180 s left (~18 %); defence
+# held at the last checkpoint (~48 % of holds) / at the start (~26 %). Unknown winners get neither.
+CLOSE_LEFT_S = 30
+STOMP_LEFT_S = 180
+_delivered = and_(Match.winner.is_not(None), Match.winner == Match.attacking_team)
+_held = and_(Match.attacking_team.is_not(None), Match.winner.is_not(None), Match.winner != Match.attacking_team)
+_cp_won = and_(Match.mode == "capture_point", Match.winner.is_not(None))
+CLOSENESS = case(
+    (and_(_cp_won, Match.blue_rounds >= CAPTURE_ROUNDS_TO_WIN - 1, Match.orange_rounds >= CAPTURE_ROUNDS_TO_WIN - 1), "close"),
+    (and_(_cp_won, or_(Match.blue_rounds == 0, Match.orange_rounds == 0)), "stomp"),
+    (and_(Match.mode == "payload", _delivered, Match.final_game_timer <= CLOSE_LEFT_S), "close"),
+    (and_(Match.mode == "payload", _delivered, Match.final_game_timer >= STOMP_LEFT_S), "stomp"),
+    (and_(Match.mode == "payload", _held, Match.final_payload_checkpoint == 2), "close"),
+    (and_(Match.mode == "payload", _held, Match.final_payload_checkpoint == 0), "stomp"),
+    else_=None,
+)
+FULL_LOBBY = 10  # players seen in the match: 5 v 5
+
+
+def _filtered(query, map, mode, player, from_, to, private, min_players, result, player_name):
+    query = query.where(counted(Match.id))  # a copy of a match recorded twice is listed once (D13)
     if private is not None:
         query = query.where(Match.private_match == private)
     if result == "attack_win":
-        query = query.where(Match.winner.is_not(None), Match.winner == Match.attacking_team)
+        query = query.where(_delivered)
     elif result == "defence_win":
-        query = query.where(Match.attacking_team.is_not(None), Match.winner.is_not(None),
-                            Match.winner != Match.attacking_team)
+        query = query.where(_held)
     elif result == "unknown":
         query = query.where(Match.winner.is_(None))
     elif result in ("blue", "orange"):
@@ -87,20 +106,76 @@ def _list_matches(request: Request, map, mode, player, from_, to, private, min_p
         query = query.where(Match.started_at < (to + timedelta(days=1)).isoformat())
     if player:
         query = query.join(MatchPlayer, MatchPlayer.match_id == Match.id).join(Player).where(Player.user_id == player)
+    return query
+
+
+def _list_matches(request: Request, map, mode, player, from_, to, private, min_players, result, player_name,
+                  with_players, limit, offset) -> dict:
+    query = _filtered(select(Match, CLOSENESS), map, mode, player, from_, to, private, min_players, result, player_name)
     with request.app.state.sessionmaker() as db:
         total = db.scalar(select(func.count()).select_from(query.subquery()))
-        matches = db.scalars(query.order_by(Match.started_at.desc()).limit(limit).offset(offset)).all()
-        counts = player_counts(db, [m.id for m in matches])
+        rows = db.execute(query.order_by(Match.started_at.desc()).limit(limit).offset(offset)).all()
+        matches = [m for m, _ in rows]
+        ids = [m.id for m in matches]
+        counts = player_counts(db, ids)
+        combat = set(db.scalars(select(CombatMatch.session_id).where(
+            CombatMatch.session_id.in_({m.session_id for m in matches})))) if matches else set()
+        repaired = {rid for rid, w in db.execute(select(Replay.id, Replay.warnings).where(
+            Replay.id.in_([m.replay_id for m in matches]), Replay.warnings.is_not(None))) if repair_note(w)}
         names: dict[int, list] = {}
         if with_players and matches:
             for match_id, uid, name, team in db.execute(
                 select(MatchPlayer.match_id, Player.user_id, MatchPlayer.name, MatchPlayer.team).join(Player)
-                .where(MatchPlayer.match_id.in_([m.id for m in matches])).order_by(MatchPlayer.play_time_s.desc())
+                .where(MatchPlayer.match_id.in_(ids)).order_by(MatchPlayer.play_time_s.desc())
             ):
                 names.setdefault(match_id, []).append({"user_id": uid, "name": name, "team": team})
-    items = [match_summary(m, counts.get(m.id, 0)) | ({"players": names.get(m.id, [])} if with_players else {})
-             for m in matches]
+    items = []
+    for m, closeness in rows:
+        n = counts.get(m.id, 0)
+        flags = ((closeness, bool(closeness)), ("full", n >= FULL_LOBBY), ("combat", m.session_id in combat),
+                 ("repaired", m.replay_id in repaired))
+        items.append(match_summary(m, n) | {"final_game_timer": m.final_game_timer, "tags": [t for t, on in flags if on]}
+                     | ({"players": names.get(m.id, [])} if with_players else {}))
     return {"items": items, "total": total}
+
+
+# Declared before /{match_id}: otherwise "summary" would be read as a match id.
+@router.get("/summary")
+def matches_summary(
+    request: Request,
+    map: str | None = Query(None, pattern=MAP_PATTERN),
+    mode: str | None = Query(None, pattern=MODE_PATTERN),
+    player: str | None = Query(None, max_length=ID_MAX, description="user_id"),
+    from_: date | None = Query(None, alias="from"),
+    to: date | None = None,
+    private: bool | None = None,
+    min_players: int | None = Query(None, ge=1),
+    result: str | None = Query(None, pattern="^(attack_win|defence_win|unknown|blue|orange)$"),
+    player_name: str | None = Query(None, max_length=TEXT_MAX, description="matches with a player whose name contains this"),
+):
+    """What the filtered matches add up to (the strip above the match list): wins per side, length, maps, close games."""
+    params = (map, mode, player, from_, to, private, min_players, result, player_name)
+    return cached_response(request, "matches-summary", params, lambda: _summary(request, *params))
+
+
+def _summary(request: Request, *filters) -> dict:
+    ids = select(_filtered(select(Match.id), *filters).subquery().c.id)
+
+    def count_if(cond):
+        return func.coalesce(func.sum(case((cond, 1), else_=0)), 0)
+
+    query = select(
+        func.count(), count_if(Match.winner == "blue"), count_if(Match.winner == "orange"),
+        count_if(and_(Match.mode == "payload", _delivered)), count_if(and_(Match.mode == "payload", _held)),
+        func.avg(Match.duration_s), count_if(CLOSENESS == "close"), count_if(CLOSENESS == "stomp"),
+    ).where(Match.id.in_(ids))
+    with request.app.state.sessionmaker() as db:
+        n, blue, orange, attack, defence, avg_s, close, stomp = db.execute(query).one()
+        maps = dict(db.execute(select(Match.map, func.count()).where(Match.id.in_(ids))
+                               .group_by(Match.map).order_by(func.count().desc())).all())
+    return {"total": n, "blue_wins": blue, "orange_wins": orange, "attack_wins": attack, "defence_wins": defence,
+            "avg_duration_s": round(avg_s, 1) if avg_s is not None else None, "close": close, "stomp": stomp,
+            "maps": maps}
 
 
 MAX_THUMBNAILS = 48  # two pages of match cards
@@ -227,7 +302,25 @@ def match_detail(request: Request, match_id: int) -> dict:
             "replay_name": replay_name,
             # the recorder's combat report exists: the page shows the Combat tab and asks for it only then (Review BUG-7)
             "has_combat": db.scalar(select(CombatMatch.id).where(CombatMatch.session_id == match.session_id).limit(1)) is not None,
+            "story": story(db, match_id),
         }
+
+
+def story(db, match_id: int) -> list[dict]:
+    """Rounds won (capture point) and checkpoints reached (payload) in order: the strip under the scoreboard."""
+    out = []
+    for t_s, type_, team, data in db.execute(
+        select(Event.t_s, Event.type, Event.team, Event.data)
+        .where(Event.match_id == match_id, Event.type.in_(("round_won", "payload_checkpoint"))).order_by(Event.frame)
+    ):
+        d = json.loads(data) if data else {}
+        if type_ == "round_won":
+            out.append({"t_s": round(t_s, 1), "type": "round", "team": team, "blue": d.get("blue"), "orange": d.get("orange")})
+        else:
+            left = d.get("time_left_s")
+            out.append({"t_s": round(t_s, 1), "type": "checkpoint", "checkpoint": d.get("checkpoint"),
+                        "time_left_s": round(left) if left is not None else None})
+    return out
 
 
 def repair_note(warnings: str | None) -> dict | None:

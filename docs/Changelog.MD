@@ -18,6 +18,10 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.16.10 — 13:09
+
+- **"Player not found" page:** its "All players" link (which only showed the 50 most recent players) now goes to the Leaderboard.
+
 ## 2026.11.16.9 — 13:07
 
 - **"Players" removed from the top menu.** It only listed the 50 most recently seen players, which the search bar and Leaderboard already cover. The page stays as the search results page: press Enter in either search box to see every matching name. Old `/players` links still work.

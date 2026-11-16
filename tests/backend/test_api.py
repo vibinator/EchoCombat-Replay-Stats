@@ -32,6 +32,20 @@ def test_list_and_filter_matches(client):
     assert client.get("/api/matches", params={"from": "2026-10-29"}).json()["total"] == 0
 
 
+def test_match_tags_and_summary(client):
+    cp = client.get("/api/matches", params={"map": "dyson"}).json()["items"][0]
+    assert "close" in cp["tags"]  # 2-1
+    assert "full" not in cp["tags"] and "combat" not in cp["tags"]
+    s = client.get("/api/matches/summary").json()
+    assert s["total"] == 2 and s["blue_wins"] == 1 and s["close"] >= 1
+    assert s["maps"] == {"dyson": 1, "surge": 1}
+    assert client.get("/api/matches/summary", params={"mode": "payload"}).json()["total"] == 1
+    assert client.get("/api/matches/summary", params={"player": "nobody"}).json() | {"maps": {}} == {
+        "total": 0, "blue_wins": 0, "orange_wins": 0, "attack_wins": 0, "defence_wins": 0, "avg_duration_s": None,
+        "close": 0, "stomp": 0, "maps": {}}
+    assert client.get(f"/api/matches/{cp['id']}").json()["story"] == []  # the score never changed in this replay
+
+
 def test_match_detail(client):
     match_id = client.get("/api/matches", params={"map": "dyson"}).json()["items"][0]["id"]
     m = client.get(f"/api/matches/{match_id}").json()
