@@ -465,13 +465,16 @@ def viewer(request: Request) -> dict | None:
 
 
 def allowed(settings: Settings, db, user_id: str, kind: str, roles: Callable[[], frozenset[str]]) -> bool:
-    """Whether a person has permission `kind` ("admin" / "console" / "preview" / "cloud_view" / "cloud_edit"): by
+    """Whether a person has permission `kind` ("admin" / "console" / "preview" / "cloud_view" / "cloud_edit" /
+    "cloud_admin"; Cloud admin includes Cloud edit and console users have it): by
     their user id or one of their Discord roles (Permissions page). ECHOVR_DISCORD_PREVIEW_ROLES ids (YAML) always give
     the console. Admins and console users also get the preview; console users get Cloud edit, and Cloud edit includes
     Cloud view. `roles` is only called when an id does not settle it."""
     if kind == "cloud_view" and allowed(settings, db, user_id, "cloud_edit", roles):
         return True
-    if kind == "cloud_edit" and allowed(settings, db, user_id, "console", roles):
+    if kind == "cloud_edit" and allowed(settings, db, user_id, "cloud_admin", roles):
+        return True
+    if kind == "cloud_admin" and allowed(settings, db, user_id, "console", roles):
         return True
     if kind == "preview" and (allowed(settings, db, user_id, "admin", roles) or allowed(settings, db, user_id, "console", roles)):
         return True
@@ -511,7 +514,7 @@ def has_console(request: Request, fresh: bool = False) -> bool:
 
 
 def cloud_access(request: Request, fresh: bool = False) -> str | None:
-    """Open Cloud (cloud.py): the most the visitor may do anywhere in it, "edit", "view" or None: their whole-Cloud
+    """Open Cloud (cloud.py): the most the visitor may do anywhere in it, "admin", "edit", "view" or None: their whole-Cloud
     permission, or a folder / file shared with them (cloud_acl.py). Decides whether the Cloud tab shows; what they may
     do with one folder or file is checked per request (api/cloud.py)."""
     from . import cloud_acl  # here: cloud_acl uses this module

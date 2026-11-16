@@ -8,9 +8,14 @@ A rule belongs to one path and has two parts:
 - private: only the people listed in this rule keep access here; everyone else loses it, whole-Cloud access or not.
   A listed person gets exactly the level listed (someone with Cloud edit listed as "view" can only download here).
 
+Three levels (user, 2026-11-16): "view" = download; "edit" = also upload, new folder, rename, delete; "admin" = also
+sets the permissions of the item and of everything inside it (and sees who has what there). Admin on the whole cloud
+is the Cloud admin permission (Permissions page); console users have it.
+
 A person's level on a path: start with their whole-Cloud level, then walk down from the top folder; each rule on the
 way either adds its grant (the higher level wins) or, when private, replaces the level with its grant. A rule deeper
-down therefore wins over one above it. Console users always have edit everywhere.
+down therefore wins over one above it. One exception: admin is never taken away further down, so the admin of a
+folder (or of the whole cloud) always sees and controls everything inside it, private or not.
 
 Renaming or deleting needs edit on the item and on every rule below it (nobody removes a private folder they cannot
 open by deleting the folder around it). Rules follow a rename; a deleted item's rules go into its recycle bin note
@@ -30,7 +35,8 @@ from sqlalchemy import select
 from . import cloud
 from .cloud import CloudError
 
-RANK = {None: 0, "view": 1, "edit": 2}
+RANK = {None: 0, "view": 1, "edit": 2, "admin": 3}
+LEVELS = ("view", "edit", "admin")
 MAX_GRANTS = 50
 
 
@@ -53,6 +59,11 @@ def _rest(path: str, top: str) -> str:
     return "/".join(path.split("/")[len(top.split("/")):])
 
 
+def edits(level: str | None) -> bool:
+    """Upload, new folder, rename, delete: edit or admin."""
+    return RANK[level] >= RANK["edit"]
+
+
 def _higher(a: str | None, b: str | None) -> str | None:
     return a if RANK[a] >= RANK[b] else b
 
@@ -72,14 +83,16 @@ class Access:
         return best
 
     def level(self, rel: str) -> str | None:
-        """ "edit", "view" or None on this path (a clean path; "" = the cloud folder itself)."""
+        """ "admin", "edit", "view" or None on this path (a clean path; "" = the cloud folder itself)."""
         if self.console:
-            return "edit"
+            return "admin"
         level = self.base
         if not self.rules or not rel:
             return level
         parts = _key(rel).split("/")
         for depth in range(1, len(parts) + 1):
+            if level == "admin":  # the admin of a folder keeps everything inside it
+                return level
             rule = self.rules.get("/".join(parts[:depth]))
             if rule:
                 grant = self._grant(rule)
@@ -97,16 +110,20 @@ class Access:
 
     def can_change(self, rel: str) -> bool:
         """Rename / delete: edit here and on everything below that has its own rule."""
-        return self.level(rel) == "edit" and all(self.level(r["path"]) == "edit" for r in self.below(rel))
+        return edits(self.level(rel)) and all(edits(self.level(r["path"])) for r in self.below(rel))
 
     def best(self) -> str | None:
         """The most this person may do anywhere (the Cloud tab shows when it is not None)."""
         if self.console:
-            return "edit"
+            return "admin"
         level = self.base
         for rule in self.rules.values():
             level = _higher(level, self.level(rule["path"]))
         return level
+
+    def manages(self) -> bool:
+        """Admin of the whole cloud or of at least one folder / file."""
+        return self.best() == "admin"
 
 
 def load(db) -> dict[str, dict]:
@@ -123,7 +140,7 @@ def load(db) -> dict[str, dict]:
 
 
 def _valid(g) -> bool:
-    return (isinstance(g, dict) and g.get("type") in ("role", "user") and g.get("level") in ("view", "edit")
+    return (isinstance(g, dict) and g.get("type") in ("role", "user") and g.get("level") in LEVELS
             and isinstance(g.get("id"), str) and g["id"].isascii() and g["id"].isdigit())
 
 
@@ -144,7 +161,8 @@ def access(request: Request, fresh: bool = False) -> Access | None:
 def _build(settings, db, user_id: str, roles: Callable[[], frozenset[str]], rules: dict[str, dict]) -> Access:
     from . import auth
     console = auth.allowed(settings, db, user_id, "console", roles)
-    base = ("edit" if console or auth.allowed(settings, db, user_id, "cloud_edit", roles)
+    base = ("admin" if console or auth.allowed(settings, db, user_id, "cloud_admin", roles)
+            else "edit" if auth.allowed(settings, db, user_id, "cloud_edit", roles)
             else "view" if auth.allowed(settings, db, user_id, "cloud_view", roles) else None)
     return Access(user_id, base, console, rules, roles)
 
@@ -167,13 +185,13 @@ def chain(rules: dict[str, dict], rel: str, itself: bool = True) -> list[dict]:
 
 def effective(settings, db, rel: str, rules: dict[str, dict]) -> list[dict]:
     """Who ends up with what on this item: every role / person with a whole-Cloud permission or named in a rule on the
-    way to it, with their final level (None = no access). Console users are not listed: they always have edit."""
+    way to it, with their final level (None = no access). Console users are not listed: they are always admin."""
     from .admin_actions import discord_roles
     people: dict[tuple[str, str], None] = {}
     for rule in chain(rules, rel):
         for g in rule["grants"]:
             people[(g["type"], g["id"])] = None
-    for kind in ("cloud_edit", "cloud_view"):
+    for kind in ("cloud_admin", "cloud_edit", "cloud_view"):
         for i in discord_roles(db, kind):
             people[("role", i)] = None
         for i in discord_roles(db, f"{kind}_user"):
@@ -187,17 +205,17 @@ def effective(settings, db, rel: str, rules: dict[str, dict]) -> list[dict]:
     return out
 
 
-# --- changing the rules (console users; api/cloud.py checks that) ---------------------------------------------------
+# --- changing the rules (admins of the item; api/cloud.py checks that) ---------------------------------------------------
 
 def check_grants(grants: list) -> list[dict]:
-    """What a console user sent, tidied: one line per role / person (the last one given counts)."""
+    """What an admin sent, tidied: one line per role / person (the last one given counts)."""
     from .admin_actions import AdminError, _role_id
     if len(grants) > MAX_GRANTS:
         raise CloudError(400, "bad_rule", f"At most {MAX_GRANTS} roles and people on one item")
     seen: dict[tuple[str, str], dict] = {}
     for g in grants:
-        if not isinstance(g, dict) or g.get("type") not in ("role", "user") or g.get("level") not in ("view", "edit"):
-            raise CloudError(400, "bad_rule", "Each line needs a role or a person, and View or Edit")
+        if not isinstance(g, dict) or g.get("type") not in ("role", "user") or g.get("level") not in LEVELS:
+            raise CloudError(400, "bad_rule", "Each line needs a role or a person, and View, Edit or Admin")
         try:
             discord_id = _role_id(str(g.get("id") or ""))
         except AdminError as e:

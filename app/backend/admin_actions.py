@@ -23,16 +23,18 @@ MEGA_WINDOW_KEYS = ("mega_start", "mega_end")  # the Mega Prizes' own period (us
 # role ids, "<permission>_user" = people's user ids. preview = achievements before the launch, admin = the Admin
 # tab, console = the Console and Permissions pages, cloud_view / cloud_edit = Open Cloud (cloud.py: download / also
 # change files). ECHOVR_DISCORD_PREVIEW_ROLES (YAML) adds fixed console ids.
-PERMISSIONS = ("admin", "console", "preview", "cloud_view", "cloud_edit")
+PERMISSIONS = ("admin", "console", "preview", "cloud_view", "cloud_edit", "cloud_admin")
 ROLE_KEYS = {"preview": "discord_preview_roles", "admin": "discord_admin_roles", "admin_user": "discord_admin_users",
              "preview_user": "discord_preview_users", "console": "discord_console_roles",
              "console_user": "discord_console_users", "cloud_view": "discord_cloud_view_roles",
              "cloud_view_user": "discord_cloud_view_users", "cloud_edit": "discord_cloud_edit_roles",
-             "cloud_edit_user": "discord_cloud_edit_users"}
+             "cloud_edit_user": "discord_cloud_edit_users", "cloud_admin": "discord_cloud_admin_roles",
+             "cloud_admin_user": "discord_cloud_admin_users"}
 ROLE_LABELS = {"preview": "a preview role", "admin": "an admin role", "admin_user": "an admin user",
                "preview_user": "a preview user", "console": "a console role", "console_user": "a console user",
                "cloud_view": "a cloud view role", "cloud_view_user": "a cloud view user",
-               "cloud_edit": "a cloud edit role", "cloud_edit_user": "a cloud edit user"}
+               "cloud_edit": "a cloud edit role", "cloud_edit_user": "a cloud edit user",
+               "cloud_admin": "a cloud admin role", "cloud_admin_user": "a cloud admin user"}
 
 
 class AdminError(Exception):
