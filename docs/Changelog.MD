@@ -18,6 +18,23 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.16.18 — 13:56
+
+- **Home strip: a rolling week with trends instead of the calendar week.** "This week" restarted every Monday (on a
+  Monday morning it was the same as "today", and 6 new players were compared with a whole week of 128).
+  - **Matches · last 7 days** and **New players · last 7 days**: the last 7 days to the minute, the change against the
+    7 days before (▲ green / ▼ red, grey within ±5 %), today's matches, and a line per day over the last 4 weeks.
+  - **New players who came back**: also the change in points against the players new a week earlier.
+  - Overview: new `trend` (`days`, `matches`, `new_players` per day for 28 days; `matches_7d`, `matches_prev_7d`,
+    `new_7d`, `new_prev_7d`) and `newcomers.prev_return_rate`.
+- **Home: "Most active this week" and "Combat this week" are one "This week" panel** with tabs: Most active (matches
+  and win share, from the replays), Most kills and Most MVPs (top 5 each, from the recorder's match reports, which the
+  panel says under those tabs). Same ranked rows with bars on every tab; the link follows the tab (Leaderboard / Combat
+  leaderboard). All three still count from Monday (the Combat leaderboard has calendar periods only). On 1440p and 4K
+  the panel runs down the right of both rows.
+- **Home: "Players seen in Combat" is more compact:** the total and the "From the latest match" switch share one line
+  (the exact dates are on hover) and the chart is 110 px tall instead of 180.
+
 ## 2026.11.16.17 — 13:47
 
 - **Home "Latest matches": wider rows with more in them.** When the list is 620 px wide or more (any screen from a

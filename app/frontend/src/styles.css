@@ -4996,7 +4996,7 @@ tr.cloud-drop-on td {
 .seen-line .inline-check { margin: 0; font-size: 0.85rem; }
 .this-week > .tabs { margin: 0 0 8px; }
 .this-week-note { font-size: 0.8rem; margin: -2px 0 8px; }
-.trend-change { white-space: nowrap; }
+.trend-change .trend-value { white-space: nowrap; } /* the rest wraps in a narrow card (phones) */
 .trend-change.up { color: var(--ok); }
 .trend-change.down { color: var(--bad); }
 .trend-change .muted { font-weight: normal; }

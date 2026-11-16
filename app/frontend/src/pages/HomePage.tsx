@@ -297,7 +297,7 @@ function Change({ now, before, points = false }: { now: number; before: number; 
   const arrow = dir === "flat" ? "=" : dir === "up" ? "▲" : "▼";
   return (
     <span className={`trend-change ${dir}`}>
-      {arrow} {shown}{points ? " pts" : "%"} <span className="muted">{points ? "vs the week before" : "vs the 7 days before"}</span>
+      <span className="trend-value">{arrow} {shown}{points ? " pts" : "%"}</span> <span className="muted">{points ? "vs the week before" : "vs the 7 days before"}</span>
     </span>
   );
 }
@@ -424,7 +424,7 @@ export function HomePage() {
                       {o.newcomers.return_rate != null && o.newcomers.prev_return_rate != null && (
                         <><Change now={o.newcomers.return_rate} before={o.newcomers.prev_return_rate} points /> · </>
                       )}
-                      {int(o.newcomers.returned)} of {int(o.newcomers.return_group)} within {o.newcomers.return_days} days
+                      {int(o.newcomers.returned)} of {int(o.newcomers.return_group)}
                     </span>
                   </div>
                 )}
