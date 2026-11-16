@@ -52,7 +52,7 @@ part, so the server-side gains are larger there.
 - **After a restart the Matches and Leaderboard first screens are built ahead** (with the match thumbnails), as the
   Home page already was: their first visitor no longer waits for the archive-wide build (leaderboard 2.5 s, match
   list + summary ~1 s on the NAS). 1.4 s of background work at start on this PC.
-- **Memory for kept answers is a setting**: `ECHOVR_RESPONSE_CACHE_MB` (1024, and 2048 in the NAS YAML: user, "more the better"; it was fixed at 64 MB = about 400 player
+- **Memory for kept answers is a setting**: `ECHOVR_RESPONSE_CACHE_MB` (1024, and 4096 in the NAS YAML, as much as the disk copy holds: user, "more the better", the NAS has 32 GB; it was fixed at 64 MB = about 400 player
   heatmaps) and up to 20,000 answers (was 4,096). Added to `docker-compose.yml`.
 - A Discord picture lookup that fails is not repeated for 30 s (a profile waited 0.6 s for it on every view).
 - WebP / WOFF2 files are sent with their proper type.
