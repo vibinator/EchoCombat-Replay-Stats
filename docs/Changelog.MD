@@ -18,6 +18,20 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.16.9 — 13:07
+
+- **"Players" removed from the top menu.** It only listed the 50 most recently seen players, which the search bar and Leaderboard already cover. The page stays as the search results page: press Enter in either search box to see every matching name. Old `/players` links still work.
+
+## 2026.11.16.8 — 13:06
+
+- **Home page redesign (layout option 2) with new stats:**
+  - Top row: last match, matches today (this week underneath), **new players this week** (last week underneath), **new players who came back** (share of players first seen 8–14 days ago who played again on a later day within 7 days; 56 % in the 10 Nov snapshot), recently played.
+  - **Combat this week:** a separate panel with the top 3 for kills and for MVP awards, from the game's own counters. It says it is a separate source from the replay stats.
+  - Map cards show each map's **average match length**.
+  - Gear row has a fourth card: the **most used full loadout** (weapon + ordnance + tac mod together; Nova + Detonator + Repair Matrix in the snapshot).
+  - The 13-card "All time" block is now grouped: archive totals (average match split **per mode**), **Records**, a new **Fun facts** row (emotes used, time upside down, left-hand setting, players who left early), with recorded replay time and deaths (est.) under "More archive numbers".
+  - Nothing to run: the overview is rebuilt by itself after the update.
+
 ## 2026.11.16.7 — 08:46
 
 - **Permissions tab reworded:** Admin now says it includes the Preview and Cloud admin; Console says it includes the Preview but not the Cloud; Preview names what it opens (Echo Combat achievements, challenges and Mega Prizes before the launch date). Clearer intro, "User" instead of "User id" in the picker, and the remove question names the permission.

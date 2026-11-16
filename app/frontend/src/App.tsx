@@ -123,7 +123,6 @@ function CombatRedirect() {
 const NAV = [
   ["/", "Home"],
   ["/matches", "Matches"],
-  ["/players", "Players"],
   ["/leaderboard", "Leaderboard"],
   ["/achievements", "Achievements"],
   ["/compare", "Compare"],

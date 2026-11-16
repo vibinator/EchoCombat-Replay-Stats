@@ -745,6 +745,21 @@ export interface GlobalStats {
   payload_attack_win_rate?: number | null;
   payload_decided?: number;
   capture_wins?: { blue: number; orange: number };
+  /** the most used full set: weapon + ordnance + tac mod together, by time in use */
+  top_loadout: { weapon: GearItem; ordnance: GearItem; tacmod: GearItem; hours: number; share: number | null } | null;
+  avg_match_s_by_mode: Record<string, number>;
+  avg_match_s_by_map: Record<string, number>;
+  fun: { emotes: number; upside_down_share: number | null; left_arm_share: number | null; left_early_share: number | null };
+}
+
+export interface Newcomers {
+  this_week: number;
+  last_week: number;
+  /** players new 8-14 days ago, and how many of them played again on a later day within return_days */
+  return_group: number;
+  returned: number;
+  return_rate: number | null;
+  return_days: number;
 }
 
 export interface Overview {
@@ -761,6 +776,7 @@ export interface Overview {
   last_match_at: string | null;
   top_this_week: { user_id: string; name: string; games: number; wins?: number }[];
   latest: MatchSummary[];
+  newcomers: Newcomers;
 }
 
 export interface PlayersSeen {

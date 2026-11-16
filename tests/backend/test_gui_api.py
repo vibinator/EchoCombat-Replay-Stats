@@ -50,6 +50,13 @@ def test_overview_and_global_stats(client):
     assert g["most_active"]["games"] == 3 and g["fastest"]["top_speed"] > 0
     assert g["capture_wins"] == {"blue": 1, "orange": 0}
     assert len(o["latest"]) == 3
+    # full loadout, match length per mode / map, fun facts, newcomers
+    assert g["top_loadout"]["tacmod"]["name"] == "Repair Matrix" and 0 < g["top_loadout"]["share"] <= 1
+    assert set(g["avg_match_s_by_map"]) == {"dyson", "surge"} and all(v > 0 for v in g["avg_match_s_by_mode"].values())
+    assert g["fun"]["emotes"] >= 0 and 0 <= g["fun"]["left_early_share"] <= 1
+    n = o["newcomers"]
+    assert n["return_days"] == 7 and 0 <= n["returned"] <= n["return_group"]
+    assert n["this_week"] >= 0 and n["last_week"] >= 0
 
 
 def test_processing_is_zero_once_everything_is_read(client):

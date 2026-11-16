@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
-import { getActivity, getLastMatch, getLatestMatches, getLive, getOverview, getPlayersSeen, type GearShare, type MatchSummary, type PlayersSeen } from "../api";
+import { getActivity, getCombatBoard, getLastMatch, getLatestMatches, getLive, getOverview, getPlayersSeen, type GearShare, type GlobalStats, type MatchSummary, type PlayersSeen } from "../api";
 import { BarChart, StackedBarChart } from "../components/charts";
 import { MapHeatCards } from "../components/MapHeatCards";
 import { MatchCards } from "../components/MatchCards";
@@ -32,6 +32,78 @@ function GearTop({ label, items }: { label: string; items: GearShare[] }) {
         </>
       )}
     </div>
+  );
+}
+
+/** The most used full set (weapon + ordnance + tac mod at the same time), beside the three single-slot cards. */
+function LoadoutTop({ loadout }: { loadout: GlobalStats["top_loadout"] }) {
+  return (
+    <div className="card gear-top">
+      <span className="label">Full loadout</span>
+      {!loadout ? (
+        <strong>–</strong>
+      ) : (
+        <>
+          <strong className="loadout-set">
+            <GearLabel name={loadout.weapon.name} />
+            <GearLabel name={loadout.ordnance.name} />
+            <GearLabel name={loadout.tacmod.name} />
+          </strong>
+          <span className="muted">{pct(loadout.share)} of the time, all three together</span>
+        </>
+      )}
+    </div>
+  );
+}
+
+/** This week's top killers and MVPs from the Combat stats (the game's own counters in the recorder's match reports).
+ * A separate source from the replay stats on the rest of the page, so it has its own panel and says so. */
+function CombatThisWeek() {
+  const kills = useApi(() => getCombatBoard({ stat: "kills", period: "week", min_games: 1, offset: 0, limit: 3 }), "home-combat-kills");
+  const mvp = useApi(() => getCombatBoard({ stat: "mvp", period: "week", min_games: 1, offset: 0, limit: 3 }), "home-combat-mvp");
+  const lists: [string, typeof kills.data, string][] = [
+    ["Most kills", kills.data, "kills"],
+    ["Most MVP awards", mvp.data, "MVP"],
+  ];
+  const loading = !kills.data && !kills.error;
+  const empty = !!kills.data && !kills.data.items.some((r) => r.value > 0);
+  if (kills.error) return null; // the Combat stats are an extra: no error box on the home page
+  return (
+    <section className="panel">
+      <div className="section-head">
+        <h2>Combat this week</h2>
+        <span>
+          <Link to="/leaderboard?board=combat&period=week">Combat leaderboard</Link>
+        </span>
+      </div>
+      <p className="muted combat-week-note">From the game's own counters in the recorder's match reports: a separate source from the replay stats.</p>
+      {loading && <Skeleton lines={3} />}
+      {empty && <p className="muted">No combat matches recorded this week yet.</p>}
+      {kills.data && !empty && (
+        <div className="combat-week">
+          {lists.map(([label, board, unit]) => {
+            const rows = (board?.items ?? []).filter((r) => r.value > 0);
+            return (
+              <div key={label}>
+                <h3>{label}</h3>
+                {rows.length === 0 ? (
+                  <p className="muted">–</p>
+                ) : (
+                  <ol className="combat-week-list">
+                    {rows.map((r) => (
+                      <li key={r.user_id}>
+                        <Link to={playerPath(r.user_id, r.name)}>{r.name}</Link>
+                        <span className="muted">{int(r.value)} {unit} · {int(r.matches)} matches</span>
+                      </li>
+                    ))}
+                  </ol>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -269,9 +341,28 @@ export function HomePage() {
           ) : (
             <>
               <div className="cards">
-                <div className="card"><span className="label">Matches today</span><strong>{o.today.toLocaleString()}</strong></div>
-                <div className="card"><span className="label">This week</span><strong>{o.this_week.toLocaleString()}</strong></div>
                 <LastMatchCard fromOverview={o.last_match_at} />
+                <div className="card">
+                  <span className="label">Matches today</span>
+                  <strong>{o.today.toLocaleString()}</strong>
+                  <span className="muted">{o.this_week.toLocaleString()} this week</span>
+                </div>
+                {o.newcomers && (
+                  <div className="card" title="Players whose first recorded match was this week (Monday to now)">
+                    <span className="label">New players this week</span>
+                    <strong>{int(o.newcomers.this_week)}</strong>
+                    <span className="muted">{int(o.newcomers.last_week)} last week</span>
+                  </div>
+                )}
+                {o.newcomers && (
+                  <div className="card" title={`Of the players whose first match was 8 to 14 days ago, the share who played again on a later day within ${o.newcomers.return_days} days`}>
+                    <span className="label">New players who came back</span>
+                    <strong>{pct(o.newcomers.return_rate)}</strong>
+                    <span className="muted">
+                      {int(o.newcomers.returned)} of {int(o.newcomers.return_group)}, within {o.newcomers.return_days} days
+                    </span>
+                  </div>
+                )}
                 <RecentlyPlayedCard latest={latest[0]} />
               </div>
 
@@ -339,13 +430,16 @@ export function HomePage() {
                 <PlayersSeenChart />
               </div>
 
-              <MapHeatCards byMap={o.by_map} total={o.matches} />
+              <CombatThisWeek />
+
+              <MapHeatCards byMap={o.by_map} total={o.matches} avgByMap={g.avg_match_s_by_map} />
 
               <h2>Most popular gear</h2>
               <div className="cards gear-cards">
                 <GearTop label="Weapon" items={g.top_weapons} />
                 <GearTop label="Ordnance" items={g.top_ordnances} />
                 <GearTop label="Tac mod" items={g.top_tacmods} />
+                <LoadoutTop loadout={g.top_loadout} />
               </div>
 
               <h2>All time</h2>
@@ -355,15 +449,23 @@ export function HomePage() {
               <div className="cards">
                 <div className="card"><span className="label">Matches</span><strong>{o.matches.toLocaleString()}</strong></div>
                 <div className="card"><span className="label">Players</span><strong>{o.players.toLocaleString()}</strong></div>
-                <div className="card"><span className="label">Recorded replay time</span><strong>{g.recorded_hours.toLocaleString()} h</strong></div>
                 <div className="card"><span className="label">Time played (all players)</span><strong>{o.player_hours.toLocaleString()} h</strong></div>
-                <div className="card"><span className="label">Average match</span><strong>{duration(g.avg_match_s)}</strong></div>
+                <div className="card">
+                  <span className="label">Average match</span>
+                  <strong>{duration(g.avg_match_s)}</strong>
+                  {Object.entries(g.avg_match_s_by_mode ?? {}).map(([mode, s]) => (
+                    <span key={mode} className="muted">{modeLabel(mode)} {duration(s)}</span>
+                  ))}
+                </div>
+                <div className="card"><span className="label">Players per match</span><strong>{num(g.avg_players_per_match)}</strong></div>
+              </div>
+
+              <h3 className="cards-head">Records</h3>
+              <div className="cards">
                 <div className="card">
                   <span className="label">Longest match</span>
                   <strong>{g.longest_match ? <Link to={`/matches/${g.longest_match.id}`}>{duration(g.longest_match.duration_s)}</Link> : "–"}</strong>
                 </div>
-                <div className="card"><span className="label">Players per match</span><strong>{num(g.avg_players_per_match)}</strong></div>
-                <div className="card" title="Estimated from players leaving the play area"><span className="label">Deaths (est.)</span><strong>{g.deaths_est.toLocaleString()}</strong></div>
                 <div className="card">
                   <span className="label">Fastest player</span>
                   <strong>{g.fastest ? <FitText title={g.fastest.name}><Link to={playerPath(g.fastest.user_id, g.fastest.name)}>{g.fastest.name}</Link></FitText> : "–"}</strong>
@@ -396,6 +498,35 @@ export function HomePage() {
                   </div>
                 )}
               </div>
+
+              {g.fun && (
+                <>
+                  <h3 className="cards-head">Fun facts</h3>
+                  <div className="cards">
+                    <div className="card"><span className="label">Emotes used</span><strong>{int(g.fun.emotes)}</strong></div>
+                    <div className="card" title="Share of all play time spent upside down">
+                      <span className="label">Upside down</span><strong>{pct(g.fun.upside_down_share)}</strong>
+                      <span className="muted">of all play time</span>
+                    </div>
+                    <div className="card" title="Share of play time with the left-hand setting">
+                      <span className="label">Left-handed</span><strong>{pct(g.fun.left_arm_share)}</strong>
+                      <span className="muted">of play time on the left-hand setting</span>
+                    </div>
+                    <div className="card" title="Share of player appearances that left before the match ended">
+                      <span className="label">Left early</span><strong>{pct(g.fun.left_early_share)}</strong>
+                      <span className="muted">of players in a match</span>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              <details className="home-more">
+                <summary>More archive numbers</summary>
+                <div className="cards">
+                  <div className="card"><span className="label">Recorded replay time</span><strong>{g.recorded_hours.toLocaleString()} h</strong></div>
+                  <div className="card" title="Estimated from players leaving the play area"><span className="label">Deaths (est.)</span><strong>{g.deaths_est.toLocaleString()}</strong></div>
+                </div>
+              </details>
 
               <ActivityChart />
             </>

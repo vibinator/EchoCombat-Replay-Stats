@@ -45,6 +45,7 @@ def _overview(request: Request, v: visibility.View = visibility.ALL_SHOWN) -> di
             .order_by(func.count().desc(), *([func.sum(won).desc()] if wl else []), Player.id).limit(5)
         ).all()
         latest = _latest_matches(db)
+        newcomers = _newcomers(db, week)
         globals_ = _global_stats(db)
         if not wl:  # team win rates too (user, 2026-11-02)
             globals_ = visibility.without(globals_, TEAM_WIN_KEYS)
@@ -63,7 +64,34 @@ def _overview(request: Request, v: visibility.View = visibility.ALL_SHOWN) -> di
         "top_this_week": [{"user_id": u, "name": n, "games": g} | ({} if v.hides(u) else {"wins": w or 0})
                           for u, n, g, w in top_week],
         "latest": [match_summary(m) for m in latest],
+        "newcomers": newcomers,
     }
+
+
+RETURN_DAYS = 7  # "came back": played again on a later day, within this many days of the first match
+
+
+def _newcomers(db, week: str) -> dict:
+    """Players whose first match was this calendar week / last week, and how many players new 8-14 days ago played
+    again on a later day within RETURN_DAYS of their first match (everyone in that group has had the full RETURN_DAYS).
+    Merged ids (D34) are left out: the main player holds the earliest first match."""
+    main = Player.user_id.not_in(select(PlayerAlias.alias_user_id))
+    last_week = (date.fromisoformat(week[:10]) - timedelta(days=7)).isoformat()
+    this_n = db.scalar(select(func.count()).select_from(Player).where(main, Player.first_seen_at >= week))
+    last_n = db.scalar(select(func.count()).select_from(Player)
+                       .where(main, Player.first_seen_at >= last_week, Player.first_seen_at < week))
+    now = datetime.now()
+    since, until = ((now - timedelta(days=d)).isoformat(timespec="seconds") for d in (2 * RETURN_DAYS, RETURN_DAYS))
+    cohort = (Player.first_seen_at >= since, Player.first_seen_at < until, main)
+    group = db.scalar(select(func.count()).select_from(Player).where(*cohort))
+    again = (select(MatchPlayer.player_id).join(Match, Match.id == MatchPlayer.match_id)
+             .where(MatchPlayer.player_id == Player.id, counted(Match.id),
+                    Match.started_at >= func.date(Player.first_seen_at, "+1 day"),
+                    Match.started_at < func.strftime("%Y-%m-%dT%H:%M:%S", Player.first_seen_at, f"+{RETURN_DAYS} days"))
+             .exists())
+    returned = db.scalar(select(func.count()).select_from(Player).where(*cohort, again))
+    return {"this_week": this_n or 0, "last_week": last_n or 0,
+            "return_group": group or 0, "returned": returned or 0, "return_rate": ratio(returned, group), "return_days": RETURN_DAYS}
 
 
 LATEST_MATCHES = 8  # how many the home page's "Latest matches" list shows
@@ -246,6 +274,14 @@ def _top_gear(db, limit: int = 3) -> dict[str, list[dict]]:
         .group_by(MatchPlayerLoadout.weapon, MatchPlayerLoadout.ordnance, MatchPlayerLoadout.tacmod)
     ).all()
     out = {}
+    # the most used full set (weapon + ordnance + tac mod together), from the same rows
+    full = [r for r in rows if r[0] and r[1] and r[2]]
+    if full:
+        top = max(full, key=lambda r: r[3] or 0)
+        out["top_loadout"] = {"weapon": gear(top[0], WEAPONS), "ordnance": gear(top[1], ORDNANCES), "tacmod": gear(top[2], TACMODS),
+                              "hours": round((top[3] or 0) / 3600, 1), "share": ratio(top[3] or 0, sum(r[3] or 0 for r in full))}
+    else:
+        out["top_loadout"] = None
     for i, (key, table) in enumerate((("top_weapons", WEAPONS), ("top_ordnances", ORDNANCES), ("top_tacmods", TACMODS))):
         seconds: dict[str, float] = {}
         for row in rows:
@@ -291,7 +327,22 @@ def _global_stats(db) -> dict:
         select(Match.winner, func.count()).where(Match.mode == "capture_point", Match.winner.is_not(None), m)
         .group_by(Match.winner)
     ).all())
+    by_mode = dict(db.execute(select(Match.mode, func.avg(Match.duration_s)).where(m).group_by(Match.mode)).all())
+    by_map = dict(db.execute(select(Match.map, func.avg(Match.duration_s)).where(m).group_by(Match.map)).all())
+    emotes, upside, present, left_arm, right_arm, left_early = db.execute(
+        select(func.sum(MatchPlayer.emote_count), func.sum(MatchPlayer.frames_upside_down), func.sum(MatchPlayer.frames_present),
+               func.sum(MatchPlayer.frames_left_arm), func.sum(MatchPlayer.frames_right_arm),
+               func.sum(case((MatchPlayer.left_early, 1), else_=0))).where(mp)
+    ).one()
     return {
+        "avg_match_s_by_mode": {k: round(v, 1) for k, v in by_mode.items() if v},
+        "avg_match_s_by_map": {k: round(v, 1) for k, v in by_map.items() if v},
+        "fun": {
+            "emotes": emotes or 0,
+            "upside_down_share": ratio(upside, present, 3),
+            "left_arm_share": ratio(left_arm, (left_arm or 0) + (right_arm or 0), 3),
+            "left_early_share": ratio(left_early, slots, 3),
+        },
         "recorded_hours": round((total_s or 0) / 3600, 1),
         "avg_match_s": round(avg_len, 1) if avg_len else None,
         "longest_match": {"id": longest_id, "duration_s": longest_s} if longest_id else None,

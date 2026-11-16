@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, useSearchParams } from "react-router";
 import { getMapHeat, type MapHeat, type MapHeatLayer, type MapHeatView } from "../api";
-import { minimapUrl, pct, title } from "../format";
+import { duration, minimapUrl, pct, title } from "../format";
 import { useApi } from "../useApi";
 import { GearLabel } from "./common";
 import { decodeEntries, entryAt, readOut, type Entries } from "./heatRead";
@@ -188,7 +188,7 @@ function BigHeat({ map, heat, one, other, alt }: { map: string; heat: MapHeat | 
  * The choice lives in the address (`heat`, `view`, `vs`, `map`), so a view can be linked. Until the first answer (or
  * if it fails) the cards show the plain minimap. Clicking a card's picture opens that map large under the cards
  * (BigHeat: zoom, drag, the value under the pointer); the map's name still leads to its matches. */
-export function MapHeatCards({ byMap, total }: { byMap: Record<string, number>; total: number }) {
+export function MapHeatCards({ byMap, total, avgByMap }: { byMap: Record<string, number>; total: number; avgByMap?: Record<string, number> }) {
   const [params, setParams] = useSearchParams();
   const update = (changes: Record<string, string | null>) =>
     setParams(
@@ -331,6 +331,7 @@ export function MapHeatCards({ byMap, total }: { byMap: Record<string, number>; 
                   <span className="muted">
                     {n.toLocaleString()} matches · {pct(n / total)}
                   </span>
+                  {avgByMap?.[m] != null && <span className="muted">Average match {duration(avgByMap[m])}</span>}
                   {average(m) && <span className="map-card-average">Payload {average(m)}</span>}
                 </Link>
               </div>

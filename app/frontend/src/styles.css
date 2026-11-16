@@ -4802,3 +4802,50 @@ tr.cloud-drop-on td {
 .cloud-checking td {
   color: var(--muted);
 }
+
+/* home: headings over the grouped all-time card rows (Records, Fun facts) */
+.cards-head {
+  margin: 16px 0 8px;
+  font-size: 1rem;
+}
+/* home: the most used full loadout, three gear names stacked */
+.loadout-set {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+/* home: the less used archive totals, folded away */
+.home-more {
+  margin: 12px 0;
+}
+.home-more summary {
+  cursor: pointer;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+/* home: Combat this week (a separate source from the replay stats) */
+.combat-week-note {
+  margin: 0 0 8px;
+  font-size: 0.85rem;
+}
+.combat-week {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+.combat-week h3 {
+  margin: 0 0 6px;
+  font-size: 1rem;
+}
+.combat-week-list {
+  margin: 0;
+  padding-left: 20px;
+}
+.combat-week-list li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+  padding: 3px 0;
+  overflow-wrap: anywhere;
+}
