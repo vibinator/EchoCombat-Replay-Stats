@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router";
-import { CloudPermissions, CloudRulesOverview, PrincipalSearch } from "../components/CloudPermissions";
+import { CloudAuditLog } from "../components/CloudAuditLog";
+import { CloudAccessPanel, CloudPermissions, CloudRulesOverview, PrincipalSearch } from "../components/CloudPermissions";
+import { CloudQuarantine } from "../components/CloudQuarantine";
+import { CloudTrash } from "../components/CloudTrash";
 import { droppedEntries, pickedFolder, readEntries, useUploadQueue, type Picked } from "../components/cloudUploads";
 import {
   cloudDownloadUrl, deleteCloud, getCloud, getCloudRules, getMe, loginUrl, makeCloudFolder, moveCloud, renameCloud,
@@ -62,7 +65,9 @@ function CloudBrowser() {
   const [picked, setPicked] = useState<string[]>([]); // admins: rows ticked, to set one set of permissions on all
   const [bulk, setBulk] = useState<string[] | null>(null); // their paths, while that dialog is open
   const [viewAs, setViewAs] = useState<CloudPrincipal | null>(null); // admins: this folder as a role / person sees it
-  const [showAll, setShowAll] = useState(false); // admins: the list of every item with its own permissions
+  // admins: one of these opens under the buttons. permissions = who has the whole cloud + every folder with its own
+  // permissions; the other three are the Cloud admins' (they were Console tabs until the Cloud was separated from it)
+  const [panel, setPanel] = useState<"permissions" | "trash" | "quarantine" | "log" | null>(null);
   const [choosing, setChoosing] = useState(false); // the "View as" picker is open
   const [dropOn, setDropOn] = useState<string | null>(null); // the folder a dragged row is over (its path)
   const [roles, setRoles] = useState<DiscordEntry[] | null>(null);
@@ -100,6 +105,19 @@ function CloudBrowser() {
   const canEdit = !!listing?.can_edit && !viewAs; // "View as" only looks
   const canManage = !!listing?.can_manage && !viewAs; // admin of this folder
   const manages = !!listing?.manages && !viewAs; // admin of something here or below
+  const owner = !!listing?.owner && !viewAs; // Cloud admin of the whole cloud
+  const panelButton = (id: NonNullable<typeof panel>, label: string) => (
+    <button
+      className="secondary"
+      aria-pressed={panel === id}
+      onClick={() => {
+        setPanel(panel === id ? null : id);
+        load(); // a restore or a release changed what is in the folder
+      }}
+    >
+      {panel === id ? `Hide ${label.toLowerCase()}` : label}
+    </button>
+  );
   const dialog = viewAs ? null : bulk ?? (permissionsOf ? [permissionsOf] : null);
   const queue = useUploadQueue(load);
   useEffect(() => { // React has no prop for it: the folder picker (Windows' "Select folder" dialog)
@@ -153,13 +171,13 @@ function CloudBrowser() {
 
   function remove(entry: CloudEntry) {
     const what = entry.dir ? `the folder ${entry.name} and everything in it` : entry.name;
-    if (window.confirm(`Move ${what} to the recycle bin?\n\nA console user can restore it for the next 30 days.`)) {
+    if (window.confirm(`Move ${what} to the recycle bin?\n\nA Cloud admin can restore it for the next 30 days.`)) {
       act(() => deleteCloud(join(folder, entry.name)));
     }
   }
 
   function newFolder(isPrivate = false) {
-    const name = window.prompt(isPrivate ? "Name of the private folder (only console users see it until you add people)" : "Folder name");
+    const name = window.prompt(isPrivate ? "Name of the private folder (only admins see it until you add people)" : "Folder name");
     if (!name || !name.trim()) return;
     act(async () => {
       const made = await makeCloudFolder(folder, name.trim(), false, isPrivate);
@@ -262,12 +280,21 @@ function CloudBrowser() {
             </button>
           )}
           {canManage && <button className="secondary" disabled={busy} onClick={startViewAs}>View as…</button>}
-          {manages && (
-            <button className="secondary" onClick={() => setShowAll(!showAll)}>{showAll ? "Hide all permissions" : "All permissions"}</button>
-          )}
+          {manages && panelButton("permissions", "All permissions")}
+          {owner && panelButton("trash", "Recycle bin")}
+          {owner && panelButton("quarantine", "Quarantine")}
+          {owner && panelButton("log", "Audit log")}
         </div>
       )}
-      {manages && showAll && <CloudRulesOverview />}
+      {manages && panel === "permissions" && (
+        <>
+          {owner && <CloudAccessPanel />}
+          <CloudRulesOverview />
+        </>
+      )}
+      {owner && panel === "trash" && <CloudTrash />}
+      {owner && panel === "quarantine" && <CloudQuarantine />}
+      {owner && panel === "log" && <CloudAuditLog />}
       {canManage && choosing && (
         <div className="panel cloud-view-as-form">
           <span className="muted">See this folder as a role or a person would (click one):</span>

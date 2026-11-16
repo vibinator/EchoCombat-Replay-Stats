@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import {
-  findCloudPeople, getCloudLog, getCloudRule, getCloudRules, setCloudRule,
-  type CloudGrant, type CloudLevel, type CloudLogEntry, type CloudPrincipal, type CloudRule, type CloudRuleRow, type DiscordEntry,
+  changeCloudAccess, findCloudPeople, getCloudAccess, getCloudEffective, getCloudLog, getCloudRule, getCloudRules, setCloudRule,
+  type CloudAccessState, type CloudEffective, type CloudGrant, type CloudLevel, type CloudPermission, type CloudLogEntry, type CloudPrincipal, type CloudRule, type CloudRuleRow, type DiscordEntry,
 } from "../api";
 import { LocalTime, Status, TableWrap } from "./common";
 
@@ -111,7 +111,7 @@ export function PrincipalSearch({ roles, onPick, taken, placeholder, disabled }:
   );
 }
 
-/** Admins of the folder (Cloud admins, console users, or listed as Admin on it or above it): who a folder is shared
+/** Admins of the folder (Cloud admins, or listed as Admin on it or above it): who a folder is shared
  *  with (View / Edit / Admin) and whether it is private. Folders only: a file follows the folder it is in.
  *  One folder: every click is saved at once (add, remove, level, private). Several folders: one list, then Apply. */
 export function CloudPermissions({ paths, onClose, onSaved }: { paths: string[]; onClose: () => void; onSaved: () => void }) {
@@ -125,6 +125,9 @@ export function CloudPermissions({ paths, onClose, onSaved }: { paths: string[];
   const [saved, setSaved] = useState(false);
   const [others, setOthers] = useState<CloudRuleRow[]>([]); // rules to copy from
   const [history, setHistory] = useState<CloudLogEntry[] | string | null>(null); // a string: why it cannot be shown
+  // who gets in: asked only when opened (it asks Discord for people's roles, the box does not wait for that)
+  const [checking, setChecking] = useState(false);
+  const [effective, setEffective] = useState<CloudEffective[] | null>(null);
   const key = paths.join("\n");
 
   useEffect(() => {
@@ -133,6 +136,7 @@ export function CloudPermissions({ paths, onClose, onSaved }: { paths: string[];
     setError(null);
     setSaved(false);
     setHistory(null);
+    setEffective(null);
     getCloudRule(path).then(
       (r) => current && (setRule(r), setPrivate(many ? false : r.private), setGrants(many ? [] : r.grants)),
       (e: Error) => current && setError(e.message),
@@ -161,6 +165,7 @@ export function CloudPermissions({ paths, onClose, onSaved }: { paths: string[];
       }
       setSaved(true);
       setHistory(null);
+      setEffective(null);
       onSaved();
     } catch (e) {
       setPrivate(before.isPrivate);
@@ -185,11 +190,20 @@ export function CloudPermissions({ paths, onClose, onSaved }: { paths: string[];
     }
   }
 
+  useEffect(() => { // open, and nothing loaded (first time, or a change was just saved): ask
+    if (!checking || effective || many) return;
+    let current = true;
+    getCloudEffective(path).then((r) => current && setEffective(r.effective), (e: Error) => current && setError(e.message));
+    return () => {
+      current = false;
+    };
+  }, [checking, effective, many, path]);
+
   function showHistory(open: boolean) {
     if (!open || history) return;
     getCloudLog(path).then(
       (rows) => setHistory(rows.filter((r) => r.path === path || r.path.startsWith(`${path}/`) || r.detail === path).slice(0, 30)),
-      () => setHistory("Only console users can read the Cloud audit log (Console > Audit log)."),
+      () => setHistory("Only Cloud admins of the whole cloud can read the Cloud audit log."),
     );
   }
 
@@ -285,15 +299,11 @@ export function CloudPermissions({ paths, onClose, onSaved }: { paths: string[];
             </div>
           )}
           {!many && (
-            <details className="cloud-permissions-more">
+            <details className="cloud-permissions-more" onToggle={(e) => setChecking(e.currentTarget.open)}>
               <summary>Check: who gets in</summary>
+              {!effective && <Status loading error={null} />}
               <ul className="permission-list">
-                <li>
-                  <span className="tag">Console users</span>
-                  <span className="permission-name">always</span>
-                  <span className="tag">Admin</span>
-                </li>
-                {rule.effective.map((p) => (
+                {(effective ?? []).map((p) => (
                   <li key={`${p.type}-${p.id}`} className={p.level ? undefined : "muted"}>
                     <span className="tag">{p.type === "role" ? "Role" : "Person"}</span>
                     <span className="permission-name">{who(p)}</span>
@@ -303,7 +313,8 @@ export function CloudPermissions({ paths, onClose, onSaved }: { paths: string[];
               </ul>
               <p className="muted">
                 Everyone with a whole-cloud permission or added on this folder or one above it. A role stands for someone with
-                only that role; a person with several gets the highest of them. The admins of a folder above always get in.
+                only that role; a person with several gets the highest of them. Cloud admins and the admins of a folder
+                above always get in.
               </p>
             </details>
           )}
@@ -339,8 +350,100 @@ export function CloudPermissions({ paths, onClose, onSaved }: { paths: string[];
   );
 }
 
-/** Every folder with permissions of its own that this person is admin of, in one list (Console > Permissions, and
- *  "All permissions" on the Cloud page). */
+const WHOLE: { key: CloudPermission; title: string; gives: string }[] = [
+  { key: "cloud_view", title: "Cloud view", gives: "See and download everything that is not private." },
+  { key: "cloud_edit", title: "Cloud edit", gives: "Also upload, new folder, rename, move and delete. Includes Cloud view." },
+  {
+    key: "cloud_admin",
+    title: "Cloud admin",
+    gives: "Also decides who gets in (these lists and every folder), and has the recycle bin, quarantine and audit log. Sees everything, private or not.",
+  },
+];
+
+/** Cloud admins: who has Cloud view / edit / admin on the whole cloud (user, 2026-11-16: set here, not in the
+ *  Console; a console user has no Cloud permission by being one). One click adds or removes, saved at once. */
+export function CloudAccessPanel() {
+  const [state, setState] = useState<CloudAccessState | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    getCloudAccess().then(setState, (e: Error) => setError(e.message));
+  }, []);
+
+  async function change(c: Parameters<typeof changeCloudAccess>[0]) {
+    setBusy(true);
+    setError(null);
+    try {
+      setState(await changeCloudAccess(c));
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="cloud-rules">
+      <h2>Who has the whole cloud</h2>
+      <p className="muted">
+        For everything in the cloud that is not private. To give someone one folder only, use <strong>Permissions</strong> beside
+        that folder instead. The Cloud is separate from the Console: a console user gets in only when listed here.
+      </p>
+      {error && <p className="error">{error}</p>}
+      {!state ? (
+        !error && <Status loading error={null} />
+      ) : (
+        <div className="permissions">
+          {WHOLE.map(({ key, title, gives }) => {
+            const { roles, users } = state.permissions[key];
+            const rows = [...roles.map((e) => ({ ...e, type: "role" as const })), ...users.map((e) => ({ ...e, type: "user" as const }))];
+            const fixed = key === "cloud_admin" ? state.fixed : [];
+            return (
+              <article key={key} className="panel permission-card">
+                <h2>{title}</h2>
+                <p className="muted">{gives}</p>
+                <ul className="permission-list">
+                  {fixed.map((e) => (
+                    <li key={`fixed-${e.id}`}>
+                      <span className="tag">{e.type === "role" ? "Role" : "Person"}</span>
+                      <span className="permission-name">{who(e)}</span>
+                      <span className="tag" title="The owner, set in ECHOVR_DISCORD_PREVIEW_ROLES (the YAML): always Cloud admin, so the cloud cannot be locked">
+                        Owner, fixed
+                      </span>
+                    </li>
+                  ))}
+                  {rows.map((e) => (
+                    <li key={`${e.type}-${e.id}`}>
+                      <span className="tag">{e.type === "role" ? "Role" : "Person"}</span>
+                      <span className="permission-name">{who(e)}</span>
+                      <button
+                        className="link danger"
+                        disabled={busy}
+                        onClick={() => change({ permission: key, type: e.type, id: e.id, remove: true })}
+                      >
+                        Remove
+                      </button>
+                    </li>
+                  ))}
+                  {!fixed.length && !rows.length && <li className="muted">Nobody yet</li>}
+                </ul>
+                <PrincipalSearch
+                  roles={state.server_roles}
+                  disabled={busy}
+                  taken={(type, id) => rows.some((e) => e.type === type && e.id === id) || fixed.some((e) => e.id === id)}
+                  onPick={(p) => change({ permission: key, type: p.type, id: p.id })}
+                />
+              </article>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+}
+
+/** Every folder with permissions of its own that this person is admin of, in one list ("All permissions" on the
+ *  Cloud page). */
 export function CloudRulesOverview() {
   const [rows, setRows] = useState<CloudRuleRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -373,7 +476,7 @@ export function CloudRulesOverview() {
       <h2>Cloud folders with their own permissions</h2>
       <p className="muted">
         Set with <strong>Permissions</strong> beside a folder on the Cloud page; files follow the folder they are in.
-        Everything else follows the whole-cloud permissions (Cloud view / edit / admin in Console &gt; Permissions).
+        Everything else follows the whole-cloud permissions (Cloud view / edit / admin).
       </p>
       {error && <p className="error">{error}</p>}
       {!rows ? (

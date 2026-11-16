@@ -1053,7 +1053,7 @@ export interface ProcessingStatus {
 export const getProcessingStatus = () => send<ProcessingStatus>("/api/admin/status");
 
 /** Permissions page: who gets Admin, the Console and the Preview, by Discord role or user id. */
-export type Permission = "admin" | "console" | "preview" | "cloud_view" | "cloud_edit" | "cloud_admin";
+export type Permission = "admin" | "console" | "preview"; // the Cloud ones: CloudPermission, set on the Cloud page
 export interface DiscordEntry {
   id: string;
   name: string;
@@ -1538,6 +1538,7 @@ export interface CloudListing {
   can_edit: boolean; // upload and new folder here
   can_manage: boolean; // admin of this folder: sets the permissions of everything in it
   manages: boolean; // admin of something in the cloud: the list of all permissions they control is offered
+  owner: boolean; // Cloud admin of the whole cloud: the whole-cloud lists, recycle bin, quarantine and audit log
   limited: boolean; // only what is shared with this person shows (no access to the folder itself)
   /** admins of this folder: the nearest rule on it or on a folder above it, which every row here inherits */
   inherited?: { path: string; private: boolean } | null;
@@ -1656,8 +1657,6 @@ export interface CloudRule {
   private: boolean; // only the roles / people listed keep access
   grants: CloudGrant[];
   above: { path: string; private: boolean; grants: CloudGrant[] }[]; // rules of the folders it is in, top first
-  /** who ends up with what (saved rules + whole-Cloud permissions); level null = no access. Console users not listed */
-  effective: { type: "role" | "user"; id: string; name: string; level: CloudAccess }[];
   server_roles: DiscordEntry[] | null;
 }
 /** Every folder / file with permissions of its own (Console > Permissions). */
@@ -1670,6 +1669,30 @@ export interface CloudRuleRow {
   updated_at: string; // UTC
   by: string;
 }
+/** Who ends up with what in one folder (its rules, the ones above it and the whole-cloud permissions together);
+ *  level null = no access. Asked only when "Check: who gets in" is opened: it asks Discord for people's roles. */
+export interface CloudEffective {
+  type: "role" | "user";
+  id: string;
+  name: string;
+  level: CloudAccess;
+}
+export const getCloudEffective = (path: string) =>
+  send<{ effective: CloudEffective[] }>(`/api/cloud/permissions/effective?${new URLSearchParams({ path })}`);
+/** The whole-cloud lists (Cloud view / edit / admin): Cloud admins set them on the Cloud page, not in the Console. */
+export type CloudPermission = "cloud_view" | "cloud_edit" | "cloud_admin";
+export interface CloudAccessState {
+  permissions: Record<CloudPermission, { roles: DiscordEntry[]; users: DiscordEntry[] }>;
+  fixed: (DiscordEntry & { type: "role" | "user" })[]; // the owner's ids (YAML): always Cloud admin
+  server_roles: DiscordEntry[] | null;
+}
+export const getCloudAccess = () => send<CloudAccessState>("/api/cloud/access");
+export const changeCloudAccess = (change: { permission: CloudPermission; type: "role" | "user"; id: string; remove?: boolean }) =>
+  send<CloudAccessState>("/api/cloud/access", {
+    method: "POST",
+    headers: { ...ADMIN_WRITE, "Content-Type": "application/json" },
+    body: JSON.stringify(change),
+  });
 export const getCloudRules = () =>
   send<{ rules: CloudRuleRow[]; server_roles: DiscordEntry[] | null }>("/api/cloud/permissions/all");
 /** Find a person's Discord id by name (console users). */

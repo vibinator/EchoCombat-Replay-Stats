@@ -8,7 +8,7 @@ const ACTION_LABEL: Record<CloudLogEntry["action"], string> = {
   purge: "Removed for good", scan: "Virus scan", virus: "Virus found", release: "Released", permissions: "Permissions", move: "Move", denied: "Refused",
 };
 
-/** Console users: every upload, download, change and refusal, newest first, with search. */
+/** Cloud admins (Cloud page > Audit log): every upload, download, change and refusal, newest first, with search. */
 export function CloudAuditLog() {
   const [rows, setRows] = useState<CloudLogEntry[] | null>(null);
   const [term, setTerm] = useState("");
@@ -43,7 +43,7 @@ export function CloudAuditLog() {
   return (
     <section className="cloud-log">
       <h2>Cloud audit log</h2>
-      <p className="muted">Every upload, download, new folder, rename and delete, and every refused attempt by someone logged in. Only console users see this.</p>
+      <p className="muted">Every upload, download, new folder, rename and delete, move and delete, every change of permissions, and every refused attempt by someone logged in. Only Cloud admins see this.</p>
       <input
         type="search"
         aria-label="Search the audit log"

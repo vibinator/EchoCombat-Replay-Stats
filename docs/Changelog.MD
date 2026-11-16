@@ -18,6 +18,16 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.16.4 — 07:46
+
+- **The Cloud is separate from the Console** (your choice):
+  - A console user no longer has any Cloud access by being one. They see the Cloud only when given Cloud view, edit or admin, like anyone else.
+  - **Cloud view / edit / admin are set on the Cloud page** ("All permissions" > "Who has the whole cloud"), by Cloud admins: click the box for a role or type a name, click the match; Remove takes it away. The Console's Permissions tab keeps only Admin, Console and Preview.
+  - **Recycle bin, Quarantine and Audit log moved to the Cloud page**, as buttons for Cloud admins of the whole cloud. The Console's Cloud tab is gone.
+  - The owner's ids in the YAML (the "YAML, fixed" role on the Permissions page) are always Cloud admin, so the cloud cannot be locked. A Cloud admin cannot remove their own Cloud admin by accident.
+  - **Check after this update:** anyone who used the Cloud only because they are a console user (and is not in the YAML role) no longer sees the Cloud tab until a Cloud admin adds them. The Cloud view / edit / admin lists themselves are kept as they were.
+- **The folder permissions box opens much faster.** It was asking Discord for every listed person's name and roles, one after another, before showing anything: 7.2 s for a folder with eight people in a measurement with a Discord that answers in 0.4 s. Now the names are asked side by side and the roles only when "Check: who gets in" is opened: 1.2 s the first time, 0.01 s after that (names are remembered until the site restarts). "All permissions" got the same change.
+
 ## 2026.11.16.3 — 07:24
 
 - **Cloud permissions: security review, three holes closed** (found by reading the new code as an attacker would; none needed anything but an ordinary login with Edit somewhere):

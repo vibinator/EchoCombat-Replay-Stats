@@ -4672,11 +4672,17 @@ button.small {
 /* a person found by name: the matches open below the box */
 .person-picker {
   display: flex;
-  flex: 1 1 220px;
+  flex: 0 0 auto; /* never grows: in a column box (a card, the permissions box) growing meant tall empty gaps */
   flex-wrap: wrap;
   align-items: center;
   gap: 4px 8px;
   min-width: 0;
+}
+.permission-card .person-picker {
+  margin-top: auto; /* at the bottom of every card of a row */
+}
+.permission-card .person-picker input {
+  flex: 1 1 100%;
 }
 .person-picker input {
   flex: 1 1 160px;

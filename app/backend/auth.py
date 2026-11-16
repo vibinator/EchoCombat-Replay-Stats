@@ -204,6 +204,18 @@ def user_name(settings: Settings, user_id: str) -> str:
         return "?"
 
 
+def user_names(settings: Settings, user_ids: list[str]) -> dict[str, str]:
+    """Display names of several Discord users. The ones not remembered yet are asked side by side (the Cloud
+    permissions box took 7 s with eight people asked one after another, user 2026-11-16)."""
+    wanted = list(dict.fromkeys(i.strip() for i in user_ids))
+    missing = [i for i in wanted if i not in _names]
+    if len(missing) > 1:
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=min(len(missing), 8), thread_name_prefix="discord-names") as pool:
+            list(pool.map(lambda i: user_name(settings, i), missing))
+    return {i: user_name(settings, i) for i in wanted}
+
+
 AVATAR_CHECK_S = 24 * 3600  # a changed Discord avatar shows within a day (at once when the player saves their profile)
 AVATAR_MAX_PER_MIN = 20  # at most this many /users/{id} requests per minute for all visitors together (Discord allows far more)
 AVATAR_FILE = "discord-avatars.json"  # in the data folder: the answers survive restarts and updates (user, 2026-11-10)
@@ -466,7 +478,8 @@ def viewer(request: Request) -> dict | None:
 
 def allowed(settings: Settings, db, user_id: str, kind: str, roles: Callable[[], frozenset[str]]) -> bool:
     """Whether a person has permission `kind` ("admin" / "console" / "preview" / "cloud_view" / "cloud_edit" /
-    "cloud_admin"; Cloud admin includes Cloud edit and console users have it): by
+    "cloud_admin"; Cloud admin includes Cloud edit. The Cloud is separate from the Console: a console user has no
+    Cloud permission unless given one): by
     their user id or one of their Discord roles (Permissions page). ECHOVR_DISCORD_PREVIEW_ROLES ids (YAML) always give
     the console. Admins and console users also get the preview; console users get Cloud edit, and Cloud edit includes
     Cloud view. `roles` is only called when an id does not settle it."""
@@ -474,11 +487,10 @@ def allowed(settings: Settings, db, user_id: str, kind: str, roles: Callable[[],
         return True
     if kind == "cloud_edit" and allowed(settings, db, user_id, "cloud_admin", roles):
         return True
-    if kind == "cloud_admin" and allowed(settings, db, user_id, "console", roles):
-        return True
     if kind == "preview" and (allowed(settings, db, user_id, "admin", roles) or allowed(settings, db, user_id, "console", roles)):
         return True
-    ids = set(settings.discord_preview_roles) if kind == "console" else set()
+    # the YAML ids are the owner's: they give the Console and Cloud admin, so neither can be locked out of
+    ids = set(settings.discord_preview_roles) if kind in ("console", "cloud_admin") else set()
     if user_id in ids | set(discord_roles(db, f"{kind}_user")):
         return True
     role_ids = ids | set(discord_roles(db, kind))

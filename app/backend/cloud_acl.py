@@ -12,7 +12,9 @@ A rule belongs to one path and has two parts:
 
 Three levels (user, 2026-11-16): "view" = download; "edit" = also upload, new folder, rename, delete; "admin" = also
 sets the permissions of the item and of everything inside it (and sees who has what there). Admin on the whole cloud
-is the Cloud admin permission (Permissions page); console users have it.
+is the Cloud admin permission, set like Cloud view and Cloud edit on the Cloud page by Cloud admins. The Cloud is
+separate from the Console: a console user has no Cloud permission unless given one. The owner's ids in the YAML
+(ECHOVR_DISCORD_PREVIEW_ROLES) are always Cloud admin, so the cloud cannot be locked.
 
 A person's level on a path: start with their whole-Cloud level, then walk down from the top folder; each rule on the
 way either adds its grant (the higher level wins) or, when private, replaces the level with its grant. A rule deeper
@@ -171,8 +173,10 @@ def access(request: Request, fresh: bool = False) -> Access | None:
 
 def _build(settings, db, user_id: str, roles: Callable[[], frozenset[str]], rules: dict[str, dict]) -> Access:
     from . import auth
-    console = auth.allowed(settings, db, user_id, "console", roles)
-    base = ("admin" if console or auth.allowed(settings, db, user_id, "cloud_admin", roles)
+    # Access.console: admin of the whole cloud (Cloud admin). The name is from when console users were that; the
+    # Cloud is separate from the Console now (user, 2026-11-16) and a console user gets nothing here by being one
+    console = auth.allowed(settings, db, user_id, "cloud_admin", roles)
+    base = ("admin" if console
             else "edit" if auth.allowed(settings, db, user_id, "cloud_edit", roles)
             else "view" if auth.allowed(settings, db, user_id, "cloud_view", roles) else None)
     return Access(user_id, base, console, rules, roles)
@@ -196,7 +200,7 @@ def chain(rules: dict[str, dict], rel: str, itself: bool = True) -> list[dict]:
 
 def effective(settings, db, rel: str, rules: dict[str, dict]) -> list[dict]:
     """Who ends up with what on this item: every role / person with a whole-Cloud permission or named in a rule on the
-    way to it, with their final level (None = no access). Console users are not listed: they are always admin."""
+    way to it, with their final level (None = no access)."""
     from .admin_actions import discord_roles
     people: dict[tuple[str, str], None] = {}
     for rule in chain(rules, rel):
@@ -207,11 +211,16 @@ def effective(settings, db, rel: str, rules: dict[str, dict]) -> list[dict]:
             people[("role", i)] = None
         for i in discord_roles(db, f"{kind}_user"):
             people[("user", i)] = None
+    users = [i for kind, i in people if kind == "user"]
+    if len(users) > 1:  # each person's roles are asked from Discord: side by side, not one after another
+        from concurrent.futures import ThreadPoolExecutor
+
+        from . import auth
+        with ThreadPoolExecutor(max_workers=min(len(users), 8), thread_name_prefix="discord-roles") as pool:
+            list(pool.map(lambda i: auth.member_roles(settings, i), users))
     out = []
     for kind, discord_id in people:
-        acl = access_as(settings, db, kind, discord_id, rules)
-        if not acl.console:
-            out.append({"type": kind, "id": discord_id, "level": acl.level(rel)})
+        out.append({"type": kind, "id": discord_id, "level": access_as(settings, db, kind, discord_id, rules).level(rel)})
     out.sort(key=lambda p: -RANK[p["level"]])
     return out
 

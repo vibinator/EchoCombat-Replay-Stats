@@ -6,7 +6,7 @@ import { LocalTime, Status, TableWrap } from "./common";
 
 const iso = (unix: number) => new Date(unix * 1000).toISOString();
 
-/** Console > Cloud > Quarantine: uploads a virus scanner flagged, and how the scanners are doing (user, 2026-11-10). */
+/** Cloud page > Quarantine (Cloud admins): uploads a virus scanner flagged, and how the scanners are doing (user, 2026-11-10). */
 export function CloudQuarantine() {
   const [data, setData] = useState<Q | null>(null);
   const [error, setError] = useState<string | null>(null);

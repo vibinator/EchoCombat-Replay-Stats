@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { Navigate } from "react-router";
 import { changePermission, getPermissions, type DiscordEntry, type Permission, type PermissionState } from "../api";
-import { CloudRulesOverview } from "../components/CloudPermissions";
 import { Status } from "../components/common";
 
 const PERMISSIONS: { key: Permission; title: string; gives: string }[] = [
@@ -16,24 +15,6 @@ const PERMISSIONS: { key: Permission; title: string; gives: string }[] = [
     gives: "The Console and this Permissions page: every admin.bat command on the website. Includes the Preview.",
   },
   { key: "preview", title: "Preview", gives: "Achievements and challenges before the launch date." },
-  {
-    key: "cloud_view",
-    title: "Cloud view",
-    gives:
-      "The Cloud page: see and download the files of the whole cloud. To give View, Edit or Admin on one folder only, or make a folder private, use Permissions beside it on the Cloud page.",
-  },
-  {
-    key: "cloud_edit",
-    title: "Cloud edit",
-    gives:
-      "The Cloud page with changes, in the whole cloud: upload, new folder, rename and delete. Includes Cloud view. Console users have it too.",
-  },
-  {
-    key: "cloud_admin",
-    title: "Cloud admin",
-    gives:
-      "Controls who gets into which folder of the whole cloud (Permissions on the Cloud page), and always sees everything in it. Includes Cloud edit. Console users have it too; the recycle bin, quarantine and audit log stay with them.",
-  },
 ];
 
 /** Old /permissions address: the panel now lives on the Console page, which does the access check. */
@@ -69,7 +50,8 @@ export function Permissions() {
       <h2>Permissions</h2>
       <p className="muted">
         Give or take away access by Discord role (everyone with the role) or by a person's Discord user id. Changes apply straight away;
-        someone who is logged in sees a new tab within 5 minutes, or at once after logging out and in again.
+        someone who is logged in sees a new tab within 5 minutes, or at once after logging out and in again. The Cloud has its own
+        permissions, set on the Cloud page by Cloud admins (All permissions).
       </p>
       {error && <p className="error">{error}</p>}
       {!state ? (
@@ -84,7 +66,6 @@ export function Permissions() {
               <PermissionCard key={p.key} permission={p.key} title={p.title} gives={p.gives} state={state} busy={busy} change={change} />
             ))}
           </div>
-          <CloudRulesOverview />
         </>
       )}
     </section>

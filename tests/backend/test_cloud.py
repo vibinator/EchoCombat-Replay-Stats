@@ -10,13 +10,14 @@ from test_discord_preview import CONSOLE, DB_MEMBER, DB_ROLE, MEMBER, NO_ROLE, d
 from backend import cloud
 
 PERMS = "/api/admin/permissions"
+ACCESS = "/api/cloud/access"  # the whole-cloud lists: set by Cloud admins on the Cloud page, not in the Console
 VIEWER = "123456789012345670"  # in the fake server with only the Member role
 
 
 def grant(client, permission, type_, id_):
     client.cookies.clear()
-    login(client, MEMBER)  # console via the YAML role
-    assert client.post(PERMS, json={"permission": permission, "type": type_, "id": id_}, headers=CONSOLE).status_code == 200
+    login(client, MEMBER)  # the owner (YAML role): console and Cloud admin
+    assert client.post(ACCESS, json={"permission": permission, "type": type_, "id": id_}, headers=CONSOLE).status_code == 200
     client.cookies.clear()
 
 
@@ -191,6 +192,7 @@ def test_audit_log(tmp_path, discord):
         assert BAD_NAME.startswith("Names cannot contain")
         got = [(r["who_id"], r["action"], r["path"], r["detail"], r["size"], r["ok"]) for r in reversed(rows)]
         assert got == [
+            (MEMBER, "permissions", "(whole cloud)", f"added cloud view: user {VIEWER}", None, True),
             (MEMBER, "upload", "a.txt", None, 5, True),
             (MEMBER, "upload", "a.txt", "replaced", 11, True),
             (MEMBER, "folder", "Dir", None, None, True),
@@ -562,9 +564,10 @@ def test_console_overview_view_as_and_who_gets_in(tmp_path, discord):
         assert rules[0]["grants"][0]["id"] == VIEWER and rules[0]["updated_at"]
 
         # who ends up with what: the role with Cloud edit loses the private folder, the listed person keeps view
-        got = {(p["type"], p["id"]): p["level"] for p in client.get(RULES, params={"path": "Secret"}).json()["effective"]}
+        got = {(p["type"], p["id"]): p["level"] for p in client.get(f"{RULES}/effective", params={"path": "Secret"}).json()["effective"]}
         assert got == {("user", VIEWER): "view", ("role", DB_ROLE): None}
-        got = {(p["type"], p["id"]): p["level"] for p in client.get(RULES, params={"path": "Team/Deep"}).json()["effective"]}
+        assert "effective" not in client.get(RULES, params={"path": "Secret"}).json()  # the box itself does not wait for it
+        got = {(p["type"], p["id"]): p["level"] for p in client.get(f"{RULES}/effective", params={"path": "Team/Deep"}).json()["effective"]}
         assert got == {("user", NO_ROLE): "edit", ("role", DB_ROLE): "edit", ("user", VIEWER): "view"}
 
         # the folders above pass their state down to the rows (console users only)
@@ -678,8 +681,9 @@ def test_admin_level_controls_permissions_where_it_is_given(tmp_path, discord):
         assert top["can_manage"] and [e["name"] for e in top["entries"]] == ["Secret", "Team", "open.txt"]
         assert client.post(RULES, json={"path": "Secret", "private": True}, headers=CONSOLE).status_code == 200
         assert names(client, "Secret") == ["key.txt"] and names(client, "Team/Deep") == ["inner.txt"]
-        assert client.get("/api/cloud/trash").status_code == 403  # the recycle bin stays with console users
-        got = {(p["type"], p["id"]): p["level"] for p in client.get(RULES, params={"path": "Team"}).json()["effective"]}
+        assert client.get("/api/cloud/trash").status_code == 200  # the recycle bin and the log are the Cloud admins'
+        assert client.get("/api/cloud/log").status_code == 200
+        got = {(p["type"], p["id"]): p["level"] for p in client.get(f"{RULES}/effective", params={"path": "Team"}).json()["effective"]}
         assert got == {("user", NO_ROLE): "admin", ("role", DB_ROLE): "admin", ("user", VIEWER): "admin"}
 
 
@@ -795,3 +799,51 @@ def test_names_that_differ_only_by_case_are_refused(tmp_path, discord):
         client.cookies.clear()
         login(client, MEMBER)
         assert client.get(RULES, params={"path": "Secret"}).json()["private"] is True
+
+
+def test_the_cloud_is_separate_from_the_console(tmp_path, discord):
+    """User, 2026-11-16: a console user has no Cloud permission by being one, and Cloud admins run the cloud
+    (who gets in, the recycle bin, the quarantine, the audit log) without the Console."""
+    with app_client(settings(tmp_path)) as client:
+        tree(client)
+        login(client, MEMBER)  # the owner: console user by the YAML, which also makes them Cloud admin
+        assert client.post(PERMS, json={"permission": "console", "type": "user", "id": NO_ROLE}, headers=CONSOLE).status_code == 200
+        r = client.post(PERMS, json={"permission": "cloud_view", "type": "user", "id": NO_ROLE}, headers=CONSOLE)
+        assert r.json()["error_code"] == "cloud_page"  # not from the Console
+        assert set(client.get(PERMS).json()["permissions"]) == {"admin", "console", "preview"}
+        assert client.post(ACCESS, json={"permission": "cloud_admin", "type": "user", "id": VIEWER}, headers=CONSOLE).status_code == 200
+        state = client.get(ACCESS).json()
+        assert set(state["permissions"]) == {"cloud_view", "cloud_edit", "cloud_admin"}
+        assert [u["id"] for u in state["permissions"]["cloud_admin"]["users"]] == [VIEWER] and state["fixed"][0]["id"]
+        assert client.post(ACCESS, json={"permission": "console", "type": "user", "id": VIEWER}, headers=CONSOLE).status_code == 400
+
+        client.cookies.clear()
+        login(client, NO_ROLE)  # console user, no Cloud permission
+        me = client.get("/api/auth/me").json()["user"]
+        assert me["console"] is True and me["cloud"] is None
+        assert client.get("/api/cloud/list").status_code == 403
+        for url in ("/api/cloud/trash", "/api/cloud/quarantine", "/api/cloud/log", ACCESS, f"{RULES}/all"):
+            assert client.get(url).status_code == 403
+        assert client.post(ACCESS, json={"permission": "cloud_admin", "type": "user", "id": NO_ROLE}, headers=CONSOLE).status_code == 403
+
+        client.cookies.clear()
+        login(client, VIEWER)  # Cloud admin, not a console user
+        me = client.get("/api/auth/me").json()["user"]
+        assert me["console"] is False and me["cloud"] == "admin"
+        assert client.get(PERMS).status_code == 403
+        assert client.get("/api/cloud/list").json()["owner"] is True
+        for url in ("/api/cloud/trash", "/api/cloud/quarantine", "/api/cloud/log", ACCESS, f"{RULES}/all"):
+            assert client.get(url).status_code == 200
+        assert client.post(ACCESS, json={"permission": "cloud_edit", "type": "role", "id": DB_ROLE}, headers=CONSOLE).status_code == 200
+        # not their own Cloud admin by accident, and never the owner's
+        r = client.post(ACCESS, json={"permission": "cloud_admin", "type": "user", "id": VIEWER, "remove": True}, headers=CONSOLE)
+        assert r.json()["error_code"] == "locks_you_out"
+        assert client.get("/api/cloud/list").status_code == 200
+        fixed = client.get(ACCESS).json()["fixed"][0]
+        r = client.post(ACCESS, json={"permission": "cloud_admin", "type": fixed["type"], "id": fixed["id"], "remove": True}, headers=CONSOLE)
+        assert r.json()["error_code"] == "fixed"
+        changes = [r["detail"] for r in client.get("/api/cloud/log", params={"q": "whole cloud"}).json() if r["ok"]]
+        assert changes == [f"added cloud edit: role {DB_ROLE}", f"added cloud admin: user {VIEWER}"]
+        client.cookies.clear()
+        login(client, DB_MEMBER)
+        assert client.get("/api/cloud/list").json()["can_edit"] is True and client.get("/api/cloud/trash").status_code == 403

@@ -23,7 +23,10 @@ MEGA_WINDOW_KEYS = ("mega_start", "mega_end")  # the Mega Prizes' own period (us
 # role ids, "<permission>_user" = people's user ids. preview = achievements before the launch, admin = the Admin
 # tab, console = the Console and Permissions pages, cloud_view / cloud_edit = Open Cloud (cloud.py: download / also
 # change files). ECHOVR_DISCORD_PREVIEW_ROLES (YAML) adds fixed console ids.
-PERMISSIONS = ("admin", "console", "preview", "cloud_view", "cloud_edit", "cloud_admin")
+SITE_PERMISSIONS = ("admin", "console", "preview")  # set by console users (Console > Permissions)
+CLOUD_PERMISSIONS = ("cloud_view", "cloud_edit", "cloud_admin")  # set by Cloud admins on the Cloud page: the Cloud is
+# separate from the Console (user, 2026-11-16)
+PERMISSIONS = SITE_PERMISSIONS + CLOUD_PERMISSIONS
 ROLE_KEYS = {"preview": "discord_preview_roles", "admin": "discord_admin_roles", "admin_user": "discord_admin_users",
              "preview_user": "discord_preview_users", "console": "discord_console_roles",
              "console_user": "discord_console_users", "cloud_view": "discord_cloud_view_roles",

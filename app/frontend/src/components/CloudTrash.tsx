@@ -5,7 +5,7 @@ import { LocalTime, Status, TableWrap } from "./common";
 
 const iso = (unix: number) => new Date(unix * 1000).toISOString();
 
-/** Console > Cloud > Recycle bin: what people deleted from the cloud, restored with one click (user, 2026-11-10). */
+/** Cloud page > Recycle bin (Cloud admins): what people deleted from the cloud, restored with one click (user, 2026-11-10). */
 export function CloudTrash() {
   const [data, setData] = useState<{ items: CloudTrashItem[]; bytes: number; days: number } | null>(null);
   const [error, setError] = useState<string | null>(null);

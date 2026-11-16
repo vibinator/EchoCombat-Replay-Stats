@@ -116,7 +116,7 @@ def test_a_virus_goes_to_the_quarantine_console_users_decide(tmp_path, discord, 
         log = client.get("/api/cloud/log").json()
         virus = next(r for r in log if r["action"] == "virus")
         assert virus["ok"] is False and virus["detail"] == "Test.Fake.Virus" and virus["who_id"] == DB_MEMBER
-        assert any(r["action"] == "denied" and "console only" in r["detail"] for r in log)  # the editor's try is logged
+        assert any(r["action"] == "denied" and "Cloud admins only" in r["detail"] for r in log)  # the editor's try is logged
 
         # a false alarm: released into the cloud by a console user (logged)
         assert client.post("/api/cloud/quarantine/release", json={"id": item["id"]}, headers=CONSOLE).json()["path"] == "game.zip"

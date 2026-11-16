@@ -18,6 +18,8 @@ from starlette.concurrency import run_in_threadpool
 from .. import antivirus, auth, cloud, cloud_acl, guard
 from ..cloud import CloudError
 from ..errors import ApiError
+from ..admin_actions import CLOUD_PERMISSIONS
+from . import permissions
 from .permissions import _server_roles
 
 router = APIRouter(prefix="/api/cloud", tags=["cloud"])
@@ -81,7 +83,8 @@ def listing(request: Request, path: str = "", as_type: str = "", as_id: str = ""
             raise ApiError(400, "bad_id", "Choose a role or a person to view as")
         with request.app.state.sessionmaker() as db:
             acl = cloud_acl.access_as(settings, db, as_type, as_id, acl.rules)
-        viewing_as = {"type": as_type, "id": as_id, "name": _names(settings)(as_type, as_id)}
+        shown = _names(settings)(as_type, as_id)
+        viewing_as = {"type": as_type, "id": as_id, "name": as_id if shown == "?" else shown}
     try:
         rel = cloud_acl.clean(path)
         if not acl.visible(rel):
@@ -114,8 +117,10 @@ def listing(request: Request, path: str = "", as_type: str = "", as_id: str = ""
         entries.append(e)
     # limited: only what is shared with them shows here (they have no access to the folder itself)
     # manages: admin somewhere in the cloud (the page offers the list of all permissions they control)
+    # owner: Cloud admin of the whole cloud (the whole-cloud lists, recycle bin, quarantine, audit log)
     return result | {"entries": entries, "can_edit": cloud_acl.edits(level), "can_manage": admin,
-                     "manages": not viewing_as and acl.manages(), "limited": level is None}
+                     "manages": not viewing_as and acl.manages(), "owner": not viewing_as and acl.console,
+                     "limited": level is None}
 
 
 @router.get("/download")
@@ -262,12 +267,14 @@ def delete(request: Request, body: Target):
 # --- recycle bin: console users (user, 2026-11-10: a Delete can be undone easily in the Console) -----------------------
 
 def _require_console(request: Request, action: str, fresh: bool = False) -> dict:
+    """A Cloud admin of the whole cloud (user, 2026-11-16: the recycle bin, quarantine and audit log belong to Cloud
+    admins, not to console users; the name is from before). An admin of single folders is not enough."""
     user = auth.viewer(request)
     if not user:
         raise ApiError(401, "login_required", "Log in with Discord")
-    if not auth.has_console(request, fresh=fresh):
-        _audit(request, user, "denied", "", False, f"{action}: console only")
-        raise ApiError(403, "console_only", "Only console users can use the cloud recycle bin")
+    if not cloud_acl.access(request, fresh).console:
+        _audit(request, user, "denied", "", False, f"{action}: Cloud admins only")
+        raise ApiError(403, "admin_only", "Only Cloud admins can do that")
     return user
 
 
@@ -502,20 +509,58 @@ def _rule_state(request: Request, rel: str) -> dict:
         raise CloudError(404, "not_found", "Not found")
     if not target.is_dir():  # user, 2026-11-16: permissions are set on folders only; a file follows its folder
         raise CloudError(400, "folders_only", "Permissions are set on folders: put the file in a folder and set that folder's permissions")
-    name = _names(settings)
-
-    def named(grants: list[dict]) -> list[dict]:
-        return [g | {"name": name(g["type"], g["id"])} for g in grants]
-
     with request.app.state.sessionmaker() as db:
         rules = cloud_acl.load(db)
-        effective = named(cloud_acl.effective(settings, db, rel, rules))
     above = cloud_acl.chain(rules, rel, itself=False)
     own = rules.get(rel.casefold(), {"private": False, "grants": []})
+    named = _named(settings, [own] + above)
     return {"path": rel, "dir": target.is_dir(), "private": own["private"], "grants": named(own["grants"]),
             "above": [{"path": r["path"], "private": r["private"], "grants": named(r["grants"])} for r in above],
-            "effective": effective,  # who ends up with what, all rules and whole-Cloud permissions together
             "server_roles": _server_roles(settings)}
+
+
+def _named(settings, rules: list[dict]):
+    """grants -> the same with names. The people's names not remembered yet are asked from Discord side by side."""
+    name = _names(settings)
+    auth.user_names(settings, [g["id"] for r in rules for g in r["grants"] if g["type"] == "user"])
+    return lambda grants: [g | {"name": name(g["type"], g["id"])} for g in grants]
+
+
+@router.get("/permissions/effective")
+def who_gets_in(request: Request, path: str):
+    """Who ends up with what in one folder, all rules and whole-cloud permissions together ("Check: who gets in").
+    Its own request: it asks Discord for every listed person's roles, which the permissions box must not wait for."""
+    try:
+        _admin(request, "permissions", path)
+        rel = cloud_acl.clean(path)
+    except CloudError as e:
+        raise ApiError(e.status, e.code, e.message) from None
+    settings = request.app.state.settings
+    with request.app.state.sessionmaker() as db:
+        people = cloud_acl.effective(settings, db, rel, cloud_acl.load(db))
+    return {"effective": _named(settings, [{"grants": people}])(people)}
+
+
+# --- the whole-cloud lists (Cloud view / edit / admin): Cloud admins, on the Cloud page (user, 2026-11-16) ------------
+
+@router.get("/access")
+def whole_cloud_access(request: Request):
+    _require_console(request, "cloud permissions")
+    return permissions.state(request, CLOUD_PERMISSIONS)
+
+
+@router.post("/access")
+def change_whole_cloud_access(request: Request, change: permissions.Change):
+    """One role or person added to / removed from Cloud view, Cloud edit or Cloud admin."""
+    user = _require_console(request, "cloud permissions change", fresh=True)
+    permissions.apply(request, user, change, CLOUD_PERMISSIONS, "cloud_admin")
+    if change.remove and change.permission == "cloud_admin" and not cloud_acl.access(request).console:
+        # they took their own Cloud admin away: put it back and say so
+        permissions.apply(request, user, change.model_copy(update={"remove": False}), CLOUD_PERMISSIONS, "cloud_admin")
+        raise ApiError(400, "locks_you_out", "That would take your own Cloud admin away. Another Cloud admin can remove you.")
+    _audit(request, user, "permissions", "(whole cloud)",
+           detail=f"{'removed' if change.remove else 'added'} {change.permission.replace('_', ' ')}: {change.type} {change.id.strip()}")
+    return permissions.state(request, CLOUD_PERMISSIONS)
 
 
 @router.get("/permissions/all")
@@ -525,10 +570,10 @@ def all_permissions(request: Request):
     _, acl = _admin(request, "permissions")
     settings = request.app.state.settings
     name = _names(settings)
+    mine = [r for r in sorted(acl.rules.values(), key=lambda r: r["path"].casefold()) if acl.level(r["path"]) == "admin"]
+    _named(settings, mine)  # the people's names, asked side by side
     out = []
-    for rule in sorted(acl.rules.values(), key=lambda r: r["path"].casefold()):
-        if acl.level(rule["path"]) != "admin":
-            continue
+    for rule in mine:
         try:
             target = cloud.resolve(settings, rule["path"])
             exists, is_dir = target.exists(), target.is_dir()
@@ -651,6 +696,7 @@ def set_item_permissions(request: Request, body: Rule):
 def audit_log(request: Request, q: str = Query("", max_length=100), limit: int = Query(100, ge=1, le=500),
               before: int | None = Query(None, ge=1)):
     """The cloud audit log, newest first (`before`: the id to continue from). Console users only."""
-    if not auth.has_console(request):
-        raise ApiError(403, "console_only", "Only console users can read the cloud audit log")
+    acl = cloud_acl.access(request)
+    if not acl or not acl.console:
+        raise ApiError(403, "admin_only", "Only Cloud admins can read the cloud audit log")
     return cloud.log_rows(request.app.state.sessionmaker, q.strip(), before, limit)

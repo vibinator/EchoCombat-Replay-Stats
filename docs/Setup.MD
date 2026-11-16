@@ -222,8 +222,9 @@ Giving or removing the role in Discord takes effect within 5 minutes. A login la
 
 ### Open Cloud (file storage, D60)
 The **Cloud** tab (`https://echocombat.com/cloud`) shows only to people logged in with Discord who have a Cloud
-permission. Give it on Console > Permissions: **Cloud view** = see and download files, **Cloud edit** = also upload,
-make folders, rename and delete. Console users have both. **Cloud admin** = also decides who gets into which folder. These cover the whole cloud. For one folder (D61), an
+permission. Cloud admins give it on the Cloud page (All permissions): **Cloud view** = see and download files,
+**Cloud edit** = also upload, make folders, rename, move and delete. The Cloud is separate from the Console: a
+console user gets in only when listed there. The ids in `ECHOVR_DISCORD_PREVIEW_ROLES` are always Cloud admin. **Cloud admin** = also decides who gets into which folder. These cover the whole cloud. For one folder (D61), an
 admin presses **Permissions** beside it on the Cloud page: click a Discord role or type a person's name to add them
 (View, Edit or Admin; they get in even without a Cloud permission and see only what is shared with them), and tick
 **Private** to hide the folder from everyone not listed. A folder's permissions apply to everything inside it; files
@@ -231,12 +232,12 @@ have none of their own and follow their folder (drag a file onto a folder to mov
 folder with its own permissions. Files are kept on the NAS in the data folder
 (`/share/Container/echovr-replay-stats/data/cloud`), so they survive app updates; File Station can also reach them
 there. Space: `ECHOVR_CLOUD_QUOTA_GB` (250 GB by default, for everyone together). Big files are sent in 16 MB pieces, so Cloudflare's
-100 MB limit does not apply. Every upload, download, change and refused attempt is in Console > Audit log >
-Cloud audit log (who, when, file, size, IP; console users only) and in the container log.
+100 MB limit does not apply. Every upload, download, change and refused attempt is in the Cloud page > Audit log
+(who, when, file, size, IP; Cloud admins only) and in the container log.
 Virus scanning: the `clamav` service in docker-compose.yml (about 1.2-1.6 GB RAM; its virus list is kept in
 `/share/Container/echovr-replay-stats/clamav`, and it reads the app's data folder read-only at the same path `/data`).
 Uploads up to 100 MB wait as "Checking for viruses" until ClamAV calls them clean; a VirusTotal fingerprint check follows in
-the background when `ECHOVR_VIRUSTOTAL_KEY` is set. Finds go to Console > Cloud > Quarantine (delete, or release a false
+the background when `ECHOVR_VIRUSTOTAL_KEY` is set. Finds go to Cloud page > Quarantine (delete, or release a false
 alarm). After setting it up, press **Scan all existing files** there once. Check it works: upload the standard EICAR test
 file (eicar.org); it must end up in the quarantine.
 

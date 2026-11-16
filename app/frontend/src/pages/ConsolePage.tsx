@@ -12,9 +12,6 @@ import { dateTime, duration, int, num, pct, playerPath } from "../format";
 import { Status, TableWrap } from "../components/common";
 import { EmptyState } from "../components/ui";
 import { Permissions } from "./PermissionsPage";
-import { CloudAuditLog } from "../components/CloudAuditLog";
-import { CloudTrash } from "../components/CloudTrash";
-import { CloudQuarantine } from "../components/CloudQuarantine";
 import { GENERIC_ICON, IconEditor, IMG } from "../components/IconEditor";
 import { useApi, useWhileVisible } from "../useApi";
 import { usePageTitle } from "../usePageTitle";
@@ -35,7 +32,7 @@ interface Command {
   /** asked before running, like the console's "[y/N]" */
   confirm?: (values: Record<string, string>) => string | null;
   /** a page of its own instead of a command form */
-  view?: "achievements" | "winners" | "dashboard" | "players" | "hidden-stats" | "log" | "cloud-log" | "cloud-trash" | "cloud-quarantine" | "processing" | "permissions";
+  view?: "achievements" | "winners" | "dashboard" | "players" | "hidden-stats" | "log" | "processing" | "permissions";
   /** big or hard to undo: shown apart, in the tab's danger area */
   danger?: boolean;
 }
@@ -53,9 +50,6 @@ const GROUPS: { title: string; commands: Command[] }[] = [
     commands: [
       { name: "dashboard", label: "Dashboard", help: "", view: "dashboard" },
       { name: "log", label: "Audit log", help: "", view: "log" },
-      { name: "cloud-log", label: "Cloud audit log", help: "", view: "cloud-log" },
-      { name: "cloud-trash", label: "Recycle bin", help: "", view: "cloud-trash" },
-      { name: "cloud-quarantine", label: "Quarantine", help: "", view: "cloud-quarantine" },
       { name: "hidden-stats", label: "Hide stats from players", help: "", view: "hidden-stats" },
       { name: "permissions", label: "Permissions", help: "", view: "permissions" },
     ],
@@ -362,8 +356,9 @@ const TABS: { id: string; label: string; names: string[]; opens?: false }[] = [
   },
   // starts on the dates: the winners report reads the whole archive, which takes up to half a minute during a re-read
   { id: "achievements", label: "Achievements", names: ["challenge", "mega-period", "mega-prizes", "hidden-stats", "export-achievements"] },
-  { id: "log", label: "Audit log", names: ["log", "cloud-log"] },
-  { id: "cloud", label: "Cloud", names: ["cloud-trash", "cloud-quarantine", "cloud-log"] },
+  { id: "log", label: "Audit log", names: ["log"] },
+  // the Cloud's recycle bin, quarantine and audit log are on the Cloud page, for Cloud admins (user, 2026-11-16: the
+  // Cloud is separate from the Console)
   { id: "permissions", label: "Permissions", names: ["permissions"] },
 ];
 
@@ -606,12 +601,6 @@ function Console() {
             <HiddenStats api={api} />
           ) : selected.view === "log" ? (
             <AuditLog api={api} />
-          ) : selected.view === "cloud-log" ? (
-            <CloudAuditLog />
-          ) : selected.view === "cloud-trash" ? (
-            <CloudTrash />
-          ) : selected.view === "cloud-quarantine" ? (
-            <CloudQuarantine />
           ) : selected.view === "achievements" ? (
             <AchievementExport />
           ) : selected.view === "winners" ? (
