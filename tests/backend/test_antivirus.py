@@ -10,8 +10,8 @@ import time
 
 import httpx
 import pytest
-from app_helpers import app_client  # noqa
-from test_cloud import grant, put
+
+from test_cloud import app_client, grant, put
 from test_discord_preview import CONSOLE, DB_MEMBER, DB_ROLE, MEMBER, discord, login, settings  # noqa: F401 (fixture)
 
 from backend import antivirus

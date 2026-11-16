@@ -10,6 +10,7 @@ import dataclasses
 from app_helpers import app_client as _app_client
 from test_discord_preview import CONSOLE, DB_MEMBER, DB_ROLE, MEMBER, NO_ROLE, discord, login, settings  # noqa: F401 (fixture)
 
+from backend import admin_actions as actions
 from backend import cloud
 
 
@@ -859,3 +860,19 @@ def test_the_cloud_is_separate_from_the_console(tmp_path, discord):
         client.cookies.clear()
         login(client, DB_MEMBER)
         assert client.get("/api/cloud/list").json()["can_edit"] is True and client.get("/api/cloud/trash").status_code == 403
+
+
+def test_cloud_admin_comes_from_admin_or_its_own_yaml_ids_not_the_preview_roles(tmp_path, discord):
+    from backend import auth
+
+    config = settings(tmp_path)  # MEMBER is in ECHOVR_DISCORD_PREVIEW_ROLES only
+    with _app_client(config) as client:
+        with client.app.state.sessionmaker() as db:
+            assert not auth.allowed(config, db, MEMBER, "cloud_admin", lambda: frozenset())
+    owner = dataclasses.replace(config, discord_cloud_admins=(NO_ROLE,))
+    with _app_client(owner) as client:
+        with client.app.state.sessionmaker() as db:
+            assert auth.allowed(owner, db, NO_ROLE, "cloud_admin", lambda: frozenset())
+            assert not auth.allowed(owner, db, VIEWER, "cloud_admin", lambda: frozenset())
+            actions.add_discord_role(db, "admin_user", VIEWER)  # the Admin permission includes Cloud admin
+            assert auth.allowed(owner, db, VIEWER, "cloud_admin", lambda: frozenset())

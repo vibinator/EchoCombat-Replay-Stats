@@ -7,14 +7,14 @@ const PERMISSIONS: { key: Permission; title: string; gives: string }[] = [
   {
     key: "admin",
     title: "Admin",
-    gives: "The Status page: live progress of replay processing. Includes the Preview.",
+    gives: "The Status page (live progress of replay processing). Includes the Preview and Cloud admin.",
   },
   {
     key: "console",
     title: "Console",
-    gives: "The Console and this Permissions page: every admin.bat command on the website. Includes the Preview.",
+    gives: "The Console, with this Permissions tab: every admin.bat command on the website. Includes the Preview. Does not include the Cloud.",
   },
-  { key: "preview", title: "Preview", gives: "Achievements and challenges before the launch date." },
+  { key: "preview", title: "Preview", gives: "Echo Combat achievements, challenges and Mega Prizes before the launch date." },
 ];
 
 /** Old /permissions address: the panel now lives on the Console page, which does the access check. */
@@ -49,9 +49,10 @@ export function Permissions() {
     <section id="permissions">
       <h2>Permissions</h2>
       <p className="muted">
-        Give or take away access by Discord role (everyone with the role) or by a person's Discord user id. Changes apply straight away;
-        someone who is logged in sees a new tab within 5 minutes, or at once after logging out and in again. The Cloud has its own
-        permissions, set on the Cloud page by Cloud admins (All permissions).
+        Give or take away a permission for a Discord role (everyone with that role) or for one person by their Discord user id. A change
+        applies straight away; people who are logged in see it within 5 minutes, or at once after logging out and in again. The Cloud
+        has its own permissions (View, Edit and Admin), which Cloud admins set on the Cloud page under All permissions. The Admin
+        permission above includes Cloud admin.
       </p>
       {error && <p className="error">{error}</p>}
       {!state ? (
@@ -95,7 +96,7 @@ function PermissionCard({
 
   function remove(entry: DiscordEntry, kind: "role" | "user") {
     const what = kind === "role" ? `everyone with the role ${entry.name}` : entry.name === "?" ? entry.id : entry.name;
-    if (window.confirm(`Take ${title} away from ${what}?`)) change({ permission, type: kind, id: entry.id, remove: true });
+    if (window.confirm(`Take the ${title} permission away from ${what}?`)) change({ permission, type: kind, id: entry.id, remove: true });
   }
 
   return (
@@ -108,7 +109,7 @@ function PermissionCard({
             <span className="tag">{e.type === "role" ? "Role" : "User"}</span>
             <span className="permission-name">{e.name}</span>
             <code>{e.id}</code>
-            <span className="tag" title="Set in ECHOVR_DISCORD_PREVIEW_ROLES (the YAML); change it there">
+            <span className="tag" title="Set in ECHOVR_DISCORD_PREVIEW_ROLES in the YAML file: it cannot be removed here, change it there">
               YAML, fixed
             </span>
           </li>
@@ -143,7 +144,7 @@ function PermissionCard({
         }}
       >
         <select
-          aria-label="Add a role or a user"
+          aria-label="Add a role or a person"
           value={type}
           onChange={(e) => {
             setType(e.target.value as "role" | "user");
@@ -151,7 +152,7 @@ function PermissionCard({
           }}
         >
           <option value="role">Role</option>
-          <option value="user">User id</option>
+          <option value="user">User</option>
         </select>
         {type === "role" && state.server_roles ? (
           <select aria-label="Role" value={id} onChange={(e) => setId(e.target.value)}>
@@ -165,7 +166,7 @@ function PermissionCard({
         ) : (
           <input
             aria-label={type === "role" ? "Role id" : "Discord user id"}
-            placeholder={type === "role" ? "Role id" : "Right-click the person > Copy User ID"}
+            placeholder={type === "role" ? "Role id" : "Discord user id (right-click the person > Copy User ID)"}
             value={id}
             onChange={(e) => setId(e.target.value)}
           />
