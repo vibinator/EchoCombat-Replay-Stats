@@ -18,7 +18,7 @@ Working record of what changed in each release, newest first.
 
 ---
 
-## 2026.11.16.1 — 06:42
+## 2026.11.16.2 — 07:15
 
 - **Cloud: permissions per folder, three levels, and moving by drag and drop** (D61). Until now Cloud view / Cloud edit covered the whole cloud.
   - **Three levels:** **View** = download. **Edit** = also upload, new folder, rename, move and delete. **Admin** = also decides who gets into the folder. On the whole cloud these are Cloud view, Cloud edit and the new **Cloud admin** (Console > Permissions); console users have Cloud admin.
@@ -32,6 +32,10 @@ Working record of what changed in each release, newest first.
   - Safety: rename, move and delete need Edit on the item and on everything inside it with its own permissions, so a private folder cannot be removed by deleting the folder around it. An admin cannot take their own Admin away by accident. Permissions follow a rename or move, and come back when a folder is restored from the recycle bin. The recycle bin, quarantine and audit log stay with console users. Every permissions change and move is in the Cloud audit log; refused attempts too.
   - Good to know: someone logged in sees a change within 5 minutes (at once after logging out and in). Names that differ only by upper / lower case share one set of permissions. Moving by drag needs a mouse (not on phones yet).
   - Nothing to do after the deploy: the new table is made by itself, and everything works as before until a permission is set.
+
+## 2026.11.16.1 — 06:42
+
+- **Cloud: first version of folder permissions.** Uploaded while it was still being built (it also allowed permissions on single files and had two levels). Replaced by 2026.11.16.2 the same morning; see there.
 
 ## 2026.11.14.2 — 02:59
 
