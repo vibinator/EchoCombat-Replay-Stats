@@ -47,6 +47,7 @@ def _overview(request: Request, v: visibility.View = visibility.ALL_SHOWN) -> di
         ).all()
         latest = match_cards(db, _latest_matches(db), with_players=True)
         newcomers = _newcomers(db, week)
+        trend = _trend(db)
         globals_ = _global_stats(db)
         if not wl:  # team win rates too (user, 2026-11-02)
             globals_ = visibility.without(globals_, TEAM_WIN_KEYS)
@@ -66,6 +67,7 @@ def _overview(request: Request, v: visibility.View = visibility.ALL_SHOWN) -> di
                           for u, n, g, w in top_week],
         "latest": latest,
         "newcomers": newcomers,
+        "trend": trend,
     }
 
 
@@ -82,7 +84,17 @@ def _newcomers(db, week: str) -> dict:
     last_n = db.scalar(select(func.count()).select_from(Player)
                        .where(main, Player.first_seen_at >= last_week, Player.first_seen_at < week))
     now = datetime.now()
-    since, until = ((now - timedelta(days=d)).isoformat(timespec="seconds") for d in (2 * RETURN_DAYS, RETURN_DAYS))
+    group, returned = _came_back(db, main, now, 0)
+    prev_group, prev_returned = _came_back(db, main, now, RETURN_DAYS)  # the cohort a week earlier, for the trend
+    return {"this_week": this_n or 0, "last_week": last_n or 0,
+            "return_group": group, "returned": returned, "return_rate": ratio(returned, group), "return_days": RETURN_DAYS,
+            "prev_return_rate": ratio(prev_returned, prev_group)}
+
+
+def _came_back(db, main, now: datetime, shift_days: int) -> tuple[int, int]:
+    """Players new 8-14 days ago (shifted back by shift_days) and how many of them played again on a later day within
+    RETURN_DAYS of their first match."""
+    since, until = ((now - timedelta(days=d + shift_days)).isoformat(timespec="seconds") for d in (2 * RETURN_DAYS, RETURN_DAYS))
     cohort = (Player.first_seen_at >= since, Player.first_seen_at < until, main)
     group = db.scalar(select(func.count()).select_from(Player).where(*cohort))
     again = (select(MatchPlayer.player_id).join(Match, Match.id == MatchPlayer.match_id)
@@ -91,8 +103,39 @@ def _newcomers(db, week: str) -> dict:
                     Match.started_at < func.strftime("%Y-%m-%dT%H:%M:%S", Player.first_seen_at, f"+{RETURN_DAYS} days"))
              .exists())
     returned = db.scalar(select(func.count()).select_from(Player).where(*cohort, again))
-    return {"this_week": this_n or 0, "last_week": last_n or 0,
-            "return_group": group or 0, "returned": returned or 0, "return_rate": ratio(returned, group), "return_days": RETURN_DAYS}
+    return group or 0, returned or 0
+
+
+TREND_DAYS = 28  # the home strip's sparklines: matches and new players per day
+
+
+def _trend(db, now: datetime | None = None) -> dict:
+    """The home strip (user, 2026-11-16: a rolling week instead of the calendar week, which restarts every Monday):
+    matches and new players in the last 7 days to the second, the 7 days before for comparison, and per day for the
+    last TREND_DAYS days (recorder-local dates, empty days as 0, today so far last). New players leave merged ids out (D34)."""
+    now = now or datetime.now()
+    main = Player.user_id.not_in(select(PlayerAlias.alias_user_id))
+    week, prev = ((now - timedelta(days=d)).isoformat(timespec="seconds") for d in (7, 14))
+    days = [(now.date() - timedelta(days=n)).isoformat() for n in range(TREND_DAYS - 1, -1, -1)]
+    m = counted(Match.id)
+
+    def per_day(col, *where) -> list[int]:
+        found = dict(db.execute(select(func.substr(col, 1, 10), func.count()).where(col >= days[0], *where)
+                                .group_by(func.substr(col, 1, 10))).all())
+        return [found.get(d, 0) for d in days]
+
+    def between(col, lo, hi, *where) -> int:
+        return db.scalar(select(func.count()).where(col >= lo, *([col < hi] if hi else []), *where)) or 0
+
+    return {
+        "days": days,
+        "matches": per_day(Match.started_at, m),
+        "new_players": per_day(Player.first_seen_at, main),
+        "matches_7d": between(Match.started_at, week, None, m),
+        "matches_prev_7d": between(Match.started_at, prev, week, m),
+        "new_7d": between(Player.first_seen_at, week, None, main),
+        "new_prev_7d": between(Player.first_seen_at, prev, week, main),
+    }
 
 
 LATEST_MATCHES = 8  # how many the home page's "Latest matches" list shows

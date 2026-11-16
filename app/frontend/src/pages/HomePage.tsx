@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { getActivity, getCombatBoard, getLastMatch, getLatestMatches, getLive, getOverview, getPlayersSeen, type GearShare, type GlobalStats, type MatchSummary, type PlayersSeen } from "../api";
 import { BarChart, StackedBarChart } from "../components/charts";
+import { Sparkline } from "../components/bars";
 import { MapHeatCards } from "../components/MapHeatCards";
 import { MatchCards } from "../components/MatchCards";
 import { EmptyState, FitText, Skeleton } from "../components/ui";
@@ -56,52 +57,70 @@ function LoadoutTop({ loadout }: { loadout: GlobalStats["top_loadout"] }) {
   );
 }
 
-/** This week's top killers and MVPs from the Combat stats (the game's own counters in the recorder's match reports).
- * A separate source from the replay stats on the rest of the page, so it has its own panel and says so. */
-function CombatThisWeek() {
-  const kills = useApi(() => getCombatBoard({ stat: "kills", period: "week", min_games: 1, offset: 0, limit: 3 }), "home-combat-kills");
-  const mvp = useApi(() => getCombatBoard({ stat: "mvp", period: "week", min_games: 1, offset: 0, limit: 3 }), "home-combat-mvp");
-  const lists: [string, typeof kills.data, string][] = [
-    ["Most kills", kills.data, "kills"],
-    ["Most MVP awards", mvp.data, "MVP"],
-  ];
-  const loading = !kills.data && !kills.error;
-  const empty = !!kills.data && !kills.data.items.some((r) => r.value > 0);
-  if (kills.error) return null; // the Combat stats are an extra: no error box on the home page
+type WeekTab = "active" | "kills" | "mvp";
+const WEEK_TABS: [WeekTab, string][] = [
+  ["active", "Most active"],
+  ["kills", "Most kills"],
+  ["mvp", "Most MVPs"],
+];
+/** one ranked row: the bar is the value against the first row's */
+type WeekRow = { user_id: string; name: string; value: number; unit: string; note?: string };
+
+/** "This week" (user, 2026-11-16: one panel instead of "Most active" and "Combat this week" side by side). The tabs
+ * keep their sources apart: most active = matches in the replays; kills and MVPs = the Combat stats (the game's own
+ * counters in the recorder's match reports), said under those two tabs. All three count from Monday. */
+function ThisWeek({ top }: { top: { user_id: string; name: string; games: number; wins?: number }[] }) {
+  const [tab, setTab] = useState<WeekTab>("active");
+  const kills = useApi(() => getCombatBoard({ stat: "kills", period: "week", min_games: 1, offset: 0, limit: 5 }), "home-combat-kills");
+  const mvp = useApi(() => getCombatBoard({ stat: "mvp", period: "week", min_games: 1, offset: 0, limit: 5 }), "home-combat-mvp");
+  const combat = tab === "kills" ? kills : tab === "mvp" ? mvp : null;
+  const tabs = kills.error ? WEEK_TABS.slice(0, 1) : WEEK_TABS; // the Combat stats are an extra: no error box on the home page
+  const rows: WeekRow[] | null = combat
+    ? combat.data
+      ? combat.data.items.filter((r) => r.value > 0).map((r) => ({
+          user_id: r.user_id, name: r.name, value: r.value, unit: tab === "kills" ? "kills" : "MVP", note: `${int(r.matches)} matches`,
+        }))
+      : null
+    : top.map((p) => ({
+        user_id: p.user_id, name: p.name, value: p.games, unit: "matches",
+        note: p.wins != null ? `${pct(p.wins / p.games)} won` : undefined,
+      }));
   return (
-    <section className="panel">
+    <section className="panel this-week">
       <div className="section-head">
-        <h2>Combat this week</h2>
+        <h2>This week</h2>
         <span>
-          <Link to="/leaderboard?board=combat&period=week">Combat leaderboard</Link>
+          {combat ? <Link to="/leaderboard?board=combat&period=week">Combat leaderboard</Link> : <Link to="/leaderboard">Leaderboard</Link>}
         </span>
       </div>
-      <p className="muted combat-week-note">From the game's own counters in the recorder's match reports: a separate source from the replay stats.</p>
-      {loading && <Skeleton lines={3} />}
-      {empty && <p className="muted">No combat matches recorded this week yet.</p>}
-      {kills.data && !empty && (
-        <div className="combat-week">
-          {lists.map(([label, board, unit]) => {
-            const rows = (board?.items ?? []).filter((r) => r.value > 0);
-            return (
-              <div key={label}>
-                <h3>{label}</h3>
-                {rows.length === 0 ? (
-                  <p className="muted">–</p>
-                ) : (
-                  <ol className="combat-week-list">
-                    {rows.map((r) => (
-                      <li key={r.user_id}>
-                        <Link to={playerPath(r.user_id, r.name)}>{r.name}</Link>
-                        <span className="muted">{int(r.value)} {unit} · {int(r.matches)} matches</span>
-                      </li>
-                    ))}
-                  </ol>
-                )}
+      <div className="tabs" role="tablist">
+        {tabs.map(([value, label]) => (
+          <button key={value} role="tab" aria-selected={tab === value} className={tab === value ? "tab active" : "tab"} onClick={() => setTab(value)}>
+            {label}
+          </button>
+        ))}
+      </div>
+      {combat && <p className="muted this-week-note">From the game's own match reports (Combat stats), not the replays.</p>}
+      {!rows && <Skeleton lines={3} />}
+      {rows && rows.length === 0 && <p className="muted">{combat ? "No combat matches recorded this week yet." : "No matches recorded this week yet."}</p>}
+      {rows && rows.length > 0 && (
+        <ol className="active-list">
+          {rows.map((r, i) => (
+            <li key={r.user_id} className={`active-row place-${i + 1}`}>
+              <span className="active-rank">{i + 1}</span>
+              <div className="active-main">
+                <Link to={playerPath(r.user_id, r.name)} className="active-name">{r.name}</Link>
+                <div className="active-bar" aria-hidden="true">
+                  <div style={{ width: `${(r.value / rows[0].value) * 100}%` }} />
+                </div>
               </div>
-            );
-          })}
-        </div>
+              <div className="active-stat">
+                <strong>{int(r.value)} <span className="muted">{r.unit}</span></strong>
+                {r.note && <span className="muted">{r.note}</span>}
+              </div>
+            </li>
+          ))}
+        </ol>
       )}
     </section>
   );
@@ -141,22 +160,29 @@ function PlayersSeenChart() {
           ))}
         </div>
       </div>
-      <label className="inline-check">
-        <input type="checkbox" checked={anchor === "latest"} onChange={(e) => setAnchor(e.target.checked ? "latest" : "now")} /> Count back from the
-        latest recorded match instead of now
-      </label>
+      {/* compact (user, 2026-11-16: it took too much room): the total and the "count back" switch share one line,
+          the chart is short */}
+      <div className="seen-line">
+        {d ? (
+          <span className="muted" title={`${dateTime(d.start)} – ${dateTime(d.end)}`}>
+            <strong className="big-number">{d.unique_players.toLocaleString()}</strong> players in {d.matches.toLocaleString()} matches
+          </span>
+        ) : (
+          <span />
+        )}
+        <label className="inline-check" title="The archive may stop before now: count the period back from the newest recorded match">
+          <input type="checkbox" checked={anchor === "latest"} onChange={(e) => setAnchor(e.target.checked ? "latest" : "now")} /> From the latest match
+        </label>
+      </div>
       {!d && <Skeleton lines={2} />}
       {d && (
         <>
-          <p className="muted">
-            <strong className="big-number">{d.unique_players.toLocaleString()}</strong> different players in {d.matches.toLocaleString()} matches,{" "}
-            {dateTime(d.start)} – {dateTime(d.end)}
-          </p>
           {d.unique_players === 0 ? (
-            <EmptyState title="No matches in this period">Try "count back from the latest recorded match".</EmptyState>
+            <p className="muted">No matches in this period. Try "From the latest match".</p>
           ) : (
             <BarChart
               title={`Players per ${d.unit}`}
+              height={110}
               unit=" players"
               data={d.items.map((i) => ({
                 label: d.unit === "hour" ? i.bucket.slice(11, 13) + "h" : i.bucket.slice(5),
@@ -261,6 +287,21 @@ const TICK_MS = 20_000;
  * match time is asked separately because the overview is rebuilt only every few minutes (and then refreshed too).
  * While the spectator bot is live on Twitch a game is being played: a "Game in progress" card appears beside it
  * (none at all otherwise, user 2026-11-01). */
+/** "▲ 12% vs the 7 days before" (green up, red down, grey within ±5 %); `points`: two shares compared in percentage
+ * points ("▲ 5 pts"). Nothing when there is nothing to compare with. */
+function Change({ now, before, points = false }: { now: number; before: number; points?: boolean }) {
+  if (!points && !before) return <span>none the 7 days before</span>;
+  const d = points ? (now - before) * 100 : ((now - before) / before) * 100;
+  const shown = Math.round(Math.abs(d));
+  const dir = shown < (points ? 1 : 5) ? "flat" : d > 0 ? "up" : "down";
+  const arrow = dir === "flat" ? "=" : dir === "up" ? "▲" : "▼";
+  return (
+    <span className={`trend-change ${dir}`}>
+      {arrow} {shown}{points ? " pts" : "%"} <span className="muted">{points ? "vs the week before" : "vs the 7 days before"}</span>
+    </span>
+  );
+}
+
 /** Map of the newest match, linking to it; mode and score underneath. */
 function RecentlyPlayedCard({ latest }: { latest: MatchSummary | undefined }) {
   return (
@@ -353,24 +394,37 @@ export function HomePage() {
             <>
               <div className="cards home-strip">
                 <LastMatchCard fromOverview={o.last_match_at} />
-                <div className="card">
-                  <span className="label">Matches today</span>
-                  <strong>{o.today.toLocaleString()}</strong>
-                  <span className="muted">{o.this_week.toLocaleString()} this week</span>
-                </div>
-                {o.newcomers && (
-                  <div className="card" title="Players whose first recorded match was this week (Monday to now)">
-                    <span className="label">New players this week</span>
-                    <strong>{int(o.newcomers.this_week)}</strong>
-                    <span className="muted">{int(o.newcomers.last_week)} last week</span>
+                {o.trend ? (
+                  <>
+                    <div className="card" title="Matches started in the last 7 days (to the minute), against the 7 days before. The line: matches per day, last 4 weeks (today so far at the end).">
+                      <span className="label">Matches · last 7 days</span>
+                      <strong>{int(o.trend.matches_7d)}</strong>
+                      <span className="muted"><Change now={o.trend.matches_7d} before={o.trend.matches_prev_7d} /> · {int(o.today)} today</span>
+                      <Sparkline values={o.trend.matches} label="Matches per day, last 4 weeks" />
+                    </div>
+                    <div className="card" title="Players whose first recorded match was in the last 7 days, against the 7 days before. The line: new players per day, last 4 weeks.">
+                      <span className="label">New players · last 7 days</span>
+                      <strong>{int(o.trend.new_7d)}</strong>
+                      <span className="muted"><Change now={o.trend.new_7d} before={o.trend.new_prev_7d} /></span>
+                      <Sparkline values={o.trend.new_players} label="New players per day, last 4 weeks" />
+                    </div>
+                  </>
+                ) : ( /* an overview from before 2026.11.16.18 (cached a few minutes): the calendar-week cards */
+                  <div className="card">
+                    <span className="label">Matches today</span>
+                    <strong>{o.today.toLocaleString()}</strong>
+                    <span className="muted">{o.this_week.toLocaleString()} this week</span>
                   </div>
                 )}
                 {o.newcomers && (
-                  <div className="card" title={`Of the players whose first match was 8 to 14 days ago, the share who played again on a later day within ${o.newcomers.return_days} days`}>
+                  <div className="card" title={`Of the players whose first match was 8 to 14 days ago, the share who played again on a later day within ${o.newcomers.return_days} days. Compared with the players new a week before them.`}>
                     <span className="label">New players who came back</span>
                     <strong>{pct(o.newcomers.return_rate)}</strong>
                     <span className="muted">
-                      {int(o.newcomers.returned)} of {int(o.newcomers.return_group)}, within {o.newcomers.return_days} days
+                      {o.newcomers.return_rate != null && o.newcomers.prev_return_rate != null && (
+                        <><Change now={o.newcomers.return_rate} before={o.newcomers.prev_return_rate} points /> · </>
+                      )}
+                      {int(o.newcomers.returned)} of {int(o.newcomers.return_group)} within {o.newcomers.return_days} days
                     </span>
                   </div>
                 )}
@@ -405,43 +459,8 @@ export function HomePage() {
               </div>
 
               <div className="two-col home-week">
-                <section className="panel">
-                  <div className="section-head">
-                    <h2>Most active this week</h2>
-                    <span>
-                      <Link to="/leaderboard">Leaderboard</Link>
-                    </span>
-                  </div>
-                  {o.top_this_week.length > 0 ? (
-                    <ol className="active-list">
-                      {o.top_this_week.map((p, i) => (
-                        <li key={p.user_id} className={`active-row place-${i + 1}`}>
-                          <span className="active-rank">{i + 1}</span>
-                          <div className="active-main">
-                            <Link to={playerPath(p.user_id, p.name)} className="active-name">{p.name}</Link>
-                            <div className="active-bar" aria-hidden="true">
-                              <div style={{ width: `${(p.games / o.top_this_week[0].games) * 100}%` }} />
-                            </div>
-                          </div>
-                          <div className="active-stat">
-                            <strong>{p.games.toLocaleString()}</strong>
-                            <span className="muted">matches</span>
-                          </div>
-                          {p.wins != null && (
-                            <div className="active-stat">
-                              <strong>{pct(p.wins / p.games)}</strong>
-                              <span className="muted">{p.wins.toLocaleString()} won</span>
-                            </div>
-                          )}
-                        </li>
-                      ))}
-                    </ol>
-                  ) : (
-                    <p className="muted">No matches recorded this week yet.</p>
-                  )}
-                </section>
+                <ThisWeek top={o.top_this_week} />
                 <PlayersSeenChart />
-                <CombatThisWeek />
               </div>
               </div>
 

@@ -70,6 +70,16 @@ def test_latest_matches_are_the_overviews(client):
     assert all("tags" in m and m["player_count"] and m["players"] for m in latest)
 
 
+def test_overview_trend_is_a_rolling_week(client):
+    t = client.get("/api/overview").json()["trend"]
+    assert len(t["days"]) == len(t["matches"]) == len(t["new_players"]) == 28
+    assert t["days"] == sorted(t["days"])
+    # the last 7 days to the second never hold more than the last 8 calendar days
+    assert t["matches_7d"] <= sum(t["matches"][-8:]) and t["new_7d"] <= sum(t["new_players"][-8:])
+    assert all(isinstance(t[k], int) for k in ("matches_prev_7d", "new_prev_7d"))
+    assert "prev_return_rate" in client.get("/api/overview").json()["newcomers"]
+
+
 def test_last_match_matches_the_overview(client):
     last = client.get("/api/overview/last-match").json()["last_match_at"]
     assert last and last == client.get("/api/overview").json()["last_match_at"]

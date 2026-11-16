@@ -4991,6 +4991,15 @@ tr.cloud-drop-on td {
 .home .home-strip .card {
   padding: 10px 12px;
 }
+.home .home-strip .sparkline { margin-top: 4px; height: 20px; }
+.seen-line { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; margin: 4px 0 6px; }
+.seen-line .inline-check { margin: 0; font-size: 0.85rem; }
+.this-week > .tabs { margin: 0 0 8px; }
+.this-week-note { font-size: 0.8rem; margin: -2px 0 8px; }
+.trend-change { white-space: nowrap; }
+.trend-change.up { color: var(--ok); }
+.trend-change.down { color: var(--bad); }
+.trend-change .muted { font-weight: normal; }
 /* live video and latest matches fill the row: the video takes half, but stops at 960 px (540 px tall), and the
    latest matches take the rest, one wide row each (tags and names beside the score: see .match-cards.compact below) */
 @media (min-width: 901px) {
@@ -5328,5 +5337,9 @@ tr.cloud-drop-on td {
   }
   .home .home-top .home-week > :nth-child(2) {
     grid-column: span 2;
+  }
+  /* "This week" (most active / kills / MVPs, one panel since 2026.11.16.18) runs down the right of both rows */
+  .home .home-top .home-week > .this-week {
+    grid-row: span 2;
   }
 }

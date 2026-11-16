@@ -832,6 +832,19 @@ export interface Newcomers {
   returned: number;
   return_rate: number | null;
   return_days: number;
+  /** the same share for the players new a week earlier (15-21 days ago) */
+  prev_return_rate?: number | null;
+}
+
+/** The home strip: a rolling 7 days against the 7 days before, and per day for the last 28 days (today so far last). */
+export interface OverviewTrend {
+  days: string[];
+  matches: number[];
+  new_players: number[];
+  matches_7d: number;
+  matches_prev_7d: number;
+  new_7d: number;
+  new_prev_7d: number;
 }
 
 export interface Overview {
@@ -849,6 +862,7 @@ export interface Overview {
   top_this_week: { user_id: string; name: string; games: number; wins?: number }[];
   latest: MatchSummary[];
   newcomers: Newcomers;
+  trend?: OverviewTrend;
 }
 
 export interface PlayersSeen {
