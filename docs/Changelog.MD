@@ -20,6 +20,14 @@ Working record of what changed in each release, newest first.
 
 ## 2026.11.16.3 — 07:24
 
+- **Cloud permissions: security review, three holes closed** (found by reading the new code as an attacker would; none needed anything but an ordinary login with Edit somewhere):
+  - **Upload into a folder you may not write to:** the folder was only checked when a file started uploading; the last piece of a file sent in pieces could name another folder, also a private one, and replace a file there. It is now checked again when the file lands.
+  - **Two spellings of one name (NAS only):** permissions ignore upper / lower case, but the NAS keeps "Staff" and "STAFF" as two folders. Someone with Edit in a private folder could make the second spelling next to it and delete it again, which took the private folder's permissions with it. A name that differs only by case from one already in the folder is now refused everywhere (new folder, upload, rename, move, restore).
+  - **Deleting or moving a folder that has permissions:** someone with only Edit in a private folder could delete it and make a new, open folder with the same name, or move a shared folder to where others see it. Deleting or moving a folder with its own permissions (or holding folders that have them) now needs its Admin. Files inside, and renaming, work with Edit as before.
+  - Small ones: very long paths are refused before any check; searching people by name can use the Discord bot at most 30 times a minute, so it cannot use up what logins need.
+  - Checked and found fine: other sites cannot trigger changes (every change needs this site's own header), a path cannot leave the cloud folder or dodge a rule with another spelling, names of hidden folders are never sent, nobody but a folder's Admin can read or change its permissions, and downloads still never run in the browser.
+- **Layout fixes:** the Permissions page shows its six cards as two rows of three (was five and one left over), with the Discord id under the name and Remove at the right. The folder permissions box no longer has large empty gaps around the search box and is no wider than a form. The Cloud page has one row of buttons instead of two.
+
 ## 2026.11.16.2 — 07:15
 
 - **Cloud: permissions per folder, three levels, and moving by drag and drop** (D61). Until now Cloud view / Cloud edit covered the whole cloud.
