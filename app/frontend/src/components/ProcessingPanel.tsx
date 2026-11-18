@@ -99,6 +99,12 @@ function ProcessingView({ live: { data: d, error, at } }: { live: ReturnType<typ
           <span className="muted">
             {d.busy} of {d.workers} workers busy
           </span>
+          {!d.worker_running && <span className="error">The replay worker has stopped: restart the container</span>}
+          {d.worker_running && d.worker_error && (
+            <span className="muted" title="The worker tries again by itself after an error">
+              Last error: {d.worker_error}
+            </span>
+          )}
         </div>
         <div className="card">
           <span className="muted">Time left</span>

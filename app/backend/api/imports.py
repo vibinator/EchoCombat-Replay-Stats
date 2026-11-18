@@ -93,6 +93,8 @@ def import_status(request: Request):
         "source_dir": str(request.app.state.settings.source_dir),
         "workers": worker.slots,
         "busy": worker.busy,
+        "worker_running": worker.running,
+        "worker_error": worker.last_error,
         "counts": counts,
         "hidden_failed": hidden,
         "redo": redo,

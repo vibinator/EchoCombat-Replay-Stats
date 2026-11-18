@@ -18,6 +18,25 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.18.1 — 13:51
+
+The site stuck at "Processing 13 replays" (user, 18 Nov; the same as "Processing 50" on 16 Nov). From a copy of the live
+database: healthy this time (quick check ok, indexes agree with the table), remote processing off, 13 replays queued
+and none processing, the last one saved at 00:50 UTC, while combat reports and everything else kept being written until
+13:39. So the NAS's replay worker had stopped between 00:50 and 01:00 UTC and never started again. The exact error is in
+the NAS log ("Worker loop stopped").
+
+- **The replay worker no longer stops for good after an error.** Any error while claiming, saving or restarting the
+  pool used to end the worker until the container was restarted (on 16 Nov a damaged index; today unknown). Now it is
+  logged as `Replay worker error (N in a row); trying again in N s`. Replays it had picked up but not started, or whose
+  save failed, go back into the queue. With nothing in flight the reader processes are started afresh, and it tries
+  again after 2, 4, 8 … up to 60 s.
+- **Console > Status, Speed card:** shows the worker's last error (it retried by itself), or "The replay worker has
+  stopped: restart the container" if the thread is gone. `/api/import` adds `worker_running` and `worker_error`.
+- Not covered: a replay that hangs while being read (it stays "processing", with its time growing on the Status page).
+
+**To do after updating:** nothing. Updating restarts the container, and the 13 waiting replays are read then.
+
 ## 2026.11.16.22 — 16:00
 
 The first load of pages nobody has opened since the last restart (user: "stuff that isn't cached, a brand new load

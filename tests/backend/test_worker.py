@@ -107,6 +107,58 @@ def test_crash_while_stopping_leaves_rows_for_next_start(settings):
     engine.dispose()
 
 
+def test_worker_loop_survives_an_error_and_carries_on(settings, monkeypatch):
+    """2026-11-16 and 2026-11-18: one error (a damaged index, then unknown) ended the loop and the queue sat until a
+    restart. Now it is logged, the claimed-but-not-started replay goes back into the queue, and the loop carries on."""
+    from sqlalchemy.exc import OperationalError
+
+    from backend import worker as worker_module
+
+    monkeypatch.setattr(worker_module, "LOOP_RETRY_MAX_S", 0)
+    real_claim, calls = worker_module.claim_queued, []
+
+    def flaky_claim(*args, **kwargs):
+        calls.append(1)
+        if len(calls) == 1:
+            raise OperationalError("UPDATE replays", {}, Exception("database is locked"))
+        return real_claim(*args, **kwargs)
+
+    monkeypatch.setattr(worker_module, "claim_queued", flaky_claim)
+    with app_client(settings) as client:
+        add(client, {"dyson/a.echoreplay": rf.zipped(rf.lines(5))})
+        replay = replay_by_path(client, "dyson/a.echoreplay")
+        status = client.get("/api/import").json()
+    assert len(calls) >= 2 and replay["status"] == "done"
+    assert status["worker_running"] is True and "database is locked" in status["worker_error"]
+
+
+def test_failed_save_puts_the_replay_back_in_the_queue(settings, monkeypatch):
+    from concurrent.futures import Future
+
+    from backend import worker as worker_module
+    from backend.worker import Worker
+
+    engine, sessions = open_db(settings.db_path)
+    with sessions() as db:
+        db.add(Replay(source_path="dyson/a.echoreplay", size_bytes=1, source_mtime=1.0,
+                      discovered_at="x", status="processing"))
+        db.commit()
+    worker = Worker(sessions, settings)
+    worker._pool = worker._new_pool()
+    future = Future()
+    future.set_result(("failed", "damaged", "x"))
+    worker._in_flight, worker._started = {future: 1}, {1: ("dyson/a.echoreplay", 0.0)}
+    monkeypatch.setattr(worker_module, "save_result", lambda *a: (_ for _ in ()).throw(RuntimeError("disk full")))
+    with pytest.raises(RuntimeError):
+        worker._step()
+    worker._after_error()
+    with sessions() as db:
+        assert db.get(Replay, 1).status == "queued"
+    assert not worker._started and not worker._in_flight
+    worker._pool.shutdown()
+    engine.dispose()
+
+
 def test_side_jobs_run_apart_from_the_replay_pool(settings):
     """3D builds (run_side) have their own pool: not behind queued replays, and not shared with their crashes."""
     from backend.worker import Worker

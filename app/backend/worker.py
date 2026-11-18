@@ -33,6 +33,7 @@ from .tracks3d import Recorders, Track3DRecorder
 
 log = logging.getLogger(__name__)
 
+LOOP_RETRY_MAX_S = 60  # longest wait between tries after errors in a row in the worker loop
 MAX_CRASHES = 2  # a file in flight during this many pool crashes is marked failed ("crashed")
 SIDE_WORKERS = 2  # processes for one-off jobs (3D tracks on first view, a busy player's achievements), apart from the replay pool
 # Side pools by name. "ranking": the everyone-ranking of the achievements has a process to itself, so a long build never
@@ -261,6 +262,7 @@ class Worker:
         self._in_flight: dict[Future, int] = {}
         self._started: dict[int, tuple[str, float]] = {}  # replay_id -> (source_path, monotonic start)
         self._crashes: Counter[int] = Counter()
+        self.last_error: str | None = None  # "<UTC time> <error>" of the last error in the worker loop (Status page)
         self._pool: Executor | None = None
         self._sides: dict[str, Executor] = {}  # lane -> pool for one-off jobs: a crash there never touches replay processing
         self._side_lock = threading.Lock()
@@ -329,6 +331,11 @@ class Worker:
     def busy(self) -> int:
         return len(self._in_flight)
 
+    @property
+    def running(self) -> bool:
+        """The worker thread is alive (False before start and after stop)."""
+        return self._thread.is_alive()
+
     def current(self) -> list[dict]:
         """Files being processed right now."""
         now = time.monotonic()
@@ -376,9 +383,9 @@ class Worker:
         """The pool died: re-queue everything in flight, except files that keep crashing it."""
         crashed = list(self._in_flight.values())
         self._in_flight.clear()
-        self._started.clear()
         self._pool.shutdown(wait=False, cancel_futures=True)
         if self._stop.is_set():
+            self._started.clear()
             return  # stopping: rows stay "processing" and are re-queued on the next start
         log.warning("Worker pool crashed with %d replay(s) in flight; restarting it", len(crashed))
         retry = []
@@ -387,47 +394,88 @@ class Worker:
             if self._crashes[replay_id] >= MAX_CRASHES:
                 save_result(self.sessions, replay_id,
                             ("failed", "crashed", "Processing crashed repeatedly (file too large or damaged?)"))
+                self._started.pop(replay_id, None)
             else:
                 retry.append(replay_id)
         self._requeue(retry)
+        # only now: if a write above failed, _started still holds them and _after_error puts them back in the queue
+        self._started.clear()
         self._pool = self._new_pool()
 
     def _run(self) -> None:
-        # Rows still "processing" when stopped are re-queued on the next start.
+        # Rows still "processing" when stopped are re-queued on the next start. An error never ends the loop: twice
+        # (2026-11-16, 2026-11-18) one stopped it for good and the queue sat until the container was restarted. It is
+        # logged, the loop cleans up and tries again, waiting a little longer after each error in a row (up to a minute).
+        failures = 0
+        while not self._stop.is_set():
+            try:
+                self._step()
+                failures = 0
+            except Exception as e:
+                failures += 1
+                delay = min(LOOP_RETRY_MAX_S, 2 ** min(failures, 6))
+                self.last_error = f"{utcnow()} {type(e).__name__}: {str(e).splitlines()[0][:200] if str(e) else ''}"
+                log.exception("Replay worker error (%d in a row); trying again in %d s", failures, delay)
+                self._after_error()
+                self._stop.wait(delay)
+
+    def _step(self) -> None:
+        """One round: claim work for the free slots, then save whatever finished."""
+        free = self.slots - len(self._in_flight)
+        if free > 0:
+            claimed = self._claim(free)
+            try:
+                for replay_id, path, repair in claimed:
+                    future = self._pool.submit(analyse, path, self._tracks_file(replay_id), repair)
+                    self._in_flight[future] = replay_id
+            except BrokenProcessPool:
+                self._requeue([rid for rid, _, _ in claimed if rid not in self._in_flight.values()])
+                self._recover_from_crash()
+                return
+        if not self._in_flight:
+            self._wake.wait(5)
+            self._wake.clear()
+            return
+        done, _ = wait(list(self._in_flight), timeout=1, return_when=FIRST_COMPLETED)
+        if self._stop.is_set():
+            return
+        broken = False
+        for future in done:
+            try:
+                result = future.result()
+            except BrokenProcessPool:
+                broken = True
+                continue
+            except Exception as e:
+                result = ("failed", "internal", f"Processing error: {e}")
+            replay_id = self._in_flight.pop(future)
+            self._crashes.pop(replay_id, None)
+            save_result(self.sessions, replay_id, result)
+            self._started.pop(replay_id, None)  # after the save: a failed save leaves it for _after_error
+        if broken:
+            self._recover_from_crash()
+
+    def _after_error(self) -> None:
+        """After an error in _step: replays this worker claimed but no longer has in flight go back into the queue
+        (only rows still 'processing'), and with nothing in flight the pool is replaced (it may be shut down or
+        broken). Errors here are logged and left for the next round."""
+        orphans = [rid for rid in self._started if rid not in self._in_flight.values()]
         try:
-            while not self._stop.is_set():
-                free = self.slots - len(self._in_flight)
-                if free > 0:
-                    claimed = self._claim(free)
-                    try:
-                        for replay_id, path, repair in claimed:
-                            future = self._pool.submit(analyse, path, self._tracks_file(replay_id), repair)
-                            self._in_flight[future] = replay_id
-                    except BrokenProcessPool:
-                        self._requeue([rid for rid, _, _ in claimed if rid not in self._in_flight.values()])
-                        self._recover_from_crash()
-                        continue
-                if not self._in_flight:
-                    self._wake.wait(5)
-                    self._wake.clear()
-                    continue
-                done, _ = wait(list(self._in_flight), timeout=1, return_when=FIRST_COMPLETED)
-                if self._stop.is_set():
-                    break
-                broken = False
-                for future in done:
-                    try:
-                        result = future.result()
-                    except BrokenProcessPool:
-                        broken = True
-                        continue
-                    except Exception as e:
-                        result = ("failed", "internal", f"Processing error: {e}")
-                    replay_id = self._in_flight.pop(future)
-                    self._started.pop(replay_id, None)
-                    self._crashes.pop(replay_id, None)
-                    save_result(self.sessions, replay_id, result)
-                if broken:
-                    self._recover_from_crash()
+            if orphans:
+                with self.sessions() as db:
+                    db.execute(update(Replay).where(Replay.id.in_(orphans), Replay.status == "processing")
+                               .values(status="queued"))
+                    db.commit()
+                for rid in orphans:
+                    self._started.pop(rid, None)
+                log.warning("Put %d replay(s) back in the queue after the error", len(orphans))
         except Exception:
-            log.exception("Worker loop stopped")
+            log.exception("Could not put %d replay(s) back in the queue; trying again after the next error or restart",
+                          len(orphans))
+        if not self._in_flight and not self._stop.is_set():
+            try:
+                if self._pool is not None:
+                    self._pool.shutdown(wait=False, cancel_futures=True)
+                self._pool = self._new_pool()
+            except Exception:
+                log.exception("Could not restart the worker pool")

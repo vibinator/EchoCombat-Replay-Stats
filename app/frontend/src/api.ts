@@ -1137,6 +1137,10 @@ export interface ProcessingStatus {
   source_dir: string;
   workers: number;
   busy: number;
+  /** False: the replay worker thread has stopped (only a restart brings it back). */
+  worker_running: boolean;
+  /** "<UTC time> <error>" of the worker loop's last error, which it retried after; null = none since the start. */
+  worker_error: string | null;
   counts: { queued: number; processing: number; done: number; failed: number };
   hidden_failed: number;
   redo: number;
