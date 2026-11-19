@@ -20,7 +20,7 @@ def frames(path):
     for i, line in enumerate(data.decode("utf-8", "replace").splitlines()):
         if i % 20 == 0 and "\t" in line:
             try:
-                yield json.loads(line.split("\t", 1)[1])
+                yield json.loads(line.split("\t", 2)[1])  # newer replays: a third part (bones) after the frame
             except ValueError:
                 continue
 

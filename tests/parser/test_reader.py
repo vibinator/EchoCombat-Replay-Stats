@@ -86,8 +86,18 @@ def test_few_bad_lines_are_skipped_with_warning(tmp_path):
 
 def test_many_bad_lines_are_corrupt(tmp_path):
     lines = rf.lines(1) + ["garbage"] * 20 + rf.lines(2)
-    with pytest.raises(CorruptReplay, match="Too many unreadable lines"):
+    with pytest.raises(CorruptReplay, match="Too many unreadable frame lines"):
         parse_all(write(tmp_path, rf.plain(lines)))
+
+
+def test_bone_data_part_is_skipped(tmp_path):
+    """Since 2026-11-19 lines are `<stamp>\\t<frame>\\t<bones>` (the first line has no bones): same frames as before."""
+    lines = rf.lines(20)
+    bones = '{"user_bones":[{"playerid":0,"bone_t":[0.0,1.5],"bone_o":[0.1,0.2]}],"err_code":0}'
+    with_bones = lines[:1] + [line + "\t" + bones for line in lines[1:]]
+    _, plain = parse_all(write(tmp_path, rf.plain(lines)))
+    replay, boned = parse_all(write(tmp_path, rf.plain(with_bones)))
+    assert boned == plain and replay.warnings == []
 
 
 def test_unreadable_first_frame_is_corrupt(tmp_path):

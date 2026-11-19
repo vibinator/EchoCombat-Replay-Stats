@@ -17,7 +17,7 @@ from .models import Frame, ReplayMeta
 
 ZIP_MAGIC = b"PK\x03\x04"
 SUPPORTED_MATCH_TYPE = "Echo_Combat"
-MAX_UNCOMPRESSED_BYTES = 1024**3
+MAX_UNCOMPRESSED_BYTES = 2 * 1024**3  # zip-bomb guard; bone data (2026-11-19) makes a 16-min match ~360 MB
 BAD_LINE_ERRORS = (ValueError, KeyError, TypeError, IndexError)  # incl. JSON and UTF-8 decode errors
 
 
@@ -532,7 +532,9 @@ class ParsedReplay:
                     bad_lines += 1
                     last_line_bad = False
                     if not self.repair and bad_lines > _allowed_bad_lines(lines_read):
-                        raise CorruptReplay(f"Too many unreadable lines ({bad_lines} of {lines_read})")
+                        # wording differs from the parser before bone data ("Too many unreadable lines"), so the
+                        # worker re-reads those failures once (worker._failed_on_bone_data)
+                        raise CorruptReplay(f"Too many unreadable frame lines ({bad_lines} of {lines_read})")
                 try:
                     timestamp, data = split_raw(raw)
                     clock.add(timestamp)

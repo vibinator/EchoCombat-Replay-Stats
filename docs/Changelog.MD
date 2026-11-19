@@ -18,6 +18,23 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.19.1 — 23:07
+
+Replays with bone data (recorder update, 19 Nov) failed to import: every one ended "Too many unreadable lines". Each
+frame line is now `<time>\t<frame>\t<bones>` (the first line has no bones); the frame itself is unchanged.
+
+- **Bone-data replays import again.** The reader takes the frame and skips the bones part (nothing on the site uses
+  bones yet). Checked on 6 replays from the share (5 with bones, all four maps, up to 15.5 min): every frame read, no
+  warnings; players, kills and deaths match the raw frames; 2D and 3D tracks written.
+- **Size limit for one replay 1 GB -> 2 GB uncompressed** (the zip-bomb guard): bones add ~40 % to a replay (a 15.5-min
+  Dyson match is 364 MB), so a ~45-min match would have hit the old limit.
+- **The ones that already failed are re-read once at startup**: failed, file from 19 Nov or later, with the old error.
+  Nothing else is re-read (`PARSER_VERSION` stays 3). The error for a really damaged replay now reads "Too many
+  unreadable frame lines", so these rows never re-queue twice.
+- `tools/maps3d/sample_heads.py` reads bone-data replays too.
+- **To do:** deploy to the NAS, and `git pull` on the remote-processing PC too: with the parser version unchanged, a PC
+  on the old code is still accepted and would fail these replays.
+
 ## 2026.11.18.1 — 13:51
 
 The site stuck at "Processing 13 replays" (user, 18 Nov; the same as "Processing 50" on 16 Nov). From a copy of the live

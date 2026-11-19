@@ -76,7 +76,10 @@ def parse_timestamp(text: str) -> datetime:
 
 
 def split_line(line: str) -> tuple[datetime, dict]:
+    # Since 2026-11-19 the recorder appends the players' bones as a third part: `<stamp>\t<frame>\t<bones>`. Only the
+    # frame is read; a raw tab is never inside valid JSON (strings escape it), so the frame ends at the second tab.
     stamp, _, body = line.partition("\t")
+    body = body.partition("\t")[0]
     data = json.loads(body)
     if not isinstance(data, dict):
         raise TypeError("frame is not a JSON object")
@@ -91,6 +94,7 @@ def split_raw(raw: bytes) -> tuple[datetime, dict]:
     if orjson is None:
         return split_line(raw.decode("utf-8"))
     stamp, _, body = raw.partition(b"\t")
+    body = body.partition(b"\t")[0]  # bones part (third) skipped, see split_line
     try:
         data = orjson.loads(body)
     except orjson.JSONDecodeError:

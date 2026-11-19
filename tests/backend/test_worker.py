@@ -59,6 +59,30 @@ def test_startup_requeues_unfinished_and_outdated(settings):
     assert statuses == {"a": "queued", "b": "queued", "c": "queued", "d": "done", "e": "failed", "f": "queued"}
 
 
+def test_startup_requeues_bone_data_failures_once(settings):
+    from backend.worker import BONE_DATA_SINCE
+
+    engine, sessions = open_db(settings.db_path)
+    old_message = "Too many unreadable lines (11 of 14)"  # the parser before bone data, on a bone-data replay
+    rows = [
+        ("a", BONE_DATA_SINCE + 60, old_message),  # re-read
+        ("b", BONE_DATA_SINCE - 60, old_message),  # older file: really damaged, kept
+        ("c", BONE_DATA_SINCE + 60, "Too many unreadable frame lines (11 of 14)"),  # current parser: kept
+        ("d", BONE_DATA_SINCE + 60, "First frame is unreadable"),  # another failure: kept
+    ]
+    with sessions() as db:
+        for name, mtime, message in rows:
+            db.add(Replay(source_path=f"dyson/{name}.echoreplay", size_bytes=1, source_mtime=mtime,
+                          discovered_at="2026-11-19T00:00:00+00:00", status="failed", error_code="corrupt",
+                          error_message=message, parser_version=PARSER_VERSION))
+        db.commit()
+    assert requeue_unfinished_and_outdated(sessions) == 1
+    with sessions() as db:
+        statuses = {r.source_path[6]: r.status for r in db.query(Replay)}
+    engine.dispose()
+    assert statuses == {"a": "queued", "b": "failed", "c": "failed", "d": "failed"}
+
+
 def test_pool_crash_requeues_then_fails_repeat_offender(settings):
     from concurrent.futures import Future
 

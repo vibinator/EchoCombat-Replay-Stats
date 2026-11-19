@@ -195,6 +195,16 @@ def _with_hex_gear_codes():
             .where(hexed).distinct())
 
 
+BONE_DATA_SINCE = 1795046400.0  # 2026-11-19 00:00 UTC: the recorder started adding a bones part to every frame line
+
+
+def _failed_on_bone_data():
+    """Replays the parser before bone data could not read (every line after the first looked unreadable): re-read once.
+    The current parser words that failure differently ("unreadable frame lines"), so a row never matches twice."""
+    return ((Replay.status == "failed") & (Replay.source_mtime >= BONE_DATA_SINCE)
+            & Replay.error_message.like("Too many unreadable lines (%"))
+
+
 def requeue_unfinished_and_outdated(sessions: sessionmaker) -> int:
     """Startup: interrupted rows, and rows processed by an older parser / stats version (D19)."""
     with sessions() as db:
@@ -208,6 +218,7 @@ def requeue_unfinished_and_outdated(sessions: sessionmaker) -> int:
                     (Replay.status == "done")
                     & or_(Replay.stats_version.is_(None), Replay.stats_version != STATS_VERSION),
                     Replay.id.in_(_with_hex_gear_codes()),
+                    _failed_on_bone_data(),
                 )
             )
             .values(status="queued")
