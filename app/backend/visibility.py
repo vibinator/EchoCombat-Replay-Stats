@@ -1,7 +1,12 @@
 """Stats hidden from players (admin console: "hide-stats"), site-wide or for chosen players. Hidden stats are left out
-of the API answers for every visitor except logged-in admins (user, 2026-11-02). Asking who the visitor is marks the
-answer per visitor (auth.viewer), so Cloudflare never keeps an admin's copy for others or the other way round; while
-nothing is hidden, answers stay shared and edge-cached as before.
+of the API answers for every visitor except logged-in admins (user, 2026-11-02).
+
+Who sees what (2026-11-20, to let Cloudflare keep the home page, leaderboard and profiles again): an answer asked for
+without `?view=admin` is always the public one (hidden stats left out) and nobody is asked who they are, so it is the
+same for everyone and Cloudflare may keep it. An admin's page adds `view=admin` (api.ts, from the echovr_admin cookie
+that /api/auth/me sets); only then is the login checked (auth.is_admin), which marks the answer per visitor, so
+Cloudflare never keeps an admin's copy, and a non-admin who adds it still gets the public stats. While nothing is
+hidden, answers are shared and edge-cached for everyone.
 
 A View is part of the cache key of every answer that has win-loss stats: (hidden site-wide, players hidden)."""
 
@@ -16,6 +21,7 @@ from .admin_actions import hidden_players, hidden_stats
 from .models import PlayerAlias
 
 TTL_S = 2.0  # the admin console is another process: a change shows on the website within this
+ADMIN_PARAM, ADMIN_VALUE = "view", "admin"  # ?view=admin: the admin's version (login checked, never shared)
 _memo: "weakref.WeakKeyDictionary" = weakref.WeakKeyDictionary()  # sessionmaker -> (read at, groups, players)
 
 
@@ -50,9 +56,11 @@ def hidden_groups(sessions) -> frozenset[str]:
 def view(request, group: str = "win_loss") -> View:
     groups, players = _settings(request.app.state.sessionmaker)
     seen = View(group in groups, players.get(group, frozenset()))
-    if seen == ALL_SHOWN or auth.is_admin(request):
+    if seen == ALL_SHOWN:
         return ALL_SHOWN
-    return seen
+    if request.query_params.get(ADMIN_PARAM) != ADMIN_VALUE:
+        return seen  # the public answer: who is asking is not looked at, so it may be shared (Cloudflare)
+    return ALL_SHOWN if auth.is_admin(request) else seen
 
 
 def win_loss(request) -> bool:

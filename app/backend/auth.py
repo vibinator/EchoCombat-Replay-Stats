@@ -24,6 +24,9 @@ API = "https://discord.com/api/v10"
 AUTHORIZE_URL = "https://discord.com/oauth2/authorize"
 SESSION_COOKIE = "echovr_session"
 STATE_COOKIE = "echovr_oauth"
+# "1" while the logged-in visitor is an admin: only a hint for the page (api.ts adds ?view=admin to answers with hidden
+# stats, visibility.py), readable by its scripts; the server always checks the login itself. Set by /api/auth/me.
+ADMIN_HINT_COOKIE = "echovr_admin"
 SESSION_DAYS = 30
 STATE_S = 600  # time allowed on Discord's login page
 ROLE_CHECK_S = 300  # a removed role stops working within 5 minutes

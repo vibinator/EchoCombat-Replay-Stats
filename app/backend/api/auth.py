@@ -7,7 +7,7 @@ import secrets
 from urllib.parse import urlencode, urlparse
 
 import httpx
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Response
 from fastapi.responses import RedirectResponse
 
 from .. import auth
@@ -32,11 +32,20 @@ def _settings(request: Request):
 
 
 @router.get("/me")
-def me(request: Request):
-    """Whether Discord login is available, and who is logged in (with or without preview access)."""
+def me(request: Request, response: Response):
+    """Whether Discord login is available, and who is logged in (with or without preview access). Keeps the admin hint
+    cookie in step (auth.ADMIN_HINT_COOKIE: the page then asks for the admin's version of answers with hidden stats)."""
     user = auth.viewer(request)
+    admin = bool(user) and auth.is_admin(request)
+    hinted = request.cookies.get(auth.ADMIN_HINT_COOKIE) == "1"
+    if admin and not hinted:
+        settings = request.app.state.settings
+        response.set_cookie(auth.ADMIN_HINT_COOKIE, "1", max_age=auth.SESSION_DAYS * 86400, httponly=False,
+                            samesite="lax", secure=auth.secure_cookies(settings), path="/")
+    elif hinted and not admin:
+        response.delete_cookie(auth.ADMIN_HINT_COOKIE, path="/")
     return {"enabled": auth.enabled(request.app.state.settings),
-            "user": user and {"name": user["name"], "preview": auth.has_preview(request), "admin": auth.is_admin(request),
+            "user": user and {"name": user["name"], "preview": auth.has_preview(request), "admin": admin,
                               "console": auth.has_console(request), "cloud": auth.cloud_access(request)}}
 
 
@@ -104,4 +113,5 @@ def callback(request: Request, code: str | None = None, state: str | None = None
 def logout():
     response = RedirectResponse("/", status_code=303)
     response.delete_cookie(auth.SESSION_COOKIE, path="/")
+    response.delete_cookie(auth.ADMIN_HINT_COOKIE, path="/")
     return response
