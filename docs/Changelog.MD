@@ -18,6 +18,28 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.20.2 — 04:34
+
+Achievement icons (user, 20 Nov):
+- **Speed challenges** (Super Ultra Hyper Turbo, The Wings of RAD_Wyvern, Cyberkinetic Enhancements, Boost Junkie) use
+  the new LAUNCH icon, tinted by the medal like the rest. The blue and orange originals are the same shape, so one file
+  covers both.
+- **Grind challenges** (Marathon Bot, Overtime on Kronos II, Time Well Wasted on Kronos II, Combat on Quest When?) use
+  the sweaty robot. It keeps its own colours: as a one-colour silhouette it is an unreadable blob. Built-in icons named
+  `colour_…` now show in their own colours, like uploads (no daily / weekly variants for them).
+- **Healing +** on Repair Matrix Medic, Medic on Call and Field Medic; **Stun Field** on Stun Field Trooper and Kronos
+  II Shock Trooper (all Combat).
+- **Gear reticles:** sharper Blazar, Protostar, Quark and Translocator icons from the new full-size art; an Umbral
+  Veil icon is in the icon picker, unused until Umbral Veil has a challenge.
+- Admin icon choices made on the Console still win over these defaults.
+
+Recorder stats: "Shots by weapon" showed **"?"** (for example 1,040 shots on one profile). That is the recorder's mark
+for a shot whose nearest replay frame named no weapon (the replay leaves the field empty in up to 37 % of player-frames):
+15 % of all recorded shots, up to 68 % of one player's. It now reads **"Unknown weapon"**, with a note in the tip.
+
+Damage taken in one life: not buildable. The recorder's `damage_taken` is always 0 (the game does not send it to
+spectators), the event log has no hit events, and replays hold no health.
+
 ## 2026.11.20.1 — 03:49
 
 The site was very slow (user, 20 Nov). Measured on the live site (version 2026.11.19.1, up 4.3 h, no replays waiting):

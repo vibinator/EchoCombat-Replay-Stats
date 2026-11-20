@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, Navigate, useLocation, useParams, useSearchParams } from "react-router";
 import { getAchievements, getAchievers, getRarity, getRecentUnlocks, searchPlayers } from "../api";
-import { AchievementRules, AchievementsView, ChallengeBanner, ComingSoon, GroupedBadges, JumpToNew, MegaPrizesSection, useAchievementsAccess } from "../components/AchievementsView";
+import { AchievementRules, AchievementsView, ChallengeBanner, ComingSoon, GroupedBadges, JumpToNew, keepsColours, MegaPrizesSection, useAchievementsAccess } from "../components/AchievementsView";
 import { Avatar, useAvatars } from "../components/Avatar";
 import { Status } from "../components/common";
 import { achievementsPath, dateTime, int, medalRuleText, nameSlug, pct, playerPath } from "../format";
@@ -85,10 +85,10 @@ function TopPlayers() {
   );
 }
 
-/** The medal's icon in the colour of the tier earned (like the badge cards); uploaded art keeps its own colours. */
+/** The medal's icon in the colour of the tier earned (like the badge cards); uploaded and "colour_" art keep their own colours. */
 function RecentIcon({ icon, medal }: { icon: string | null; medal: string | null }) {
   const src = `/achievements/${icon ?? "happy_cubesat.png"}`;
-  if (icon?.startsWith("custom/")) return <img src={src} alt="" />;
+  if (keepsColours(icon)) return <img src={src} alt="" />;
   // an <i>, not a <span>: the card's text column is styled as its first span (styles.css .recent-unlocks li > span:first-of-type)
   return <i className={`recent-glyph t-${medal ?? "crown"}`} style={{ WebkitMaskImage: `url(${src})`, maskImage: `url(${src})` }} aria-hidden="true" />;
 }

@@ -145,7 +145,7 @@ class Rule:
     name: str
     description: str
     period: str  # game | day | week | month (any 30 days, Combat only so far) | all
-    icon: str | None  # base name in app/images; daily / weekly variants added by period
+    icon: str | None  # base name in app/images; daily / weekly variants added by period ("colour_" art has none, see icon_file)
     score: Callable[[list[Game]], float]  # games of one period -> progress (0..1+)
     estimated: bool = False
     new: bool = False  # not on the original ECRanked site
@@ -730,7 +730,7 @@ def _build_rules() -> list[Rule]:
                 _full(_if_on_the_map(_pct("near_mate"))), (45, 55, 65, 80, 92), "game", "%"),
         _ladder(22, "Can We Talk About This?", "Share of one game spent close to an enemy, with at least 1 minute in bounds", "enemy_proximity",
                 _full(_if_on_the_map(_pct("near_enemy"))), (10, 25, 40, 55, 75), "game", "%"),
-        _ladder(23, "Super Ultra Hyper Turbo", "Reach a high top speed in one game", "speed",
+        _ladder(23, "Super Ultra Hyper Turbo", "Reach a high top speed in one game", "launch",
                 lambda gs: gs[0].top_speed, (14, 17, 20, 20, 23), "game", " m/s"),
         _ladder(24, "I’m Bat Bot", "Share of one game spent upside down", "inverted",
                 _full(_pct("upside")), (15, 30, 55, 80, 92), "game", "%"),
@@ -739,7 +739,7 @@ def _build_rules() -> list[Rule]:
                          (27, "Techneium-99", "fission"), (28, "Bird of Prey", "surge")):
         rules.append(_tiered(rid, name, f"Play games on {m.title()} in one day", m,
                              lambda g, m=m: g.map == m, (3, 4, 6, 8, 10), "day"))
-    rules.append(_tiered(29, "Combat on Quest When?", "Play Combat pubs in one day", "pubs", _pub, (9, 13, 18, 24, 32), "day"))  # 20 % lower (user, 2026-11-03)
+    rules.append(_tiered(29, "Combat on Quest When?", "Play Combat pubs in one day", "colour_sweaty", _pub, (9, 13, 18, 24, 32), "day"))  # 20 % lower (user, 2026-11-03)
 
     # Weekly (30-54): the most in one calendar week (Monday start)
     names = {
@@ -761,7 +761,7 @@ def _build_rules() -> list[Rule]:
         _tiered(45, "Sakura's Dancing Flamingo", "Play Payload games in any 7 days", "payload", _payload, (10, 18, 25, 40, 50), "week"),
         _ladder(46, "Tech Support w/RAD_Natalie", "Average share of your games spent close to a teammate, over any 7 days, on at least 3 different days and with at least 10 minutes in bounds", "team_proximity", _week_average("near_mate"), (22, 27, 32, 40, 55), "week", "%"),
         _ladder(47, "Hug Your Frenemy", "Average share of your games spent close to an enemy, over any 7 days, on at least 3 different days and with at least 10 minutes in bounds", "enemy_proximity", _week_average("near_enemy"), (15, 20, 25, 35, 50), "week", "%"),
-        _ladder(48, "The Wings of RAD_Wyvern", "Your average speed over any 7 days, on at least 3 different days and with at least 10 minutes in bounds", "speed", _week_average("speed_sum", 1.0), (3.5, 4, 4.5, 5, 6), "week", " m/s"),
+        _ladder(48, "The Wings of RAD_Wyvern", "Your average speed over any 7 days, on at least 3 different days and with at least 10 minutes in bounds", "launch", _week_average("speed_sum", 1.0), (3.5, 4, 4.5, 5, 6), "week", " m/s"),
         _ladder(49, "I’ɯ ꓭɐʇ ꓭoʇ", "Average share of your games spent upside down, over any 7 days, on at least 3 different days and with at least 10 minutes in bounds", "inverted", _week_average("upside"), (5, 10, 15, 30, 50), "week", "%"),
     ]
     for rid, name, m in ((50, "Frame-Drop Hell", "dyson"), (51, "I've Got a Fever, and the Only Prescription Is Pew Pew Pew!", "combustion"),
@@ -786,7 +786,7 @@ def _build_rules() -> list[Rule]:
                 _AvgValue("near_mate", 100.0, SEASON_MIN_GAMES), (14, 15.5, 17, 19.5, 22.5), "all", "%"),
         _ladder(72, "Roboticide", "Average share of each game spent close to an enemy (needs 50+ games)", "enemy_proximity",
                 _AvgValue("near_enemy", 100.0, SEASON_MIN_GAMES), (6, 8, 10, 12.5, 15), "all", "%"),
-        _ladder(73, "Cyberkinetic Enhancements", "Your average speed across all games (needs 25+ games)", "speed",
+        _ladder(73, "Cyberkinetic Enhancements", "Your average speed across all games (needs 25+ games)", "launch",
                 _AvgValue("speed_sum", 1.0, SPEED_MIN_GAMES), (2.6, 2.8, 3.0, 3.2, 3.5), "all", " m/s"),
         _ladder(74, "toB taB m'I", "Average share of each game spent upside down (needs 50+ games)", "inverted",
                 _AvgValue("upside", 100.0, SEASON_MIN_GAMES), (2, 4, 8, 20, 40), "all", "%"),
@@ -856,9 +856,9 @@ def _build_rules() -> list[Rule]:
         _ladder(114, "Lobby Regular (Activity)", "Number of different days you played", None, lambda gs: len({g.day for g in gs}), (5, 15, 30, 60, 100), new=True, group="Activity"),
         _ladder(115, "Loyal Bot", "Number of different weeks you played", None, lambda gs: len({g.week for g in gs}), (3, 6, 9, 12, 15), new=True, group="Activity"),
         _ladder(116, "Ready Every Dawn (Activity)", "Days in a row with at least one game played", None, _day_streak, (3, 5, 7, 14, 30), new=True, group="Activity"),
-        _ladder(117, "Time Well Wasted on Kronos II (Activity)", "Total hours played", None, lambda gs: sum(g.play_time_s for g in gs) / 3600, (1, 5, 20, 50, 80), "all", " h",
+        _ladder(117, "Time Well Wasted on Kronos II (Activity)", "Total hours played", "colour_sweaty", lambda gs: sum(g.play_time_s for g in gs) / 3600, (1, 5, 20, 50, 80), "all", " h",
                 new=True, group="Activity"),
-        _tiered(118, "Overtime on Kronos II (Activity)", "Games of 10 minutes or longer", None, lambda g: g.play_time_s >= 600, (5, 20, 50, 100, 250), new=True, group="Activity"),
+        _tiered(118, "Overtime on Kronos II (Activity)", "Games of 10 minutes or longer", "colour_sweaty", lambda g: g.play_time_s >= 600, (5, 20, 50, 100, 250), new=True, group="Activity"),
         _tiered(119, "Hot Day Bot (Wins)", "Win games in one day", None, lambda g: g.enough_players and g.won, (3, 5, 8, 12, 18), "day", new=True, group="Wins"),
         _tiered(120, "Point Taker (Capture Point)", "Win Capture Point games", "capture_point", lambda g: g.enough_players and _capture(g) and g.won, (5, 10, 30, 80, 150), new=True, group="Capture Point"),
         _tiered(121, "Payload Hauler (Payload)", "Win Payload games", "payload", lambda g: g.enough_players and _payload(g) and g.won, (5, 10, 30, 80, 150), new=True, group="Payload"),
@@ -909,7 +909,7 @@ def _build_rules() -> list[Rule]:
         # one medal, not a ladder (user, 2026-11-05): with 1 minute in bounds the most anyone has is 2 such wins
         Rule(139, "Untouchable Chassis (Wins)", "Win a game without dying", "game", "deaths",
              _v4(_full(_untouchable, UNTOUCHABLE_GAME_S)), estimated=True, new=True, group="Survival"),
-        _ladder(140, "Marathon Bot", "Play one very long game (your longest game counts)", None, _v4(lambda gs: gs[0].play_time_s / 60),
+        _ladder(140, "Marathon Bot", "Play one very long game (your longest game counts)", "colour_sweaty", _v4(lambda gs: gs[0].play_time_s / 60),
                 (12, 15, 18, 21, 26), "game", " min", new=True, group="Activity"),
         _tiered(141, "Capture Point Comeback (Capture Point)", "Win a Capture Point game after losing the first round (a 2-1 win)", "capture_point",
                 lambda g: g.enough_players and _capture(g) and g.won and g.rounds_lost == 1, (1, 5, 15, 40, 100), new=True, group="Capture Point"),
@@ -919,7 +919,7 @@ def _build_rules() -> list[Rule]:
                 "team_proximity", _v4(_full(_away_from_mates)), (93.2, 95.8, 97.5, 98.7, 99.6), "game", "%", new=True, group="Movement"),
         Rule(144, "Ambidextrous Bot (Movement)", "Play one game using both the left-arm and the right-arm setting, each for at least 40 % of the time", "game", None,
              _v4(_full(_both_arms)), new=True, group="Movement"),
-        _ladder(145, "Boost Junkie (Movement)", "Keep a high average speed through one whole game, with at least 1 minute in bounds", "speed",
+        _ladder(145, "Boost Junkie (Movement)", "Keep a high average speed through one whole game, with at least 1 minute in bounds", "launch",
                 _v4(_full(_if_on_the_map(_AvgValue("speed_sum", 1.0)))), (3.5, 4, 4.5, 5.5, 7), "game", " m/s", new=True, group="Movement"),
         _ladder(146, "Point Guard (Capture Point)", "Spend time capturing the point in one Capture Point game (your team's capture progress is rising)",
                 "capture_point", _v4(lambda gs: gs[0].capture_s / 60 if _capture(gs[0]) else 0.0), (2, 3, 3.5, 4.2, 5), "game", " min",
@@ -1012,10 +1012,16 @@ MEGA_COMBAT = _tuned(_ladder(0, "Echo Combat Veteran", "Play Echo Combat matches
                      (33, 133, 333, 600, 1000))
 
 
+COLOUR_ART = "colour_"  # built-in icons shown in their own colours; the frontend checks the same prefix (AchievementsView keepsColours)
+
+
 def icon_file(rule: Rule) -> str | None:
-    """Old badge art: ids 5-29 were the daily set, 30-54 weekly, 55-79 all-time."""
+    """Old badge art: ids 5-29 were the daily set, 30-54 weekly, 55-79 all-time. "colour_" art keeps its own colours on
+    the site (never a tier-tinted silhouette), so it has no daily / weekly variants (user, 2026-11-20: the sweaty robot)."""
     if rule.icon is None:
         return None
+    if rule.icon.startswith(COLOUR_ART):
+        return f"{rule.icon}.png"
     suffix = "_daily" if rule.id < 30 else "_weekly" if rule.id < 55 else ""
     return f"{rule.icon}{suffix}.png"
 

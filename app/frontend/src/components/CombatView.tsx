@@ -216,7 +216,7 @@ export function CombatSection({ userId, period, map }: { userId: string; period:
           <div className="combat-weapon-grid">
             <WeaponList heading="Kills by weapon" items={e.kills_by_weapon} hint="Kills of other players (self-kills excluded)." />
             <WeaponList heading="Deaths by weapon" items={e.deaths_by_weapon} hint="What killed this player, including their own ordnance." />
-            <WeaponList heading="Shots by weapon" items={e.shots_by_weapon} hint="The weapon held in the nearest frame, so a shot right at a weapon swap can be filed under the wrong one." />
+            <WeaponList heading="Shots by weapon" items={e.shots_by_weapon} hint="The weapon held in the nearest frame, so a shot right at a weapon swap can be filed under the wrong one. Unknown weapon: that frame named no weapon." />
           </div>
         </>
       )}
@@ -289,7 +289,7 @@ function PlayerEvents({ p }: { p: CombatMatchPlayer }) {
       <div className="combat-weapon-grid">
         <WeaponList heading="Kills by weapon" items={p.events.kills_by_weapon} />
         <WeaponList heading="Deaths by weapon" items={p.events.deaths_by_weapon} />
-        <WeaponList heading="Shots by weapon" items={p.events.shots_by_weapon} />
+        <WeaponList heading="Shots by weapon" items={p.events.shots_by_weapon} hint="Unknown weapon: the nearest replay frame named no weapon." />
       </div>
     </details>
   );

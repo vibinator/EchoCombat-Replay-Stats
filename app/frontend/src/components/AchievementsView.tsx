@@ -9,6 +9,9 @@ import { EmptyState, useColumns } from "./ui";
 // Old ecranked.com badge art (app/images -> public/achievements). Tier frames = progress levels
 // 25 / 50 / 75 / 100 % (white / bronze / silver / gold); the lock emblem = below 25 %.
 const IMG = "/achievements/";
+/** Uploaded icons and built-in "colour_" art keep their own colours; other built-in art is a one-colour silhouette,
+ * tinted by the tier (backend achievements.COLOUR_ART; user, 2026-11-20: the sweaty robot is a blob as a silhouette). */
+export const keepsColours = (icon: string | null | undefined) => !!icon && (icon.startsWith("custom/") || icon.startsWith("colour_"));
 const GENERIC_ICON = "happy_cubesat.png";
 export const GROUPS: [Achievement["period"], string][] = [
   ["game", "One Match"],
@@ -571,7 +574,7 @@ export function Badge({ a, compact = false }: { a: AchievementRule & Partial<Pic
   // The glyph takes the colour of the tier reached; grey = not started, plain = started, no tier yet (user,
   // 2026-11-02). Built-in art is one colour on transparent, so it is used as a mask; uploads keep their own colours.
   const state = catalogue ? "" : tier ? " tinted" : a.progress! > 0 ? " tinted started" : " not-started";
-  const tinted = (catalogue || state.includes("tinted")) && !a.icon?.startsWith("custom/"); // catalogue (no player): one neutral colour for every icon (user, 2026-11-06) // the generic cubesat (no icon of its own) is a silhouette too: it takes the tier colour like the rest (user, 2026-11-06)
+  const tinted = (catalogue || state.includes("tinted")) && !keepsColours(a.icon); // catalogue (no player): one neutral colour for every icon (user, 2026-11-06) // the generic cubesat (no icon of its own) is a silhouette too: it takes the tier colour like the rest (user, 2026-11-06)
   const close = closeness(a);
   return (
     <div className={`badge-card${compact ? " compact" : ""}${tier || catalogue ? "" : " locked"}${tier ? ` t-${tier}` : ""}${tinted ? state : state.replace(" tinted", "")}${close ? " close" : ""}`}

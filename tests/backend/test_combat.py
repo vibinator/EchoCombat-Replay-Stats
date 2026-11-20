@@ -297,3 +297,10 @@ def test_player_award_lists_without_match_cards_still_make_cards(settings):
         sync(client)
         detail = client.get(f"/api/combat/matches/{SESSION}").json()
     assert [(a["key"], a["user_id"], a["value"]) for a in detail["awards"]] == [("mvp", BIG_ID, None)]
+
+
+def test_weapon_names():
+    from backend.api.combat import UNKNOWN_WEAPON, weapon_name
+    assert weapon_name("assault") == "Pulsar" and weapon_name("r15_ord_det") == "Detonator" and weapon_name("scout_aoe") == "Comet blast"
+    assert weapon_name("?") == UNKNOWN_WEAPON  # the recorder's mark for a shot whose replay frame named no weapon
+    assert weapon_name("0x0f642a34f8d049ab") == "0x0f642a34f8d049ab"

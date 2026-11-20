@@ -93,8 +93,8 @@ COMBAT_RULES: list[Rule] = [
     _rule(178, "Service Android (Combat)", "Games with at least 8 assists and at least twice as many assists as kills", "team_proximity",
           lambda g: g.assists >= 8 and g.assists >= 2 * g.kills, (1, 5, 12, 25, 45), "all"),
     _rule(198, "Siege Breaker Bot (Combat)", "Deal objective damage in one game", None, lambda g: g.objective_damage, (500, 900, 1300, 1700, 2000), "game"),
-    _rule(199, "Repair Matrix Medic (Combat)", "Use heal bubbles in one game", None, lambda g: g.heal_bubbles, (2, 4, 6, 7, 9), "game"),
-    _rule(200, "Stun Field Trooper (Combat)", "Stun enemies in one game", None, lambda g: g.stuns_given, (1, 2, 3, 4, 5), "game"),
+    _rule(199, "Repair Matrix Medic (Combat)", "Use heal bubbles in one game", "repair_matrix", lambda g: g.heal_bubbles, (2, 4, 6, 7, 9), "game"),
+    _rule(200, "Stun Field Trooper (Combat)", "Stun enemies in one game", "stun_field", lambda g: g.stuns_given, (1, 2, 3, 4, 5), "game"),
     # Second set (user, 2026-11-09: new one game / one day / one month / all-time Combat challenges; "the top should be 10%
     # achievable"). From 435 reports (4-9 Nov 2026), the 42 players with 10+ counted games (the site's rarity group): the crown is
     # what the top 10 % of them reached in one game / one day, and their pace since their first game x30 (any 30 days) or x90
@@ -136,7 +136,7 @@ COMBAT_RULES: list[Rule] = [
     _rule(235, "Lone Echo MVP (Award card)", "Total MVP cards won (the highest score in a match)", None, _awards("mvp"), (8, 30, 70, 130, 210), "all"),
     _rule(236, "Guard Duty on Kronos II (Award card)", "Win the Guard card in any 7 days (the most time on the objective in a match)", None, _awards("guard"), (1, 1, 2, 3, 4), "week"),
     _rule(237, "Sentinel (Award card)", "Total Guard cards won (the most time on the objective in a match)", None, _awards("guard"), (3, 9, 18, 30, 45), "all"),
-    _rule(238, "Medic on Call (Award card)", "Win the Medic card in any 7 days (the most healing in a match)", None, _awards("medic"), (1, 1, 2, 3, 4), "week"),
+    _rule(238, "Medic on Call (Award card)", "Win the Medic card in any 7 days (the most healing in a match)", "repair_matrix", _awards("medic"), (1, 1, 2, 3, 4), "week"),
     _rule(239, "Chief Medic (Award card)", "Total Medic cards won (the most healing in a match)", None, _awards("medic"), (3, 9, 18, 30, 45), "all"),
     _rule(240, "Saturn Specialist (Award card)", "Total Specialist cards won (the most assists in a match)", None, _awards("specialist"), (2, 6, 12, 20, 30), "all"),
     _rule(242, "Streak Master (Award card)", "Total Hot Shot cards won (the longest elimination streak in a match)", None, _awards("hot_shot"), (2, 6, 12, 20, 30), "all"),
@@ -144,7 +144,7 @@ COMBAT_RULES: list[Rule] = [
     Rule(249, "MVP of Echo Combat (Award card)", "Win the MVP card in one game (the highest score in the match)", "game", None, _total(lambda g: "mvp" in g.awards), new=True, group=GROUP, counted=False),
     Rule(250, "Standing Guard on Kronos II (Award card)", "Win the Guard card in one game (the most time on the objective)", "game", None, _total(lambda g: "guard" in g.awards), new=True, group=GROUP, counted=False),
     Rule(251, "Echo Combat Specialist (Award card)", "Win the Specialist card in one game (the most assists)", "game", None, _total(lambda g: "specialist" in g.awards), new=True, group=GROUP, counted=False),
-    Rule(252, "Field Medic (Award card)", "Win the Medic card in one game (the most healing)", "game", None, _total(lambda g: "medic" in g.awards), new=True, group=GROUP, counted=False),
+    Rule(252, "Field Medic (Award card)", "Win the Medic card in one game (the most healing)", "game", "repair_matrix", _total(lambda g: "medic" in g.awards), new=True, group=GROUP, counted=False),
     Rule(253, "Heavy Hitter (Award card)", "Win the Cannoneer card in one game (the most damage dealt)", "game", None, _total(lambda g: "cannoneer" in g.awards), new=True, group=GROUP, counted=False),
     Rule(254, "Saturn Hull Plating (Award card)", "Win the Tank card in one game (the most damage absorbed)", "game", None, _total(lambda g: "tank" in g.awards), new=True, group=GROUP, counted=False),
     Rule(255, "Hot Streak (Award card)", "Win the Hot Shot card in one game (the longest elimination streak)", "game", None, _total(lambda g: "hot_shot" in g.awards), new=True, group=GROUP, counted=False),
@@ -154,7 +154,7 @@ COMBAT_RULES: list[Rule] = [
     Rule(259, "Lone Wolf of Kronos II (Award card)", "Win the Renegade card in one game (the most solo kills)", "game", None, _total(lambda g: "renegade" in g.awards), new=True, group=GROUP, counted=False),
     Rule(260, "Point Control (Award card)", "Win the Controller card in one game (the most damage to enemies on the objective)", "game", None, _total(lambda g: "controller" in g.awards), new=True, group=GROUP, counted=False),
     Rule(261, "Super Star (Award card)", "Win the Super Star card in one game (the most eliminations, kills and assists together)", "game", None, _total(lambda g: "super_star" in g.awards), new=True, group=GROUP, counted=False),
-    Rule(262, "Kronos II Shock Trooper (Award card)", "Win the Shock Trooper card in one game (the most enemies stunned)", "game", None, _total(lambda g: "shock_trooper" in g.awards), new=True, group=GROUP, counted=False),
+    Rule(262, "Kronos II Shock Trooper (Award card)", "Win the Shock Trooper card in one game (the most enemies stunned)", "game", "stun_field", _total(lambda g: "shock_trooper" in g.awards), new=True, group=GROUP, counted=False),
     Rule(263, "Capture Point Infiltrator (Award card)", "Win the Infiltrator card in one game (the most hill captures, Capture Point maps)", "game", None, _total(lambda g: "infiltrator" in g.awards), new=True, group=GROUP, counted=False),
     Rule(264, "Immovable Object (Award card)", "Win the Immovable Object card in one game (the most hill defends, Capture Point maps)", "game", None, _total(lambda g: "immovable_object" in g.awards), new=True, group=GROUP, counted=False),
     # All time

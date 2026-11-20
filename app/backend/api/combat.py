@@ -62,9 +62,16 @@ def _list(text: str | None) -> list:
     return value if isinstance(value, list) else []
 
 
+UNKNOWN_WEAPON = "Unknown weapon"
+
+
 def weapon_name(code: str) -> str:
     """The in-game name of a weapon / ordnance symbol: assault -> Pulsar, r15_ord_det -> Detonator, scout_aoe -> Comet blast.
-    Anything unknown keeps its symbol, tidied up (a raw 0x... hash stays as it is)."""
+    Anything unknown keeps its symbol, tidied up (a raw 0x... hash stays as it is). "?" is the recorder's mark for a shot whose
+    replay frame named no weapon (the field is empty in up to 37 % of player-frames, docs/ReplayData.MD): 15 % of all shots
+    on 2026-11-16, up to 68 % of one player's (user, 2026-11-20: a bare "?" on a profile)."""
+    if code in ("?", ""):
+        return UNKNOWN_WEAPON
     if code.startswith("0x"):
         return code
     base, suffix = code, ""

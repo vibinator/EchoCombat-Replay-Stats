@@ -34,6 +34,17 @@ def test_catalogue():
     assert icon_file(next(r for r in RULES if r.id == 7)) == "comet_daily.png"
     assert icon_file(next(r for r in RULES if r.id == 32)) == "comet_weekly.png"
     assert icon_file(next(r for r in RULES if r.id == 57)) == "comet.png"
+    # "colour_" art keeps its own colours, so no daily / weekly variant even in the old daily range (id 29)
+    assert icon_file(next(r for r in RULES if r.id == 29)) == "colour_sweaty.png"
+    assert icon_file(next(r for r in RULES if r.id == 23)) == "launch_daily.png"
+
+
+def test_every_icon_file_exists():
+    from pathlib import Path
+    from backend.combat_achievements import COMBAT_RULES
+    folder = Path(__file__).resolve().parents[2] / "app" / "frontend" / "public" / "achievements"
+    missing = {r.id: icon_file(r) for r in RULES + COMBAT_RULES if r.icon and not (folder / icon_file(r)).is_file()}
+    assert not missing
 
 
 def test_tiers():
