@@ -112,7 +112,8 @@ def test_coming_soon_until_the_start_date(tmp_path):
                  "/api/leaderboard?stat=achievements"]
 
         def hidden():
-            stats = {s["key"] for s in client.get("/api/leaderboard/stats").json()}
+            # before the launch the stat is only listed marked "preview" (the page shows it to the preview role only)
+            stats = {s["key"] for s in client.get("/api/leaderboard/stats").json() if not s.get("preview")}
             codes = {client.get(p).status_code for p in paths}
             return not client.get("/api/challenges").json()["launched"] and "achievements" not in stats and codes == {403}
 

@@ -18,6 +18,45 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.20.1 — 03:49
+
+The site was very slow (user, 20 Nov). Measured on the live site (version 2026.11.19.1, up 4.3 h, no replays waiting):
+around 03:26 UTC a match list took 36 s and the home page's numbers (`/api/overview`) more than 30 s, so the page gave up
+and stayed on its grey boxes; even the login answer took 0.7 s instead of 0.1-0.2 s. Ten minutes later every answer took
+0.05-0.25 s (0.3-1.6 s for one nobody had asked for yet), and a 5-minute probe stayed at 0.05 s. The busy spell itself is
+not explained yet (the NAS log of 03:15-03:40 UTC will say). What it showed: Cloudflare kept answering everything it
+keeps, but the **home page's numbers, the leaderboard and every player profile were never kept by Cloudflare**
+(`cf-cache-status: BYPASS`): while stats are hidden from players, those answers asked who the visitor is (admins see
+the hidden stats), so every visit went to the NAS. Asked for: keep more on Cloudflare to take load off the NAS (user).
+
+- **Cloudflare keeps the home page, leaderboard and profiles again** (`/api/overview`, `/api/leaderboard`,
+  `/api/leaderboard/overview`, `/api/leaderboard/stats`, `/api/players/<id>` with trends, companions and compare):
+  asked for plainly they are always the public version (hidden stats left out) and nobody is asked who they are, so
+  they are the same for everyone. Before: every visit built or read them on the NAS (0.05-0.15 s when warm, 1-1.6 s the
+  first time, more than 30 s in the busy spell); now repeats come from Cloudflare (0.02-0.03 s measured on the answers it
+  already kept) and, as before, Cloudflare serves the last good copy for up to 10 minutes if the NAS fails. They also
+  join the list of answers rebuilt after a restart (they were left out as per-visitor).
+- **Admins still see hidden stats**, on their own copy: `/api/auth/me` sets an `echovr_admin` cookie for admins (a hint
+  only; it is removed on logout or when the admin role goes), and the page then asks for those answers with
+  `view=admin`. Only then is the login checked; that answer is `private, no-store` and never kept by Cloudflare. A
+  non-admin who adds `view=admin` still gets the public stats; an admin who asks without it gets the public copy, so
+  what Cloudflare keeps is never an admin's.
+- **The challenge period (`/api/challenges`, asked on every page) is kept by Cloudflare too**: it carries `previews`
+  (the preview role sees achievements before the launch) instead of whether this visitor has the role; the page takes
+  that from `/api/auth/me`, which it asks anyway. Before the launch the leaderboard's achievements stat is listed with
+  `"preview": true` and shown only to previewers.
+- **Cloudflare keeps public answers 5 minutes instead of 1** (`ECHOVR_EDGE_CACHE_S` 60 -> 300; user: 10 minutes behind
+  is fine). With the server's own 5-minute refresh and the tab's 1 minute, a new match shows within ~1-6 minutes,
+  at most ~11. Live status and the processing count are never kept (unchanged). An admin change (hide stats, merge,
+  challenge period) can take up to 5 minutes to reach Cloudflare's copies (was 1).
+- `check_cloudflare.bat` also checks that the home page's numbers come from Cloudflare and that an admin's copy never
+  does. Setup.MD: new step 4b, Smart Tiered Cache (free: Cloudflare's data centres ask one upper tier instead of each
+  asking the NAS).
+
+**To do after updating:** in the NAS's YAML set `ECHOVR_EDGE_CACHE_S: "300"` (or remove the line: 300 is the default
+now), Recreate, then run `check_cloudflare.bat`. In Cloudflare: Caching > Tiered Cache > Smart Tiered Caching on.
+Admins: open any page once after the update (sets the cookie), then reload to see hidden stats.
+
 ## 2026.11.19.1 — 23:07
 
 Replays with bone data (recorder update, 19 Nov) failed to import: every one ended "Too many unreadable lines". Each

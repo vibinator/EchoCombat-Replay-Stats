@@ -71,14 +71,17 @@ def counted_window(db) -> tuple[str | None, str | None]:
 
 @router.get("/api/challenges")
 def get_challenges(request: Request):
-    """The Flamingo Challenge period: only matches inside it count. No start date = not launched yet."""
+    """The Flamingo Challenge period: only matches inside it count. No start date = not launched yet.
+
+    The same for every visitor (2026-11-20), so Cloudflare may keep it: `previews` says whether people with the Discord
+    preview role see achievements before the launch; whether this visitor has it is in /api/auth/me (user.preview),
+    and the page puts the two together (api.ts getChallenges)."""
     with request.app.state.sessionmaker() as db:
         info = _window_info(db)
         # total and the sneak peek are public before the launch too: the menu and "Coming soon" page tease them
         peek = PEEK | {"revealed": icons.apply(db, PEEK["revealed"])}  # icons chosen on the Console page (D43)
-    with request.app.state.sessionmaker() as db:
         previews = previews_can_see(db)
-    return info | {"preview": not info["launched"] and previews and auth.has_preview(request), "total": len(RULES), "peek": peek}
+    return info | {"previews": not info["launched"] and previews, "total": len(RULES), "peek": peek}
 
 
 # Shown in full on the "Coming soon" page (user, 2026-10-31; refreshed 2026-11-03): original day, week and all-time

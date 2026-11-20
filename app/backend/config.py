@@ -117,7 +117,7 @@ class Settings:
             response_cache_mb=int(env("ECHOVR_RESPONSE_CACHE_MB", 1024)),
             warm_answers=int(env("ECHOVR_WARM_ANSWERS", 150)),
             ranking_refresh_s=float(env("ECHOVR_RANKING_REFRESH_S", 900)),
-            edge_cache_s=int(env("ECHOVR_EDGE_CACHE_S", 60)),
+            edge_cache_s=int(env("ECHOVR_EDGE_CACHE_S", 300)),
             twitch_channel=env("ECHOVR_TWITCH_CHANNEL", "combat_stream_bot"),
             bot_link_secret=_secret(env("ECHOVR_BOT_LINK_SECRET")),
             remote_worker_secret=_secret(env("ECHOVR_REMOTE_WORKER_SECRET")),

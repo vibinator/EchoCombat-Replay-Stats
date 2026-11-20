@@ -80,7 +80,9 @@ def test_preview_role_sees_achievements_before_launch(tmp_path, discord):
         assert done.status_code == 303 and done.headers["location"] == "/achievements"
         assert client.get("/api/auth/me").json()["user"] == {"name": f"user{MEMBER}", "preview": True, "admin": False,
                                                                     "console": True, "cloud": None}
-        assert client.get("/api/challenges").json()["preview"] is True
+        challenges = client.get("/api/challenges")
+        assert challenges.json()["previews"] is True and "preview" not in challenges.json()  # the visitor's: /api/auth/me
+        assert "no-store" not in challenges.headers["cache-control"]  # the same for everyone: may be shared
         a = client.get(f"/api/players/{BLUE}/achievements").json()
         assert a["games"] == 1 and a["window"] == {"start": None, "end": None}  # whole archive before launch
         assert client.get("/api/achievements").status_code == 200
@@ -373,7 +375,7 @@ def test_after_the_launch_no_login_is_needed(tmp_path, discord):
         act(client, actions.set_challenge_window, "2026-01-01", None)  # launched
         assert client.get("/api/auth/me").json() == {"enabled": True, "user": None}
         challenges = client.get("/api/challenges").json()
-        assert challenges["launched"] is True and challenges["preview"] is False
+        assert challenges["launched"] is True and challenges["previews"] is False
         assert client.get("/api/achievements").status_code == 200
         assert client.get(f"/api/players/{BLUE}/achievements").json()["window"]["start"] == "2026-01-01"
         assert "achievements" in {s["key"] for s in client.get("/api/leaderboard/stats").json()}

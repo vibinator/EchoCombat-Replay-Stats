@@ -41,6 +41,12 @@
   } else if (path === "/leaderboard" && plain) {
     paths.push("/api/leaderboard/overview?period=all&min_games=10", "/api/leaderboard/stats");
   }
+  // an admin asks for their own version of the answers with hidden stats (api.ts forViewer, same pattern and cookie)
+  var admin = /(?:^|;\s*)echovr_admin=1(?:;|$)/.test(document.cookie);
+  var view = /^\/api\/(overview|leaderboard(\/stats|\/overview)?|players\/compare\/[^/?]+|players\/[^/?]+(\/trends|\/companions)?)(\?|$)/;
+  paths = paths.map(function (p) {
+    return admin && view.test(p) ? p + (p.indexOf("?") < 0 ? "?" : "&") + "view=admin" : p;
+  });
   var early = (window.__early = {});
   paths.forEach(function (p) {
     early[p] = fetch(p, { headers: { "X-EchoVR": "1" } });

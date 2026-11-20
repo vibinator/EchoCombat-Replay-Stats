@@ -306,8 +306,29 @@ function recheck(path: string): void {
   setTimeout(() => refresh(path), RECHECK_MS * (n + 1));
 }
 
+// Answers that leave out stats hidden from players for everyone but admins (backend visibility.py). Asked for plainly
+// they are the public version, the same for everyone, which Cloudflare keeps (2026-11-20: the home page, leaderboard
+// and profiles had been asked of the NAS on every visit while stats were hidden). An admin's page asks for its own
+// version with view=admin: the server set the echovr_admin cookie (/api/auth/me) and checks the login itself, and that
+// answer is never shared. Kept under its own address here too, so a tab never mixes the two.
+const ADMIN_VIEW = /^\/api\/(overview|leaderboard(\/stats|\/overview)?|players\/compare\/[^/?]+|players\/[^/?]+(\/trends|\/companions)?)(\?|$)/;
+
+function adminHint(): boolean {
+  try {
+    return /(?:^|;\s*)echovr_admin=1(?:;|$)/.test(document.cookie);
+  } catch {
+    return false;
+  }
+}
+
+/** The address to ask for: the admin's version of an answer with hidden stats, or the shared one. */
+export function forViewer(path: string, admin: boolean = adminHint()): string {
+  return admin && ADMIN_VIEW.test(path) ? `${path}${path.includes("?") ? "&" : "?"}view=admin` : path;
+}
+
 function request<T>(path: string, init?: RequestInit): Promise<T> {
   if (init) return send<T>(path, init);
+  path = forViewer(path);
   tracking?.add(path);
   const entry = entries.get(path) ?? restore(path);
   const age = entry && entry.data !== undefined ? Date.now() - entry.at : Infinity;
@@ -673,6 +694,8 @@ export interface StatOption {
   /** chip group on the Leaderboard (Activity, Movement, ...) */
   group?: string;
   hint?: string;
+  /** before the launch: only for visitors with the Discord preview role (getLeaderboardStats leaves it out for others) */
+  preview?: boolean;
 }
 
 export interface StatCardRow {
@@ -755,7 +778,14 @@ export interface LeaderboardQuery {
 export const getLeaderboard = (q: LeaderboardQuery) =>
   request<Leaderboard>(`/api/leaderboard${query({ ...q })}`);
 
-export const getLeaderboardStats = () => request<StatOption[]>("/api/leaderboard/stats");
+/** Before the launch the achievements stat comes marked "preview": shown only to a visitor with the preview role (the
+ * list itself is the same for everyone, so Cloudflare keeps it). */
+export const getLeaderboardStats = async (): Promise<StatOption[]> => {
+  const stats = await request<StatOption[]>("/api/leaderboard/stats");
+  if (!stats.some((s) => s.preview)) return stats;
+  const sees = (await getChallenges().catch(() => null))?.preview ?? false;
+  return stats.filter((s) => !s.preview || sees);
+};
 
 export const getGear = () => request<GearList>("/api/leaderboard/gear");
 
@@ -972,8 +1002,11 @@ export interface ChallengeWindow {
   updated_at: string | null;
   /** false until the admin-set start date: achievements and challenges are "Coming soon" */
   launched: boolean;
-  /** before the launch: this visitor has the Discord preview role and sees everything */
+  /** before the launch: this visitor has the Discord preview role and sees everything (getChallenges: `previews` from
+   * the shared answer and user.preview from /api/auth/me) */
   preview: boolean;
+  /** before the launch: people with the Discord preview role see achievements (the same for every visitor) */
+  previews: boolean;
   /** who may see achievements: everyone (from the start date), only the Preview role, or nobody */
   visibility: "everyone" | "preview" | "hidden";
   active: boolean;
@@ -1294,7 +1327,13 @@ export const getCompanions = (userId: string, window: CompanionWindow = "all") =
   request<{ teammates: Companion[]; opponents: Companion[] }>(`/api/players/${encodeURIComponent(userId)}/companions?window=${window}`);
 export const comparePlayers = (userIds: string[], period: Period) =>
   request<Comparison>(`/api/players/compare/${userIds.map(encodeURIComponent).join(",")}?period=${period}`);
-export const getChallenges = () => request<ChallengeWindow>("/api/challenges");
+/** The challenge period (shared by everyone, kept by Cloudflare) plus whether this visitor previews achievements before
+ * the launch, which only /api/auth/me knows (asked by every page anyway: one request). */
+export const getChallenges = async (): Promise<ChallengeWindow> => {
+  const w = await request<Omit<ChallengeWindow, "preview">>("/api/challenges");
+  const me = !w.launched && w.previews ? await getMe().catch(() => null) : null;
+  return { ...w, preview: !!me?.user?.preview };
+};
 export const getRarity = () => request<AchievementRarity[]>("/api/achievements");
 export const getRecentUnlocks = () => request<RecentUnlock[]>("/api/achievements/recent");
 

@@ -43,7 +43,7 @@ npm install
 | `ECHOVR_WARM_ANSWERS` | `150` | After a restart (every update), the answers people asked for most before it are built again in the background, most asked first, one at a time (`<data>/cache/popular.json` remembers them). `0` = off |
 | `ECHOVR_CACHE_REFRESH_S` | `300` | Answer cache (D53): a page whose data changed is still answered at once and recalculated in the background at most this often (pages are at most about this far behind new replays). Lower = fresher, more CPU while importing. `0` = recalculate before answering (slow while importing) |
 | `ECHOVR_RANKING_REFRESH_S` | `900` | The achievement ranking (achievement leaderboard, rarity shares, medal feed) is recalculated in the background at most this often; never more often than `ECHOVR_CACHE_REFRESH_S`. Its refresh reads every game of every player: the costliest one on the NAS (roughly 2-5 % of one core during play at 900, 6-14 % at 300). A player's own achievements page does not wait for it |
-| `ECHOVR_EDGE_CACHE_S` | `60` | Cloudflare may keep public data answers this many seconds, so repeats never reach the NAS (needs the Cache Rule, see Cloudflare cache). Login answers and errors are never kept. `0` = Cloudflare never keeps them |
+| `ECHOVR_EDGE_CACHE_S` | `300` | Cloudflare may keep public data answers this many seconds, so repeats never reach the NAS (300 since 2026-11-20, user: pages up to 10 min behind are fine) (needs the Cache Rule, see Cloudflare cache). Login answers and errors are never kept. `0` = Cloudflare never keeps them |
 | `ECHOVR_DISCORD_NAME_PICTURES` | `1` | Player pictures matched by name from the Discord server's member list. Needs the bot's **Server Members intent** (Developer Portal > Bot > Privileged Gateway Intents; no approval needed while the bot is in fewer than 100 servers). Without it Discord's refusal is logged once per start and nothing else changes. `0` = never ask for the member list. Pictures of linked players and known Discord ids need no intent either way |
 | `ECHOVR_CLOUD_TRASH_DAYS` | `30` | Open Cloud: deleted files and folders stay this many days in the recycle bin (Console > Cloud > Recycle bin), then go for good. `0` = kept until a console user removes them. The recycle bin counts toward the quota |
 | `ECHOVR_CLAMAV` | – | Virus scan of cloud uploads (antivirus.py): ClamAV's daemon as `host:port`, `clamav:3310` with the `clamav` service of docker-compose.yml. Unset = no scanning. Files up to `ECHOVR_CLAMAV_MAX_MB` are held ("Checking for viruses") until clean |
@@ -137,7 +137,7 @@ DNS moves to Cloudflare.
 The website stays read-only to everyone: changes are only possible from the admin console in the container.
 
 ## Cloudflare cache (D53)
-Cloudflare keeps public data answers for `ECHOVR_EDGE_CACHE_S` (60 s), so repeated requests never reach the NAS. The
+Cloudflare keeps public data answers for `ECHOVR_EDGE_CACHE_S` (300 s), so repeated requests never reach the NAS. The
 app decides what may be kept, in a header only Cloudflare reads (`Cloudflare-CDN-Cache-Control`): answers that depend
 on who is logged in, and errors, are never kept; browsers always check with the server (`no-cache` + ETag). Static
 files (scripts, styles, images) were already kept by Cloudflare and need nothing. Free plan.
@@ -158,7 +158,9 @@ files (scripts, styles, images) were already kept by Cloudflare and need nothing
 4. **Rate limiting** (now recommended: cached answers never reach the app's own limit): Security > WAF > Rate limiting
    rules > *Create rule*: URI Path contains `/api/`, same characteristics (IP), 100 requests per 10 seconds, action
    Block for 10 seconds. A normal page asks 5-10 at once.
-5. **NAS**: `docker-compose.yml` has `ECHOVR_EDGE_CACHE_S: "60"` and `ECHOVR_CACHE_REFRESH_S: "300"` (the defaults);
+4b. **Tiered Cache** (free, 2026-11-20): Caching > Tiered Cache > **Smart Tiered Caching Topology** on. Cloudflare's
+   data centres then ask one upper-tier centre instead of each asking the NAS: fewer requests reach it.
+5. **NAS**: `docker-compose.yml` has `ECHOVR_EDGE_CACHE_S: "300"` and `ECHOVR_CACHE_REFRESH_S: "300"` (the defaults);
    change them there and Recreate. `ECHOVR_EDGE_CACHE_S: "0"` turns the Cloudflare part off without touching the rule.
 6. **Check**: double-click `check_cloudflare.bat` (or on the NAS: `docker exec -it echovr-replay-stats python
    app/cloudflare_check.py https://echocombat.com`). It asks the site about 20 small questions, changes nothing, and
@@ -166,10 +168,12 @@ files (scripts, styles, images) were already kept by Cloudflare and need nothing
    DANGER: fix step 3 at once.
 
 **Check in a browser** (if Cloudflare challenges the check): open https://echocombat.com, F12 > Network, reload, click
-`overview`: *Response headers* show `cf-cache-status: HIT` (or `MISS` on the first visit within 60 s), `etag`, and
-`cache-control: no-cache`. `me` (the login answer) must never say `HIT`.
+`overview`: *Response headers* show `cf-cache-status: HIT` (or `MISS` on the first visit within 300 s), `etag`, and
+`cache-control: no-cache`. `me` (the login answer) must never say `HIT`. While stats are hidden from players, an
+admin's page asks for the home page, leaderboard and profiles with `view=admin` (its own version, `private, no-store`,
+never kept); everyone else gets the shared one (visibility.py).
 
-After an admin change (merge, challenge period) Cloudflare can show the old answer for up to 60 s and the server for
+After an admin change (merge, challenge period) Cloudflare can show the old answer for up to 5 minutes and the server for
 up to 5 minutes; nothing needs purging. Caching > Configuration > *Development Mode* bypasses Cloudflare's cache for
 3 hours when needed.
 

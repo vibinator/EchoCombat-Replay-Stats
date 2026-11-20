@@ -13,7 +13,8 @@ from ..errors import ApiError
 from ..gear import ORDNANCES, TACMODS, WEAPONS
 from ..models import Match, MatchPlayer, MatchPlayerLoadout, Player
 from ..achievements import achiever_facts
-from .achievements import achievement_progress, achievement_ranking, require_launched, visible
+from ..admin_actions import achievements_launched, previews_can_see
+from .achievements import achievement_progress, achievement_ranking, require_launched
 from .derived import MAP_PATTERN, MODE_PATTERN, PERIODS, gear, period_start, ratio
 
 router = APIRouter(prefix="/api/leaderboard", tags=["leaderboard"])
@@ -201,12 +202,17 @@ def _resort(ranking, rows, sort: str | None, wl: bool, hidden) -> list[tuple[int
 
 @router.get("/stats")
 def list_stats(request: Request):
-    launched = visible(request)
+    """The stats the board can rank by. The same for every visitor unless an admin asks with ?view=admin
+    (visibility.py), so Cloudflare may keep it: before the launch the achievements stat is listed with "preview": true
+    when the preview role may see it, and the page shows it only to a visitor who has that role (api.ts)."""
+    with request.app.state.sessionmaker() as db:
+        launched, previews = achievements_launched(db), previews_can_see(db)
     wl = visibility.win_loss(request)
+    achievements = {"key": "achievements", "label": "Achievements (overall %)", "higher_is_better": True}
     every = [{"key": k, "label": label, "higher_is_better": hib} for k, (label, hib, _) in STATS.items()
              if wl or k not in WIN_LOSS_STATS] + [
         {"key": "loadout", "label": "Loadout time (hours)", "higher_is_better": True},
-    ] + ([{"key": "achievements", "label": "Achievements (overall %)", "higher_is_better": True}] if launched else [])
+    ] + ([achievements] if launched else [achievements | {"preview": True}] if previews else [])
     order = list(dict.fromkeys(GROUPS.values()))  # chips: grouped, groups in GROUPS order, stats in STATS order
     return sorted(({**s, "group": GROUPS[s["key"]], "hint": HINTS.get(s["key"], "")} for s in every),
                   key=lambda s: order.index(s["group"]))

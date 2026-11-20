@@ -24,6 +24,10 @@ def site(**changes) -> dict[str, Probe]:
         "script": Probe("/api/overview/activity", 403, CF | {"cf-cache-status": "DYNAMIC"}),
         "me1": Probe("/api/auth/me", 200, CF | {"cf-cache-status": "BYPASS", "cache-control": "private, no-store"}),
         "me2": Probe("/api/auth/me", 200, CF | {"cf-cache-status": "BYPASS", "cache-control": "private, no-store"}),
+        "home1": Probe("/api/overview", 200, CF | {"cf-cache-status": "MISS", "cache-control": "no-cache"}),
+        "home2": Probe("/api/overview", 200, CF | {"cf-cache-status": "HIT", "cache-control": "no-cache"}),
+        "admin1": Probe("/api/overview", 200, CF | {"cf-cache-status": "BYPASS", "cache-control": "private, no-store"}),
+        "admin2": Probe("/api/overview", 200, CF | {"cf-cache-status": "BYPASS", "cache-control": "private, no-store"}),
     }
     return p | changes
 
@@ -55,6 +59,16 @@ def test_old_server_and_browser_ttl_override():
     assert not any("304" in text and level == "WARN" for level, text in results)  # no ETag yet: not blamed on Cloudflare
     results = assess(site(api1=api("MISS", **{"cache-control": "max-age=14400"})))
     assert any(level == "WARN" and "Browser TTL" in text for level, text in results)
+
+
+def test_home_page_numbers_kept_but_never_an_admins_copy():
+    """2026-11-20: /api/overview is shared even while stats are hidden; ?view=admin never is."""
+    bypass = Probe("/api/overview", 200, CF | {"cf-cache-status": "BYPASS", "cache-control": "private, no-store"})
+    results = assess(site(home1=bypass, home2=bypass))  # a server from before 2026.11.20
+    assert any(level == "WARN" and "/api/overview" in text for level, text in results)
+    leaked = Probe("/api/overview", 200, CF | {"cf-cache-status": "HIT", "cache-control": "private, no-store"})
+    results = assess(site(admin2=leaked))
+    assert any(level == "FAIL" and "DANGER" in text and "view=admin" in text for level, text in results)
 
 
 def test_cached_answers_without_the_site_header():

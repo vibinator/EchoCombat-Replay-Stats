@@ -85,12 +85,14 @@ def test_cache_headers(tmp_path, edge):
 
 
 def test_answers_that_depend_on_the_visitor_are_never_shared(tmp_path):
-    """Before the launch the challenges and stat list depend on the visitor's Discord preview: private. After it
-    they are the same for everyone, so they may be shared."""
+    """Before the launch achievements depend on the visitor's Discord preview: private. The challenge period and the
+    stat list are the same for everyone before it too (2026-11-20: the page adds the visitor's preview from
+    /api/auth/me), so they may be shared; after the launch achievements may be too."""
     with app_client(make_settings(tmp_path, edge_cache_s=60)) as client:
         add(client, match_file())
         for url in ("/api/challenges", "/api/leaderboard/stats"):
-            assert client.get(url).headers["cache-control"] == "private, no-store", url
+            r = client.get(url)
+            assert r.headers["cache-control"] == "no-cache" and "max-age=60" in r.headers["cloudflare-cdn-cache-control"], url
         assert client.get("/api/achievements").headers["cache-control"] == "private, no-store"  # 403 coming soon
         act(client, actions.set_challenge_window, "2026-01-01", None)
         for url in ("/api/challenges", "/api/leaderboard/stats", "/api/achievements"):

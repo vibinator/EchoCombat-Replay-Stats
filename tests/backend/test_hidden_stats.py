@@ -1,5 +1,7 @@
 """Win-loss stats hidden from players (Console: Hide stats from players): left out of every answer except for
-logged-in admins, and such answers are never kept by Cloudflare. Discord is mocked (test_discord_preview)."""
+logged-in admins who ask with ?view=admin (the page adds it from the echovr_admin cookie). The public answer is the
+same for everyone, so Cloudflare may keep it (2026-11-20); the admin's never is. Discord is mocked
+(test_discord_preview)."""
 
 import replay_factory as rf
 from app_helpers import act, add, app_client
@@ -18,29 +20,44 @@ def every(items, *keys):
     return all(k in i for i in items for k in keys) if items else None
 
 
-def has_win_loss(client) -> dict:
-    """Per page: are the win-loss fields there (None: the page has no rows in this archive)."""
-    player = client.get(PAGES[0]).json()
-    companions = client.get(PAGES[2]).json()
+def admin_view(url: str, admin: bool = True) -> str:
+    """The address an admin's page asks for (api.ts forViewer)."""
+    return f"{url}{'&' if '?' in url else '?'}view=admin" if admin else url
+
+
+def has_win_loss(client, admin: bool = False) -> dict:
+    """Per page: are the win-loss fields there (None: the page has no rows in this archive). admin: asked as an
+    admin's page asks (?view=admin)."""
+    def get(url):
+        return client.get(admin_view(url, admin)).json()
+
+    player, companions, overview = get(PAGES[0]), get(PAGES[2]), get(PAGES[3])
     found = {
         "profile": every([player["stats"]], "wins", "losses"),
         "results": every(player["recent_matches"], "result"),
-        "trends": every(client.get(PAGES[1]).json()["items"], "win_rate"),
+        "trends": every(get(PAGES[1])["items"], "win_rate"),
         "companions": every(companions["teammates"] + companions["opponents"], "wins", "losses"),
-        "overview": every(client.get(PAGES[3]).json()["top_this_week"], "wins"),
-        "leaderboard": every(client.get(PAGES[4]).json()["items"], "wins", "losses", "win_rate"),
-        "stat list": {"wins", "win_rate"} <= {s["key"] for s in client.get(PAGES[5]).json()},
-        "team win rates": every([client.get(PAGES[3]).json()["global"]], "payload_attack_win_rate", "capture_wins"),
+        "overview": every(overview["top_this_week"], "wins"),
+        "leaderboard": every(get(PAGES[4])["items"], "wins", "losses", "win_rate"),
+        "stat list": {"wins", "win_rate"} <= {s["key"] for s in get(PAGES[5])},
+        "team win rates": every([overview["global"]], "payload_attack_win_rate", "capture_wins"),
     }
     return {k: v for k, v in found.items() if v is not None}
 
 
+def shared(r) -> bool:
+    """Cloudflare may keep this answer (the same for everyone)."""
+    return (r.status_code == 200 and "max-age=" in r.headers["Cloudflare-CDN-Cache-Control"]
+            and "private" not in r.headers["Cache-Control"])
+
+
 def test_hidden_win_loss_only_for_admins(tmp_path, discord):  # noqa: F811
-    with app_client(settings(tmp_path)) as client:
+    with app_client(settings(tmp_path, edge_cache_s=60)) as client:
         add(client, {"dyson/0.echoreplay": rf.plain(rf.lines(20))})
         act(client, actions.add_discord_role, "admin_user", MEMBER)
         shown = has_win_loss(client)
         assert len(shown) >= 7 and all(shown.values())
+        assert all(shared(client.get(p)) for p in PAGES)
 
         act(client, actions.set_stats_hidden, "win_loss", True)
         visibility._memo.clear()  # the website re-reads the setting within 2 s
@@ -49,14 +66,29 @@ def test_hidden_win_loss_only_for_admins(tmp_path, discord):  # noqa: F811
         cmp = client.get(f"/api/players/compare/{BLUE},{BLUE}").json()
         assert all("wins" not in p["stats"] for p in cmp["players"])
         assert all(set(h) == {"games"} for h in cmp["head_to_head"].values())
-        r = client.get(PAGES[0])
-        assert "no-store" in r.headers["Cloudflare-CDN-Cache-Control"]  # per visitor while hidden
+        # the public answer is the same for everyone: Cloudflare may keep it (it skipped the NAS's busiest pages before)
+        assert all(shared(client.get(p)) for p in PAGES + (f"/api/players/compare/{BLUE},{BLUE}",))
+        assert not any(has_win_loss(client, admin=True).values())  # ?view=admin without a login: still hidden
+        assert "no-store" in client.get(admin_view(PAGES[3])).headers["Cloudflare-CDN-Cache-Control"]
 
         login(client, NO_ROLE)  # logged in, but not an admin
-        assert not any(has_win_loss(client).values())
+        assert client.get("/api/auth/me").cookies.get("echovr_admin") is None
+        assert not any(has_win_loss(client).values()) and not any(has_win_loss(client, admin=True).values())
+
         login(client, MEMBER)  # admin
-        assert all(has_win_loss(client).values())
-        assert client.get("/api/leaderboard", params={"stat": "win_rate"}).status_code == 200
+        me = client.get("/api/auth/me")
+        assert me.json()["user"]["admin"] is True and me.cookies.get("echovr_admin") == "1"  # the page's hint
+        assert all(has_win_loss(client, admin=True).values())
+        assert client.get(admin_view("/api/leaderboard?stat=win_rate")).status_code == 200
+        for p in PAGES:  # the admin's version is never kept by Cloudflare
+            r = client.get(admin_view(p))
+            assert r.headers["Cache-Control"] == "private, no-store", p
+            assert r.headers["Cloudflare-CDN-Cache-Control"] == "no-store", p
+        # asked without the marker an admin gets the public answer: what Cloudflare keeps is never an admin's
+        assert not any(has_win_loss(client).values()) and all(shared(client.get(p)) for p in PAGES)
+
+        out = client.get("/api/auth/logout", follow_redirects=False)
+        assert any(c.startswith("echovr_admin=") and "Max-Age=0" in c for c in out.headers.get_list("set-cookie"))
 
         act(client, actions.set_stats_hidden, "win_loss", False)
         visibility._memo.clear()
@@ -97,8 +129,9 @@ def test_hidden_for_one_player(tmp_path, discord):  # noqa: F811
         cmp = client.get(f"/api/players/compare/{BLUE},{other}").json()  # either hidden: no record at all
         assert all("wins" not in p["stats"] for p in cmp["players"])
 
-        login(client, MEMBER)  # admins still see it
-        assert "wins" in client.get(f"/api/players/{BLUE}").json()["stats"]
+        login(client, MEMBER)  # admins still see it, on their own version of the page
+        assert "wins" in client.get(admin_view(f"/api/players/{BLUE}")).json()["stats"]
+        assert "wins" not in client.get(f"/api/players/{BLUE}").json()["stats"]  # the shared one stays public
 
         console.cmd_hide_stats(client.app.state.sessionmaker, show="win_loss", player=BLUE)
         visibility._memo.clear()

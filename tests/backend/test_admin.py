@@ -217,7 +217,9 @@ def test_unreadable_reprocess_keeps_previous_results(client):
 def test_challenge_period(client):
     info = client.get("/api/challenges").json()
     peek = info.pop("peek")
-    assert info == {"start": None, "end": None, "updated_at": None, "launched": False, "active": False, "preview": False,
+    # "previews": the preview role sees achievements before the launch (the same for everyone; whether this visitor has
+    # the role is in /api/auth/me)
+    assert info == {"start": None, "end": None, "updated_at": None, "launched": False, "active": False, "previews": True,
                     "visibility": "everyone", "total": len(RULES)}
     # the sneak peek gives counts and pictures; only the revealed few have names and descriptions
     assert sum(peek["periods"].values()) == len(RULES) + len(COMBAT_RULES) and peek["icons"]

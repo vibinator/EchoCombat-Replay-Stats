@@ -70,6 +70,13 @@ def collect(base: str) -> dict[str, Probe]:
     p["script"], _ = ask(base, api, agent=SCRIPT)
     p["me1"], _ = ask(base, "/api/auth/me")
     p["me2"], _ = ask(base, "/api/auth/me")
+    # the home page's numbers: shared even while stats are hidden from players (2026-11-20); an admin's version
+    # (?view=admin) never is
+    home = f"/api/overview?cfcheck={uuid.uuid4().hex[:12]}"
+    p["home1"], _ = ask(base, home)
+    p["home2"], _ = ask(base, home)
+    p["admin1"], _ = ask(base, f"{home}&view=admin")
+    p["admin2"], _ = ask(base, f"{home}&view=admin")
     return p
 
 
@@ -141,6 +148,16 @@ def assess(p: dict[str, Probe]) -> list[tuple[str, str]]:
     else:
         if "no-store" in p["me2"].header("cache-control"):
             out.append(("PASS", "Login answers are never kept by Cloudflare (private, no-store)."))
+
+    if p["admin1"].cache in KEPT or p["admin2"].cache in KEPT:
+        out.append(("FAIL", "DANGER: an admin's version of the home page (?view=admin) came from Cloudflare's cache: "
+                            "set the rule's Edge TTL to 'Use cache-control header if present, bypass cache if not'."))
+    elif p["home1"].status == 200 and p["home2"].cache in KEPT:
+        out.append(("PASS", "The home page's numbers (/api/overview) come from Cloudflare; an admin's version never does."))
+    elif p["home1"].status == 200 and p["home2"].cache == "BYPASS":
+        out.append(("WARN", "The home page's numbers (/api/overview) are not kept by Cloudflare (BYPASS): the server is "
+                            "older than 2026.11.20 (they were per visitor while stats are hidden), or a check of the "
+                            "visitor crept into it."))
 
     if p["no_header"].status == 403:
         out.append(("PASS", "Cached answers still need the site's own X-EchoVR header: scrapers without it are refused."))
