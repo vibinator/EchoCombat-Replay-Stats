@@ -213,7 +213,7 @@ def command_log(request: Request, q: str = Query("", max_length=100), limit: int
 def achievements_csv(request: Request):
     require_console(request, "achievements.csv")
     return Response(csv_bytes(), media_type="text/csv; charset=utf-8",
-                    headers={"Content-Disposition": 'attachment; filename="EchoVR-Achievements.csv"'})
+                    headers={"Content-Disposition": 'attachment; filename="EchoVR-Challenges.csv"'})
 
 
 @router.get("/mega-prizes")

@@ -118,7 +118,7 @@ def test_api_and_leaderboard(tmp_path):
         assert len(client.get("/api/achievements").json()) == len(RULES) + len(COMBAT_RULES)
         board = client.get("/api/leaderboard", params={"stat": "achievements", "min_games": 1}).json()
         assert {r["name"] for r in board["items"]} == {"Player", "Other"}
-        assert board["label"] == "Achievements (overall %)"
+        assert board["label"] == "Challenges (overall %)"
 
 
 def test_coming_soon_until_the_start_date(tmp_path):

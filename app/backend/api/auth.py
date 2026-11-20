@@ -20,7 +20,7 @@ log = logging.getLogger("uvicorn.error")
 def _safe_next(next_: str | None) -> str:
     """Only paths on this site: never an outside address (open redirect)."""
     if not next_ or not next_.startswith("/") or next_.startswith(("//", "/\\")):
-        return "/achievements"
+        return "/challenges"  # Achievements were renamed Challenges (user, 2026-11-20)
     return next_
 
 

@@ -14,7 +14,7 @@ const PERMISSIONS: { key: Permission; title: string; gives: string }[] = [
     title: "Console",
     gives: "The Console, with this Permissions tab: every admin.bat command on the website. Includes the Preview. Does not include the Cloud.",
   },
-  { key: "preview", title: "Preview", gives: "Echo Combat achievements, challenges and Mega Prizes before the launch date." },
+  { key: "preview", title: "Preview", gives: "Echo Combat challenges and Mega Prizes before the launch date." },
 ];
 
 /** Old /permissions address: the panel now lives on the Console page, which does the access check. */

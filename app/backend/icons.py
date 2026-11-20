@@ -68,7 +68,7 @@ def default(rule_id: int) -> str | None:
 def set_icon(db: Session, settings: Settings, rule_id: int, icon: str | None) -> dict[int, str]:
     """icon None = back to the default."""
     if rule_id not in RULE_IDS:
-        raise IconError(f"No achievement {rule_id}")
+        raise IconError(f"No challenge {rule_id}")
     if icon is not None and icon not in available(settings):
         raise IconError(f"Unknown icon '{icon}'")
     chosen = overrides(db)

@@ -59,7 +59,7 @@ def visible(request: Request) -> bool:
 def require_launched(request: Request) -> None:
     """Before the start date achievements and challenges are private: "Coming soon" on the website."""
     if not visible(request):
-        raise ApiError(403, "coming_soon", "Achievements and challenges are coming soon")
+        raise ApiError(403, "coming_soon", "Challenges are coming soon")
 
 
 def counted_window(db) -> tuple[str | None, str | None]:
@@ -509,7 +509,7 @@ def _everyone(request: Request) -> dict:
         if cached and cached[0][1] == key[1]:
             return cached[2]
         time.sleep(0.1)
-    raise ApiError(503, "ranking_building", "The achievement ranking is being calculated. Try again in a minute.")
+    raise ApiError(503, "ranking_building", "The challenge ranking is being calculated. Try again in a minute.")
 
 
 def _ready_or_start(request: Request) -> dict | None:

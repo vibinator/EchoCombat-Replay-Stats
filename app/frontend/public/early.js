@@ -9,7 +9,7 @@
     var route = location.pathname, page =
       route === "/matches" ? "MatchesPage" : /^\/matches\/./.test(route) ? "MatchPage" :
       route === "/players" ? "PlayersPage" : /^\/players\/./.test(route) ? "PlayerPage" :
-      route === "/leaderboard" ? "LeaderboardPage" : /^\/achievements(\/|$)/.test(route) ? "AchievementsPage" :
+      route === "/leaderboard" ? "LeaderboardPage" : /^\/(challenges?|achievements)(\/|$)/.test(route) ? "AchievementsPage" :
       /^\/combat\/./.test(route) ? "CombatPage" : route === "/console" ? "ConsolePage" : route === "/cloud" ? "CloudPage" :
       route === "/profile" ? "ProfilePage" : route === "/permissions" ? "PermissionsPage" : "";
     var list = document.getElementById("page-files");

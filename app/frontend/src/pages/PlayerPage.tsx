@@ -459,11 +459,11 @@ function PlayerHeatmap({ userId, period, maps }: { userId: string; period: Perio
   );
 }
 
-type PlayerTab = "overview" | "combat" | "achievements" | "gear" | "trends" | "companions" | "heatmap" | "compare";
+type PlayerTab = "overview" | "combat" | "challenges" | "gear" | "trends" | "companions" | "heatmap" | "compare";
 const PLAYER_TABS: [PlayerTab, string, string][] = [
   ["overview", "Overview", "Recent matches"],
   ["combat", "Recorder stats", "Separate data: kills, damage"],
-  ["achievements", "Achievements", "Medals and progress"],
+  ["challenges", "Challenges", "Medals and progress"],
   ["gear", "Loadouts & gear use", "What they play with"],
   ["trends", "Trends", "How they change over time"],
   ["companions", "Played with", "Teammates and opponents"],
@@ -481,7 +481,7 @@ function filterScope(tab: PlayerTab): string {
     case "heatmap": return `${base}. The heatmap follows the period; choose its map in the heatmap itself.`;
     case "trends": return `${base} only. Trends always cover all time, by week, month or year.`;
     case "companions": return `${base} only. Played with has its own time window.`;
-    case "achievements": return `${base} only. Achievements always count all time.`;
+    case "challenges": return `${base} only. Challenges always count all time.`;
     case "compare": return `${base}. The comparison follows the period (all its players) but not the map; its heatmaps have their own map choice.`;
   }
 }
@@ -511,8 +511,9 @@ export function PlayerPage() {
   const hasCombat = !!combat.data?.matches && !!combat.data.stats;
   // the header's "From the game" line is all time: the same cached request as the tab when no filter is set
   const combatAll = useApi(() => getCombatPlayer(userId, "all"), `combat|${userId}|all|`);
-  const tabs = PLAYER_TABS.filter(([t]) => (t !== "combat" || hasCombat) && (hasGames || t === "overview" || t === "achievements" || t === "combat" || t === "compare")); // compare always: the header's button opens it
-  const asked = params.get("tab") === "beta" ? "combat" : params.get("tab"); // ?tab=beta: older links to this tab
+  const tabs = PLAYER_TABS.filter(([t]) => (t !== "combat" || hasCombat) && (hasGames || t === "overview" || t === "challenges" || t === "combat" || t === "compare")); // compare always: the header's button opens it
+  const raw = params.get("tab");
+  const asked = raw === "beta" ? "combat" : raw === "achievements" ? "challenges" : raw; // older links: ?tab=beta, ?tab=achievements (renamed Challenges 2026-11-20)
   const tab = tabs.some(([t]) => t === asked) ? (asked as PlayerTab) : "overview";
   const tabStrip = useActiveTabInView(`${tab}|${tabs.length}|${!!p}`);
   const setTab = (t: PlayerTab) => {
@@ -544,7 +545,7 @@ export function PlayerPage() {
         <>
           <ProfileHeader p={p} combat={combatAll.data} onOpenCombat={() => setTab("combat")} onCompare={() => setTab("compare")} />
 
-          {tab !== "achievements" && <AchievementsStrip userId={p.user_id} onOpen={() => setTab("achievements")} />}
+          {tab !== "challenges" && <AchievementsStrip userId={p.user_id} onOpen={() => setTab("challenges")} />}
 
           <div className="filters">
             <div className="tabs" role="tablist">
@@ -605,8 +606,8 @@ export function PlayerPage() {
 
           {tab === "combat" && <CombatSection userId={p.user_id} period={period} map={map} />}
 
-          {/* achievements do not follow the period filter */}
-          {tab === "achievements" && <AchievementsSummary userId={p.user_id} />}
+          {/* challenges do not follow the period filter */}
+          {tab === "challenges" && <AchievementsSummary userId={p.user_id} />}
 
           {tab === "gear" && p.stats.games > 0 && (
             <>

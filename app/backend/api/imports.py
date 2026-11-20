@@ -85,8 +85,8 @@ def import_status(request: Request):
                "Drawn from the position tracks when a match or player page is opened."),
         _stage("leaderboard", "Leaderboard", current_matches, readable,
                f"Ranked live from the saved match stats ({players:,} players); counts matches with up to date stats."),
-        _stage("achievements", "Achievements", current_matches, readable,
-               f"{len(RULES)} achievements per player, calculated from the saved match stats when viewed; counts "
+        _stage("achievements", "Challenges", current_matches, readable,
+               f"{len(RULES)} challenges per player, calculated from the saved match stats when viewed; counts "
                "matches with up to date stats. The everyone-ranking below catches up within 10 minutes."),
     ]
     return {

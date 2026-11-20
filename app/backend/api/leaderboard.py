@@ -57,7 +57,7 @@ GROUPS = {
     "payload_block_per_game": "Objective",
     "emote_count": "Social", "emotes_per_game": "Social",
     "avg_ping": "Connection",
-    "loadout": "Gear", "achievements": "Achievements",
+    "loadout": "Gear", "achievements": "Challenges",  # key kept for the API; shown as Challenges (user, 2026-11-20)
 }
 HINTS = {
     "distance_km": "Ground covered inside the play area, from the speed in every frame; counts every game.",
@@ -154,7 +154,7 @@ def _values(db, request, stat, period, map, private, weapon, tacmod, ordnance, s
     """(label, higher_is_better, [(player_id, games, value)]); shift_days as in _where."""
     where = _where(period, map, private, shift_days, mode)
     if stat == "achievements":
-        return "Achievements (overall %)", True, achievement_ranking(request)  # career-wide, not shifted
+        return "Challenges (overall %)", True, achievement_ranking(request)  # career-wide, not shifted
     if stat == "loadout":
         lo_where = [where]
         for column, value in ((MatchPlayerLoadout.weapon, weapon), (MatchPlayerLoadout.tacmod, tacmod),
@@ -208,7 +208,7 @@ def list_stats(request: Request):
     with request.app.state.sessionmaker() as db:
         launched, previews = achievements_launched(db), previews_can_see(db)
     wl = visibility.win_loss(request)
-    achievements = {"key": "achievements", "label": "Achievements (overall %)", "higher_is_better": True}
+    achievements = {"key": "achievements", "label": "Challenges (overall %)", "higher_is_better": True}
     every = [{"key": k, "label": label, "higher_is_better": hib} for k, (label, hib, _) in STATS.items()
              if wl or k not in WIN_LOSS_STATS] + [
         {"key": "loadout", "label": "Loadout time (hours)", "higher_is_better": True},

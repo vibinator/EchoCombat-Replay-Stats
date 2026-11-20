@@ -64,7 +64,7 @@ function TopPlayers() {
     <div className="ach-pane">
       <div className="section-head">
         <h2>Top players</h2>
-        <Link to="/leaderboard?stat=achievements">Full leaderboard</Link>
+        <Link to="/leaderboard?stat=challenges">Full leaderboard</Link>
       </div>
       <ol className="top-players" tabIndex={0} aria-label="Top players, scroll sideways">
         {top.data.map((p) => (
@@ -120,7 +120,7 @@ function Catalogue() {
   return (
     <>
       <div className="section-head">
-        <h2>All achievements</h2>
+        <h2>All challenges</h2>
         <JumpToNew ready={!!rules.data} />
       </div>
       <Status loading={rules.loading} error={rules.error} />
@@ -130,13 +130,13 @@ function Catalogue() {
 }
 
 export function AchievementsPage() {
-  usePageTitle("Achievements");
+  usePageTitle("Challenges");
   const { visible, start, total, peek } = useAchievementsAccess();
   if (visible === null) return null;
   if (!visible)
     return (
       <section>
-        <h1>Achievements</h1>
+        <h1>Challenges</h1>
         <ComingSoon start={start} total={total} peek={peek} />
       </section>
     );
@@ -150,9 +150,9 @@ function LaunchedAchievementsPage() {
   const player = userId ?? params.get("player");
   const name = useApi(() => (player ? getAchievements(player) : Promise.resolve(null)), player ?? "");
   const d = name.data;
-  usePageTitle(d ? `Achievements · ${d.name}` : "Achievements");
+  usePageTitle(d ? `Challenges · ${d.name}` : "Challenges");
 
-  // show the player's own address, /achievements/<name>/<id>: old ?player= links, an outdated name and a merged ID all
+  // show the player's own address, /challenges/<name>/<id>: old ?player= links, an outdated name and a merged ID all
   // move to it (as profiles do)
   if (d && (!userId || d.user_id !== userId || nameInUrl !== nameSlug(d.name))) {
     const rest = new URLSearchParams(params);
@@ -164,10 +164,10 @@ function LaunchedAchievementsPage() {
   return (
     <section>
       <div className="section-head">
-        <h1>Achievements{player && name.data && <span className="muted"> · {name.data.name}</span>}</h1>
+        <h1>Challenges{player && name.data && <span className="muted"> · {name.data.name}</span>}</h1>
         {player && (
           <span>
-            <Link to={d ? playerPath(d.user_id, d.name) : `/players/${encodeURIComponent(player)}`}>Player profile</Link> · <Link to="/achievements">All achievements</Link>
+            <Link to={d ? playerPath(d.user_id, d.name) : `/players/${encodeURIComponent(player)}`}>Player profile</Link> · <Link to="/challenges">All challenges</Link>
           </span>
         )}
       </div>

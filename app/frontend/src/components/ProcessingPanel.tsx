@@ -140,7 +140,7 @@ function ProcessingView({ live: { data: d, error, at } }: { live: ReturnType<typ
           })}
           <li>
             <div className="stage-head">
-              <strong>Achievement leaderboard calculation</strong>
+              <strong>Challenge leaderboard calculation</strong>
               <span>
                 {ranking.calculating
                   ? "Calculating now"

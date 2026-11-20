@@ -1,7 +1,7 @@
 import { getChallenges, type AchievementPeek } from "./api";
 import { useApi } from "./useApi";
 
-/** Small summary for the player page; the full list lives on /achievements. */
+/** Small summary for the player page; the full list lives on /challenges. */
 export interface AchievementsAccess {
   /** this visitor sees achievements: launched, or a Discord preview (null while loading) */
   visible: boolean | null;

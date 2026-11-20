@@ -170,7 +170,7 @@ export function GroupedBadges<T extends AnyBadge>({ items: all }: { items: T[] }
       {shownSections.length === 0 && <p className="muted">No challenge matches.</p>}
       {active && (
         <>
-          <div className="tabs section-tabs ach-tabs" id="new" role="tablist" aria-label="Achievement groups">
+          <div className="tabs section-tabs ach-tabs" id="new" role="tablist" aria-label="Challenge groups">
             {shownSections.map((x) => (
               <button key={x.id} role="tab" aria-selected={active.id === x.id} className={active.id === x.id ? "tab active" : "tab"} onClick={() => pick(x.id)}>
                 <span className="tab-label">{x.label}</span>
@@ -787,7 +787,7 @@ function PreviewLogin() {
   return (
     <p className="muted">
       {failed && <>The Discord login did not work{why ? ` (${why})` : ""}, please try again. </>}
-      Have preview access? <a href={loginUrl("/achievements")}>Log in with Discord</a>
+      Have preview access? <a href={loginUrl("/challenges")}>Log in with Discord</a>
     </p>
   );
 }
@@ -796,7 +796,7 @@ export function ComingSoon({ start, total, peek }: { start: string | null; total
   return (
     <>
       <EmptyState title="Coming soon">
-        {total ? <><strong>{total}</strong> achievements</> : "Achievements"} and Flamingo Challenges are on their way
+        {total ? <><strong>{total}</strong> Flamingo Challenges</> : "Flamingo Challenges"} are on their way
         {start && start > new Date().toISOString().slice(0, 10) ? (
           <>
             {" "}
@@ -894,7 +894,7 @@ function MedalBar({ items, overall, completed }: { items: Achievement[]; overall
         ))}
       </div>
       {completed ? (
-        <span className="muted strip-total" title="Average progress counts partial progress toward every achievement">
+        <span className="muted strip-total" title="Average progress counts partial progress toward every challenge">
           {pct(overall)} average progress · {completed.done} / {completed.total} completed · {crowns} / {counted.length} crowns
         </span>
       ) : (
@@ -916,14 +916,14 @@ function StripBody({ userId, onOpen }: { userId: string; onOpen: () => void }) {
   const counted = d.items.filter((a) => a.counted && !a.prize);
   const next = pickGoals(userId, counted, Math.min(GOALS_MAX, Math.max(GOALS, cols)));
   return (
-    <section className="ach-strip" aria-label="Achievements">
+    <section className="ach-strip" aria-label="Challenges">
       <div className="ach-strip-top">
-      <button className="ach-strip-head" onClick={onOpen} title="Open the Achievements tab">
-        <strong>Achievements</strong>
+      <button className="ach-strip-head" onClick={onOpen} title="Open the Challenges tab">
+        <strong>Challenges</strong>
         <MedalBar items={d.items} overall={d.overall} />
       </button>
       <Link className="button ach-all" to={achievementsPath(d.user_id, d.name)}>
-        All achievements →
+        All challenges →
       </Link>
       </div>
       {next.length > 0 && (
@@ -954,12 +954,12 @@ export function AchievementsSummary({ userId }: { userId: string }) {
     <>
       <div className="section-head">
         <h2>
-          Achievements <span className="tag">Coming soon</span>
+          Challenges <span className="tag">Coming soon</span>
         </h2>
-        <Link to="/achievements">Sneak peek</Link>
+        <Link to="/challenges">Sneak peek</Link>
       </div>
       <p className="muted">
-        {total ? `${total} achievements` : "Achievements"} and Flamingo Challenges.{" "}
+        {total ? `${total} Flamingo Challenges` : "Flamingo Challenges"}.{" "}
         {start ? (
           <>
             This player's progress shows from <strong>{start}</strong>, counting matches from that day on.
@@ -983,12 +983,12 @@ function LaunchedSummary({ userId }: { userId: string }) {
   return (
     <>
       <div className="section-head">
-        <h2>Achievements</h2>
-        <Link to={achievementsPath(d.user_id, d.name)}>View all achievements</Link>
+        <h2>Challenges</h2>
+        <Link to={achievementsPath(d.user_id, d.name)}>View all challenges</Link>
       </div>
       <div className="cards">
         <div className="card">
-          <span className="label" title="Average progress across every achievement, counting partial progress toward each one">Average progress</span>
+          <span className="label" title="Average progress across every challenge, counting partial progress toward each one">Average progress</span>
           <strong>{pct(d.overall)}</strong>
         </div>
         <div className="card">
@@ -1054,11 +1054,11 @@ export function ChallengeBanner() {
       </p>
     );
   if (!d.launched) return null;
-  return <RecordingWindow what="achievements" />;
+  return <RecordingWindow what="challenges" />;
 }
 
 /** A clear box with the set period in which matches are recorded; used for achievements and for Mega Prizes. */
-export function RecordingWindow({ what }: { what: "achievements" | "Mega Prizes" }) {
+export function RecordingWindow({ what }: { what: "challenges" | "Mega Prizes" }) {
   const d = useApi(getChallenges, "challenge").data;
   if (!d || !d.start) return null;
   return (
@@ -1068,7 +1068,7 @@ export function RecordingWindow({ what }: { what: "achievements" | "Mega Prizes"
       </span>
       <span className="muted">
         Only matches played inside this period count for {what}
-        {what === "achievements" ? "; the player stats pages count every match" : ""}.
+        {what === "challenges" ? "; the player stats pages count every match" : ""}.
       </span>
     </div>
   );
@@ -1099,7 +1099,7 @@ export function AchievementRules({ open = false }: { open?: boolean }) {
           Medal Collector counts the silver (or better) medals you hold on all the others.
         </li>
         <li>
-          <strong>Each achievement lists its own rules</strong> under its description: whether the best game, day or 7 days counts, whether games
+          <strong>Each challenge lists its own rules</strong> under its description: whether the best game, day or 7 days counts, whether games
           under 4 minutes are ignored, whether it needs 3+ players per team and how "only" is judged. <strong>"3+ players per team"</strong> = both teams had at least 3 players for at least half of the match (3v3, 3v4, 4v4, 5v5 and so on all count); smaller games do not count towards it. Recordings that cover less than half a match are ignored
           everywhere.
         </li>

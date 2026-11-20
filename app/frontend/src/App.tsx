@@ -52,7 +52,7 @@ function page<M>(load: () => Promise<M>, pick: (m: M) => ComponentType, route: R
   };
 }
 
-const AchievementsPage = page(() => import("./pages/AchievementsPage"), (m) => m.AchievementsPage, /^\/achievements(\/|$)/, true);
+const AchievementsPage = page(() => import("./pages/AchievementsPage"), (m) => m.AchievementsPage, /^\/(challenges?|achievements)(\/|$)/, true);
 const CombatMatchPage = page(() => import("./pages/CombatPage"), (m) => m.CombatMatchPage, /^\/combat\/./);
 const ConsolePage = page(() => import("./pages/ConsolePage"), (m) => m.ConsolePage, /^\/console$/);
 const ProfilePage = page(() => import("./pages/ProfilePage"), (m) => m.ProfilePage, /^\/profile$/);
@@ -179,11 +179,18 @@ function CombatRedirect() {
   return <Navigate replace to={`/leaderboard?${params.toString()}`} />;
 }
 
+/** Achievements were renamed Challenges (user, 2026-11-20): /achievements/... and /challenge/... links (shared, bookmarked,
+ *  or a Discord login's return address) open the same page under /challenges, keeping the player, query and anchor. */
+function ChallengesRedirect() {
+  const { pathname, search, hash } = useLocation();
+  return <Navigate replace to={`${pathname.replace(/^\/(achievements|challenge)(?=\/|$)/, "/challenges")}${search}${hash}`} />;
+}
+
 const NAV = [
   ["/", "Home"],
   ["/matches", "Matches"],
   ["/leaderboard", "Leaderboard"],
-  ["/achievements", "Achievements"],
+  ["/challenges", "Challenges"],
 ] as const;
 
 /** "2026-11-01T17:05" (UK time, bump_version.py) -> "1 Nov 2026, 17:05" on the viewer's clock */
@@ -240,12 +247,12 @@ function Layout() {
           ].map(([to, label]) => (
             <NavLink key={to} to={to} end={to === "/"}>
               {label}
-              {to === "/achievements" && achievements.visible === false && (
-                <span className="tag" title={achievements.total ? `${achievements.total} achievements available` : undefined}>
+              {to === "/challenges" && achievements.visible === false && (
+                <span className="tag" title={achievements.total ? `${achievements.total} challenges available` : undefined}>
                   Coming soon{achievements.total ? ` · ${achievements.total}` : ""}
                 </span>
               )}
-              {to === "/achievements" && achievements.preview && <span className="tag">preview</span>}
+              {to === "/challenges" && achievements.preview && <span className="tag">preview</span>}
             </NavLink>
           ))}
         </nav>
@@ -284,10 +291,12 @@ function Layout() {
           <Route path="/leaderboard" element={<LeaderboardPage />} />
           <Route path="/combat" element={<CombatRedirect />} />
           <Route path="/combat/:id" element={<CombatMatchPage />} />
-          <Route path="/achievements" element={<AchievementsPage />} />
-          <Route path="/achievements/:userId" element={<AchievementsPage />} />
-          <Route path="/achievements/:name/:userId" element={<AchievementsPage />} />
-          <Route path="/mega-prizes" element={<Navigate to="/achievements" replace />} />
+          <Route path="/challenges" element={<AchievementsPage />} />
+          <Route path="/challenges/:userId" element={<AchievementsPage />} />
+          <Route path="/challenges/:name/:userId" element={<AchievementsPage />} />
+          <Route path="/achievements/*" element={<ChallengesRedirect />} />
+          <Route path="/challenge/*" element={<ChallengesRedirect />} />
+          <Route path="/mega-prizes" element={<Navigate to="/challenges" replace />} />
           <Route path="/profile"element={<ProfilePage />} />
           <Route path="/console" element={<ConsolePage />} />
           <Route path="/cloud" element={<CloudPage />} />
@@ -300,7 +309,7 @@ function Layout() {
       </main>
       <footer>
         {health && <span title={`Version ${health.build}`}>{health.version} · {released(health.released)}</span>}
-        <div className="muted footer-time">Times are in your timezone ({viewerZone()}). "Today", "This week", charts and achievement days use UK time.</div>
+        <div className="muted footer-time">Times are in your timezone ({viewerZone()}). "Today", "This week", charts and challenge days use UK time.</div>
       </footer>
     </>
   );

@@ -62,7 +62,7 @@ def settings(tmp_path, **kw):
 
 
 def login(client, user_id: str) -> httpx.Response:
-    start = client.get("/api/auth/login", params={"next": "/achievements"}, follow_redirects=False)
+    start = client.get("/api/auth/login", params={"next": "/challenges"}, follow_redirects=False)  # the page's login link
     assert start.status_code == 303
     query = parse_qs(urlparse(start.headers["location"]).query)
     assert query["scope"] == ["identify"] and query["redirect_uri"] == ["http://testserver/api/auth/callback"]
@@ -77,7 +77,7 @@ def test_preview_role_sees_achievements_before_launch(tmp_path, discord):
         assert client.get(f"/api/players/{BLUE}/achievements").status_code == 403
 
         done = login(client, MEMBER)
-        assert done.status_code == 303 and done.headers["location"] == "/achievements"
+        assert done.status_code == 303 and done.headers["location"] == "/challenges"
         assert client.get("/api/auth/me").json()["user"] == {"name": f"user{MEMBER}", "preview": True, "admin": False,
                                                                     "console": True, "cloud": None}
         challenges = client.get("/api/challenges")
@@ -115,8 +115,8 @@ def test_bad_state_code_or_cookie_is_refused(tmp_path, discord):
     with app_client(settings(tmp_path)) as client:
         client.get("/api/auth/login", follow_redirects=False)
         r = client.get("/api/auth/callback", params={"code": MEMBER, "state": "forged"}, follow_redirects=False)
-        assert r.headers["location"] == "/achievements?login=failed&why=state-mismatch"
-        assert login(client, "bad").headers["location"].startswith("/achievements?login=failed&why=")
+        assert r.headers["location"] == "/challenges?login=failed&why=state-mismatch"
+        assert login(client, "bad").headers["location"].startswith("/challenges?login=failed&why=")
         assert client.get("/api/auth/me").json()["user"] is None
         client.cookies.set(auth.SESSION_COOKIE, "eyJpZCI6IjQyIn0.forged")
         assert client.get("/api/auth/me").json()["user"] is None
@@ -128,7 +128,7 @@ def test_next_never_leaves_the_site(tmp_path, discord):
             start = client.get("/api/auth/login", params={"next": evil}, follow_redirects=False)
             state = parse_qs(urlparse(start.headers["location"]).query)["state"][0]
             r = client.get("/api/auth/callback", params={"code": MEMBER, "state": state}, follow_redirects=False)
-            assert r.headers["location"] == "/achievements"
+            assert r.headers["location"] == "/challenges"
 
 
 def test_other_hostname_is_sent_to_the_public_address_first(tmp_path, discord):

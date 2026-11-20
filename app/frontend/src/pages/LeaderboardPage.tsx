@@ -210,10 +210,15 @@ function Records({ period, map, mode }: { period: Period; map: string; mode: str
   );
 }
 
+// The challenge ranking is "challenges" in the address (user, 2026-11-20: Achievements renamed Challenges) and "achievements"
+// in the API; old ?stat=achievements links still open it.
+const urlStat = (s: string) => (s === "achievements" ? "challenges" : s);
+const apiStat = (s: string | null) => (s === "challenges" ? "achievements" : s);
+
 function ReplayBoard() {
   const [params, setParams] = useSearchParams();
   const view: View = params.get("view") === "records" ? "records" : params.get("stat") ? "board" : "overview";
-  const stat = params.get("stat") ?? "games";
+  const stat = apiStat(params.get("stat")) ?? "games";
   const period = (params.get("period") as Period) || "all";
   const map = params.get("map") ?? "";
   const mode = params.get("mode") ?? "";
@@ -225,7 +230,7 @@ function ReplayBoard() {
 
   function set(key: string, value: string) {
     const next = new URLSearchParams(params);
-    if (value) next.set(key, value);
+    if (value) next.set(key, key === "stat" ? urlStat(value) : value);
     else next.delete(key);
     if (key !== "offset") next.delete("offset");
     if (key === "stat") next.delete("sort");
@@ -237,7 +242,7 @@ function ReplayBoard() {
     const next = new URLSearchParams(params);
     for (const k of BOARD_KEYS) next.delete(k);
     if (to === "records") next.set("view", "records");
-    if (to === "board" && toStat) next.set("stat", toStat);
+    if (to === "board" && toStat) next.set("stat", urlStat(toStat));
     setParams(next);
   }
 
@@ -245,7 +250,7 @@ function ReplayBoard() {
   function boardLink(s: string): string {
     const next = new URLSearchParams(params);
     for (const k of BOARD_KEYS) next.delete(k);
-    next.set("stat", s);
+    next.set("stat", urlStat(s));
     return `?${next.toString()}`;
   }
 

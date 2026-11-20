@@ -239,12 +239,12 @@ const GROUPS: { title: string; commands: Command[] }[] = [
     ],
   },
   {
-    title: "Achievements",
+    title: "Challenges",
     commands: [
       {
-        name: "export-achievements",
-        label: "Export achievements and challenges",
-        help: "Every achievement and challenge with the rule to win it, as shown on the website.",
+        name: "export-challenges",
+        label: "Export challenges",
+        help: "Every challenge with the rule to win it, as shown on the website.",
         view: "achievements",
       },
       { name: "mega-prizes", label: "Mega Prize winners", help: "", view: "winners" },
@@ -252,7 +252,7 @@ const GROUPS: { title: string; commands: Command[] }[] = [
         name: "mega-period",
         label: "Mega Prize period",
         help:
-          "The Start and End dates for the Mega Prizes, apart from the achievements' dates above. Only Echo Combat matches and Public Arena matches inside them count towards a prize. " +
+          "The Start and End dates for the Mega Prizes, apart from the challenges' dates above. Only Echo Combat matches and Public Arena matches inside them count towards a prize. " +
           "With no start date of its own the Mega Prize period follows the launch date and challenge period, so nothing changes until you set one. " +
           "“Visible to” decides who sees the Mega Prizes: only people with the Preview role (how it started), everyone once the start date has come, or nobody. " +
           "Leave everything empty to see the current setting; an empty date is kept as it is.",
@@ -297,9 +297,9 @@ const GROUPS: { title: string; commands: Command[] }[] = [
         name: "challenge",
         label: "Launch date and challenge period",
         help:
-          "The start date is the launch: until then achievements and challenges show “Coming soon”, and only matches from that day count. " +
+          "The start date is the launch: until then the challenges show “Coming soon”, and only matches from that day count. " +
           "“Visible to” decides who sees them: everyone once the start date has come, only people with the Preview role (the date still counts), or nobody. " +
-          "These dates only affect achievements, challenges and Mega Prizes: the games, wins and other numbers on the general player stats pages always count every match. " +
+          "These dates only affect challenges and Mega Prizes: the games, wins and other numbers on the general player stats pages always count every match. " +
           "Leave everything empty to see the current setting; an empty date is kept as it is.",
         fields: [
           { key: "start", label: "Start", kind: "date" },
@@ -321,15 +321,15 @@ const GROUPS: { title: string; commands: Command[] }[] = [
         ],
         confirm: (v) =>
           v.visible === "hidden"
-            ? "Hide achievements and challenges from everyone, people with the Preview role included?"
+            ? "Hide the challenges from everyone, people with the Preview role included?"
             : v.visible === "everyone" && !v.start && !v.start_today
-              ? "Make achievements visible to everyone from the start date that is already set?"
+              ? "Make the challenges visible to everyone from the start date that is already set?"
               : v.visible === "preview"
-                ? "Show achievements only to people with the Preview role?"
+                ? "Show the challenges only to people with the Preview role?"
                 : v.clear
-                  ? "Remove both dates? Achievements go back to “Coming soon”."
+                  ? "Remove both dates? Challenges go back to “Coming soon”."
             : v.start_today
-              ? `Launch now: set the start date to today (${todayIso()})? Achievements become public.`
+              ? `Launch now: set the start date to today (${todayIso()})? Challenges become public.`
               : v.start
                 ? `Set the launch date to ${v.start}?`
                 : v.end_today
@@ -355,7 +355,7 @@ const TABS: { id: string; label: string; names: string[]; opens?: false }[] = [
     names: ["remote", "process-missing", "fix-replay", "repair-failed", "repair-aggressive-failed", "cannot-repair", "hidden", "forget-missing", "reprocess-all"],
   },
   // starts on the dates: the winners report reads the whole archive, which takes up to half a minute during a re-read
-  { id: "achievements", label: "Achievements", names: ["challenge", "mega-period", "mega-prizes", "hidden-stats", "export-achievements"] },
+  { id: "challenges", label: "Challenges", names: ["challenge", "mega-period", "mega-prizes", "hidden-stats", "export-challenges"] },
   { id: "log", label: "Audit log", names: ["log"] },
   // the Cloud's recycle bin, quarantine and audit log are on the Cloud page, for Cloud admins (user, 2026-11-16: the
   // Cloud is separate from the Console)
@@ -442,8 +442,10 @@ export function ConsolePage() {
 function Console() {
   // in the address (?tab=replays&cmd=fix-replay): a refresh keeps the place, and it can be linked to
   const [params, setParams] = useSearchParams();
-  const tab = TABS.find((t) => t.id === params.get("tab")) ?? TABS[0];
-  const cmd = params.get("cmd");
+  // Achievements were renamed Challenges (2026-11-20): ?tab=achievements&cmd=export-achievements links still open the export
+  const renamed = (name: string | null) => (name === "achievements" ? "challenges" : name === "export-achievements" ? "export-challenges" : name);
+  const tab = TABS.find((t) => t.id === renamed(params.get("tab"))) ?? TABS[0];
+  const cmd = renamed(params.get("cmd"));
   const selected: Command | null = cmd && tab.names.includes(cmd) ? commandNamed(cmd) : tab.opens === false ? null : commandNamed(tab.names[0]);
   const [values, setValues] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
@@ -843,7 +845,7 @@ function Dashboard({ api }: { api: ConsoleApi }) {
           <button type="button" className="secondary small" onClick={() => api.open("players")}>Player tools</button>
         </DashCard>
         <DashCard
-          label="Achievements"
+          label="Challenges"
           value={overview.challenge.launched ? "Live" : overview.challenge.visibility === "hidden" ? "Hidden" : overview.challenge.visibility === "preview" ? "Preview only" : "Coming soon"}
         >
           {overview.challenge.start ? `From ${overview.challenge.start}${overview.challenge.end ? ` to ${overview.challenge.end}` : ""}` : "No launch date set"}
@@ -1368,13 +1370,13 @@ function AchievementExport() {
 
   return (
     <div className="panel console-form">
-      <h2>Export achievements and challenges</h2>
+      <h2>Export challenges</h2>
       <p className="muted">
-        Every achievement and challenge with the rule to win it, exactly as the website shows it. Click an icon to change it or set it back
+        Every challenge with the rule to win it, exactly as the website shows it. Click an icon to change it or set it back
         to the original.
       </p>
       <div className="filters">
-        <input type="search" placeholder="Filter" aria-label="Filter achievements" value={q} onChange={(e) => setQ(e.target.value)} />
+        <input type="search" placeholder="Filter" aria-label="Filter challenges" value={q} onChange={(e) => setQ(e.target.value)} />
         <button className="secondary" type="button" disabled={!items.length} onClick={copy}>
           {copied ? "Copied" : "Copy"}
         </button>

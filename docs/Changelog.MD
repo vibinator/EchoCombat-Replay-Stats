@@ -18,6 +18,22 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.20.4 — 05:29
+
+Achievements are now called **Challenges** everywhere on the site (user, 20 Nov):
+- **New address:** the page is `/challenges` (a player's: `/challenges/<name>/<id>`), and the menu, page titles, the
+  player profile tab and strip, the Leaderboard stat ("Challenges (overall %)"), the Console (Challenges tab, "Export
+  challenges", launch-date texts, Status card) and the Permissions page say Challenges. The CSV export is
+  `EchoVR-Challenges.csv`. Phrases like "achievements and challenges" became just "challenges".
+- **No broken links:** `/achievements`, `/achievements/<id>`, `/achievements/<name>/<id>`, `/achievements?player=<id>`,
+  `/challenge` and `/mega-prizes` move to the new address, keeping the player, query and anchor. `?stat=achievements` on
+  the Leaderboard, `?tab=achievements` on a profile and `?tab=achievements&cmd=export-achievements` on the Console still
+  open the same board / tab (the site's own links now use `challenges`). The Discord login now returns to `/challenges`.
+  Checked in a browser against the built site with the site's own page server.
+- Unchanged on purpose (not shown to people): the API addresses (`/api/achievements`, ...), the badge art folder
+  (`/achievements/<icon>.png`, so saved icons and uploads keep working), code and file names, and settings keys.
+- Needs the update deployed (restart); nothing is re-read.
+
 ## 2026.11.20.3 — 05:07
 
 New gear challenges and icons (user, 20 Nov):
