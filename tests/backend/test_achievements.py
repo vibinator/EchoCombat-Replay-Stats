@@ -26,8 +26,9 @@ def by_id(results):
 def test_catalogue():
     ids = [r.id for r in RULES]
     removed = {91, 99, 80, 81, 82, 83, 84, 85, 113}  # Unstoppable, the first Showboat, and the duplicates removed on 2026-11-05
-    expected = [i for i in range(5, 152) if i not in removed] + list(range(179, 198)) + [201]  # 75 original + 63 new + 19 Test Drive + Switch Hitter; Combat has its own list (combat_achievements); the Mega Prize is not in RULES
-    assert ids == expected and len(set(ids)) == 158
+    # 75 original + 63 new + 19 Test Drive + Switch Hitter + Attack Drone / Umbral Veil / Neutron (4 each, 2026-11-20); Combat has its own list (combat_achievements); the Mega Prize is not in RULES
+    expected = [i for i in range(5, 152) if i not in removed] + list(range(179, 198)) + [201] + list(range(265, 277))
+    assert ids == expected and len(set(ids)) == 170
     assert next(r for r in RULES if r.id == 151).name == "Showbot (Emotes)" and sum(r.name == "Showbot (Emotes)" for r in RULES) == 1
     assert [r.id for r in RULES if r.new] == [i for i in expected if i >= 80]
     assert all(r.counted for r in RULES)
@@ -37,6 +38,10 @@ def test_catalogue():
     # "colour_" art keeps its own colours, so no daily / weekly variant even in the old daily range (id 29)
     assert icon_file(next(r for r in RULES if r.id == 29)) == "colour_sweaty.png"
     assert icon_file(next(r for r in RULES if r.id == 23)) == "launch_daily.png"
+    # every Dot Field challenge has the Dot Field art (user, 2026-11-20); so do the later gear sets
+    assert {icon_file(r) for r in RULES if "Dot Field" in r.name or r.id in (136, 138)} == {"dot_field.png"}
+    assert [icon_file(r) for r in RULES if r.id in (265, 270, 276)] == ["attack_drone.png", "umbral_veil.png", "neutron.png"]
+    assert {icon_file(r) for r in RULES if "Overcharge" in r.name or r.id in (112, 131, 132)} == {"overcharge.png"}
 
 
 def test_every_icon_file_exists():
@@ -524,11 +529,12 @@ def test_achiever_facts_and_endpoint(tmp_path):
 
 
 def test_test_drive_one_challenge_per_released_item():
-    from backend.achievements import _released_gear, section_of
+    from backend.achievements import LATE_GEAR, _released_gear, section_of
 
     drives = {r.name: r for r in RULES if r.group == "Gear in one game"}
-    assert len(drives) == sum(len(x) for x in _released_gear()) == 19
-    assert {"Pulsar (weapon)", "Overcharge (tac mod)", "Dot Field (ordnance)", "Blazar (weapon)"} <= set(drives)
+    assert len(drives) == sum(len(x) for x in _released_gear()) + len(LATE_GEAR) == 22
+    assert {"Pulsar (weapon)", "Overcharge (tac mod)", "Dot Field (ordnance)", "Blazar (weapon)",
+            "Attack Drone (ordnance)", "Umbral Veil (tac mod)", "Neutron (tac mod)"} <= set(drives)
     assert all(r.counted and r.period == "game" and section_of(r) == "In one game" for r in drives.values())
     pulsar = next(r for r in drives.values() if r.name == "Pulsar (weapon)")
     assert pulsar.description == "Use the Pulsar weapon for at least 3 minutes in one game"

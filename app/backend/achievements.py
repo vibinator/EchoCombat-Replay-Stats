@@ -17,14 +17,21 @@ WEAPONS = [("assault", "Pulsar", "pulsar"), ("blaster", "Nova", "nova"), ("scout
 ORDNANCES = [("det", "Detonator", "detonator"), ("stun", "Stun Field", "stun_field"), ("arc", "Arc Mine", "arcmine"), ("burst", "Instant Repair", "instant_repair")]
 TACMODS = [("heal", "Repair Matrix", "repair_matrix"), ("sensor", "Threat Scanner", "threat_scanner"), ("shield", "Energy Barrier", "energy_barrier"), ("wraith", "Phase Shift", "phaseshift")]
 SLOTS = {"weapon": 0, "tacmod": 1, "ordnance": 2}  # index into the (weapon, tacmod, ordnance) loadout key
-# Unreleased gear seen in recent replays. Attack Drone, Umbral Veil and Neutron are left out: each appears in 35
-# games or fewer in the 2026 archive and in none of the 30-31 Oct 2026 replays. Overcharge got a low target (112).
+# Unreleased gear seen in recent replays. Attack Drone, Umbral Veil and Neutron were left out at first (35 games or fewer
+# in the 2026 archive, none in the 30-31 Oct 2026 replays); they got the full gear set on 2026-11-20 (user, LATE_GEAR). Overcharge got a low target (112).
 MEDAL_LEVELS = (5, 10, 25, 50, 75)  # Medal Collector: silver-or-better medals held; archive: 36 % bronze, 20 % silver, 11 % gold, 5 % diamond, 1 % platinum
 MAPS = ("dyson", "combustion", "fission", "surge")
 UNRELEASED_WEAPONS = [("rifle", "Starburst"), ("magnum", "Protostar"), ("smg", "Quark"), ("chain", "Blazar")]
-# Badge art for the gear released 2026-10-30 (made from the loadout icons in public/icons). Dot Field and Overcharge
-# have no art yet: they keep the generic icon (an admin can pick or upload one on the Console page).
-GEAR_ICONS = {"rifle": "starburst", "magnum": "protostar", "smg": "quark", "chain": "blazar", "loc": "translocator"}
+# Badge art for the gear released 2026-10-30 (made from the loadout icons in public/icons; Dot Field from the user's
+# art, 2026-11-20, like Overcharge, Attack Drone, Umbral Veil and Neutron; the sources are in images/, buff.png is Overcharge).
+GEAR_ICONS = {"rifle": "starburst", "magnum": "protostar", "smg": "quark", "chain": "blazar", "loc": "translocator", "dot": "dot_field",
+              "buff": "overcharge", "drone": "attack_drone", "smoke": "umbral_veil", "point": "neutron"}
+# Gear given its challenges on 2026-11-20 (user): (slot, code, name tag, "only X" in a day name, "only X" in 7 days name).
+# Each gets ids from 265 on, 4 per item: Veteran, the day, the 7 days, the Test Drive. Not in _released_gear, so the
+# Test Drive ids 179-197 and the 240 released loadouts stay as they were.
+LATE_GEAR = (("ordnance", "drone", "Ordnance", "Attack Drone Ace", "Attack Drone Swarm"),
+             ("tacmod", "smoke", "Tac Mod", "Behind the Umbral Veil", "Shrouded in the Umbral Veil"),
+             ("tacmod", "point", "Tac Mod", "Neutron Star", "Neutron Flux"))
 
 ONLY_SHARE = 0.90  # "use only X": X is at least 90 % of the game's loadout time (was 95; user, 2026-11-04: room for mistakes)
 USED_SHARE = 0.10  # below 10 % of the game does not count as "used" (was 5 %, the old loadoutCutoff; user, 2026-11-04)
@@ -377,6 +384,15 @@ TUNED_LEVELS: dict[int, tuple[float, ...]] = {
     136: (1, 3, 4, 5, 7),  # Dot to Dot
     137: (1, 4, 6, 9, 13),  # Blazar Barrage
     138: (1, 4, 6, 9, 13),  # Dot Matrix
+    265: (5, 11, 15, 25, 40),  # Attack Drone Veteran (user, 2026-11-20: the same gear numbers)
+    266: (1, 3, 4, 5, 7),  # Attack Drone Ace
+    267: (1, 4, 6, 9, 13),  # Attack Drone Swarm
+    269: (5, 11, 15, 25, 40),  # Umbral Veil Veteran
+    270: (1, 3, 4, 5, 7),  # Behind the Umbral Veil
+    271: (1, 4, 6, 9, 13),  # Shrouded in the Umbral Veil
+    273: (5, 11, 15, 25, 40),  # Neutron Veteran
+    274: (1, 3, 4, 5, 7),  # Neutron Star
+    275: (1, 4, 6, 9, 13),  # Neutron Flux
     142: (50, 55, 60, 67.5, 75),  # Statue (2026-11-11, user: eased and rounded after the play-area bounds, spawn points and death rules were corrected (stats version 16), which made it harder; was 54/61/67/73/80)  # loosened 2026-11-11 (user): steps of at least 8 % of the crown, the lower medals eased; was 50/55/60/70/75
     143: (93, 95, 97, 98, 99),  # Lone Wolf (2026-11-11, user: eased and rounded after the play-area bounds, spawn points and death rules were corrected (stats version 16), which made it harder; was 94.6/96.4/98.2/99.1/100)
     48: (2.25, 2.5, 2.75, 3.25, 3.65),  # The Wings of RAD_Wyvern (2026-11-11, user: crown for about 7.5 % of regulars after the death and bounds corrections; was 2.75/3/3.25/3.5/3.75)  # loosened 2026-11-11 (user): steps of at least 8 % of the crown, the lower medals eased; was 2.75/3/3.25/3.5/3.65
@@ -847,7 +863,7 @@ def _build_rules() -> list[Rule]:
              lambda gs: len(gs[0].used("weapon")) / 5, new=True, group="Gear mastery"),
         Rule(111, "Bomb Bay Overload (Ordnance)", "Use 5 different ordnances in one game", "game", None,
              lambda gs: len(gs[0].used("ordnance")) / 5, new=True, group="Gear mastery"),
-        _ladder(112, "Overclocked (Tac Mod)", "Play games using Overcharge (experimental tac mod)", None, _games_using("tacmod", "buff"), GEAR_VETERAN,
+        _ladder(112, "Overclocked (Tac Mod)", "Play games using Overcharge (experimental tac mod)", GEAR_ICONS["buff"], _games_using("tacmod", "buff"), GEAR_VETERAN,
                 new=True, group="Experimental gear"),
     ]
 
@@ -882,22 +898,22 @@ def _build_rules() -> list[Rule]:
         rules.append(_ladder(i, name, f"Play games using only {label} in any 7 days, silver and up on at least {WEEK_MIN_DAYS} different days", GEAR_ICONS[code],
                              _only_games(slot, code, WEEK_MIN_DAYS), GEAR_WEEK, "week", new=True, group="Experimental gear"))
     rules += [
-        _ladder(131, "Full Charge (Tac Mod)", "Play games using only Overcharge in one day", None,
+        _ladder(131, "Full Charge (Tac Mod)", "Play games using only Overcharge in one day", GEAR_ICONS["buff"],
                 _only_games("tacmod", "buff"), GEAR_DAY, "day", new=True, group="Experimental gear"),
-        _ladder(132, "Charged Up (Tac Mod)", f"Play games using only Overcharge in any 7 days, silver and up on at least {WEEK_MIN_DAYS} different days", None,
+        _ladder(132, "Charged Up (Tac Mod)", f"Play games using only Overcharge in any 7 days, silver and up on at least {WEEK_MIN_DAYS} different days", GEAR_ICONS["buff"],
                 _only_games("tacmod", "buff", WEEK_MIN_DAYS), GEAR_WEEK, "week", new=True, group="Experimental gear"),
         # Blazar and Dot Field were released too (user, 2026-10-31): the same set as the other new gear
         _ladder(133, "Blazar Veteran (Weapon)", "Play games using Blazar", "blazar", _games_using("weapon", "chain"), GEAR_VETERAN,
                 new=True, group="Experimental gear"),
-        _ladder(134, "Dot Field Veteran (Ordnance)", "Play games using Dot Field", None, _games_using("ordnance", "dot"), GEAR_VETERAN,
+        _ladder(134, "Dot Field Veteran (Ordnance)", "Play games using Dot Field", GEAR_ICONS["dot"], _games_using("ordnance", "dot"), GEAR_VETERAN,
                 new=True, group="Experimental gear"),
         _ladder(135, "Blazing Trail (Weapon)", "Play games using only Blazar in one day", "blazar",
                 _only_games("weapon", "chain"), GEAR_DAY, "day", new=True, group="Experimental gear"),
-        _ladder(136, "Dot to Dot (Ordnance)", "Play games using only Dot Field in one day", None,
+        _ladder(136, "Dot to Dot (Ordnance)", "Play games using only Dot Field in one day", GEAR_ICONS["dot"],
                 _only_games("ordnance", "dot"), GEAR_DAY, "day", new=True, group="Experimental gear"),
         _ladder(137, "Blazar Barrage (Weapon)", f"Play games using only Blazar in any 7 days, silver and up on at least {WEEK_MIN_DAYS} different days", "blazar",
                 _only_games("weapon", "chain", WEEK_MIN_DAYS), GEAR_WEEK, "week", new=True, group="Experimental gear"),
-        _ladder(138, "Dot Matrix (Ordnance)", f"Play games using only Dot Field in any 7 days, silver and up on at least {WEEK_MIN_DAYS} different days", None,
+        _ladder(138, "Dot Matrix (Ordnance)", f"Play games using only Dot Field in any 7 days, silver and up on at least {WEEK_MIN_DAYS} different days", GEAR_ICONS["dot"],
                 _only_games("ordnance", "dot", WEEK_MIN_DAYS), GEAR_WEEK, "week", new=True, group="Experimental gear"),
     ]
 
@@ -957,6 +973,21 @@ def _build_rules() -> list[Rule]:
     rules.append(_ladder(201, "Two-Handed Bot (Movement)", "Switch your arm setting between games: in any 7 days, play this many games "
                          "with your left arm AND this many with your right arm", None, _v4(_switch_hitter),
                          (1, 2, 3, 4, 6), "week", " games each", new=True, group="Movement"))
+    # Attack Drone, Umbral Veil and Neutron (user, 2026-11-20): the set every other new item has, on the same ladders
+    tables = {"weapon": gear.WEAPONS, "tacmod": gear.TACMODS, "ordnance": gear.ORDNANCES}
+    for i, (slot, code, tag, day_name, week_name) in enumerate(LATE_GEAR):
+        i = 265 + 4 * i
+        label, icon = gear.lookup(tables[slot], code).display_name, GEAR_ICONS[code]
+        rules += [
+            _ladder(i, f"{label} Veteran ({tag})", f"Play games using {label}", icon, _games_using(slot, code), GEAR_VETERAN,
+                    new=True, group="Experimental gear"),
+            _ladder(i + 1, f"{day_name} ({tag})", f"Play games using only {label} in one day", icon,
+                    _only_games(slot, code), GEAR_DAY, "day", new=True, group="Experimental gear"),
+            _ladder(i + 2, f"{week_name} ({tag})", f"Play games using only {label} in any 7 days, silver and up on at least {WEEK_MIN_DAYS} different days", icon,
+                    _only_games(slot, code, WEEK_MIN_DAYS), GEAR_WEEK, "week", new=True, group="Experimental gear"),
+            Rule(i + 3, f"{label} ({tag.lower()})", f"Use the {label} {tag.lower()} for at least {TEST_DRIVE_S / 60:g} minutes in one game", "game", icon,
+                 _test_drive(slot, code), new=True, group=ONE_GAME_GEAR),
+        ]
     return rules
 
 

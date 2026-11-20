@@ -18,6 +18,22 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.20.3 — 05:07
+
+New gear challenges and icons (user, 20 Nov):
+- **Attack Drone, Umbral Veil and Neutron** get the same four challenges as every other new item, on the same targets:
+  a Veteran ladder (games using it), "only X" in one day, "only X" in any 7 days, and a 3-minute Test Drive under "In one
+  game". 12 new challenges, ids 265-276 (no existing id moved): Attack Drone Veteran / Attack Drone Ace / Attack Drone
+  Swarm (Ordnance), Umbral Veil Veteran / Behind the Umbral Veil / Shrouded in the Umbral Veil (Tac Mod), Neutron
+  Veteran / Neutron Star / Neutron Flux (Tac Mod), and the three Test Drives. They count in totals like the rest, so the
+  challenge total goes from 158 to 170. The 240 released loadouts (loadout challenges) stay as they were.
+- **New icons** from the user's art, tinted by the medal like the other gear: Dot Field (Dot Field Veteran, Dot to Dot,
+  Dot Matrix, the Dot Field Test Drive), Overcharge (Overclocked, Full Charge, Charged Up, the Overcharge Test Drive),
+  Attack Drone, Umbral Veil and Neutron (their new challenges). Beam Me Up, Translocator keeps the Translocator icon.
+- The source art (1024 px) is kept in `images/`: blazar, buff (Overcharge), dot, drone, medigun, point (Neutron),
+  protostar, quark, smoke (Umbral Veil), starburst, translocator.
+- Needs the update deployed (restart); nothing is re-read. An icon an admin picked on the Console page still wins.
+
 ## 2026.11.20.2 — 04:34
 
 Achievement icons (user, 20 Nov):
