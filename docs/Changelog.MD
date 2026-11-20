@@ -18,6 +18,15 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.20.5 — 10:32
+
+One row per weapon in the Combat lists (user, 20 Nov: "Nova and Nova Cone? those are the same weapon"):
+- **Kills / Deaths / Shots by weapon** on a player's Combat tab and on a match no longer split a weapon into parts:
+  Nova cone is added to Nova, Meteor splash (was "Meteor blast") to Meteor, and Comet splash (was "Comet blast") to
+  Comet. The two spellings the recorder uses for an ordnance (`det` / `r15_ord_det`) are one Detonator row too, and the
+  two blank-weapon marks are one "Unknown weapon" row.
+- Nothing to do: the merge happens when the page is shown, so old and new matches show it at once. No re-read.
+
 ## 2026.11.20.4 — 05:29
 
 Achievements are now called **Challenges** everywhere on the site (user, 20 Nov):

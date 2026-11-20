@@ -65,8 +65,19 @@ def _list(text: str | None) -> list:
 UNKNOWN_WEAPON = "Unknown weapon"
 
 
+def weapon_code(code: str) -> str:
+    """The weapon or ordnance a damage source belongs to: blaster_cone -> blaster, rocket_aoe -> rocket, scout_aoe -> scout,
+    r15_ord_det -> det. User, 2026-11-20: Nova and Nova cone are the same weapon, and the Meteor and Comet splash go with
+    their weapon too ("Merge like Nova")."""
+    if code in ("?", "") or code.startswith("0x"):
+        return code or "?"
+    for tail in ("_aoe", "_cone"):
+        code = code.removesuffix(tail)
+    return code.removeprefix("r15_ord_")
+
+
 def weapon_name(code: str) -> str:
-    """The in-game name of a weapon / ordnance symbol: assault -> Pulsar, r15_ord_det -> Detonator, scout_aoe -> Comet blast.
+    """The in-game name of a weapon / ordnance symbol: assault -> Pulsar, r15_ord_det -> Detonator, scout_aoe -> Comet.
     Anything unknown keeps its symbol, tidied up (a raw 0x... hash stays as it is). "?" is the recorder's mark for a shot whose
     replay frame named no weapon (the field is empty in up to 37 % of player-frames, docs/ReplayData.MD): 15 % of all shots
     on 2026-11-16, up to 68 % of one player's (user, 2026-11-20: a bare "?" on a profile)."""
@@ -74,17 +85,17 @@ def weapon_name(code: str) -> str:
         return UNKNOWN_WEAPON
     if code.startswith("0x"):
         return code
-    base, suffix = code, ""
-    for tail, label in (("_aoe", " blast"), ("_cone", " cone")):
-        if base.endswith(tail):
-            base, suffix = base[: -len(tail)], label
-    key = base.removeprefix("r15_ord_")
+    key = weapon_code(code)
     gear = WEAPONS.get(key) or ORDNANCES.get(key)
-    return (gear.display_name if gear else key.replace("_", " ").capitalize()) + suffix
+    return gear.display_name if gear else key.replace("_", " ").capitalize()
 
 
 def _weapons(counts: Counter) -> list[dict]:
-    return [{"code": c, "name": weapon_name(c), "count": n} for c, n in counts.most_common()]
+    """One row per weapon: cone / splash hits and both spellings of an ordnance (det, r15_ord_det) are added together."""
+    merged: Counter = Counter()
+    for code, n in counts.items():
+        merged[weapon_code(code)] += n
+    return [{"code": c, "name": weapon_name(c), "count": n} for c, n in merged.most_common()]
 
 
 def _main_user(db, user_id: str) -> str:

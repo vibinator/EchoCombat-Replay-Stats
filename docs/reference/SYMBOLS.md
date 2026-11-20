@@ -10,9 +10,9 @@ Architecture.MD / DataModel.MD explain the why.
 Every achievement / Flamingo Challenge with the rule to win it, for the Console page's export (D45). Built from
 - name_and_rule:11 / csv_bytes:17
 
-### `app/backend/achievements.py` (1256 lines)
+### `app/backend/achievements.py` (1293 lines)
 Achievements (D17): 5-79 from the old ECRanked stat.js comments, thresholds from the rule text; 80+ are new
-- `WEAPONS`:16 / `ORDNANCES`:17 / `TACMODS`:18 / `SLOTS`:19 / `MEDAL_LEVELS`:22 / `MAPS`:23 / `UNRELEASED_WEAPONS`:24 / `GEAR_ICONS`:27 / `ONLY_SHARE`:29 / `USED_SHARE`:30 / `UNTOUCHABLE_GAME_S`:31 / `FULL_GAME_S`:32 / `WEEK_MIN_IN_BOUNDS_S`:33 / `WEEK_MIN_DAYS`:34 / `MIN_IN_BOUNDS_S`:35 / `LOADOUT_USED_S`:36 / `SEASON_MIN_GAMES`:37 / `SPEED_MIN_GAMES`:38 / `GEAR_VETERAN`:41 / `GEAR_DAY`:42 / `GEAR_WEEK`:43 / `WEEK_GEAR_FREE`:44 / `TIERS`:45 / **class Game**:49 [won:83, day:87, start_dt:91, week:95, _shares:99, _only:110, share:114, seconds_used:117, _used:123, used:126, loadouts_played:129, main_loadout:134] / **class Rule**:143 / `LEVELS`:164 / four_medals:167 / _levelled:173 / level_tier:185 / unlock_threshold:190 / _num:195 / `HARDER_TOP`:199 / _harder:202 / `ALL_TIME_RAISE`:216 / _all_time:219 / `PLATINUM_EASIER`:232 / _easier_platinum:235 / `VETERAN_HARDER`:244 / `VETERAN_TOP`:248 / _scaled:251 / _ladder:392 / _tiered:409 / clamp:414 / ratio:418 / _only:422 / _count:429 / **class _AvgValue**:433 [_value:442, first_reached:452] / _full:467 / _gearhead_run:476 / `PEW_PEW_MIN_S`:495 / `PEW_PEW_MAX_DEATHS`:496 / _pew_pew_proof:499 / `TEST_DRIVE_S`:518 / `ONE_GAME_GEAR`:519 / _test_drive:522 / _released_gear:531 / _loadouts_tried:538 / _loadouts_used:548 / loadouts_to_try:553 / `LOADOUT_RULE_ID`:564 / `RELEASED`:565 / _equipables_used:568 / _days_all_equipables:576 / _games_using:581 / _only_games:585 / _all_used:597 / _win_streak:602 / _day_streak:613 / _fewest_wins:623 / _least_used:628 / _least_used_equipable:632 / _v4:636 / _on_the_map:647 / _away_from_mates:651 / _untouchable:659 / _if_on_the_map:664 / _both_arms:669 / `ARM_SHARE`:674 / _arm_game:677 / _switch_hitter:684 / _capture:689 / _payload:693 / _pub:697 / _pct:701 / _week_average:705 / _build_rules:709 / `_NOTE_MAP_IDS`:963 / `_NOTE_MIN_IDS`:964 / `_NOTE_4V4_IDS`:965 / `_NOTE_ONLY_IDS`:966 / rule_notes:969 / _tuned:994 / `RULES`:1005 / `MEGA_COMBAT`:1010 / icon_file:1015 / tier:1023 / `WEEK`:1027 / `MONTH`:1028 / `ROLLING`:1029 / _rolling_weeks:1032 / _monotone:1051 / _week_key:1056 / _used_periods:1062 / _groups:1067 / _reached_gold:1083 / evaluate:1088 / `PERIOD_SECTIONS`:1123 / `SECTION_MIN_RULES`:1124 / section_of:1127 / achiever_facts:1136 / overall:1157 / mega_combat_games:1161 / in_window:1167 / unlock_dates:1173 / medal_times:1206
+- `WEAPONS`:16 / `ORDNANCES`:17 / `TACMODS`:18 / `SLOTS`:19 / `MEDAL_LEVELS`:22 / `MAPS`:23 / `UNRELEASED_WEAPONS`:24 / `GEAR_ICONS`:27 / `LATE_GEAR`:32 / `ONLY_SHARE`:36 / `USED_SHARE`:37 / `UNTOUCHABLE_GAME_S`:38 / `FULL_GAME_S`:39 / `WEEK_MIN_IN_BOUNDS_S`:40 / `WEEK_MIN_DAYS`:41 / `MIN_IN_BOUNDS_S`:42 / `LOADOUT_USED_S`:43 / `SEASON_MIN_GAMES`:44 / `SPEED_MIN_GAMES`:45 / `GEAR_VETERAN`:48 / `GEAR_DAY`:49 / `GEAR_WEEK`:50 / `WEEK_GEAR_FREE`:51 / `TIERS`:52 / **class Game**:56 [won:90, day:94, start_dt:98, week:102, _shares:106, _only:117, share:121, seconds_used:124, _used:130, used:133, loadouts_played:136, main_loadout:141] / **class Rule**:150 / `LEVELS`:171 / four_medals:174 / _levelled:180 / level_tier:192 / unlock_threshold:197 / _num:202 / `HARDER_TOP`:206 / _harder:209 / `ALL_TIME_RAISE`:223 / _all_time:226 / `PLATINUM_EASIER`:239 / _easier_platinum:242 / `VETERAN_HARDER`:251 / `VETERAN_TOP`:255 / _scaled:258 / _ladder:408 / _tiered:425 / clamp:430 / ratio:434 / _only:438 / _count:445 / **class _AvgValue**:449 [_value:458, first_reached:468] / _full:483 / _gearhead_run:492 / `PEW_PEW_MIN_S`:511 / `PEW_PEW_MAX_DEATHS`:512 / _pew_pew_proof:515 / `TEST_DRIVE_S`:534 / `ONE_GAME_GEAR`:535 / _test_drive:538 / _released_gear:547 / _loadouts_tried:554 / _loadouts_used:564 / loadouts_to_try:569 / `LOADOUT_RULE_ID`:580 / `RELEASED`:581 / _equipables_used:584 / _days_all_equipables:592 / _games_using:597 / _only_games:601 / _all_used:613 / _win_streak:618 / _day_streak:629 / _fewest_wins:639 / _least_used:644 / _least_used_equipable:648 / _v4:652 / _on_the_map:663 / _away_from_mates:667 / _untouchable:675 / _if_on_the_map:680 / _both_arms:685 / `ARM_SHARE`:690 / _arm_game:693 / _switch_hitter:700 / _capture:705 / _payload:709 / _pub:713 / _pct:717 / _week_average:721 / _build_rules:725 / `_NOTE_MAP_IDS`:994 / `_NOTE_MIN_IDS`:995 / `_NOTE_4V4_IDS`:996 / `_NOTE_ONLY_IDS`:997 / rule_notes:1000 / _tuned:1025 / `RULES`:1036 / `MEGA_COMBAT`:1041 / `COLOUR_ART`:1046 / icon_file:1049 / tier:1060 / `WEEK`:1064 / `MONTH`:1065 / `ROLLING`:1066 / _rolling_weeks:1069 / _monotone:1088 / _week_key:1093 / _used_periods:1099 / _groups:1104 / _reached_gold:1120 / evaluate:1125 / `PERIOD_SECTIONS`:1160 / `SECTION_MIN_RULES`:1161 / section_of:1164 / achiever_facts:1173 / overall:1194 / mega_combat_games:1198 / in_window:1204 / unlock_dates:1210 / medal_times:1243
 
 ### `app/backend/admin_actions.py` (530 lines)
 Everything that changes data. The website is read-only (user, 2026-10-30): these run from the admin console
@@ -28,9 +28,9 @@ Virus / malware scanning of Open Cloud uploads (user, 2026-11-10: ClamAV on uplo
 
 ### `app/backend/api/__init__.py` (1 lines)
 
-### `app/backend/api/achievements.py` (561 lines)
+### `app/backend/api/achievements.py` (582 lines)
 Achievements / Flamingo Challenges per player, rarity, recent unlocks, the achievement ranking, and the
-- `RARITY_MIN_GAMES`:37 / `RECENT_DAYS`:38 / _window_info:43 / visible:52 / require_launched:59 / counted_window:65 / get_challenges:73 / `REVEALED_IDS`:86 / _peek:89 / `PEEK`:106 / `FINGERPRINT_MASK`:111 / _stable_hash:114 / _games:120 / player_achievements:174 / `OFFLOAD_MIN_GAMES`:185 / _player_achievements:188 / _player_result:204 / `REUSE_WHILE_IMPORTING_S`:232 / `FIRST_WAIT_S`:233 / _cache_file:244 / _code_signature:253 / _signature:263 / _load_results:272 / _save_results:283 / _collector_paused:303 / _compute:321 / offload:335 / stop_offload:340 / _ranking_job:344 / _player_job:349 / _elsewhere:353 / _compute_ranking:367 / _recent:399 / _store:426 / _refresh_in_background:437 / ranking_state:453 / _key:464 / warm:471 / _everyone:479 / _ready_or_start:512 / achievement_ranking:522 / achievement_progress:526 / list_achievements:532 / recent_unlocks:552
+- `RARITY_MIN_GAMES`:37 / `RECENT_DAYS`:38 / _window_info:43 / visible:52 / require_launched:59 / counted_window:65 / get_challenges:73 / `REVEALED_IDS`:89 / _peek:92 / `PEEK`:109 / `FINGERPRINT_MASK`:114 / _stable_hash:117 / _games:123 / player_achievements:177 / `OFFLOAD_MIN_GAMES`:188 / _player_achievements:191 / _player_result:207 / `REUSE_WHILE_IMPORTING_S`:235 / `FIRST_WAIT_S`:236 / _cache_file:247 / _code_signature:256 / _signature:266 / _load_results:275 / _save_results:286 / _collector_paused:306 / _compute:324 / offload:338 / stop_offload:343 / _ranking_job:347 / _player_job:352 / _elsewhere:356 / _compute_ranking:370 / _recent:402 / _store:429 / _refresh_in_background:440 / ranking_state:456 / _key:467 / warm:474 / _everyone:482 / _ready_or_start:515 / achievement_ranking:525 / achievement_progress:529 / list_achievements:535 / _rarity:549 / _catalogue:559 / recent_unlocks:573
 
 ### `app/backend/api/admin.py` (75 lines)
 Staff endpoints under /api/admin: the Status page (admins and console users) and achievement icons (D43, changed
@@ -40,9 +40,9 @@ Staff endpoints under /api/admin: the Status page (admins and console users) and
 Mega Prizes tab data (Preview role only; Arena counting is separate from Combat, see arena.py).
 - `TARGET`:20 / `SEARCH_LIMIT`:21 / `CLOSEST`:22 / `IMAGES`:23 / `IMAGE_DIR`:24 / _require_preview:27 / visible:36 / image:44 / progress:53 / _replay_history:82 / combat_totals:117 / `TOP`:149 / _moves:152 / top_combat:165 / top_arena:172 / _closest_combat:182 / _combat_winners:189 / search:196
 
-### `app/backend/api/auth.py` (108 lines)
+### `app/backend/api/auth.py` (118 lines)
 Discord login for achievement previews (D41). Only GET requests: the website stays read-only (D38).
-- _safe_next:20 / _settings:27 / me:35 / login:44 / _why:58 / _exchange_failure:63 / callback:76 / logout:104
+- _safe_next:20 / _settings:27 / me:35 / login:53 / _why:67 / _exchange_failure:72 / callback:85 / logout:113
 
 ### `app/backend/api/avatars.py` (88 lines)
 Small Discord pictures for the name lists (user, 2026-11-06): Players, Leaderboard, Achievements.
@@ -52,9 +52,9 @@ Small Discord pictures for the name lists (user, 2026-11-06): Players, Leaderboa
 Open Cloud endpoints (cloud.py): Discord login + the Cloud view / Cloud edit permission (Permissions page).
 - `WRITE_BLOCK`:27 / **class BigBlockFileResponse**:30 / _audit:34 / _enter:41 / _deny:54 / _fail:64 / listing:70 / download:127 / **class Target**:150 / make_folder:158 / _whole:187 / rename:206 / **class Move**:227 / move:233 / delete:254 / _require_console:269 / trash:282 / **class TrashChoice**:292 / trash_restore:298 / trash_purge:311 / upload_status:327 / _may_upload:338 / upload:351 / quarantine:436 / quarantine_delete:446 / quarantine_release:457 / scan_all:470 / _admin:488 / _names:499 / _rule_state:505 / _named:522 / who_gets_in:530 / whole_cloud_access:547 / change_whole_cloud_access:553 / all_permissions:567 / `SEARCHES_PER_MIN`:588 / _search_budget:592 / people:602 / item_permissions:641 / **class Rule**:650 / set_item_permissions:657 / audit_log:696
 
-### `app/backend/api/combat.py` (310 lines)
+### `app/backend/api/combat.py` (379 lines)
 Combat stats endpoints (user, 2026-11-04): the game's own counters and the event-log numbers from the recorder's match
-- `PERIOD_PATTERN`:23 / `USER_PATH`:24 / `SESSION_PATH`:25 / `RECENT_MATCHES`:26 / `MIN_GAMES_DEFAULT`:27 / award_info:49 / _list:54 / weapon_name:62 / _weapons:76 / _main_user:80 / _where:85 / _json:94 / _rates:102 / summary:111 / stat_options:120 / award_options:125 / player:131 / leaderboard:202 / matches:254 / match:274
+- `PERIOD_PATTERN`:26 / `USER_PATH`:27 / `SESSION_PATH`:28 / `RECENT_MATCHES`:29 / `MIN_GAMES_DEFAULT`:30 / award_info:52 / _list:57 / `UNKNOWN_WEAPON`:65 / weapon_code:68 / weapon_name:79 / _weapons:93 / _main_user:101 / _where:106 / _json:115 / _rates:123 / `STAMP_TTL_S`:136 / combat_stamp:140 / _kept:153 / summary:159 / _summary:163 / stat_options:172 / award_options:177 / player:183 / _player:188 / leaderboard:258 / _leaderboard:266 / matches:315 / _matches:321 / match:339 / _match:343
 
 ### `app/backend/api/console.py` (261 lines)
 Console page (D45): admin.bat on the website, for Discord members with a role from ECHOVR_DISCORD_PREVIEW_ROLES.
@@ -68,19 +68,19 @@ Stored counts -> display stats (DataModel.MD "Derived"). Shared by match and pla
 File-download responses for exports (CSV / JSON). Built in memory: exports are small.
 - _headers:10 / download_csv:14 / download_json:23
 
-### `app/backend/api/imports.py` (119 lines)
-- `STATUSES`:16 / `RATE_WINDOW_MIN`:17 / _stage:20 / import_status:25 / _minutes:111
+### `app/backend/api/imports.py` (121 lines)
+- `STATUSES`:16 / `RATE_WINDOW_MIN`:17 / _stage:20 / import_status:25 / _minutes:113
 
-### `app/backend/api/leaderboard.py` (432 lines)
+### `app/backend/api/leaderboard.py` (439 lines)
 Leaderboard (D15): the profile aggregates grouped by player, ranked by one stat.
-- `WIN_LOSS_STATS`:21 / `STATS`:23 / `GAMES_OF`:47 / `GROUPS`:50 / `HINTS`:61 / _aggregate:72 / _where:107 / _aggregate_rows:133 / _summary:141 / _values:152 / _rank:177 / `SORTS`:183 / _resort:186 / list_stats:203 / leaderboard:216 / _leaderboard:252 / achievers:300 / list_gear:314 / `OVERVIEW_TOP`:321 / overview:325 / _overview:339 / `RECORDS_TOP`:364 / `RECORD_SCAN`:365 / `_METRES`:366 / `_IN_BOUNDS_S`:367 / `RECORDS`:369 / `_DIGITS`:380 / records:384 / _records:396
+- `WIN_LOSS_STATS`:22 / `STATS`:24 / `GAMES_OF`:48 / `GROUPS`:51 / `HINTS`:62 / _aggregate:73 / _where:108 / _aggregate_rows:134 / _summary:142 / _values:153 / _rank:178 / `SORTS`:184 / _resort:187 / list_stats:204 / leaderboard:222 / _leaderboard:258 / achievers:306 / list_gear:320 / `OVERVIEW_TOP`:327 / overview:331 / _overview:345 / `RECORDS_TOP`:371 / `RECORD_SCAN`:372 / `_METRES`:373 / `_IN_BOUNDS_S`:374 / `RECORDS`:376 / `_DIGITS`:387 / records:391 / _records:403
 
-### `app/backend/api/matches.py` (712 lines)
-- player_counts:34 / list_matches:42 / `CLOSE_LEFT_S`:64 / `STOMP_LEFT_S`:65 / `CLOSENESS`:69 / `FULL_LOBBY`:78 / _filtered:81 / _list_matches:112 / matches_summary:144 / _summary:161 / `MAX_THUMBNAILS`:181 / get_thumbnails:186 / _thumbnails:195 / _thumbnail:206 / _thumbnail_for:215 / player_row:221 / get_match:254 / match_detail:258 / story:309 / repair_note:326 / get_events:339 / _event_data:358 / _match_or_404:366 / _tracks:373 / get_timeline:381 / _timeline:386 / `MATCH_HEATMAP_MODES`:395 / get_match_heatmap:399 / _match_heatmap:413 / get_match_heatmap3d:436 / _match_heatmap3d:448 / `EXPORT_COLUMNS`:473 / export_rows:480 / export_match:493 / get_playback:503 / _playback:509 / `PLAYBACK_EVENTS`:545 / `MAPS_3D`:547 / `PAYLOAD_MODEL_MAPS`:548 / `BUILD_WAIT_S`:549 / `MAX_BUILD_WAITERS`:550 / `FAILED_TTL_S`:551 / _recently_failed:558 / _remember_failure:563 / _tracks3d:572 / get_playback3d:634 / _playback3d:641 / _map_objects:668 / _gear_names:685 / _speeds:689 / _loadout_runs:702
+### `app/backend/api/matches.py` (719 lines)
+- player_counts:34 / list_matches:42 / `CLOSE_LEFT_S`:64 / `STOMP_LEFT_S`:65 / `CLOSENESS`:69 / `FULL_LOBBY`:78 / _filtered:81 / _list_matches:112 / match_cards:122 / matches_summary:151 / _summary:168 / `MAX_THUMBNAILS`:188 / get_thumbnails:193 / _thumbnails:202 / _thumbnail:213 / _thumbnail_for:222 / player_row:228 / get_match:261 / match_detail:265 / story:316 / repair_note:333 / get_events:346 / _event_data:365 / _match_or_404:373 / _tracks:380 / get_timeline:388 / _timeline:393 / `MATCH_HEATMAP_MODES`:402 / get_match_heatmap:406 / _match_heatmap:420 / get_match_heatmap3d:443 / _match_heatmap3d:455 / `EXPORT_COLUMNS`:480 / export_rows:487 / export_match:500 / get_playback:510 / _playback:516 / `PLAYBACK_EVENTS`:552 / `MAPS_3D`:554 / `PAYLOAD_MODEL_MAPS`:555 / `BUILD_WAIT_S`:556 / `MAX_BUILD_WAITERS`:557 / `FAILED_TTL_S`:558 / _recently_failed:565 / _remember_failure:570 / _tracks3d:579 / get_playback3d:641 / _playback3d:648 / _map_objects:675 / _gear_names:692 / _speeds:696 / _loadout_runs:709
 
-### `app/backend/api/overview.py` (424 lines)
+### `app/backend/api/overview.py` (513 lines)
 Home dashboard, archive activity and global search.
-- overview:21 / _overview:27 / `RETURN_DAYS`:71 / _newcomers:74 / `LATEST_MATCHES`:97 / _latest_matches:100 / latest_matches:106 / processing:115 / last_match:123 / map_heat_cards:132 / _map_heat:164 / `LIVE_HEADERS`:178 / live:182 / _last_ended:190 / activity:198 / `DAY_WINDOW`:205 / _activity:208 / search:240 / _search:246 / _top_gear:267 / `TEAM_WIN_KEYS`:296 / _global_stats:299 / `RANGES`:362 / players_seen:366 / _players_seen:374 / warm:412
+- overview:24 / _overview:30 / `WEEK_TOP`:77 / `RETURN_DAYS`:78 / _newcomers:81 / _came_back:98 / `TREND_DAYS`:113 / _trend:116 / `LATEST_MATCHES`:145 / _latest_matches:148 / latest_matches:155 / processing:164 / last_match:172 / map_heat_cards:181 / _map_heat:213 / `LIVE_HEADERS`:227 / live:231 / _last_ended:239 / activity:247 / `DAY_WINDOW`:254 / _activity:257 / search:289 / _search:295 / _top_gear:316 / `TEAM_WIN_KEYS`:345 / _player_totals:348 / _global_stats:361 / `RANGES`:422 / players_seen:426 / _players_seen:434 / warm:472 / _warm_pages:486
 
 ### `app/backend/api/permissions.py` (104 lines)
 Permissions page (user, 2026-10-30): console users give or take away Admin (the Status page), the Console and the Preview,
@@ -105,13 +105,13 @@ Replays found in the share (D25). Read-only: files are added by the scanner; rep
 Public Echo Arena matches per player, counted from the live Nakama match list (user, 2026-11-04). Completely
 - `URL`:21 / `MIN_PRESENT_S`:22 / `MIN_TEAM`:23 / `MIN_SEEN`:24 / `TIMEOUT_S`:25 / `MAX_BYTES`:26 / `MAX_BACKOFF_S`:27 / `KEEP_COUNTED_S`:28 / `PRUNE_EVERY_S`:29 / `ACCOUNT_REFRESH_S`:30 / `WINDOW_CHECK_S`:31 / `NON_PLAYER_TEAMS`:32 / `STATUS_OK_POLLS`:33 / _stamp:37 / is_public_arena:42 / is_public_combat:47 / **class _Kind**:52 / **class Tracker**:70 [start:86, stop:90, _fetch:94, _run:101, _in_period:113, poll:123, _collect_accounts:135, _link:166, _poll_kind:177, status:227, _purge:248, _save:259]
 
-### `app/backend/auth.py` (539 lines)
+### `app/backend/auth.py` (553 lines)
 Discord login, only for previewing achievements before their launch date (D41). Login = OAuth2 "identify" (who
-- `API`:23 / `AUTHORIZE_URL`:24 / `SESSION_COOKIE`:25 / `STATE_COOKIE`:26 / `SESSION_DAYS`:27 / `STATE_S`:28 / `ROLE_CHECK_S`:29 / `ROLE_RETRY_S`:30 / `DISCORD_PER_S`:40 / `DISCORD_BURST`:41 / `DISCORD_WAIT_S`:42 / `DISCORD_PAUSE_MAX_S`:43 / `INVALID_WINDOW_S`:44 / `INVALID_MAX`:45 / **class DiscordPaused**:48 / **class DiscordLimiter**:53 [reset:58, acquire:63, record:81] / _send:109 / http_client:117 / enabled:122 / is_discord_id:128 / _bot_get:134 / `SERVER_ROLES_S`:139 / server_roles:143 / check_fixed_ids:157 / user_name:190 / user_names:207 / `AVATAR_CHECK_S`:219 / `AVATAR_MAX_PER_MIN`:220 / `AVATAR_FILE`:221 / `AVATAR_KEEP_S`:222 / _avatar_budget:230 / _avatar_path:242 / _load_avatars:246 / _save_avatars:267 / avatar_url:282 / redirect_uri:332 / secure_cookies:336 / _key:342 / _b64:351 / _unb64:355 / sign:359 / unsign:364 / authorize_url:380 / user_from_code:387 / forget_roles:409 / _ask_roles:415 / member_roles:436 / viewer:465 / allowed:479 / _has:504 / has_preview:516 / is_admin:521 / has_console:526 / cloud_access:532
+- `API`:23 / `AUTHORIZE_URL`:24 / `SESSION_COOKIE`:25 / `STATE_COOKIE`:26 / `ADMIN_HINT_COOKIE`:29 / `SESSION_DAYS`:30 / `STATE_S`:31 / `ROLE_CHECK_S`:32 / `ROLE_RETRY_S`:33 / `DISCORD_PER_S`:43 / `DISCORD_BURST`:44 / `DISCORD_WAIT_S`:45 / `DISCORD_PAUSE_MAX_S`:46 / `INVALID_WINDOW_S`:47 / `INVALID_MAX`:48 / **class DiscordPaused**:51 / **class DiscordLimiter**:56 [reset:61, acquire:66, record:84] / _send:112 / http_client:120 / enabled:125 / is_discord_id:131 / _bot_get:137 / `SERVER_ROLES_S`:142 / server_roles:146 / check_fixed_ids:160 / user_name:193 / user_names:210 / `AVATAR_CHECK_S`:222 / `AVATAR_MAX_PER_MIN`:223 / `AVATAR_FILE`:224 / `AVATAR_KEEP_S`:225 / _avatar_budget:233 / _avatar_path:245 / _load_avatars:249 / _save_avatars:270 / avatar_url:290 / redirect_uri:346 / secure_cookies:350 / _key:356 / _b64:365 / _unb64:369 / sign:373 / unsign:378 / authorize_url:394 / user_from_code:401 / forget_roles:423 / _ask_roles:429 / member_roles:450 / viewer:479 / allowed:493 / _has:518 / has_preview:530 / is_admin:535 / has_console:540 / cloud_access:546
 
-### `app/backend/cache.py` (420 lines)
+### `app/backend/cache.py` (442 lines)
 Caches for answers built from the archive: home page, leaderboard, profiles, heatmaps, match views (D53). Keyed on
-- `STAMP_TTL_S`:49 / `MAX_VALUES`:50 / `MAX_RESPONSES`:51 / `MAX_RESPONSE_BYTES`:52 / `GZIP_LEVEL`:53 / `STATUS_HEADER`:54 / bump_generation:59 / data_stamp:64 / current_stamp:73 / **class Entry**:88 / **class Store**:97 [get:108, put:115, drop:125] / `DISK_FORMAT`:136 / `DISK_PRUNE_EVERY`:137 / `DISK_MAX_AGE_S`:138 / **class Disk**:141 [path:147, _read:150, used:162, stamp:169, load:174, save:183, prune:207] / _plain:227 / _disk:232 / _store:245 / _run:263 / _used:277 / _build_now:288 / _refresh:306 / _key:329 / _saving:333 / _lookup:343 / cached:367 / _response_entry:373 / cached_response:381 / prebuild:391 / etag_matches:405 / reply:413
+- `STAMP_TTL_S`:49 / `MAX_VALUES`:50 / `MAX_RESPONSES`:51 / `MAX_RESPONSE_BYTES`:52 / `GZIP_LEVEL`:53 / `STATUS_HEADER`:54 / bump_generation:59 / data_stamp:64 / current_stamp:73 / **class Entry**:88 / **class Store**:97 [get:108, put:115, drop:125] / `DISK_FORMAT`:136 / `DISK_PRUNE_EVERY`:137 / `DISK_MAX_AGE_S`:138 / **class Disk**:141 [path:147, _read:150, used:162, stamp:169, load:174, save:183, prune:207] / _plain:227 / _disk:232 / _store:245 / `SLOW_BUILD_S`:263 / _run:266 / _used:283 / _build_now:294 / _refresh:312 / _key:335 / _saving:339 / _lookup:349 / cached:373 / _response_entry:379 / _response_bytes:387 / cached_response:392 / prebuild:402 / json_reply:416 / etag_matches:427 / reply:435
 
 ### `app/backend/cloud.py` (531 lines)
 Open Cloud (user, 2026-11-10): file storage on the website for Discord members with the Cloud permission. Two
@@ -129,11 +129,11 @@ Combat stats from the recorder's match reports (user, 2026-11-04). Completely se
 Combat achievements (user, 2026-11-05): built only from the recorder's match reports (combat_matches, combat_players), kept
 - `GROUP`:28 / `MIN_PER_TEAM`:29 / `RARITY_MIN_GAMES`:30 / `RECENT_DAYS`:31 / **class CombatGame**:35 [day:52, start_dt:56] / _total:60 / _awards:68 / _rule:73 / _card_list:168 / load_games:177 / _player:212 / `_EMPTY`:222 / _everyone:225 / player_items:249 / player_name:255 / catalogue:261 / recent:275
 
-### `app/backend/config.py` (141 lines)
-- `PROJECT_ROOT`:5 / `DEFAULT_SOURCE`:6 / `DISCORD_CLIENT_ID`:8 / `DISCORD_GUILD_ID`:9 / _secret:12 / **class Settings**:18 [from_env:88, processed_dir:127, db_path:131, combat_dir:135]
+### `app/backend/config.py` (150 lines)
+- `PROJECT_ROOT`:5 / `DEFAULT_SOURCE`:6 / `DISCORD_CLIENT_ID`:8 / `DISCORD_GUILD_ID`:9 / _secret:12 / **class Settings**:18 [from_env:95, processed_dir:136, db_path:140, combat_dir:144]
 
-### `app/backend/db.py` (180 lines)
-- **class Base**:9 / `BUSY_TIMEOUT_S`:13 / utcnow:16 / open_db:20 / open_reader:54 / warm:77 / _add_missing_columns:91 / _add_missing_indexes:107 / `DERIVED_TABLES`:117 / `PRESERVED_TABLES`:119 / `COMBAT_TABLES`:123 / `IN_PLACE_COLUMNS`:128 / _backfill_counted:131 / _add_columns_in_place:138 / _stale:152 / _rebuild_stale_tables:158
+### `app/backend/db.py` (184 lines)
+- **class Base**:9 / `BUSY_TIMEOUT_S`:13 / utcnow:16 / open_db:20 / open_reader:54 / warm:77 / _add_missing_columns:95 / _add_missing_indexes:111 / `DERIVED_TABLES`:121 / `PRESERVED_TABLES`:123 / `COMBAT_TABLES`:127 / `IN_PLACE_COLUMNS`:132 / _backfill_counted:135 / _add_columns_in_place:142 / _stale:156 / _rebuild_stale_tables:162
 
 ### `app/backend/discord_names.py` (162 lines)
 Discord avatars for players not linked by the bot (user, 2026-11-02): when a player's name matches exactly one
@@ -151,9 +151,9 @@ One error shape for the whole API: {"error_code", "message"} (api.ts shows `mess
 Loadout API codes -> in-game names (source: docs/reference/gear-table.json).
 - **class Gear**:9 / `WEAPONS`:14 / `ORDNANCES`:25 / `TACMODS`:35 / `NONE`:45 / lookup:47
 
-### `app/backend/gear_use.py` (82 lines)
+### `app/backend/gear_use.py` (84 lines)
 Gear use per player: how many times each weapon / ordnance / tac mod was picked, in how many games, and its share
-- `KINDS`:22 / count_picks:25 / _picks:38 / picks_in_match:50 / picks_of_player:55 / summarize:60
+- `KINDS`:22 / count_picks:25 / _picks:38 / picks_in_match:52 / picks_of_player:57 / summarize:62
 
 ### `app/backend/guard.py` (137 lines)
 Scraper protection for the public site (D48). Cloudflare's own bot and rate rules come first (Setup.MD); this is
@@ -175,8 +175,8 @@ Prepares the heatmaps of the most active players while the server is idle. First
 Achievement icons chosen on the Console page (D43): an existing badge image or an uploaded PNG. The choice is
 - `KEY`:20 / `CUSTOM`:21 / `CUSTOM_NAME`:22 / `MAX_BYTES`:23 / `MAX_SIDE`:24 / `PNG`:25 / `BUILT_IN_DIRS`:27 / `NOT_ICONS`:28 / `ALL_RULES`:29 / `RULE_IDS`:30 / **class IconError**:33 / overrides:37 / apply:42 / custom_dir:48 / built_in:52 / available:57 / default:64 / set_icon:68 / save_upload:85
 
-### `app/backend/main.py` (153 lines)
-- `FRONTEND_DIST`:26 / **class SinglePageApp**:29 [get_response:32] / create_app:44
+### `app/backend/main.py` (263 lines)
+- `FRONTEND_DIST`:37 / `KEPT_SUFFIXES`:49 / `KEPT_MAX_BYTES`:50 / `KEPT_CHECK_S`:51 / **class KeptFile**:55 / **class SinglePageApp**:65 [_keep:81, _kept_response:100, get_response:114] / create_app:137
 
 ### `app/backend/map_heat.py` (949 lines)
 All-time heat per map for the home page's "Matches per map" cards: where players have been over every counted
@@ -190,17 +190,21 @@ Mega Prize winners report for the Console (user, 2026-11-04): the prizes are han
 Merge suggestions for the Console (D34 merges): player records that used the same name, which is how one person
 - `MIN_KEY_CHARS`:18 / `MAX_GROUPS`:19 / `_NOT_ALNUM`:20 / name_key:23 / suggestions:27
 
-### `app/backend/middleware.py` (120 lines)
+### `app/backend/middleware.py` (128 lines)
 Every request and answer of the site in one pure ASGI layer (it replaces four @app.middleware layers that cost
-- `PER_VISITOR`:27 / `WRITES`:28 / `UPLOAD`:29 / `BOT`:30 / `STATIC_MAX_AGE_S`:31 / `EDGE_STALE_IF_ERROR_S`:32 / _refusal:35 / _api_cache:52 / _versioned:64 / _static_cache:69 / **class SiteMiddleware**:83
+- `PER_VISITOR`:28 / `WRITES`:29 / `UPLOAD`:30 / `BOT`:31 / `STATIC_MAX_AGE_S`:32 / `EDGE_STALE_IF_ERROR_S`:33 / _refusal:36 / _api_cache:53 / _versioned:65 / _static_cache:70 / **class SiteMiddleware**:84
 
-### `app/backend/models.py` (425 lines)
+### `app/backend/models.py` (433 lines)
 Tables as specified in docs/DataModel.MD.
-- **class Replay**:9 / **class Match**:33 / **class DuplicateMatch**:68 / **class Player**:78 / **class MatchPlayer**:88 / **class MatchPlayerLoadout**:125 / **class Event**:138 / **class AppSetting**:152 / **class PlayerProfile**:162 / **class DiscordProfile**:177 / **class NakamaAccount**:190 / **class PlayerAlias**:207 / **class RepairRequest**:217 / **class AggressiveRepair**:226 / **class PriorityReplay**:236 / **class HiddenReplay**:244 / **class CloudLog**:254 / **class CloudRule**:272 / **class ConsoleLog**:286 / **class ArenaPlayer**:303 / **class ArenaCounted**:317 / **class NakamaCombatPlayer**:327 / **class NakamaCombatCounted**:341 / **class CombatFile**:357 / **class CombatMatch**:373 / **class CombatPlayer**:391
+- **class Replay**:9 / **class Match**:33 / **class DuplicateMatch**:68 / **class Player**:78 / **class MatchPlayer**:88 / **class MatchPlayerLoadout**:125 / **class Event**:138 / **class AppSetting**:160 / **class PlayerProfile**:170 / **class DiscordProfile**:185 / **class NakamaAccount**:198 / **class PlayerAlias**:215 / **class RepairRequest**:225 / **class AggressiveRepair**:234 / **class PriorityReplay**:244 / **class HiddenReplay**:252 / **class CloudLog**:262 / **class CloudRule**:280 / **class ConsoleLog**:294 / **class ArenaPlayer**:311 / **class ArenaCounted**:325 / **class NakamaCombatPlayer**:335 / **class NakamaCombatCounted**:349 / **class CombatFile**:365 / **class CombatMatch**:381 / **class CombatPlayer**:399
 
 ### `app/backend/persist.py` (101 lines)
 MatchStats -> database rows. Callers commit, so a match is stored completely or not at all.
 - _iso:19 / delete_match:23 / _upsert_player:30 / save_match:43
+
+### `app/backend/popular.py` (167 lines)
+What people open, remembered across restarts, so a restarted server can build those answers again before they are
+- `FILE_VERSION`:30 / `HALF_LIFE_S`:31 / `MAX_PATHS`:32 / `SAVE_EVERY_S`:33 / `SKIP`:36 / `SCOPE_MARK`:37 / `UA`:38 / _wanted:41 / **class Popular**:52 [_load:62, count:74, top:86, save:90] / _ask:114 / rebuild:140
 
 ### `app/backend/remote.py` (197 lines)
 Remote processing (user, 2026-11-02): reading replays is slow on the NAS, so another PC can do it.
@@ -252,13 +256,13 @@ Is the Echo Combat spectator bot streaming on Twitch? It only streams while a ga
 App version (user, 2026-11-01): calendar versioning, YYYY.MM.DD.N = release date + the Nth update that day, plus the
 - `VERSION`:6 / `RELEASED`:7 / short:10 / `APP_VERSION`:16
 
-### `app/backend/visibility.py` (82 lines)
+### `app/backend/visibility.py` (90 lines)
 Stats hidden from players (admin console: "hide-stats"), site-wide or for chosen players. Hidden stats are left out
-- `TTL_S`:18 / **class View**:22 [hides:26] / `ALL_SHOWN`:31 / _settings:34 / hidden_groups:46 / view:50 / win_loss:58 / ids:63 / hidden_player_ids:69 / `WIN_LOSS_KEYS`:77 / without:80
+- `TTL_S`:23 / **class View**:28 [hides:32] / `ALL_SHOWN`:37 / _settings:40 / hidden_groups:52 / view:56 / win_loss:66 / ids:71 / hidden_player_ids:77 / `WIN_LOSS_KEYS`:85 / without:88
 
-### `app/backend/worker.py` (434 lines)
+### `app/backend/worker.py` (493 lines)
 Processes queued replays, newest file first (D25). Parsing + stats run in a process pool;
-- `MAX_CRASHES`:36 / `SIDE_WORKERS`:37 / `LANES`:40 / _pool_process_start:43 / _lower_priority:50 / save_heights:64 / `CLOCK_SLACK_S`:73 / clock_warning:76 / analyse:89 / timed_analyse:126 / save_result:133 / _save_result:140 / _with_hex_gear_codes:188 / requeue_unfinished_and_outdated:197 / claim_queued:218 / **class Worker**:255 [start:269, _new_pool:275, notify:280, run_side:283, _side_done:308, stop:318, busy:329, current:332, wait_idle:339, _claim:353, _tracks_file:367, _requeue:370, _recover_from_crash:375, _run:395]
+- `LOOP_RETRY_MAX_S`:36 / `MAX_CRASHES`:37 / `SIDE_WORKERS`:38 / `LANES`:41 / _pool_process_start:44 / _lower_priority:51 / save_heights:65 / `CLOCK_SLACK_S`:74 / clock_warning:77 / analyse:90 / timed_analyse:127 / save_result:134 / _save_result:141 / _with_hex_gear_codes:189 / `BONE_DATA_SINCE`:198 / _failed_on_bone_data:201 / requeue_unfinished_and_outdated:208 / claim_queued:230 / **class Worker**:267 [start:282, _new_pool:288, notify:293, run_side:296, _side_done:321, stop:331, busy:342, running:346, current:350, wait_idle:357, _claim:371, _tracks_file:385, _requeue:388, _recover_from_crash:393, _run:416, _step:433, _after_error:469]
 
 ### `app/parser/__init__.py` (22 lines)
 Echo VR replay parser. No database or web imports.
@@ -267,17 +271,17 @@ Echo VR replay parser. No database or web imports.
 ### `app/parser/errors.py` (17 lines)
 - **class ReplayError**:1 / **class UnsupportedReplay**:7 / **class CorruptReplay**:11 / **class IncompleteReplay**:15
 
-### `app/parser/frames.py` (209 lines)
+### `app/parser/frames.py` (213 lines)
 Raw line / JSON -> typed frame. Raises ValueError, KeyError or TypeError for a bad line.
-- `HEX_CODES`:16 / _gear_code:32 / gear_code:42 / `TIMESTAMP_FORMATS`:54 / `_TIMESTAMP`:58 / parse_timestamp:61 / split_line:78 / split_raw:86 / _float_user_id:105 / _vec:117 / _hand:122 / _player:128 / _team:155 / _payload:160 / _last_kill:173 / build_frame:179 / build_meta:198
+- `HEX_CODES`:16 / _gear_code:32 / gear_code:42 / `TIMESTAMP_FORMATS`:54 / `_TIMESTAMP`:58 / parse_timestamp:61 / split_line:78 / split_raw:89 / _float_user_id:109 / _vec:121 / _hand:126 / _player:132 / _team:159 / _payload:164 / _last_kill:177 / build_frame:183 / build_meta:202
 
 ### `app/parser/models.py` (72 lines)
 Typed frame data. Only fields confirmed in docs/ReplayData.MD; add new ones here and in frames.py.
 - **class PlayerFrame**:10 / **class PayloadState**:33 / **class Frame**:43 / **class ReplayMeta**:63
 
-### `app/parser/reader.py` (562 lines)
+### `app/parser/reader.py` (564 lines)
 Streaming reader for .echoreplay files (zip or plain text, one `<timestamp>\t<json>` frame per line).
-- `ZIP_MAGIC`:18 / `SUPPORTED_MATCH_TYPE`:19 / `MAX_UNCOMPRESSED_BYTES`:20 / `BAD_LINE_ERRORS`:21 / _allowed_bad_lines:24 / _limited:28 / `READ_CHUNK`:37 / `META_CHUNK`:38 / _chunk_lines:41 / `LOCAL_HEADER`:59 / `SALVAGE_CHUNK`:60 / _salvage_zip_lines:63 / `CENTRAL_HEADER`:127 / `CENTRAL_MAGIC`:128 / `FRAME_START`:129 / `SESSION_IN_NAME`:130 / `HOLE`:131 / `CHECK_CHUNK`:132 / `LOOKAHEAD`:133 / `DIFF_UNIT`:134 / _zip_entries:137 / _same_copy:165 / _differences:181 / _is_frame:197 / **class _CheckedInflate**:207 [copy:220, feed:227, _check:250, take:264, finish:269] / _read_one:277 / _read_two:289 / _streams:324 / _frames:348 / _frames_in:361 / _merged:372 / _aggressive_lines:384 / _open_lines:398 / **class ClockJumps**:427 [add:445, fix:458, describe:461] / _nothing_recoverable:465 / **class ParsedReplay**:484 [_read_meta:498, frames:520] / open_replay:560
+- `ZIP_MAGIC`:18 / `SUPPORTED_MATCH_TYPE`:19 / `MAX_UNCOMPRESSED_BYTES`:20 / `BAD_LINE_ERRORS`:21 / _allowed_bad_lines:24 / _limited:28 / `READ_CHUNK`:37 / `META_CHUNK`:38 / _chunk_lines:41 / `LOCAL_HEADER`:59 / `SALVAGE_CHUNK`:60 / _salvage_zip_lines:63 / `CENTRAL_HEADER`:127 / `CENTRAL_MAGIC`:128 / `FRAME_START`:129 / `SESSION_IN_NAME`:130 / `HOLE`:131 / `CHECK_CHUNK`:132 / `LOOKAHEAD`:133 / `DIFF_UNIT`:134 / _zip_entries:137 / _same_copy:165 / _differences:181 / _is_frame:197 / **class _CheckedInflate**:207 [copy:220, feed:227, _check:250, take:264, finish:269] / _read_one:277 / _read_two:289 / _streams:324 / _frames:348 / _frames_in:361 / _merged:372 / _aggressive_lines:384 / _open_lines:398 / **class ClockJumps**:427 [add:445, fix:458, describe:461] / _nothing_recoverable:465 / **class ParsedReplay**:484 [_read_meta:498, frames:520] / open_replay:562
 
 ### `app/admin_console.py` (1176 lines)
 Admin console: the only place data is changed (the website is read-only). Player merges, the challenge
@@ -291,9 +295,9 @@ Reads replays for the website on this PC instead of on the NAS (remote.py; start
 Next app version: python app/bump_version.py
 - `ROOT`:12 / `VERSION_FILE`:13 / `CHANGELOG`:14 / `SEPARATOR`:15 / next_version:18 / _newline:24 / main:29
 
-### `app/cloudflare_check.py` (196 lines)
+### `app/cloudflare_check.py` (213 lines)
 Is Cloudflare caching the public site the way it should (D53)? Run it after updating the server and after changing
-- `BROWSER`:17 / `SCRIPT`:18 / `KEPT`:19 / **class Probe**:23 [header:28, cache:32] / ask:36 / collect:53 / _max_age:76 / assess:86 / main:176
+- `BROWSER`:17 / `SCRIPT`:18 / `KEPT`:19 / **class Probe**:23 [header:28, cache:32] / ask:36 / collect:53 / _max_age:83 / assess:93 / main:193
 
 ### `app/sync_recent_replays.py` (103 lines)
 Keeps a local copy of the most recent replays of each map, so analysis does not read them over the network.
@@ -315,9 +319,9 @@ Check the deaths the app counts against each other: the game's kill records (las
 API end-to-end sweep against a running local server (docs/reference/E2E-TESTING.md).
 - `UA`:21 / `PAGE`:22 / check:26 / main:37
 
-### `app/tools/e2e/browser_sweep.py` (112 lines)
+### `app/tools/e2e/browser_sweep.py` (113 lines)
 Browser end-to-end sweep: every page, headless Chromium, staff login (docs/reference/E2E-TESTING.md).
-- `UA`:22 / `NOISE`:23 / `PHONE_PAGES`:24 / pages:27 / main:47
+- `UA`:22 / `NOISE`:23 / `PHONE_PAGES`:24 / pages:27 / main:48
 
 ### `app/tools/e2e/local_login.py` (42 lines)
 Mint a staff session cookie for local end-to-end testing (docs/reference/E2E-TESTING.md).

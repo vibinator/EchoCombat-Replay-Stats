@@ -155,7 +155,8 @@ def test_player_endpoint_totals_and_weapons(settings):
         ev = data["events"]
         assert ev["matches"] == 1 and ev["shots"] == 434 and ev["self_kills"] == 1
         names = {w["code"]: w["name"] for w in ev["kills_by_weapon"] + ev["deaths_by_weapon"] + ev["shots_by_weapon"]}
-        assert names["blaster"] == "Nova" and names["blaster_cone"] == "Nova cone" and names["r15_ord_det"] == "Detonator"
+        assert names["blaster"] == "Nova" and names["det"] == "Detonator" and "blaster_cone" not in names
+        assert [(w["code"], w["count"]) for w in ev["kills_by_weapon"]] == [("blaster", 3)]  # Nova 2 + Nova cone 1: one weapon
         assert client.get(f"/api/combat/players/{BIG_ID}", params={"map": "surge"}).json()["stats"]["kills"] == 4
         assert client.get("/api/combat/players/99").json() == {"user_id": "99", "name": None, "matches": 0}
         assert client.get("/api/combat/players/abc").status_code == 422
@@ -301,6 +302,12 @@ def test_player_award_lists_without_match_cards_still_make_cards(settings):
 
 def test_weapon_names():
     from backend.api.combat import UNKNOWN_WEAPON, weapon_name
-    assert weapon_name("assault") == "Pulsar" and weapon_name("r15_ord_det") == "Detonator" and weapon_name("scout_aoe") == "Comet blast"
+    assert weapon_name("assault") == "Pulsar" and weapon_name("r15_ord_det") == "Detonator" and weapon_name("scout_aoe") == "Comet"
+    assert weapon_name("blaster_cone") == "Nova" and weapon_name("rocket_aoe") == "Meteor"
+    from backend.api.combat import _weapons
+    from collections import Counter
+    rows = _weapons(Counter({"rocket": 12, "rocket_aoe": 40, "blaster": 31, "blaster_cone": 33, "det": 1, "r15_ord_det": 2, "?": 3, "": 1}))
+    assert [(r["code"], r["name"], r["count"]) for r in rows] == [
+        ("blaster", "Nova", 64), ("rocket", "Meteor", 52), ("?", UNKNOWN_WEAPON, 4), ("det", "Detonator", 3)]
     assert weapon_name("?") == UNKNOWN_WEAPON  # the recorder's mark for a shot whose replay frame named no weapon
     assert weapon_name("0x0f642a34f8d049ab") == "0x0f642a34f8d049ab"
