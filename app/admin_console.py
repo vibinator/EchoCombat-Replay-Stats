@@ -11,7 +11,7 @@ rule and the affected replays are re-processed from the original files, so it ca
     admin.bat merge <main> <other> [<other> ...] [--yes]
     admin.bat merges
     admin.bat link-profile <player> <discord id> [--yes]   link a player to a Discord account by hand (bio, login, avatar)
-    admin.bat unlink-profile <player or discord id> [--yes]
+    admin.bat unlink-profile <player or discord id> [<discord id>] [--yes]   the two stay apart until linked by hand again
     admin.bat profile-links          how many players are linked to a Discord account, and how
     admin.bat unmerge <merged id> [--yes]
     admin.bat challenge [--start YYYY-MM-DD] [--end YYYY-MM-DD] [--clear]
@@ -48,11 +48,11 @@ from sqlalchemy import create_engine, event, func, not_, select  # noqa: E402
 from sqlalchemy.orm import Session, sessionmaker  # noqa: E402
 
 from backend import admin_actions as actions  # noqa: E402
-from backend import aliases, auth, remote  # noqa: E402
+from backend import aliases, auth, discord_links, remote  # noqa: E402
 from backend.admin_actions import AGGRESSIVE_REPAIRABLE, REPAIRABLE, AdminError, hidden_failure, unrepairable  # noqa: E402
 from backend.config import Settings  # noqa: E402
 from backend.version import APP_VERSION  # noqa: E402
-from backend.models import (ArenaPlayer, DiscordProfile, HiddenReplay, Match, MatchPlayer, NakamaCombatPlayer, Player,  # noqa: E402
+from backend.models import (ArenaPlayer, DiscordLinkBlock, DiscordProfile, HiddenReplay, Match, MatchPlayer, NakamaCombatPlayer, Player,  # noqa: E402
                             NakamaAccount, PlayerAlias, PlayerProfile, Replay)
 
 REASONS = {  # error codes -> why repair cannot help
@@ -225,55 +225,79 @@ def cmd_unmerge(sessions, alias_term: str, yes: bool) -> None:
     print(f"Undone. {len(replay_ids)} replays queued for re-processing. {when_applied()}")
 
 
-def cmd_link_profile(sessions, player_term: str, discord_id: str, yes: bool) -> None:
-    """Link a player to a Discord account by hand, when the bot link or the Discord id as player id does not exist. Same effect
-    as the bot's link: one player per Discord account, relinking moves it (user, 2026-11-05)."""
+LINK_ROUTES = {"profile": "linked by the bot or an admin", "player_id": "the player id is that Discord id",
+               "seen": "seen with the player on the match list"}
+
+
+def _account_text(db: Session, discord_id: str) -> str:
+    name = discord_links.account_name(db, discord_id)
+    return f"{discord_id} ({name})" if name and name != "?" else discord_id
+
+
+def _print_link_now(db: Session, main_id: str) -> None:
+    link = discord_links.discord_of(db, main_id)
+    print(f"{name_of(db, main_id)} is now " + (f"linked to Discord account {_account_text(db, link[0])}: {LINK_ROUTES[link[1]]}." if link
+                                              else "not linked to a Discord account."))
+
+
+def cmd_link_profile(sessions, player_term: str, discord_id: str, yes: bool, settings: Settings | None = None) -> None:
+    """Link a player to a Discord account by hand, when the bot link or the Discord id as player id does not exist or is
+    wrong. One player per Discord account, relinking moves it (user, 2026-11-05); it overrules every automatic link and
+    lifts an earlier unlink of the two (user, 2026-11-25). The bio and picture choice go with the Discord account."""
     discord_id = discord_id.strip()
     if not auth.is_discord_id(discord_id):
         raise ConsoleError(f"'{discord_id}' is not a Discord user id (17-20 digits: right-click the person > Copy User ID)")
+    if settings is not None and settings.discord_bot_token:  # shows whose id it is: a wrong id is seen at once
+        auth.user_name(settings, discord_id)
     with sessions() as db:
         player = resolve(db, player_term, interactive=False)
-        alias = db.get(PlayerAlias, player.user_id)
-        main_id = alias.main_user_id if alias else player.user_id
-        old = db.scalar(select(PlayerProfile).where(PlayerProfile.discord_id == discord_id))
-        existing = db.get(PlayerProfile, main_id)
-        if existing is not None and existing.discord_id == discord_id:
-            print(f"{name_of(db, main_id)} is already linked to that Discord account.")
+        main_id = discord_links.main_id(db, player.user_id)
+        now = db.get(PlayerProfile, main_id)
+        if now is not None and now.discord_id == discord_id:
+            print(f"{name_of(db, main_id)} is already linked to Discord account {_account_text(db, discord_id)}.")
             return
-        print(f"Link {name_of(db, main_id)} (id {main_id}) to Discord account {discord_id}."
-              + (f" It is now linked to {name_of(db, old.user_id)}: that link is removed." if old else "")
-              + (" The player's current link is replaced." if existing else ""))
+        before = discord_links.discord_of(db, main_id)
+        owner = discord_links.player_of(db, discord_id)
+        print(f"Link {name_of(db, main_id)} (id {main_id}) to Discord account {_account_text(db, discord_id)}."
+              + (f" It is now linked to {name_of(db, owner)} (id {owner}): that link is removed." if owner and owner != main_id else "")
+              + (f" The player's current link to {_account_text(db, before[0])} is replaced." if before and before[0] != discord_id else ""))
         if not confirm("Link them?", yes):
             print("Nothing changed.")
             return
-        if old is not None:
-            db.delete(old)
-        if existing is not None and existing is not old:
-            db.delete(existing)
-        db.flush()
-        now = datetime.now(timezone.utc).isoformat(timespec="seconds")
-        db.add(PlayerProfile(user_id=main_id, discord_id=discord_id, bio=None, show_avatar=True, linked_at=now, updated_at=now))
+        discord_links.link(db, main_id, discord_id)
         db.commit()
     print("Linked. That Discord account can now edit the bio on the player's page.")
 
 
-def cmd_unlink_profile(sessions, term: str, yes: bool) -> None:
+def cmd_unlink_profile(sessions, term: str, discord_id: str = "", yes: bool = False) -> None:
+    """Take a Discord account off a player, however it was linked, and keep the two apart (discord_links.py) until they are
+    linked by hand again. term: the player or the Discord account; discord_id: exactly that account of the player (also one
+    only shown by its name match, which this console cannot see)."""
+    term, discord_id = term.strip(), discord_id.strip()
     with sessions() as db:
-        if auth.is_discord_id(term.strip()):
-            row = db.scalar(select(PlayerProfile).where(PlayerProfile.discord_id == term.strip()))
+        if discord_id:
+            if not auth.is_discord_id(discord_id):
+                raise ConsoleError(f"'{discord_id}' is not a Discord user id (17-20 digits: right-click the person > Copy User ID)")
+            main_id = discord_links.main_id(db, resolve(db, term, interactive=False).user_id)
         else:
-            player = resolve(db, term, interactive=False)
-            alias = db.get(PlayerAlias, player.user_id)
-            row = db.get(PlayerProfile, alias.main_user_id if alias else player.user_id)
-        if row is None:
-            raise ConsoleError(f"No link found for '{term}'")
-        print(f"Remove the link between {name_of(db, row.user_id)} and Discord account {row.discord_id}? Its bio goes with it.")
+            main_id = discord_links.player_of(db, term) if auth.is_discord_id(term) else None
+            discord_id = term if main_id else ""
+            if main_id is None:
+                found = find_players(db, term, 1) if auth.is_discord_id(term) else [resolve(db, term, interactive=False)]
+                main_id = discord_links.main_id(db, found[0].user_id) if found else None
+                link = discord_links.discord_of(db, main_id) if main_id else None
+                if link is None:
+                    raise ConsoleError(f"No link found for '{term}'")
+                discord_id = link[0]
+        print(f"Unlink {name_of(db, main_id)} (id {main_id}) and Discord account {_account_text(db, discord_id)}. They stay apart, "
+              "also for the bot and the automatic links, until they are linked by hand again. The bio stays with the Discord account.")
         if not confirm("Unlink?", yes):
             print("Nothing changed.")
             return
-        db.delete(row)
+        discord_links.unlink(db, main_id, discord_id, block=True)
         db.commit()
-    print("Unlinked.")
+        print("Unlinked.", end=" ")
+        _print_link_now(db, main_id)
 
 
 def profile_link_report(db: Session) -> dict:
@@ -283,9 +307,12 @@ def profile_link_report(db: Session) -> dict:
     linked_ids = set(db.scalars(select(PlayerProfile.user_id)))
     cutoff = (date.today() - timedelta(days=730)).isoformat()
     by_bot = sum(1 for u, _ in rows if u in linked_ids)
-    by_id = sum(1 for u, _ in rows if u not in linked_ids and auth.is_discord_id(u))
+    taken = set(db.scalars(select(PlayerProfile.discord_id)))  # linked to another player: not the one whose id it is
+    off = {u for u, d in db.execute(select(DiscordLinkBlock.user_id, DiscordLinkBlock.discord_id)) if u == d}
+    own_id = {u for u, _ in rows if auth.is_discord_id(u)} - linked_ids - taken - off
+    by_id = len(own_id)
     recent = [(u, seen) for u, seen in rows if seen >= cutoff]
-    recent_linked = sum(1 for u, _ in recent if u in linked_ids or auth.is_discord_id(u))
+    recent_linked = sum(1 for u, _ in recent if u in linked_ids or u in own_id)
     nakama = {d for d in (*db.scalars(select(ArenaPlayer.discord_id)), *db.scalars(select(NakamaCombatPlayer.discord_id)),
                           *db.scalars(select(NakamaAccount.discord_id))) if d}
     accounts = db.scalar(select(func.count()).select_from(NakamaAccount)) or 0
@@ -297,6 +324,7 @@ def profile_link_report(db: Session) -> dict:
             "players_linked": by_bot + by_id, "players_unlinked": len(rows) - by_bot - by_id,
             "recent_players_2y": len(recent), "recent_players_2y_linked": recent_linked,
             "nakama_players_with_discord_id": len(nakama), "profiles_with_bio": with_bio,
+            "unlinked_by_hand": [(b.user_id, b.discord_id) for b in db.scalars(select(DiscordLinkBlock).order_by(DiscordLinkBlock.created_at.desc()))],
             "nakama_accounts": accounts, "nakama_accounts_linked": accounts_linked, "nakama_accounts_without_discord": accounts_no_discord}
 
 
@@ -313,6 +341,10 @@ def cmd_profile_links(sessions) -> dict:
     print(f"Nakama accounts collected: {r['nakama_accounts']}, linked to a replay player: {r['nakama_accounts_linked']} "
           f"({pct(r['nakama_accounts_linked'], r['nakama_accounts'])}), without a Discord id: {r['nakama_accounts_without_discord']}")
     print(f"Nakama players with a Discord id: {r['nakama_players_with_discord_id']}; profiles with a bio: {r['profiles_with_bio']}")
+    print(f"Unlinked by hand: {len(r['unlinked_by_hand'])}")
+    with sessions() as db:
+        for user_id, discord_id in r["unlinked_by_hand"]:
+            print(f"  {name_of(db, user_id)} (id {user_id}) and Discord account {_account_text(db, discord_id)}")
     return r
 
 
@@ -850,6 +882,7 @@ Echo Combat Stats - admin console ({APP_VERSION})
   19 Aggressive repair of broken replays (after 7)
   20 Aggressive repair of one replay
   21 Process replays on another PC (on / off)
+  22 Link or unlink a player's Discord account
   q  Quit"""
 
 
@@ -976,8 +1009,24 @@ def interactive(sessions, settings: Settings) -> None:
                 pick = ask("PC only (y), this server only (n), both at once (b), or leave as it is (Enter): ").lower()
                 if pick in ("y", "n", "b"):
                     cmd_remote_mode(sessions, {"y": "remote", "n": "server", "b": "both"}[pick])
+            elif choice == "22":
+                term = ask("Player (name or id): ")
+                if term:
+                    with sessions() as db:
+                        who = discord_links.main_id(db, resolve(db, term, interactive=True).user_id)
+                        _print_link_now(db, who)
+                    pick = ask("Discord user id to link, '-' to unlink, '-' + Discord id to unlink that one, Enter to go back: ")
+                    if pick.startswith("-"):
+                        with sessions() as db:
+                            link = discord_links.discord_of(db, who)
+                        account = pick[1:].strip() or (link[0] if link else "")
+                        if not account:
+                            raise ConsoleError("There is no link to remove")
+                        cmd_unlink_profile(sessions, who, account)
+                    elif pick:
+                        cmd_link_profile(sessions, who, pick, yes=False, settings=settings)
             else:
-                print("Choose 1-21 or q.")
+                print("Choose 1-22 or q.")
         except ConsoleError as e:
             print(f"! {e}")
 
@@ -1028,9 +1077,9 @@ def main_command(sessions, settings: Settings, args) -> None:
         case "unmerge":
             cmd_unmerge(sessions, args.alias, args.yes)
         case "link-profile":
-            cmd_link_profile(sessions, args.player, args.discord_id, args.yes)
+            cmd_link_profile(sessions, args.player, args.discord_id, args.yes, settings)
         case "unlink-profile":
-            cmd_unlink_profile(sessions, args.term, args.yes)
+            cmd_unlink_profile(sessions, args.term, args.discord_id, args.yes)
         case "challenge":
             cmd_challenge(sessions, args.start, args.end, args.clear, args.visible)
         case "mega-period":
@@ -1087,6 +1136,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--yes", action="store_true")
     p = sub.add_parser("unlink-profile", help="remove a player's Discord link")
     p.add_argument("term", help="player name/id or Discord id")
+    p.add_argument("discord_id", nargs="?", default="", help="exactly this Discord account of the player")
     p.add_argument("--yes", action="store_true")
     sub.add_parser("profile-links", help="how many players are linked to a Discord account")
     p = sub.add_parser("challenge", help="show or set the Flamingo Challenge period and who can see achievements")

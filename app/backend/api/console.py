@@ -18,7 +18,7 @@ from sqlalchemy import func, not_, select
 import admin_console as console
 
 from .. import admin_actions as actions
-from .. import auth, icons
+from .. import auth, discord_links, discord_names, icons
 from .. import merge_suggestions as suggestions
 from ..admin_actions import hidden_failure, unrepairable
 from ..models import Player, PlayerAlias, Replay
@@ -63,8 +63,9 @@ COMMANDS = {  # name as in admin.bat -> (sessions, settings, args) -> None
     "merge": lambda s, st, a: console.cmd_merge(s, _required(a.main, "the player to keep"),
                                                 [o.strip() for o in a.others if o.strip()], yes=True, interactive=False),
     "merges": lambda s, st, a: console.cmd_merges(s),
-    "link-profile": lambda s, st, a: console.cmd_link_profile(s, _required(a.player, "the player"), _required(a.discord_id, "a Discord user id"), yes=True),
-    "unlink-profile": lambda s, st, a: console.cmd_unlink_profile(s, _required(a.player or a.discord_id, "a player or Discord id"), yes=True),
+    "link-profile": lambda s, st, a: console.cmd_link_profile(s, _required(a.player, "the player"), _required(a.discord_id, "a Discord user id"), yes=True, settings=st),
+    "unlink-profile": lambda s, st, a: console.cmd_unlink_profile(s, _required(a.player or a.discord_id, "a player or Discord id"),
+                                                                  a.discord_id if a.player else "", yes=True),
     "profile-links": lambda s, st, a: console.cmd_profile_links(s),
     "unmerge": lambda s, st, a: console.cmd_unmerge(s, _required(a.alias, "the merged id"), yes=True),
     "challenge": lambda s, st, a: console.cmd_challenge(s, a.start, a.end, a.clear, a.visible or None),
@@ -177,9 +178,20 @@ def overview(request: Request):
         }
 
 
+def _discord_link(settings, db, p: Player) -> dict | None:
+    """The Discord account a player shows now and how it was found (discord_links.py). Never asks Discord."""
+    link = discord_links.discord_of(db, p.user_id)
+    if link is None:  # the same-name picture, from a member list a profile page already caused to be read
+        hit = discord_names.by_name(settings, [p.name]).get(discord_names.normalise(p.name))
+        if hit and discord_links.name_match_ok(db, p.user_id, p.name, hit[0]):
+            link = hit[0], "name"
+    return {"id": link[0], "how": link[1], "name": discord_links.account_name(db, link[0])} if link else None
+
+
 @router.get("/players")
 def players(request: Request, q: str = Query("", max_length=100)):
-    """Player tools: players matching a name or id, with their merges and whether their win-loss is hidden."""
+    """Player tools: players matching a name or id (a Discord id finds the player linked to it), with their merges, their
+    Discord link and whether their win-loss is hidden."""
     require_console(request, "players", fresh=False)
     q = q.strip()
     if not q:
@@ -187,7 +199,11 @@ def players(request: Request, q: str = Query("", max_length=100)):
     with request.app.state.sessionmaker() as db:
         hidden = set(actions.hidden_players(db, "win_loss"))
         rows = []
-        for p in console.find_players(db, q, 20):
+        found = console.find_players(db, q, 20)
+        if auth.is_discord_id(q):
+            linked = discord_links.player_of(db, q)
+            found += [p for p in db.scalars(select(Player).where(Player.user_id == linked)) if p not in found]
+        for p in found:
             alias = db.get(PlayerAlias, p.user_id)
             merged = db.scalars(select(PlayerAlias.alias_user_id).where(PlayerAlias.main_user_id == p.user_id)).all()
             rows.append({
@@ -196,6 +212,10 @@ def players(request: Request, q: str = Query("", max_length=100)):
                 "merged_into": {"user_id": alias.main_user_id, "name": console.name_of(db, alias.main_user_id)} if alias else None,
                 "merged_ids": [{"user_id": u, "name": console.name_of(db, u)} for u in merged],
                 "win_loss_hidden": (alias.main_user_id if alias else p.user_id) in hidden,
+                # a merged record's link is on its main player
+                "discord": None if alias else _discord_link(request.app.state.settings, db, p),
+                "discord_unlinked": [] if alias else [{"id": d, "name": discord_links.account_name(db, d)}
+                                                      for d in discord_links.blocks_of(db, p.user_id)],
             })
         return rows
 

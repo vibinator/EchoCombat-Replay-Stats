@@ -1158,6 +1158,10 @@ export interface ConsolePlayer {
   merged_into: { user_id: string; name: string } | null;
   merged_ids: { user_id: string; name: string }[];
   win_loss_hidden: boolean;
+  /** the Discord account the player shows now; null for a merged record (it is on the main player) */
+  discord: { id: string; how: "profile" | "player_id" | "seen" | "name"; name: string | null } | null;
+  /** accounts an admin took off this player */
+  discord_unlinked: { id: string; name: string | null }[];
 }
 
 export const getConsoleOverview = () => send<ConsoleOverview>("/api/admin/console/overview");

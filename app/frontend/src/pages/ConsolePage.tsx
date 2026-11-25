@@ -80,8 +80,8 @@ const GROUPS: { title: string; commands: Command[] }[] = [
       },
       {
         name: "link-profile",
-        label: "Link a player to a Discord account",
-        help: "When a player cannot be verified automatically: that Discord account can then log in and edit the bio on the player's page. Relinking moves the link.",
+        label: "Link a Discord account",
+        help: "When a player's Discord link is missing or wrong. It replaces any link either of them has, also automatic ones, and that Discord account can then log in and edit the bio on the player's page. The bio and picture choice go with the Discord account.",
         fields: [
           { key: "player", label: "Player", kind: "player", hint: "Start typing a name or id" },
           { key: "discord_id", label: "Discord user id", hint: "In Discord: right-click the person > Copy User ID" },
@@ -90,10 +90,13 @@ const GROUPS: { title: string; commands: Command[] }[] = [
       },
       {
         name: "unlink-profile",
-        label: "Remove a Discord link",
-        help: "The bio goes with the link.",
-        fields: [{ key: "player", label: "Player or Discord id", hint: "A name, player id or Discord id" }],
-        confirm: (v) => `Remove the Discord link of ${v.player}?`,
+        label: "Unlink a Discord account",
+        help: "Takes a wrong Discord account off a player, however it was linked. The two stay apart, also for the bot and the automatic links, until you link them again. The bio stays with the Discord account.",
+        fields: [
+          { key: "player", label: "Player", kind: "player", hint: "Start typing a name or id, or enter a Discord id" },
+          { key: "discord_id", label: "Discord user id (optional)", hint: "Empty: the account the player shows now" },
+        ],
+        confirm: (v) => `Unlink ${v.player || "the player"}${v.discord_id ? ` and Discord account ${v.discord_id}` : "'s Discord account"}?`,
       },
       { name: "profile-links", label: "Discord link report", help: "How many players are linked to a Discord account, and how." },
       {
@@ -347,7 +350,7 @@ const commandNamed = (name: string) => ALL_COMMANDS.find((c) => c.name === name)
  * status panel, with no action chosen (user, 2026-11-05: status first, then actions, the risky ones apart). */
 const TABS: { id: string; label: string; names: string[]; opens?: false }[] = [
   { id: "dashboard", label: "Dashboard", names: ["dashboard"] },
-  { id: "players", label: "Players", names: ["players", "merge", "merges", "unmerge", "discord-check"] },
+  { id: "players", label: "Players", names: ["players", "link-profile", "unlink-profile", "profile-links", "merge", "merges", "unmerge", "discord-check"] },
   {
     id: "replays",
     label: "Replays",
@@ -941,15 +944,77 @@ function usePlayerSearch(version: number) {
   return { q, setQ, term, found };
 }
 
-/** Search a player, then act on the result: profile, win-loss, merges. */
+const DISCORD_ROUTES: Record<NonNullable<ConsolePlayer["discord"]>["how"], string> = {
+  profile: "linked by the bot or an admin",
+  player_id: "the player id is this Discord id",
+  seen: "seen on the match list",
+  name: "same name, picture only",
+};
+
+/** A player's Discord account and how it was found, with unlink / link (user, 2026-11-25: links can be wrong or broken). */
+function DiscordLinkRow({ p, api }: { p: ConsolePlayer; api: ConsoleApi }) {
+  const account = (d: { id: string; name: string | null }) => (
+    <>
+      {d.name && <strong>{d.name}</strong>} <code>{d.id}</code>
+    </>
+  );
+  const label = (d: { id: string; name: string | null }) => (d.name ? `${d.name} (${d.id})` : d.id);
+  return (
+    <div className="player-discord">
+      <div>
+        <span className="muted">Discord:</span>
+        {p.discord ? (
+          <>
+            {account(p.discord)}
+            <span className="tag">{DISCORD_ROUTES[p.discord.how]}</span>
+            <button
+              type="button"
+              className="secondary small"
+              onClick={() => {
+                const d = p.discord!;
+                if (!window.confirm(`Unlink ${p.name} and Discord account ${label(d)}? They stay apart until you link them again.`)) return;
+                api.run("unlink-profile", `Unlink Discord: ${p.name}`, { player: p.user_id, discord_id: d.id });
+              }}
+            >
+              Unlink
+            </button>
+          </>
+        ) : (
+          <span className="muted">not linked</span>
+        )}
+        <button type="button" className="secondary small" onClick={() => api.open("link-profile", { player: p.user_id })}>
+          {p.discord ? "Link another account…" : "Link an account…"}
+        </button>
+      </div>
+      {p.discord_unlinked.map((d) => (
+        <div key={d.id}>
+          <span className="muted">Unlinked by hand:</span>
+          {account(d)}
+          <button
+            type="button"
+            className="secondary small"
+            onClick={() => {
+              if (!window.confirm(`Link ${p.name} to Discord account ${label(d)} again?`)) return;
+              api.run("link-profile", `Link Discord: ${p.name}`, { player: p.user_id, discord_id: d.id });
+            }}
+          >
+            Link again
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Search a player, then act on the result: profile, Discord link, win-loss, merges. */
 function PlayerTools({ api }: { api: ConsoleApi }) {
   const { q, setQ, term, found } = usePlayerSearch(api.version);
   return (
     <div className="console-view">
       <div className="panel console-form">
         <h2>Player tools</h2>
-        <p className="muted">Search by name or player id, then act on a player straight from the result.</p>
-        <input type="search" placeholder="Name or player id" aria-label="Find a player" value={q} autoFocus onChange={(e) => setQ(e.target.value)} />
+        <p className="muted">Search by name, player id or Discord id, then act on a player straight from the result.</p>
+        <input type="search" placeholder="Name, player id or Discord id" aria-label="Find a player" value={q} autoFocus onChange={(e) => setQ(e.target.value)} />
       </div>
       <Status loading={found.loading && !found.data} error={found.error} />
       {term && found.data?.length === 0 && <p className="muted">No player matches “{term}”.</p>}
@@ -968,6 +1033,7 @@ function PlayerTools({ api }: { api: ConsoleApi }) {
               {int(p.games)} games · seen {dateTime(p.first_seen_at).slice(0, 10)} – {dateTime(p.last_seen_at).slice(0, 10)}
               {p.merged_ids.length > 0 && ` · has ${p.merged_ids.length} merged record(s): ${p.merged_ids.map((m) => m.name).join(", ")}`}
             </span>
+            {!p.merged_into && <DiscordLinkRow p={p} api={api} />}
             <div className="player-actions">
               <button
                 type="button"

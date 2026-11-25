@@ -14,9 +14,9 @@ from datetime import datetime, timezone
 import httpx
 from sqlalchemy import delete, select
 
+from . import discord_links
 from .admin_actions import mega_window
-from .models import (ArenaCounted, ArenaPlayer, NakamaAccount, NakamaCombatCounted, NakamaCombatPlayer, Player,
-                     PlayerProfile)
+from .models import ArenaCounted, ArenaPlayer, NakamaAccount, NakamaCombatCounted, NakamaCombatPlayer
 
 URL = "https://g.echovrce.com/status/matches"
 MIN_PRESENT_S = 240.0  # time spent in one match before it counts (user, 2026-11-04)
@@ -164,15 +164,8 @@ class Tracker:
 
     @staticmethod
     def _link(db, acc: NakamaAccount) -> None:
-        """Replay player of this account: a bot / admin link first, then a replay player whose id IS the Discord id."""
-        acc.replay_user_id = acc.link = None
-        if not acc.discord_id:
-            return
-        profile = db.scalar(select(PlayerProfile.user_id).where(PlayerProfile.discord_id == acc.discord_id))
-        if profile is not None:
-            acc.replay_user_id, acc.link = profile, "profile"
-        elif db.scalar(select(Player.id).where(Player.user_id == acc.discord_id)) is not None:
-            acc.replay_user_id, acc.link = acc.discord_id, "player_id"
+        """Replay player of this account (discord_links.py: bot / admin links, admin unlinks)."""
+        acc.replay_user_id, acc.link = discord_links.account_link(db, acc.discord_id)
 
     def _poll_kind(self, k: _Kind, data: dict, now: float) -> int:
         if not k.loaded:  # after a restart: what was already counted

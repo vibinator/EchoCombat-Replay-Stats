@@ -3,6 +3,7 @@
 - The Discord bot links a Discord account to an EchoVR player: POST /api/bot/link with its shared secret
   (ECHOVR_BOT_LINK_SECRET, `Authorization: Bearer <secret>`). The site trusts the bot: any checking of who owns a
   player is done there. One player per Discord account and one Discord account per player; linking again moves it.
+  A pair an admin unlinked on the Console stays apart: the bot gets 409 link_blocked (discord_links.py).
 - The linked person, logged in with the site's Discord login, may change only two things on their player page: the
   bio and whether their Discord avatar is shown as the profile picture (POST /api/profiles/{user_id}, X-EchoVR;
   a fourth exception to the read-only website, D38). Nothing else about a player can be changed this way.
@@ -14,11 +15,12 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
-from sqlalchemy import delete, func, select
+from sqlalchemy import select
 
-from .. import auth, discord_names
+from .. import auth, discord_links, discord_names
+from ..discord_links import main_id as _main_id
 from ..errors import ApiError
-from ..models import ArenaPlayer, DiscordProfile, NakamaAccount, NakamaCombatPlayer, Player, PlayerAlias, PlayerProfile
+from ..models import ArenaPlayer, DiscordProfile, NakamaAccount, NakamaCombatPlayer, Player, PlayerProfile
 
 router = APIRouter(prefix="/api/profiles", tags=["profiles"])
 bot_router = APIRouter(prefix="/api/bot", tags=["bot"])
@@ -29,34 +31,6 @@ BIO_MAX_LINES = 8
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
-
-
-def _main_id(db, user_id: str) -> str:
-    """A merged id (D34) means its main player."""
-    alias = db.get(PlayerAlias, user_id)
-    return alias.main_user_id if alias is not None else user_id
-
-
-def _seen_discord(db, user_id: str) -> str | None:
-    """The Discord account seen with this replay player (or one of its merged ids) on the Echo match list, newest first."""
-    ids = [user_id, *db.scalars(select(PlayerAlias.alias_user_id).where(PlayerAlias.main_user_id == user_id))]
-    return db.scalar(select(NakamaAccount.discord_id).where(NakamaAccount.replay_user_id.in_(ids),
-                                                          NakamaAccount.discord_id.is_not(None))
-                     .order_by(NakamaAccount.last_seen_at.desc()).limit(1))
-
-
-def _replay_player_of(db, discord_id: str) -> str | None:
-    """The replay player page of a Discord account: bot link, a replay id that IS the Discord id, else the player its Echo
-    account was seen with on the match list (merged ids mean their main player)."""
-    linked = db.scalar(select(PlayerProfile.user_id).where(PlayerProfile.discord_id == discord_id))
-    if linked:
-        return linked
-    if db.scalar(select(Player.id).where(Player.user_id == discord_id)):
-        return discord_id
-    seen = db.scalar(select(NakamaAccount.replay_user_id).where(NakamaAccount.discord_id == discord_id,
-                                                              NakamaAccount.replay_user_id.is_not(None))
-                     .order_by(NakamaAccount.last_seen_at.desc()).limit(1))
-    return _main_id(db, seen) if seen else None
 
 
 def clean_bio(text: str | None) -> str | None:
@@ -84,33 +58,27 @@ def _name_match_avatar(request: Request, db, user_id: str) -> str | None:
     if hit is None:
         return None
     discord_id, url = hit
-    if db.scalar(select(PlayerProfile.user_id).where(PlayerProfile.discord_id == discord_id)) is not None:
-        return None  # linked by the bot to another player: shown only there
-    same_name = db.scalars(select(Player.user_id).where(func.lower(Player.name) == name.lower())).all()
-    if len({_main_id(db, u) for u in same_name} | {user_id}) > 1:
-        return None  # two players with this name: not 1:1
-    return url
+    return url if discord_links.name_match_ok(db, user_id, name, discord_id) else None
 
 
 def _seen_avatar(request: Request, db, user_id: str) -> str | None:
     """Same picture as the list pages (api/avatars.py): the Discord account seen with this player on the match list,
     respecting that account's own show_avatar choice. Fresh from Discord (budgeted, cached), else the member list."""
-    acc = db.scalar(select(NakamaAccount).where(NakamaAccount.replay_user_id == user_id, NakamaAccount.discord_id.is_not(None))
-                    .order_by(NakamaAccount.last_seen_at.desc()))
-    if acc is None:
+    seen = discord_links.seen_discord(db, user_id)
+    if seen is None:
         return None
-    row = db.get(DiscordProfile, acc.discord_id)
+    row = db.get(DiscordProfile, seen)
     if row is not None and not row.show_avatar:
         return None
     settings = request.app.state.settings
-    return discord_names.avatar_for_id(settings, acc.discord_id, 256, ask=True) or auth.avatar_url(settings, acc.discord_id)
+    return discord_names.avatar_for_id(settings, seen, 256, ask=True) or auth.avatar_url(settings, seen)
 
 
 def _id_avatar(request: Request, db, user_id: str) -> str | None:
     """A player whose id IS a Discord id (recent replays): that account's picture, as on the list pages (api/avatars.py),
     respecting its own show_avatar choice; no default picture. The profile page is where it is fetched (user, 2026-11-10:
     pictures only when a profile is opened), so the lists can show it afterwards."""
-    if not auth.is_discord_id(user_id):
+    if not auth.is_discord_id(user_id) or not discord_links.allowed(db, user_id, user_id):
         return None
     row = db.get(DiscordProfile, user_id)
     if row is not None and not row.show_avatar:
@@ -122,7 +90,8 @@ def _id_avatar(request: Request, db, user_id: str) -> str | None:
 def _account(db, user_id: str) -> dict | None:
     """The Echo (Nakama) account linked to this replay player, collected from the match list (arena.py): its name and when it
     was last seen playing. No Discord id: it is not shown to visitors."""
-    acc = db.scalar(select(NakamaAccount).where(NakamaAccount.replay_user_id == user_id).order_by(NakamaAccount.last_seen_at.desc()))
+    accounts = db.scalars(select(NakamaAccount).where(NakamaAccount.replay_user_id == user_id).order_by(NakamaAccount.last_seen_at.desc()))
+    acc = next((a for a in accounts.all() if a.discord_id is None or discord_links.allowed(db, user_id, a.discord_id)), None)
     return None if acc is None else {"name": acc.display_name or acc.username, "last_seen": acc.last_seen_at}
 
 
@@ -169,15 +138,15 @@ def get_profile(request: Request, user_id: str):
     viewer = auth.viewer(request)  # per visitor: never kept in a shared cache
     with request.app.state.sessionmaker() as db:
         main = _main_id(db, user_id)
-        profile = db.get(PlayerProfile, main)
+        profile = discord_links.profile_of(db, main)
         account = _account(db, main)
-        if profile is None and auth.is_discord_id(main) and db.scalar(select(Player.id).where(Player.user_id == main)):
+        if profile is None and discord_links.is_own_id(db, main):
             # recent replays carry the Discord id as the player id: the Discord-keyed profile is this player's profile
             if db.get(DiscordProfile, main) is not None or (viewer and viewer["id"] == main) or account is not None:
                 return _discord_public(request, db, main, viewer) | {"account": account}
         if profile is None:  # the Discord account seen with this player on the Echo match list: its bio (My profile)
-            seen = _seen_discord(db, main)
-            if seen and db.scalar(select(PlayerProfile.user_id).where(PlayerProfile.discord_id == seen)) is None:
+            seen = discord_links.seen_discord(db, main)
+            if seen:
                 if db.get(DiscordProfile, seen) is not None or (viewer and hmac.compare_digest(viewer["id"], seen)):
                     return _discord_public(request, db, seen, viewer) | {"account": account, "user_id": main}
         name_avatar = None
@@ -208,7 +177,7 @@ def _discord_public(request: Request, db, discord_id: str, viewer: dict | None) 
             "editable": bool(viewer and hmac.compare_digest(viewer["id"], discord_id)),
             # the replay player page, when there is one: bot-linked, a replay player whose id IS the Discord id, or the
             # player its Echo account was seen with on the match list
-            "user_id": _replay_player_of(db, discord_id),
+            "user_id": discord_links.player_of(db, discord_id),
             "account": _own_account(db, discord_id)}
 
 
@@ -264,13 +233,12 @@ def edit_profile(request: Request, user_id: str, edit: ProfileEdit):
         raise ApiError(400, "bio_too_long", f"The bio can be at most {BIO_MAX} characters")
     with request.app.state.sessionmaker() as db:
         main = _main_id(db, user_id)
-        profile = db.get(PlayerProfile, main)
-        if profile is None and auth.is_discord_id(main) and hmac.compare_digest(main, viewer["id"]):
+        profile = discord_links.profile_of(db, main)
+        if profile is None and auth.is_discord_id(main) and hmac.compare_digest(main, viewer["id"]) and discord_links.allowed(db, main, main):
             return edit_discord_profile(request, main, edit)  # the replay id is the viewer's own Discord id
         if profile is None:
-            seen = _seen_discord(db, main)  # the viewer's Echo account was seen with this player on the match list
-            if seen and hmac.compare_digest(seen, viewer["id"]) and \
-                    db.scalar(select(PlayerProfile.user_id).where(PlayerProfile.discord_id == seen)) is None:
+            seen = discord_links.seen_discord(db, main)  # the viewer's Echo account was seen with this player on the match list
+            if seen and hmac.compare_digest(seen, viewer["id"]):
                 return edit_discord_profile(request, seen, edit) | {"user_id": main}
         if profile is None or not hmac.compare_digest(profile.discord_id, viewer["id"]):
             raise ApiError(403, "not_your_profile", "Only the Discord account linked to this player can edit it")
@@ -280,7 +248,7 @@ def edit_profile(request: Request, user_id: str, edit: ProfileEdit):
         db.commit()
         if profile.show_avatar:
             auth.avatar_url(request.app.state.settings, profile.discord_id, fresh=True)  # a new avatar shows at once
-        return _public(request, profile, viewer) | {"account": _account(db, profile.user_id)}
+        return _public(request, profile, viewer) | {"account": _account(db, main)}
 
 
 # --- Discord bot ----------------------------------------------------------------------------
@@ -316,28 +284,18 @@ class Link(BaseModel):
 
 @bot_router.post("/link")
 def bot_link(request: Request, link: Link):
-    """Link a Discord account to a player. Relinking moves the link; the bio stays with the player only when the
-    same Discord account is linked to it again."""
+    """Link a Discord account to a player. Relinking moves the link; the bio and picture choice go with the Discord account."""
     _require_bot(request)
     discord_id = _discord_id(link.discord_id)
     with request.app.state.sessionmaker() as db:
         user_id = _main_id(db, link.user_id.strip())
         if db.scalar(select(Player.id).where(Player.user_id == user_id)) is None:
             raise ApiError(404, "unknown_player", f"No player with user id {link.user_id[:64]}")
-        existing = db.get(PlayerProfile, user_id)
-        if existing is not None and existing.discord_id == discord_id:
-            return _link_info(db, existing) | {"changed": False}
-        # this Discord account's old player, and this player's old Discord account, are unlinked
-        db.execute(delete(PlayerProfile).where(PlayerProfile.discord_id == discord_id))
-        if existing is not None:
-            db.delete(existing)
-        db.flush()
-        now = _now()
-        profile = PlayerProfile(user_id=user_id, discord_id=discord_id, bio=None, show_avatar=True, linked_at=now,
-                                updated_at=now)
-        db.add(profile)
+        if discord_links.blocked(db, user_id, discord_id):  # an admin's correction is not undone by the bot
+            raise ApiError(409, "link_blocked", "An admin unlinked this Discord account from this player; only an admin can link them again")
+        profile, changed = discord_links.link(db, user_id, discord_id)
         db.commit()
-        return _link_info(db, profile) | {"changed": True}
+        return _link_info(db, profile) | {"changed": changed}
 
 
 class Unlink(BaseModel):
@@ -347,18 +305,18 @@ class Unlink(BaseModel):
 
 @bot_router.post("/unlink")
 def bot_unlink(request: Request, unlink: Unlink):
-    """Remove a link (by Discord account or by player); the bio goes with it."""
+    """Remove a link (by Discord account or by player); the bio goes with the Discord account."""
     _require_bot(request)
     if not unlink.discord_id and not unlink.user_id:
         raise ApiError(400, "missing_id", "Give discord_id or user_id")
     with request.app.state.sessionmaker() as db:
         if unlink.discord_id:
-            where = PlayerProfile.discord_id == _discord_id(unlink.discord_id)
+            profile = db.scalar(select(PlayerProfile).where(PlayerProfile.discord_id == _discord_id(unlink.discord_id)))
         else:
-            where = PlayerProfile.user_id == _main_id(db, unlink.user_id.strip())
-        removed = db.execute(delete(PlayerProfile).where(where)).rowcount
+            profile = discord_links.profile_of(db, _main_id(db, unlink.user_id.strip()))
+        removed = profile is not None and discord_links.unlink(db, profile.user_id, profile.discord_id, block=False)
         db.commit()
-    return {"removed": bool(removed)}
+    return {"removed": removed}
 
 
 @bot_router.post("/lookup")
@@ -370,7 +328,7 @@ def bot_lookup(request: Request, unlink: Unlink):
         if unlink.discord_id:
             profile = db.scalar(select(PlayerProfile).where(PlayerProfile.discord_id == _discord_id(unlink.discord_id)))
         elif unlink.user_id:
-            profile = db.get(PlayerProfile, _main_id(db, unlink.user_id.strip()))
+            profile = discord_links.profile_of(db, _main_id(db, unlink.user_id.strip()))
         else:
             raise ApiError(400, "missing_id", "Give discord_id or user_id")
         return _link_info(db, profile)

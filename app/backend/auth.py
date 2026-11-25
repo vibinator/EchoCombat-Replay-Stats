@@ -190,6 +190,11 @@ def check_fixed_ids(settings: Settings) -> list[str]:
 _names: dict[str, str] = {}  # discord user id -> display name (names rarely change; the list is short)
 
 
+def remembered_name(user_id: str) -> str | None:
+    """Display name if Discord was already asked for it; never asks."""
+    return _names.get(user_id)
+
+
 def user_name(settings: Settings, user_id: str) -> str:
     """Display name of a Discord user via the bot, or '?'."""
     user_id = user_id.strip()

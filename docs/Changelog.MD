@@ -18,6 +18,25 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.25.1 — 20:23
+
+Link and unlink Discord accounts on the Console (user, 25 Nov: "in case they are wrong or broken"):
+- **Console > Players > Player tools** shows each player's Discord account, how it was linked (bot or admin, the player
+  id is the Discord id, seen on the match list, same name) and **Unlink** / **Link an account…** buttons. The search also
+  takes a Discord id. The same as forms: "Link a Discord account", "Unlink a Discord account" and "Discord link report"
+  (the commands existed but had no button). Everyone with Console access can use them; each use is in the audit log.
+- **An unlink now holds.** Before, it only removed the bot's / admin's link, so the site found the same account again by
+  player id, match list or name. The two now stay apart everywhere (bio, picture, edit rights, "Linked account", the Mega
+  Prize replay history) until somebody links them by hand ("Link again").
+- **A link by hand overrules the automatic ones:** that account shows on no other player, and the player has no other
+  account. Before, an account could show on two players at once.
+- The bio and the "show my picture" choice move with the Discord account instead of being lost.
+- A link made before a player was merged now works on the main player and can be removed there.
+- **Bot:** `/api/bot/link` answers 409 `link_blocked` for a pair unlinked on the Console. Links and unlinks by the bot
+  work as before otherwise, and its own unlink blocks nothing.
+- admin.bat: menu option 22, `unlink-profile <player> [<discord id>]`.
+- Needs the update deployed (restart); nothing is re-read. The new table `discord_link_blocks` is made at the start.
+
 ## 2026.11.20.5 — 10:32
 
 One row per weapon in the Combat lists (user, 20 Nov: "Nova and Nova Cone? those are the same weapon"):

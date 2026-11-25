@@ -195,6 +195,17 @@ class DiscordProfile(Base):
     updated_at: Mapped[str]
 
 
+class DiscordLinkBlock(Base):
+    """An admin took this Discord account off this player (user, 2026-11-25): no automatic route, nor the bot, links the two
+    again (discord_links.py); linking them by hand does. Kept across rebuilds."""
+
+    __tablename__ = "discord_link_blocks"
+
+    user_id: Mapped[str] = mapped_column(primary_key=True)  # EchoVR user id
+    discord_id: Mapped[str] = mapped_column(primary_key=True, index=True)
+    created_at: Mapped[str]
+
+
 class NakamaAccount(Base):
     """Every account seen on the Nakama match list, at every poll, whatever the lobby (user, 2026-11-05): Nakama user id,
     Discord id and names, and the replay player it is linked to. A recent replay player's id IS the Discord id, so the link

@@ -20,6 +20,18 @@ PING_PLACEHOLDER = 999  # API value when there is no reading; excluded from aver
 PING_CAP = 400  # a reading above this counts as this much in averages (profile, leaderboard, trends); the match page shows the raw average
 TOP_SPEED_WINDOW_S = 1.0  # top speed = highest speed held for a full window
 
+# The API's velocity is not always movement: a player whose data stops coming (lag, loading into the match) keeps the
+# last velocity while standing still. Until 2026-11-25 the three fastest records were such players (51.8 m/s "held"
+# for 10.7 s without moving at all). So a window only counts when the player was really carried along: where they
+# ended up must be where the velocity takes them. Measured on 800 recent matches, 94,113 seconds above 8 m/s: the two
+# agree within 1 % (median), and within 12 % in 99 % of those above 12 m/s. Recorders that fall below ~15 frames a second run
+# the whole game in slow motion and are 28-30 % apart (the velocity is right there: the limit must let those pass);
+# frozen players are 95-100 % apart.
+TOP_SPEED_MISMATCH = 0.5  # share of the distance the velocity stands for
+TOP_SPEED_MISMATCH_M = 0.5  # always allowed: the head moves about on its own, the velocity is the body's
+TOP_SPEED_MAX_GAP_S = 0.5  # a longer gap in the recording starts a new window: nobody saw what happened in between
+FROZEN_S = 0.5  # head at exactly the same spot this long: no data coming in, the velocity is stale. A headset is never that still
+
 
 class PlayerAccumulator:
     def __init__(self, user_id: str, bounds: Bounds | None, started_at: datetime, events: list[EventRecord],
@@ -60,8 +72,11 @@ class PlayerAccumulator:
         self._was_in_bounds: bool | None = None
         self._last_in_bounds_position = None
         self._loadout: tuple[str, str, str] | None = None
-        self._speeds: deque[tuple[float, float]] = deque()  # (t_s, speed), in-bounds only
-        self._window_min: deque[tuple[float, float]] = deque()  # same samples, rising speeds: [0] = window minimum
+        self._speeds: deque[tuple] = deque()  # (t_s, speed, head position, velocity), in-bounds only
+        self._window_min: deque[tuple] = deque()  # same samples, rising speeds: [0] = window minimum
+        self._still_at: Vec3 | None = None  # where the head has been exactly since _still_from
+        self._still_from = 0.0
+        self._still_sum = 0.0  # speed_sum counted since then, taken back when the player turns out to be frozen
 
     def event(self, frame: Frame, type_: str, data: dict | None = None) -> None:
         t_s = round((frame.timestamp - self.started_at).total_seconds(), 3)
@@ -103,6 +118,8 @@ class PlayerAccumulator:
                 self.event(frame, "death_est", {"x": round(x, 2), "z": round(z, 2)})
             self._speeds.clear()
             self._window_min.clear()
+        if not inside:
+            self._still_at = None
         self._was_in_bounds = inside
 
     def _add_in_bounds(self, frame: Frame, p: PlayerFrame, teammates, enemies) -> None:
@@ -111,10 +128,11 @@ class PlayerAccumulator:
             self.frames_upside_down += 1
 
         speed = math.hypot(*p.velocity)
-        self.speed_sum += speed
+        t_s = (frame.timestamp - self.started_at).total_seconds()
+        self._track_speed_sum(t_s, speed, p.head_position)
         if speed < STOPPED_SPEED:
             self.frames_stopped += 1
-        self._track_top_speed((frame.timestamp - self.started_at).total_seconds(), speed)
+        self._track_top_speed(t_s, speed, p.head_position, p.velocity)
 
         if p.arm == "Right":
             self.frames_right_arm += 1
@@ -146,9 +164,23 @@ class PlayerAccumulator:
             self._loadout = loadout
             self.event(frame, "loadout_change", dict(zip(("weapon", "tacmod", "ordnance"), loadout)))
 
-    def _track_top_speed(self, t_s: float, speed: float) -> None:
+    def _track_speed_sum(self, t_s: float, speed: float, head: Vec3) -> None:
+        """Average speed and distance: a frozen player's stale velocity is no movement (FROZEN_S)."""
+        if head != self._still_at:
+            self._still_at, self._still_from, self._still_sum = head, t_s, 0.0
+        elif t_s - self._still_from >= FROZEN_S:
+            self.speed_sum = max(0.0, self.speed_sum - self._still_sum)
+            self._still_sum = 0.0
+            return
+        self.speed_sum += speed
+        self._still_sum += speed
+
+    def _track_top_speed(self, t_s: float, speed: float, head: Vec3, velocity: Vec3) -> None:
         window, lows = self._speeds, self._window_min
-        sample = (t_s, speed)
+        if window and t_s - window[-1][0] > TOP_SPEED_MAX_GAP_S:
+            window.clear()
+            lows.clear()
+        sample = (t_s, speed, head, velocity)
         window.append(sample)
         while lows and lows[-1][1] >= speed:  # can never be the minimum again
             lows.pop()
@@ -157,8 +189,25 @@ class PlayerAccumulator:
         while len(window) > 1 and window[1][0] <= t_s - TOP_SPEED_WINDOW_S:
             if window.popleft() is lows[0]:
                 lows.popleft()
-        if window[0][0] <= t_s - TOP_SPEED_WINDOW_S:
-            self.top_speed = max(self.top_speed, lows[0][1])
+        if window[0][0] <= t_s - TOP_SPEED_WINDOW_S and lows[0][1] > self.top_speed and self._really_moved():
+            self.top_speed = lows[0][1]
+
+    def _really_moved(self) -> bool:
+        """Did the player end up where the window's velocities take them (TOP_SPEED_MISMATCH)?"""
+        distance = dx = dy = dz = 0.0
+        samples = iter(self._speeds)
+        t0, v0, head0, (x0, y0, z0) = first = next(samples)
+        last = first
+        for last in samples:
+            t1, v1, _, (x1, y1, z1) = last
+            half = (t1 - t0) / 2
+            distance += (v0 + v1) * half
+            dx += (x0 + x1) * half
+            dy += (y0 + y1) * half
+            dz += (z0 + z1) * half
+            t0, v0, x0, y0, z0 = t1, v1, x1, y1, z1
+        carried = (head0[0] + dx, head0[1] + dy, head0[2] + dz)
+        return math.dist(carried, last[2]) <= max(TOP_SPEED_MISMATCH_M, TOP_SPEED_MISMATCH * distance)
 
     def result(self, ended_at: datetime) -> PlayerStats:
         p = self.latest

@@ -16,7 +16,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import func, select
 
 from .. import auth, discord_names
-from ..models import DiscordProfile, NakamaAccount, Player, PlayerAlias, PlayerProfile
+from ..models import DiscordLinkBlock, DiscordProfile, NakamaAccount, Player, PlayerAlias, PlayerProfile
 
 router = APIRouter(prefix="/api/avatars", tags=["avatars"])
 MAX_IDS = 100
@@ -30,18 +30,31 @@ def pictures(settings, db, user_ids: list[str]) -> dict[str, str]:
     main = {a.alias_user_id: a.main_user_id for a in db.scalars(select(PlayerAlias).where(PlayerAlias.alias_user_id.in_(ids)))}
     wanted = {u: main.get(u, u) for u in ids}  # a merged id shows its main player's picture
     mains = set(wanted.values())
-    linked = {p.user_id: p for p in db.scalars(select(PlayerProfile).where(PlayerProfile.user_id.in_(mains)))}
+    # the rules of discord_links.py, for the whole list at once: a merged id's link counts for its main player, an account
+    # linked to someone else or taken off this player by an admin is never theirs
+    owner = {u: u for u in mains}  # every raw id -> its main player
+    owner |= {a.alias_user_id: a.main_user_id for a in db.scalars(select(PlayerAlias).where(PlayerAlias.main_user_id.in_(mains)))}
+    linked: dict[str, PlayerProfile] = {}
+    for p in sorted(db.scalars(select(PlayerProfile).where(PlayerProfile.user_id.in_(owner))),
+                    key=lambda p: (p.user_id == owner[p.user_id], p.linked_at)):
+        linked[owner[p.user_id]] = p  # the player's own link, else the newest of a merged id
+    blocked = {(owner[b.user_id], b.discord_id) for b in db.scalars(select(DiscordLinkBlock).where(DiscordLinkBlock.user_id.in_(owner)))}
+    accounts = db.scalars(select(NakamaAccount).where(NakamaAccount.replay_user_id.in_(owner), NakamaAccount.discord_id.is_not(None))
+                          .order_by(NakamaAccount.last_seen_at)).all()
+    candidates = {a.discord_id for a in accounts} | {u for u in mains if auth.is_discord_id(u)}
+    elsewhere = set(db.scalars(select(PlayerProfile.discord_id).where(PlayerProfile.discord_id.in_(candidates))))
     seen: dict[str, str] = {}  # replay player id -> discord id, from the match list (newest first wins)
-    for acc in db.scalars(select(NakamaAccount).where(NakamaAccount.replay_user_id.in_(mains), NakamaAccount.discord_id.is_not(None))
-                          .order_by(NakamaAccount.last_seen_at)):
-        seen[acc.replay_user_id] = acc.discord_id
+    for acc in accounts:
+        u = owner[acc.replay_user_id]
+        if acc.discord_id not in elsewhere and (u, acc.discord_id) not in blocked:
+            seen[u] = acc.discord_id
     discord_of: dict[str, str] = {}
     for u in mains:
         if u in linked:
             discord_of[u] = linked[u].discord_id
         elif u in seen:
             discord_of[u] = seen[u]
-        elif auth.is_discord_id(u):
+        elif auth.is_discord_id(u) and u not in elsewhere and (u, u) not in blocked:
             discord_of[u] = u
     # players with no Discord account known: the one member with their exact name, when no other player has that name
     # (the same rule as the player page, api/profiles.py, done for the whole list at once)
@@ -58,7 +71,7 @@ def pictures(settings, db, user_ids: list[str]) -> dict[str, str]:
                 owners.setdefault(name.lower(), set()).add(db.get(PlayerAlias, uid).main_user_id if db.get(PlayerAlias, uid) else uid)
             for u, n in names.items():
                 hit = found.get(discord_names.normalise(n))
-                if hit and hit[0] not in taken and owners.get(n.lower(), {u}) <= {u}:
+                if hit and hit[0] not in taken and (u, hit[0]) not in blocked and owners.get(n.lower(), {u}) <= {u}:
                     name_hit[u] = hit
                     discord_of[u] = hit[0]
     only_discord = {d for u, d in discord_of.items() if u not in linked}

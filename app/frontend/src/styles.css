@@ -3595,6 +3595,15 @@ button.small {
   flex-wrap: wrap;
   gap: 6px;
 }
+.player-discord,
+.player-discord > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+.player-discord { flex-direction: column; align-items: flex-start; }
+.player-result .player-discord strong { font-size: 0.9rem; }
 
 .hidden-switch {
   display: flex;
