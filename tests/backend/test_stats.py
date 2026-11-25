@@ -1,5 +1,7 @@
 import json
+import math
 import sqlite3
+from datetime import timedelta
 from pathlib import Path
 
 import pytest
@@ -72,18 +74,20 @@ def _pose(position, up=(0.0, 1.0, 0.0)):
 
 def scripted_match() -> list[dict]:
     """100 frames (5 s) on dyson. Blue: in bounds 0-39 at 5 m/s, out of bounds 40-59 (death),
-    back 60-99 stopped with a blaster, upside down 60-79. Orange stays 1.4 m away."""
+    back 60-99 stopped with a blaster, upside down 60-79. Orange stays 1.1 m away."""
     frames = []
     for i in range(100):
         blue = rf.player()
         out = 40 <= i < 60
-        blue["head"] = _pose((200.0, 0.0, 0.0) if out else (0.5, 0.0, 0.0))  # not exactly 0: the load-in spot
+        x, z = 0.5 + 0.15 * min(i, 39), 0.2 * min(i, 39)  # 5 m/s; not exactly 0: the load-in spot
+        blue["head"] = _pose((200.0, 0.0, 0.0) if out else (x, 0.0, z))
         blue["body"] = _pose((0.0, 0.0, 0.0), up=(0.0, -1.0, 0.0) if 60 <= i < 80 else (0.0, 1.0, 0.0))
         blue["velocity"] = [3.0, 0.0, 4.0] if i < 40 else [0.0, 0.0, 0.0]
         if i >= 60:
             blue["Weapon"] = "blaster"
         orange = rf.player(42, "Other", 1)
-        orange["head"] = _pose((1.0, 0.0, 1.0))
+        orange["head"] = _pose((x + 0.5, 0.0, z + 1.0))
+        orange["velocity"] = blue["velocity"]
         frames.append(rf.frame(
             teams=[{"players": [blue]}, {"players": [orange]}, {}],
             contested=10 <= i < 20,
@@ -136,7 +140,7 @@ def test_timeline_events(tmp_path):
         ("loadout_change", 60),
     ]
     death = next(e for e in events if e.type == "death_est")
-    assert death.data == {"x": 0.5, "z": 0.0} and death.team == "blue"
+    assert death.data == {"x": 6.35, "z": 7.8} and death.team == "blue"
     assert death.t_s == pytest.approx(2.0)
     won = next(e for e in events if e.type == "round_won")
     assert won.team == "blue" and won.data == {"blue": 1, "orange": 0}
@@ -149,8 +153,67 @@ def test_top_speed_needs_a_full_second(tmp_path):
         p = rf.player()
         p["velocity"] = [30.0, 0.0, 0.0] if i == 30 else [2.0, 0.0, 0.0]
         frames.append(rf.frame(teams=[{"players": [p]}, {}, {}]))
-    s = stats_for(tmp_path, rf.lines_from(frames))
+    s = stats_for(tmp_path, rf.lines_from(rf.carried(frames)))
     assert s.players[0].top_speed == pytest.approx(2.0)
+
+
+def _one_player(tmp_path, heads, velocities, stamps=None):
+    frames = []
+    for head, velocity in zip(heads, velocities):
+        p = rf.player()
+        p["head"], p["velocity"] = _pose(head), list(velocity)
+        frames.append(rf.frame(teams=[{"players": [p]}, {}, {}]))
+    lines = rf.lines_from(frames)
+    if stamps:
+        lines = [f"{(rf.START + timedelta(seconds=t)).strftime('%Y-%m-%d %H:%M:%S.%f')}	{line.split(chr(9))[1]}"
+                 for t, line in zip(stamps, lines)]
+    return stats_for(tmp_path, lines).players[0]
+
+
+def test_frozen_player_has_no_speed(tmp_path):
+    # Match 235262: 10.7 s at the same spot with a stale 51.8 m/s, then on at 4 m/s.
+    heads = [(1.0, 2.0, 3.0)] * 100 + [(1.0 + 0.2 * i, 2.0, 3.0) for i in range(1, 61)]
+    p = _one_player(tmp_path, heads, [(50.0, 0.0, 0.0)] * 100 + [(4.0, 0.0, 0.0)] * 60)
+    assert p.top_speed == pytest.approx(4.0)
+    assert p.speed_sum == pytest.approx(60 * 4.0)  # no distance while frozen
+    assert p.frames_in_bounds == 160
+
+
+def test_short_freeze_keeps_its_distance(tmp_path):
+    # Positions that arrive late (0.3 s) and catch up are the same movement.
+    heads = [(1.0 + 0.5 * (i - i % 6), 2.0, 3.0) for i in range(60)]
+    p = _one_player(tmp_path, heads, [(10.0, 0.0, 0.0)] * 60)
+    assert p.top_speed == pytest.approx(10.0) and p.speed_sum == pytest.approx(600.0)
+
+
+def test_speed_without_the_movement_is_no_top_speed(tmp_path):
+    stuck = [(1.0 + 0.01 * i, 2.0, 3.0) for i in range(60)]  # pressed against something: 0.2 m/s
+    assert _one_player(tmp_path, stuck, [(45.0, 0.0, 0.0)] * 60).top_speed == 0.0
+    sideways = [(1.0, 2.0, 3.0 + 0.5 * i) for i in range(60)]  # carried at the same speed, but somewhere else
+    assert _one_player(tmp_path, sideways, [(10.0, 0.0, 0.0)] * 60).top_speed == 0.0
+
+
+def test_top_speed_of_a_circling_player_counts(tmp_path):
+    # Back where they started: the velocities say so too.
+    turns = [2 * math.pi * i / 20 for i in range(60)]  # one turn a second, 10 m/s
+    r = 10 / (2 * math.pi)
+    heads = [(5 + r * math.sin(a), 2.0, 5 - r * math.cos(a)) for a in turns]
+    p = _one_player(tmp_path, heads, [(10 * math.cos(a), 0.0, 10 * math.sin(a)) for a in turns])
+    assert p.top_speed == pytest.approx(10.0)
+
+
+def test_top_speed_in_slow_motion_recording(tmp_path):
+    # A recorder below ~15 frames a second runs the game slower than the clock: the player covers 72 % of the velocity.
+    stamps = [i / 11 for i in range(60)]
+    p = _one_player(tmp_path, [(1.0 + 0.72 * 10 * t, 2.0, 3.0) for t in stamps], [(10.0, 0.0, 0.0)] * 60, stamps)
+    assert p.top_speed == pytest.approx(10.0)
+
+
+def test_top_speed_not_held_over_a_recording_gap(tmp_path):
+    # Two fast moments 2 s apart, nothing recorded in between, 20 m/s on both sides for half a second.
+    stamps = [i / 20 for i in range(10)] + [2.5 + i / 20 for i in range(10)]
+    p = _one_player(tmp_path, [(20.0 * t - 25, 2.0, 3.0) for t in stamps], [(20.0, 0.0, 0.0)] * 20, stamps)
+    assert p.top_speed == 0.0
 
 
 def test_unknown_map_counts_all_frames_in_bounds(tmp_path):
@@ -170,7 +233,7 @@ def test_saved_rows_include_loadouts_and_events(tmp_path):
         with client.app.state.sessionmaker() as db:
             assert db.scalar(select(func.count()).select_from(MatchPlayerLoadout)) == 3
             death = db.scalar(select(Event).where(Event.type == "death_est"))
-            assert death.player_id is not None and json.loads(death.data) == {"x": 0.5, "z": 0.0}
+            assert death.player_id is not None and json.loads(death.data) == {"x": 6.35, "z": 7.8}
 
 
 MAP_CODES = {"dyson": "mpl_combat_dyson", "surge": "mpl_combat_gauss", "fission": "mpl_combat_fission",

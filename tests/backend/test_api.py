@@ -13,7 +13,7 @@ BLUE = str(rf.BIG_USER_ID)
 def client(tmp_path):
     with app_client(make_settings(tmp_path)) as c:
         add(c, {
-            "dyson/cp.echoreplay": rf.plain(rf.lines(40, blue_round_score=2, orange_round_score=1)),
+            "dyson/cp.echoreplay": rf.plain(rf.lines_from(rf.carried([rf.frame(blue_round_score=2, orange_round_score=1) for _ in range(40)]))),
             "surge/pl.echoreplay": rf.plain(rf.lines(40, payload=True, sessionid="OTHER")),
         })
         yield c

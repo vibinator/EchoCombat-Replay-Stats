@@ -12,15 +12,15 @@ path is in middleware.WRITES / BOT. Console routes need auth.has_console; profil
 | GET | `/api/achievements/recent` | recent_unlocks | app/backend/api/achievements.py:572 | Latest 100 % completions by players active in the last 30 days of the archive. |
 | POST | `/api/admin/achievements/{rule_id}/icon` | upload_icon | app/backend/api/admin.py:53 | Body = the PNG file itself (Content-Type: image/png). Stored, then used for this achievement. |
 | PUT | `/api/admin/achievements/{rule_id}/icon` | set_icon | app/backend/api/admin.py:42 |  |
-| GET | `/api/admin/console/achievements` | achievements | app/backend/api/console.py:128 | Every achievement and challenge: name, the rule to win it (same text as on the website) and its icon. |
-| GET | `/api/admin/console/achievements.csv` | achievements_csv | app/backend/api/console.py:212 |  |
-| GET | `/api/admin/console/log` | command_log | app/backend/api/console.py:203 |  |
-| GET | `/api/admin/console/mega-prizes` | mega_prize_winners | app/backend/api/console.py:219 | Who has reached each Mega Prize target inside the Mega Prize period (the prizes are given out by hand). |
-| GET | `/api/admin/console/mega-prizes.csv` | mega_prize_winners_csv | app/backend/api/console.py:227 |  |
-| GET | `/api/admin/console/merge-suggestions` | merge_suggestions | app/backend/api/console.py:138 | Player records that used the same name: candidates for "Merge player records" (only suggestions). |
-| GET | `/api/admin/console/overview` | overview | app/backend/api/console.py:151 | Dashboard facts the Status page does not have: players, merges, failures, hidden stats, the challenge period |
-| GET | `/api/admin/console/players` | players | app/backend/api/console.py:180 | Player tools: players matching a name or id, with their merges and whether their win-loss is hidden. |
-| POST | `/api/admin/console/{command}` | run | app/backend/api/console.py:236 |  |
+| GET | `/api/admin/console/achievements` | achievements | app/backend/api/console.py:129 | Every achievement and challenge: name, the rule to win it (same text as on the website) and its icon. |
+| GET | `/api/admin/console/achievements.csv` | achievements_csv | app/backend/api/console.py:232 |  |
+| GET | `/api/admin/console/log` | command_log | app/backend/api/console.py:223 |  |
+| GET | `/api/admin/console/mega-prizes` | mega_prize_winners | app/backend/api/console.py:239 | Who has reached each Mega Prize target inside the Mega Prize period (the prizes are given out by hand). |
+| GET | `/api/admin/console/mega-prizes.csv` | mega_prize_winners_csv | app/backend/api/console.py:247 |  |
+| GET | `/api/admin/console/merge-suggestions` | merge_suggestions | app/backend/api/console.py:139 | Player records that used the same name: candidates for "Merge player records" (only suggestions). |
+| GET | `/api/admin/console/overview` | overview | app/backend/api/console.py:152 | Dashboard facts the Status page does not have: players, merges, failures, hidden stats, the challenge period |
+| GET | `/api/admin/console/players` | players | app/backend/api/console.py:191 | Player tools: players matching a name or id (a Discord id finds the player linked to it), with their merges, t |
+| POST | `/api/admin/console/{command}` | run | app/backend/api/console.py:256 |  |
 | GET | `/api/admin/icons` | icon_choices | app/backend/api/admin.py:31 | Icons an admin can pick: built-in badge art and earlier uploads (served under /achievements/). |
 | GET | `/api/admin/permissions` | permissions | app/backend/api/permissions.py:58 |  |
 | POST | `/api/admin/permissions` | change | app/backend/api/permissions.py:97 |  |
@@ -33,10 +33,10 @@ path is in middleware.WRITES / BOT. Console routes need auth.has_console; profil
 | GET | `/api/auth/login` | login | app/backend/api/auth.py:52 |  |
 | GET | `/api/auth/logout` | logout | app/backend/api/auth.py:112 |  |
 | GET | `/api/auth/me` | me | app/backend/api/auth.py:34 | Whether Discord login is available, and who is logged in (with or without preview access). Keeps the admin hin |
-| GET | `/api/avatars` | get_avatars | app/backend/api/avatars.py:81 |  |
-| POST | `/api/bot/link` | bot_link | app/backend/api/profiles.py:317 | Link a Discord account to a player. Relinking moves the link; the bio stays with the player only when the |
-| POST | `/api/bot/lookup` | bot_lookup | app/backend/api/profiles.py:364 | Which player a Discord account is linked to (or which account a player is linked to). POST so the secret |
-| POST | `/api/bot/unlink` | bot_unlink | app/backend/api/profiles.py:348 | Remove a link (by Discord account or by player); the bio goes with it. |
+| GET | `/api/avatars` | get_avatars | app/backend/api/avatars.py:94 |  |
+| POST | `/api/bot/link` | bot_link | app/backend/api/profiles.py:285 | Link a Discord account to a player. Relinking moves the link; the bio and picture choice go with the Discord a |
+| POST | `/api/bot/lookup` | bot_lookup | app/backend/api/profiles.py:322 | Which player a Discord account is linked to (or which account a player is linked to). POST so the secret |
+| POST | `/api/bot/unlink` | bot_unlink | app/backend/api/profiles.py:306 | Remove a link (by Discord account or by player); the bio goes with the Discord account. |
 | GET | `/api/challenges` | get_challenges | app/backend/api/achievements.py:72 | The Flamingo Challenge period: only matches inside it count. No start date = not launched yet. |
 | GET | `/api/cloud/access` | whole_cloud_access | app/backend/api/cloud.py:546 |  |
 | POST | `/api/cloud/access` | change_whole_cloud_access | app/backend/api/cloud.py:552 | One role or person added to / removed from Cloud view, Cloud edit or Cloud admin. |
@@ -103,12 +103,12 @@ path is in middleware.WRITES / BOT. Console routes need auth.has_console; profil
 | GET | `/api/players/{user_id}/heatmap` | get_player_heatmap | app/backend/api/players.py:393 |  |
 | GET | `/api/players/{user_id}/heatmap3d` | get_player_heatmap3d | app/backend/api/players.py:430 |  |
 | GET | `/api/players/{user_id}/trends` | get_trends | app/backend/api/players.py:443 |  |
-| GET | `/api/profiles/discord/{discord_id}` | get_discord_profile | app/backend/api/profiles.py:215 |  |
-| POST | `/api/profiles/discord/{discord_id}` | edit_discord_profile | app/backend/api/profiles.py:226 | Only the bio and the avatar choice, only by that Discord account itself (logged in with Discord). |
-| GET | `/api/profiles/me` | my_profile | app/backend/api/profiles.py:145 | The logged-in visitor's own profile (from the Discord login only; nothing about anyone else is asked for). |
-| POST | `/api/profiles/me` | edit_my_profile | app/backend/api/profiles.py:158 |  |
-| GET | `/api/profiles/{user_id}` | get_profile | app/backend/api/profiles.py:166 | Bio and picture of a player, and whether the visitor may edit them (their own linked player). |
-| POST | `/api/profiles/{user_id}` | edit_profile | app/backend/api/profiles.py:257 | Only the bio and the avatar choice; only by the Discord account linked to this player. |
+| GET | `/api/profiles/discord/{discord_id}` | get_discord_profile | app/backend/api/profiles.py:184 |  |
+| POST | `/api/profiles/discord/{discord_id}` | edit_discord_profile | app/backend/api/profiles.py:195 | Only the bio and the avatar choice, only by that Discord account itself (logged in with Discord). |
+| GET | `/api/profiles/me` | my_profile | app/backend/api/profiles.py:114 | The logged-in visitor's own profile (from the Discord login only; nothing about anyone else is asked for). |
+| POST | `/api/profiles/me` | edit_my_profile | app/backend/api/profiles.py:127 |  |
+| GET | `/api/profiles/{user_id}` | get_profile | app/backend/api/profiles.py:135 | Bio and picture of a player, and whether the visitor may edit them (their own linked player). |
+| POST | `/api/profiles/{user_id}` | edit_profile | app/backend/api/profiles.py:226 | Only the bio and the avatar choice; only by the Discord account linked to this player. |
 | GET | `/api/replays` | list_replays | app/backend/api/replays.py:62 |  |
 | GET | `/api/replays/{replay_id}` | get_replay | app/backend/api/replays.py:78 |  |
 | GET | `/api/search` | search | app/backend/api/overview.py:288 | Players by name, plus a match when q is a match id. Cached: the top bar asks as you type. |

@@ -70,6 +70,20 @@ def lines_from(frames: list[dict]) -> list[str]:
     ]
 
 
+def carried(frames: list[dict], hz: float = 20) -> list[dict]:
+    """The same frames with every player's head carried along by their velocity from where the first frame has them:
+    a speed only counts when the player really moves (stats.player.TOP_SPEED_MISMATCH)."""
+    at: dict[int, list[float]] = {}
+    for f in frames:
+        for team in f["teams"]:
+            for p in team.get("players", ()):
+                spot = at.get(p["userid"])
+                spot = list(p["head"]["position"]) if spot is None else [a + v / hz for a, v in zip(spot, p["velocity"])]
+                at[p["userid"]] = spot
+                p["head"] = p["head"] | {"position": spot}
+    return frames
+
+
 def plain(text_lines: list[str]) -> bytes:
     return ("\n".join(text_lines) + "\n").encode()
 

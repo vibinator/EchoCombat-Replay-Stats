@@ -18,6 +18,21 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.25.2 — 20:31
+
+Top speed is real movement only (user, 25 Nov: "the most accurate speed"):
+- **The three fastest records were glitches:** a player whose data stops coming (lag, loading into the match) stands still
+  but keeps the last speed. Schmoculus 51.77 m/s (frozen 10.7 s, moved 0 m), SupaStav 45.91 (moved 0.75 m) and
+  ErrorNameNotFound 38.50 (frozen 66 s) are now 8.96, 11.15 and 9.60 in those matches. The fastest player is Caprison-, 35.28 m/s.
+- **Top speed** still is the fastest speed held for a full second, but that second only counts when the player ended up
+  where the speed takes them (within half of the distance), and not across a gap in the recording of more than 0.5 s.
+- **Average speed and distance:** a player frozen for 0.5 s or longer adds nothing. Time in bounds, time stopped, deaths and
+  everything else are unchanged.
+- Measured on the 200 newest replays of each map (4,272 player rows): 55 top speeds are lower, none higher, none lost a
+  challenge medal; distance falls by 0.02 % in total. Everybody else in the top 10 keeps their number.
+- The calculation itself was already in 2026.11.25.1 (its note says that nothing is re-read: it is, stats version 17).
+- **After the update** every replay is read again (hours on the NAS): the old records stay until their match has been.
+
 ## 2026.11.25.1 — 20:23
 
 Link and unlink Discord accounts on the Console (user, 25 Nov: "in case they are wrong or broken"):

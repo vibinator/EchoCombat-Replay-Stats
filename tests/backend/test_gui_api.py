@@ -16,6 +16,7 @@ def moving_match(weapon_switch_at=40, n=80, **kw):
     for i in range(n):
         blue, orange = rf.player(), rf.player(42, "Other", 1)
         blue["head"] = _pose(-10 + i * 0.25, 0.0)  # 5 m/s
+        blue["velocity"] = [5.0, 0.0, 0.0]
         if i >= weapon_switch_at:
             blue["Weapon"], blue["Ordnance"] = "rocket", "stun"
         orange["head"] = _pose(5.0, 5.0)  # stopped

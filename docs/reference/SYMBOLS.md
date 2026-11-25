@@ -44,9 +44,9 @@ Mega Prizes tab data (Preview role only; Arena counting is separate from Combat,
 Discord login for achievement previews (D41). Only GET requests: the website stays read-only (D38).
 - _safe_next:20 / _settings:27 / me:35 / login:53 / _why:67 / _exchange_failure:72 / callback:85 / logout:113
 
-### `app/backend/api/avatars.py` (88 lines)
+### `app/backend/api/avatars.py` (101 lines)
 Small Discord pictures for the name lists (user, 2026-11-06): Players, Leaderboard, Achievements.
-- `MAX_IDS`:22 / pictures:25 / get_avatars:82
+- `MAX_IDS`:22 / pictures:25 / get_avatars:95
 
 ### `app/backend/api/cloud.py` (703 lines)
 Open Cloud endpoints (cloud.py): Discord login + the Cloud view / Cloud edit permission (Permissions page).
@@ -56,9 +56,9 @@ Open Cloud endpoints (cloud.py): Discord login + the Cloud view / Cloud edit per
 Combat stats endpoints (user, 2026-11-04): the game's own counters and the event-log numbers from the recorder's match
 - `PERIOD_PATTERN`:26 / `USER_PATH`:27 / `SESSION_PATH`:28 / `RECENT_MATCHES`:29 / `MIN_GAMES_DEFAULT`:30 / award_info:52 / _list:57 / `UNKNOWN_WEAPON`:65 / weapon_code:68 / weapon_name:79 / _weapons:93 / _main_user:101 / _where:106 / _json:115 / _rates:123 / `STAMP_TTL_S`:136 / combat_stamp:140 / _kept:153 / summary:159 / _summary:163 / stat_options:172 / award_options:177 / player:183 / _player:188 / leaderboard:258 / _leaderboard:266 / matches:315 / _matches:321 / match:339 / _match:343
 
-### `app/backend/api/console.py` (261 lines)
+### `app/backend/api/console.py` (281 lines)
 Console page (D45): admin.bat on the website, for Discord members with a role from ECHOVR_DISCORD_PREVIEW_ROLES.
-- **class Args**:34 / _required:55 / `COMMANDS`:61 / `WEB_WORDING`:96 / `SERVER_LINE`:106 / `OPTION`:107 / for_the_page:110 / require_console:117 / achievements:129 / merge_suggestions:139 / _log_row:146 / overview:152 / players:181 / command_log:204 / achievements_csv:213 / mega_prize_winners:220 / mega_prize_winners_csv:228 / run:237
+- **class Args**:34 / _required:55 / `COMMANDS`:61 / `WEB_WORDING`:97 / `SERVER_LINE`:107 / `OPTION`:108 / for_the_page:111 / require_console:118 / achievements:130 / merge_suggestions:140 / _log_row:147 / overview:153 / _discord_link:181 / players:192 / command_log:224 / achievements_csv:233 / mega_prize_winners:240 / mega_prize_winners_csv:248 / run:257
 
 ### `app/backend/api/derived.py` (73 lines)
 Stored counts -> display stats (DataModel.MD "Derived"). Shared by match and player endpoints.
@@ -89,9 +89,9 @@ Permissions page (user, 2026-10-30): console users give or take away Admin (the 
 ### `app/backend/api/players.py` (550 lines)
 - `RECENT_MATCHES`:26 / games_of:29 / search_players:36 / _search_players:46 / _filters:72 / _profile:81 / _site_averages:148 / compare_players:178 / _compare_players:184 / get_player:211 / _get_player:222 / `HEATMAP_MODES`:284 / `ALL_MATCHES`:285 / `HEATMAP_STAMP`:286 / heatmap_stamp:292 / _heatmap_job:317 / _heatmap3d_job:329 / **class _NoRequest**:344 / prebuild_heatmaps:351 / _player_heatmap:361 / get_player_heatmap:394 / `HEATMAP3D_MODES`:408 / _player_heatmap3d:411 / get_player_heatmap3d:431 / get_trends:444 / _get_trends:449 / `COMPANION_WINDOWS`:486 / _mine:490 / _together:500 / get_companions:512 / _get_companions:520
 
-### `app/backend/api/profiles.py` (377 lines)
+### `app/backend/api/profiles.py` (335 lines)
 Player profiles linked to Discord (user, 2026-11-02).
-- `BIO_MAX`:26 / `BIO_MAX_LINES`:27 / _now:30 / _main_id:34 / _seen_discord:40 / _replay_player_of:48 / clean_bio:62 / _name_match_avatar:78 / _seen_avatar:95 / _id_avatar:109 / _account:122 / _public:129 / my_profile:146 / edit_my_profile:159 / get_profile:167 / _known_discord:191 / _own_account:197 / _discord_public:202 / get_discord_profile:216 / edit_discord_profile:227 / **class ProfileEdit**:252 / edit_profile:258 / _require_bot:288 / _discord_id:297 / _link_info:304 / **class Link**:312 / bot_link:318 / **class Unlink**:343 / bot_unlink:349 / bot_lookup:365
+- `BIO_MAX`:28 / `BIO_MAX_LINES`:29 / _now:32 / clean_bio:36 / _name_match_avatar:52 / _seen_avatar:64 / _id_avatar:77 / _account:90 / _public:98 / my_profile:115 / edit_my_profile:128 / get_profile:136 / _known_discord:160 / _own_account:166 / _discord_public:171 / get_discord_profile:185 / edit_discord_profile:196 / **class ProfileEdit**:221 / edit_profile:227 / _require_bot:256 / _discord_id:265 / _link_info:272 / **class Link**:280 / bot_link:286 / **class Unlink**:301 / bot_unlink:307 / bot_lookup:323
 
 ### `app/backend/api/remote_worker.py` (148 lines)
 The remote PC's side of "Process replays on another PC" (remote.py): claim queued replays, send results, give back what
@@ -101,13 +101,13 @@ The remote PC's side of "Process replays on another PC" (remote.py): claim queue
 Replays found in the share (D25). Read-only: files are added by the scanner; reprocess / repair are in the
 - **class ReplayOut**:18 [_parse_warnings:39] / **class ReplayPage**:43 / _get:48 / _with_match_ids:55 / list_replays:63 / get_replay:79
 
-### `app/backend/arena.py` (285 lines)
+### `app/backend/arena.py` (278 lines)
 Public Echo Arena matches per player, counted from the live Nakama match list (user, 2026-11-04). Completely
-- `URL`:21 / `MIN_PRESENT_S`:22 / `MIN_TEAM`:23 / `MIN_SEEN`:24 / `TIMEOUT_S`:25 / `MAX_BYTES`:26 / `MAX_BACKOFF_S`:27 / `KEEP_COUNTED_S`:28 / `PRUNE_EVERY_S`:29 / `ACCOUNT_REFRESH_S`:30 / `WINDOW_CHECK_S`:31 / `NON_PLAYER_TEAMS`:32 / `STATUS_OK_POLLS`:33 / _stamp:37 / is_public_arena:42 / is_public_combat:47 / **class _Kind**:52 / **class Tracker**:70 [start:86, stop:90, _fetch:94, _run:101, _in_period:113, poll:123, _collect_accounts:135, _link:166, _poll_kind:177, status:227, _purge:248, _save:259]
+- `URL`:21 / `MIN_PRESENT_S`:22 / `MIN_TEAM`:23 / `MIN_SEEN`:24 / `TIMEOUT_S`:25 / `MAX_BYTES`:26 / `MAX_BACKOFF_S`:27 / `KEEP_COUNTED_S`:28 / `PRUNE_EVERY_S`:29 / `ACCOUNT_REFRESH_S`:30 / `WINDOW_CHECK_S`:31 / `NON_PLAYER_TEAMS`:32 / `STATUS_OK_POLLS`:33 / _stamp:37 / is_public_arena:42 / is_public_combat:47 / **class _Kind**:52 / **class Tracker**:70 [start:86, stop:90, _fetch:94, _run:101, _in_period:113, poll:123, _collect_accounts:135, _link:166, _poll_kind:170, status:220, _purge:241, _save:252]
 
-### `app/backend/auth.py` (553 lines)
+### `app/backend/auth.py` (558 lines)
 Discord login, only for previewing achievements before their launch date (D41). Login = OAuth2 "identify" (who
-- `API`:23 / `AUTHORIZE_URL`:24 / `SESSION_COOKIE`:25 / `STATE_COOKIE`:26 / `ADMIN_HINT_COOKIE`:29 / `SESSION_DAYS`:30 / `STATE_S`:31 / `ROLE_CHECK_S`:32 / `ROLE_RETRY_S`:33 / `DISCORD_PER_S`:43 / `DISCORD_BURST`:44 / `DISCORD_WAIT_S`:45 / `DISCORD_PAUSE_MAX_S`:46 / `INVALID_WINDOW_S`:47 / `INVALID_MAX`:48 / **class DiscordPaused**:51 / **class DiscordLimiter**:56 [reset:61, acquire:66, record:84] / _send:112 / http_client:120 / enabled:125 / is_discord_id:131 / _bot_get:137 / `SERVER_ROLES_S`:142 / server_roles:146 / check_fixed_ids:160 / user_name:193 / user_names:210 / `AVATAR_CHECK_S`:222 / `AVATAR_MAX_PER_MIN`:223 / `AVATAR_FILE`:224 / `AVATAR_KEEP_S`:225 / _avatar_budget:233 / _avatar_path:245 / _load_avatars:249 / _save_avatars:270 / avatar_url:290 / redirect_uri:346 / secure_cookies:350 / _key:356 / _b64:365 / _unb64:369 / sign:373 / unsign:378 / authorize_url:394 / user_from_code:401 / forget_roles:423 / _ask_roles:429 / member_roles:450 / viewer:479 / allowed:493 / _has:518 / has_preview:530 / is_admin:535 / has_console:540 / cloud_access:546
+- `API`:23 / `AUTHORIZE_URL`:24 / `SESSION_COOKIE`:25 / `STATE_COOKIE`:26 / `ADMIN_HINT_COOKIE`:29 / `SESSION_DAYS`:30 / `STATE_S`:31 / `ROLE_CHECK_S`:32 / `ROLE_RETRY_S`:33 / `DISCORD_PER_S`:43 / `DISCORD_BURST`:44 / `DISCORD_WAIT_S`:45 / `DISCORD_PAUSE_MAX_S`:46 / `INVALID_WINDOW_S`:47 / `INVALID_MAX`:48 / **class DiscordPaused**:51 / **class DiscordLimiter**:56 [reset:61, acquire:66, record:84] / _send:112 / http_client:120 / enabled:125 / is_discord_id:131 / _bot_get:137 / `SERVER_ROLES_S`:142 / server_roles:146 / check_fixed_ids:160 / remembered_name:193 / user_name:198 / user_names:215 / `AVATAR_CHECK_S`:227 / `AVATAR_MAX_PER_MIN`:228 / `AVATAR_FILE`:229 / `AVATAR_KEEP_S`:230 / _avatar_budget:238 / _avatar_path:250 / _load_avatars:254 / _save_avatars:275 / avatar_url:295 / redirect_uri:351 / secure_cookies:355 / _key:361 / _b64:370 / _unb64:374 / sign:378 / unsign:383 / authorize_url:399 / user_from_code:406 / forget_roles:428 / _ask_roles:434 / member_roles:455 / viewer:484 / allowed:498 / _has:523 / has_preview:535 / is_admin:540 / has_console:545 / cloud_access:551
 
 ### `app/backend/cache.py` (442 lines)
 Caches for answers built from the archive: home page, leaderboard, profiles, heatmaps, match views (D53). Keyed on
@@ -134,6 +134,10 @@ Combat achievements (user, 2026-11-05): built only from the recorder's match rep
 
 ### `app/backend/db.py` (184 lines)
 - **class Base**:9 / `BUSY_TIMEOUT_S`:13 / utcnow:16 / open_db:20 / open_reader:54 / warm:77 / _add_missing_columns:95 / _add_missing_indexes:111 / `DERIVED_TABLES`:121 / `PRESERVED_TABLES`:123 / `COMBAT_TABLES`:127 / `IN_PLACE_COLUMNS`:132 / _backfill_counted:135 / _add_columns_in_place:142 / _stale:156 / _rebuild_stale_tables:162
+
+### `app/backend/discord_links.py` (193 lines)
+Which Discord account belongs to which replay player, in one place (user, 2026-11-25: links can be wrong or broken).
+- main_id:25 / profile_of:31 / blocks_of:38 / blocked:45 / allowed:50 / is_own_id:62 / seen_discord:68 / name_match_ok:78 / discord_of:89 / account_link:100 / player_of:115 / account_name:129 / _refresh_accounts:138 / _drop:146 / link:156 / unlink:180
 
 ### `app/backend/discord_names.py` (162 lines)
 Discord avatars for players not linked by the bot (user, 2026-11-02): when a player's name matches exactly one
@@ -194,9 +198,9 @@ Merge suggestions for the Console (D34 merges): player records that used the sam
 Every request and answer of the site in one pure ASGI layer (it replaces four @app.middleware layers that cost
 - `PER_VISITOR`:28 / `WRITES`:29 / `UPLOAD`:30 / `BOT`:31 / `STATIC_MAX_AGE_S`:32 / `EDGE_STALE_IF_ERROR_S`:33 / _refusal:36 / _api_cache:53 / _versioned:65 / _static_cache:70 / **class SiteMiddleware**:84
 
-### `app/backend/models.py` (433 lines)
+### `app/backend/models.py` (444 lines)
 Tables as specified in docs/DataModel.MD.
-- **class Replay**:9 / **class Match**:33 / **class DuplicateMatch**:68 / **class Player**:78 / **class MatchPlayer**:88 / **class MatchPlayerLoadout**:125 / **class Event**:138 / **class AppSetting**:160 / **class PlayerProfile**:170 / **class DiscordProfile**:185 / **class NakamaAccount**:198 / **class PlayerAlias**:215 / **class RepairRequest**:225 / **class AggressiveRepair**:234 / **class PriorityReplay**:244 / **class HiddenReplay**:252 / **class CloudLog**:262 / **class CloudRule**:280 / **class ConsoleLog**:294 / **class ArenaPlayer**:311 / **class ArenaCounted**:325 / **class NakamaCombatPlayer**:335 / **class NakamaCombatCounted**:349 / **class CombatFile**:365 / **class CombatMatch**:381 / **class CombatPlayer**:399
+- **class Replay**:9 / **class Match**:33 / **class DuplicateMatch**:68 / **class Player**:78 / **class MatchPlayer**:88 / **class MatchPlayerLoadout**:125 / **class Event**:138 / **class AppSetting**:160 / **class PlayerProfile**:170 / **class DiscordProfile**:185 / **class DiscordLinkBlock**:198 / **class NakamaAccount**:209 / **class PlayerAlias**:226 / **class RepairRequest**:236 / **class AggressiveRepair**:245 / **class PriorityReplay**:255 / **class HiddenReplay**:263 / **class CloudLog**:273 / **class CloudRule**:291 / **class ConsoleLog**:305 / **class ArenaPlayer**:322 / **class ArenaCounted**:336 / **class NakamaCombatPlayer**:346 / **class NakamaCombatCounted**:360 / **class CombatFile**:376 / **class CombatMatch**:392 / **class CombatPlayer**:410
 
 ### `app/backend/persist.py` (101 lines)
 MatchStats -> database rows. Callers commit, so a match is stored completely or not at all.
@@ -228,9 +232,9 @@ Fixed objects per map, measured from real replays (2026-10-31), for drawing the 
 Payload maps: attacking team, winner, per-player time on the payload (ReplayData "Payload semantics").
 - `ON_PAYLOAD_RADIUS_M`:8 / `FINAL_CHECKPOINT`:9 / **class PayloadAccumulator**:12 [add:21, attacking_team:37, winner:42, push_block:52] / _other:62
 
-### `app/backend/stats/player.py` (195 lines)
+### `app/backend/stats/player.py` (244 lines)
 Per-player accumulator. Rules follow the old app (ReplayData.MD): ping over all frames (except the 999 placeholder),
-- `LEFT_EARLY_S`:15 / `NEAR_DISTANCE_SQ`:16 / `LONE_WOLF_DISTANCE_SQ`:17 / `STOPPED_SPEED`:18 / `PING_PLACEHOLDER`:19 / `PING_CAP`:20 / `TOP_SPEED_WINDOW_S`:21 / **class PlayerAccumulator**:24 [event:66, add:70, _add_in_bounds:108, _track_top_speed:149, result:163]
+- `LEFT_EARLY_S`:15 / `NEAR_DISTANCE_SQ`:16 / `LONE_WOLF_DISTANCE_SQ`:17 / `STOPPED_SPEED`:18 / `PING_PLACEHOLDER`:19 / `PING_CAP`:20 / `TOP_SPEED_WINDOW_S`:21 / `TOP_SPEED_MISMATCH`:30 / `TOP_SPEED_MISMATCH_M`:31 / `TOP_SPEED_MAX_GAP_S`:32 / `FROZEN_S`:33 / **class PlayerAccumulator**:36 [event:81, add:85, _add_in_bounds:125, _track_speed_sum:167, _track_top_speed:178, _really_moved:195, result:212]
 
 ### `app/backend/stats/quality.py` (46 lines)
 Which matches count for averages (user, 2026-11-07, Review DATA-3): a game of at least COUNTED_MIN_S with at least
@@ -283,9 +287,9 @@ Typed frame data. Only fields confirmed in docs/ReplayData.MD; add new ones here
 Streaming reader for .echoreplay files (zip or plain text, one `<timestamp>\t<json>` frame per line).
 - `ZIP_MAGIC`:18 / `SUPPORTED_MATCH_TYPE`:19 / `MAX_UNCOMPRESSED_BYTES`:20 / `BAD_LINE_ERRORS`:21 / _allowed_bad_lines:24 / _limited:28 / `READ_CHUNK`:37 / `META_CHUNK`:38 / _chunk_lines:41 / `LOCAL_HEADER`:59 / `SALVAGE_CHUNK`:60 / _salvage_zip_lines:63 / `CENTRAL_HEADER`:127 / `CENTRAL_MAGIC`:128 / `FRAME_START`:129 / `SESSION_IN_NAME`:130 / `HOLE`:131 / `CHECK_CHUNK`:132 / `LOOKAHEAD`:133 / `DIFF_UNIT`:134 / _zip_entries:137 / _same_copy:165 / _differences:181 / _is_frame:197 / **class _CheckedInflate**:207 [copy:220, feed:227, _check:250, take:264, finish:269] / _read_one:277 / _read_two:289 / _streams:324 / _frames:348 / _frames_in:361 / _merged:372 / _aggressive_lines:384 / _open_lines:398 / **class ClockJumps**:427 [add:445, fix:458, describe:461] / _nothing_recoverable:465 / **class ParsedReplay**:484 [_read_meta:498, frames:520] / open_replay:562
 
-### `app/admin_console.py` (1176 lines)
+### `app/admin_console.py` (1226 lines)
 Admin console: the only place data is changed (the website is read-only). Player merges, the challenge
-- `REASONS`:58 / `SERVER`:61 / open_sessions:69 / server_running:85 / when_applied:93 / games:100 / find_players:104 / describe:112 / name_of:118 / resolve:122 / confirm:143 / cmd_find:153 / cmd_merge:162 / list_merges:196 / cmd_merges:200 / cmd_unmerge:211 / cmd_link_profile:228 / cmd_unlink_profile:260 / profile_link_report:279 / cmd_profile_links:303 / cmd_challenge:319 / cmd_mega_period:348 / _server_roles:371 / `ROLE_KINDS`:381 / cmd_discord_roles:387 / cmd_cloud_admins:431 / _discord_user:462 / cmd_admin_users:466 / cmd_discord_check:487 / cmd_hide_stats:522 / `RATE_WINDOW_MIN`:552 / cmd_status:555 / cmd_repair_failed:605 / cmd_repair_aggressive_failed:624 / describe_replay:640 / cmd_forget_missing:651 / cmd_cannot_repair:677 / cmd_hidden:698 / find_replay:727 / cmd_reprocess:743 / cmd_repair:749 / cmd_repair_aggressive:755 / cmd_scan:761 / cmd_process_missing:770 / `REPLAYS_PER_MIN`:780 / cmd_reprocess_all:783 / `REMOTE_MODES`:802 / cmd_remote_mode:805 / cmd_remote_processing:824 / `MENU`:830 / ask:856 / interactive:860 / `LOGGED`:988 / _run_logged:993 / main_command:1023 / main:1072
+- `REASONS`:58 / `SERVER`:61 / open_sessions:69 / server_running:85 / when_applied:93 / games:100 / find_players:104 / describe:112 / name_of:118 / resolve:122 / confirm:143 / cmd_find:153 / cmd_merge:162 / list_merges:196 / cmd_merges:200 / cmd_unmerge:211 / `LINK_ROUTES`:228 / _account_text:232 / _print_link_now:237 / cmd_link_profile:243 / cmd_unlink_profile:272 / profile_link_report:303 / cmd_profile_links:331 / cmd_challenge:351 / cmd_mega_period:380 / _server_roles:403 / `ROLE_KINDS`:413 / cmd_discord_roles:419 / cmd_cloud_admins:463 / _discord_user:494 / cmd_admin_users:498 / cmd_discord_check:519 / cmd_hide_stats:554 / `RATE_WINDOW_MIN`:584 / cmd_status:587 / cmd_repair_failed:637 / cmd_repair_aggressive_failed:656 / describe_replay:672 / cmd_forget_missing:683 / cmd_cannot_repair:709 / cmd_hidden:730 / find_replay:759 / cmd_reprocess:775 / cmd_repair:781 / cmd_repair_aggressive:787 / cmd_scan:793 / cmd_process_missing:802 / `REPLAYS_PER_MIN`:812 / cmd_reprocess_all:815 / `REMOTE_MODES`:834 / cmd_remote_mode:837 / cmd_remote_processing:856 / `MENU`:862 / ask:889 / interactive:893 / `LOGGED`:1037 / _run_logged:1042 / main_command:1072 / main:1121
 
 ### `app/remote_worker.py` (292 lines)
 Reads replays for the website on this PC instead of on the NAS (remote.py; start it with remote_worker.bat).
