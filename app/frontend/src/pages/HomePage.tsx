@@ -526,7 +526,7 @@ export function HomePage() {
               {(g.fastest_players ?? []).length > 0 && (
                 <StatGroup title="Top 5 fastest players" n={5}>
                   {g.fastest_players.map((p, i) => (
-                    <div className="card" key={p.user_id} title="Fastest speed held for at least one full second">
+                    <div className="card" key={p.user_id} title="Fastest average speed over one second, by the distance travelled">
                       <span className="label">#{i + 1}</span>
                       <strong><FitText title={p.name}><Link to={playerPath(p.user_id, p.name)}>{p.name}</Link></FitText></strong>
                       <span className="muted">{num(p.top_speed)} m/s</span>

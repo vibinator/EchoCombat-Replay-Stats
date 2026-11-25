@@ -44,7 +44,7 @@ export const STAT_HELP: Record<string, string> = {
   "Deaths*": "Estimated: counted each time the player left the map's play area (the replay has no kill data).",
   Ping: "Average network latency in milliseconds (placeholder readings of 999 are ignored).",
   "Avg speed": "Average movement speed inside the play area.",
-  "Top speed": "Fastest speed held for at least one full second.",
+  "Top speed": "Fastest average speed over one second, by the distance travelled.",
   Stopped: "Share of time moving slower than 1 m/s.",
   Inverted: "Share of time upside down.",
   "Near mate": "Share of time within ~2.6 m of a teammate.",

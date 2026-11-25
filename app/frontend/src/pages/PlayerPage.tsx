@@ -159,7 +159,7 @@ function cards(s: PlayerStats, avg: Averages = {}, months?: TrendPoint[]): CardR
     ["Average speed", `${num(s.avg_speed, 2)} m/s`, `The line: per month, all time.${counted}`, trend(months, "avg_speed", "Average speed")],
     ["Top speed",
       s.top_speed_match ? <strong><Link to={`/matches/${s.top_speed_match.id}`}>{num(s.top_speed)} m/s</Link></strong> : `${num(s.top_speed)} m/s`,
-      `Fastest speed held for a full second.${s.top_speed_match ? " Opens the match it was reached in." : ""}${counted}`,
+      `Fastest average speed over one second, by the distance travelled.${s.top_speed_match ? " Opens the match it was reached in." : ""}${counted}`,
       s.top_speed_match && <span className="muted">{title(s.top_speed_match.map)} · <span className="nowrap"><LocalTime iso={s.top_speed_match.started_at} /></span></span>],
     ["Time idle", <VsAverage value={s.pct_stopped} average={avg.pct_stopped} />, `Moving slower than 1 m/s. The tick: every player's average.${counted}`],
     ["Inverted", <VsAverage value={s.pct_upside_down} average={avg.pct_upside_down} />, `The tick: every player's average.${counted}`],

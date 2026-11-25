@@ -270,10 +270,10 @@ def test_tiered_achievements():
 
 def test_ladders_with_units_and_periods():
     """Per-game ladders count the best game, units are in the text, short games do not count."""
-    r = by_id(evaluate([game(top=20.0), game(top=9.0)]))
-    assert (r[23]["tier"], r[23]["count"], r[23]["unit"]) == ("gold", 20.0, " m/s")  # 13 / 17 / 19 / 21
-    assert next(rule for rule in RULES if rule.id == 23).levels == (13, 17, 19, 21)
-    assert "13 m/s bronze, 17 m/s silver" in next(x for x in RULES if x.id == 23).description
+    r = by_id(evaluate([game(top=24.0), game(top=9.0)]))
+    assert (r[23]["tier"], r[23]["count"], r[23]["unit"]) == ("gold", 24.0, " m/s")  # 14 / 20 / 23 / 28
+    assert next(rule for rule in RULES if rule.id == 23).levels == (14, 20, 23, 28)
+    assert "14 m/s bronze, 20 m/s silver" in next(x for x in RULES if x.id == 23).description
     r = by_id(evaluate([game(upside=600)]))
     assert (r[24]["tier"], r[24]["count"]) == ("gold", 60.0)  # 60 % inverted in one 3+ min game: 10 / 45 / 55 / 65 (TUNED_LEVELS)
     assert by_id(evaluate([game(upside=900, play=60.0)]))[24]["count"] == 0

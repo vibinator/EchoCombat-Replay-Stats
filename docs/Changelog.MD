@@ -18,6 +18,17 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.25.5 — 21:48
+
+- **Top speed is the fastest average over one second, and the distance has to be travelled** (user, 25 Nov: no peaks, "this can easily
+  be cheated"). Before, it was the slowest moment of the best second. Turns and straight flight both count; where the player aims
+  and what they grab does not matter. One reading cannot set it, and standing frozen or shaking on the spot is no distance.
+- Top speeds read about 10 % higher (median of 8,089 in the newest 1,600 matches); every other stat is the same.
+- **Super Ultra Hyper Turbo** is 14 / 20 / 23 / 28 m/s (was 13 / 17 / 19 / 21), which is as hard as before under the new rule:
+  100 / 54 / 22 / 11 % of the 90 regulars reach it, before 99 / 49 / 21 / 10 %.
+- **After the update** every replay is read again (stats version 18, hours on the NAS); it takes the place of the re-read for version
+  17. Until it is done, speeds by the old and the new rule are mixed in the lists and challenges.
+
 ## 2026.11.25.4 — 21:05
 
 - **Super Ultra Hyper Turbo is slightly easier on every medal** (user, 25 Nov): top speed in one game 13 / 17 / 19 / 21 m/s for

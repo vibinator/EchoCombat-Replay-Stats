@@ -146,15 +146,15 @@ def test_timeline_events(tmp_path):
     assert won.team == "blue" and won.data == {"blue": 1, "orange": 0}
 
 
-def test_top_speed_needs_a_full_second(tmp_path):
-    # One 30 m/s spike frame must not become the top speed.
+def test_top_speed_is_no_peak(tmp_path):
+    # One 30 m/s spike frame must not become the top speed: it only adds to the second's average.
     frames = []
     for i in range(60):
         p = rf.player()
         p["velocity"] = [30.0, 0.0, 0.0] if i == 30 else [2.0, 0.0, 0.0]
         frames.append(rf.frame(teams=[{"players": [p]}, {}, {}]))
     s = stats_for(tmp_path, rf.lines_from(rf.carried(frames)))
-    assert s.players[0].top_speed == pytest.approx(2.0)
+    assert s.players[0].top_speed == pytest.approx((2.0 * 19 + 30.0) / 20)  # 3.4
 
 
 def _one_player(tmp_path, heads, velocities, stamps=None):
@@ -194,22 +194,42 @@ def test_speed_without_the_movement_is_no_top_speed(tmp_path):
 
 
 def test_top_speed_of_a_circling_player_counts(tmp_path):
-    # Back where they started: the velocities say so too.
-    turns = [2 * math.pi * i / 20 for i in range(60)]  # one turn a second, 10 m/s
-    r = 10 / (2 * math.pi)
+    # Back where they started: the velocities say so too. One turn in 4 s at 10 m/s.
+    turns = [2 * math.pi * i / 80 for i in range(120)]
+    r = 40 / (2 * math.pi)
     heads = [(5 + r * math.sin(a), 2.0, 5 - r * math.cos(a)) for a in turns]
     p = _one_player(tmp_path, heads, [(10 * math.cos(a), 0.0, 10 * math.sin(a)) for a in turns])
-    assert p.top_speed == pytest.approx(10.0)
+    assert p.top_speed == pytest.approx(10.0, abs=0.1)
+
+
+def test_top_speed_is_the_average_over_a_second(tmp_path):
+    # Speeding up evenly from 10 to 30 m/s in 2 s (10 m/s a second): the best second runs from 20 to 30.
+    ts = [i / 20 for i in range(41)]
+    p = _one_player(tmp_path, [(10 * t + 5 * t * t, 2.0, 3.0) for t in ts], [(10 + 10 * t, 0.0, 0.0) for t in ts])
+    assert p.top_speed == pytest.approx(25.0, abs=0.05)
+
+
+def test_shaking_on_the_spot_is_no_top_speed(tmp_path):
+    # Match 231329: readings around 40 m/s, every step of them real, never 2 m away from the same spot.
+    side = [1 if i % 4 < 2 else -1 for i in range(80)]
+    x, heads = 5.0, []
+    for i in range(80):
+        heads.append((x, 2.0, 3.0))
+        x += side[i] * 2.0
+    p = _one_player(tmp_path, heads, [((side[i - 1] if i else 0) * 40.0, 0.0, 0.0) for i in range(80)])
+    assert p.top_speed < 13.0  # of 40: under the first medal
+
 
 
 def test_top_speed_in_slow_motion_recording(tmp_path):
-    # A recorder below ~15 frames a second runs the game slower than the clock: the player covers 72 % of the velocity.
+    # A recorder below ~15 frames a second runs the game slower than the clock: the player covers 72 % of the velocity,
+    # and that is what counts.
     stamps = [i / 11 for i in range(60)]
     p = _one_player(tmp_path, [(1.0 + 0.72 * 10 * t, 2.0, 3.0) for t in stamps], [(10.0, 0.0, 0.0)] * 60, stamps)
-    assert p.top_speed == pytest.approx(10.0)
+    assert p.top_speed == pytest.approx(7.2)
 
 
-def test_top_speed_not_held_over_a_recording_gap(tmp_path):
+def test_top_speed_not_over_a_recording_gap(tmp_path):
     # Two fast moments 2 s apart, nothing recorded in between, 20 m/s on both sides for half a second.
     stamps = [i / 20 for i in range(10)] + [2.5 + i / 20 for i in range(10)]
     p = _one_player(tmp_path, [(20.0 * t - 25, 2.0, 3.0) for t in stamps], [(20.0, 0.0, 0.0)] * 20, stamps)

@@ -18,15 +18,17 @@ LONE_WOLF_DISTANCE_SQ = 12.25  # head distance² in m² (3.5 m): Lone Wolf only;
 STOPPED_SPEED = 1.0  # m/s
 PING_PLACEHOLDER = 999  # API value when there is no reading; excluded from average ping
 PING_CAP = 400  # a reading above this counts as this much in averages (profile, leaderboard, trends); the match page shows the raw average
-TOP_SPEED_WINDOW_S = 1.0  # top speed = highest speed held for a full window
-
-# The API's velocity is not always movement: a player whose data stops coming (lag, loading into the match) keeps the
-# last velocity while standing still. Until 2026-11-25 the three fastest records were such players (51.8 m/s "held"
-# for 10.7 s without moving at all). So a window only counts when the player was really carried along: where they
-# ended up must be where the velocity takes them. Measured on 800 recent matches, 94,113 seconds above 8 m/s: the two
-# agree within 1 % (median), and within 12 % in 99 % of those above 12 m/s. Recorders that fall below ~15 frames a second run
-# the whole game in slow motion and are 28-30 % apart (the velocity is right there: the limit must let those pass);
-# frozen players are 95-100 % apart.
+# Top speed (user, 2026-11-25): the fastest average over one second, and the distance must really be covered. No peaks
+# (single readings spike to 100+ m/s), and never more than the distance travelled, along the way the player went, turns
+# included. The way is measured in TOP_SPEED_LEGS parts of the second, not frame by frame: shaking on the spot is no
+# way travelled (38 m/s of readings within 2 m seen). Until then it was the highest speed held all through a second.
+TOP_SPEED_WINDOW_S = 1.0
+TOP_SPEED_LEGS = 4
+# The API's velocity alone is not movement: a player whose data stops coming (lag, loading into the match) keeps the
+# last velocity while standing still, and may then jump. So the second only counts when the player ended up where the
+# velocity takes them. Measured on 800 recent matches, 94,113 seconds above 8 m/s: the two agree within 1 % (median),
+# within 12 % in 99 % of those above 12 m/s; frozen players are 95-100 % apart. Recorders below ~15 frames a second run
+# the game in slow motion and are 28-30 % apart: those pass, and the distance covered is what counts there.
 TOP_SPEED_MISMATCH = 0.5  # share of the distance the velocity stands for
 TOP_SPEED_MISMATCH_M = 0.5  # always allowed: the head moves about on its own, the velocity is the body's
 TOP_SPEED_MAX_GAP_S = 0.5  # a longer gap in the recording starts a new window: nobody saw what happened in between
@@ -72,8 +74,8 @@ class PlayerAccumulator:
         self._was_in_bounds: bool | None = None
         self._last_in_bounds_position = None
         self._loadout: tuple[str, str, str] | None = None
-        self._speeds: deque[tuple] = deque()  # (t_s, speed, head position, velocity), in-bounds only
-        self._window_min: deque[tuple] = deque()  # same samples, rising speeds: [0] = window minimum
+        self._window: deque[tuple] = deque()  # (t_s, speed, head position, velocity), in-bounds only
+        self._window_m = 0.0  # the distance the speeds in it stand for
         self._still_at: Vec3 | None = None  # where the head has been exactly since _still_from
         self._still_from = 0.0
         self._still_sum = 0.0  # speed_sum counted since then, taken back when the player turns out to be frozen
@@ -116,9 +118,9 @@ class PlayerAccumulator:
                 self.deaths += 1
                 x, _, z = self._last_in_bounds_position
                 self.event(frame, "death_est", {"x": round(x, 2), "z": round(z, 2)})
-            self._speeds.clear()
-            self._window_min.clear()
         if not inside:
+            self._window.clear()
+            self._window_m = 0.0
             self._still_at = None
         self._was_in_bounds = inside
 
@@ -176,38 +178,46 @@ class PlayerAccumulator:
         self._still_sum += speed
 
     def _track_top_speed(self, t_s: float, speed: float, head: Vec3, velocity: Vec3) -> None:
-        window, lows = self._speeds, self._window_min
-        if window and t_s - window[-1][0] > TOP_SPEED_MAX_GAP_S:
-            window.clear()
-            lows.clear()
-        sample = (t_s, speed, head, velocity)
-        window.append(sample)
-        while lows and lows[-1][1] >= speed:  # can never be the minimum again
-            lows.pop()
-        lows.append(sample)
+        window = self._window
+        if window:
+            t0, before = window[-1][:2]
+            if t_s - t0 > TOP_SPEED_MAX_GAP_S:
+                window.clear()
+                self._window_m = 0.0
+            else:
+                self._window_m += (before + speed) / 2 * (t_s - t0)
+        window.append((t_s, speed, head, velocity))
         # Keep the shortest run of samples that still spans the window.
         while len(window) > 1 and window[1][0] <= t_s - TOP_SPEED_WINDOW_S:
-            if window.popleft() is lows[0]:
-                lows.popleft()
-        if window[0][0] <= t_s - TOP_SPEED_WINDOW_S and lows[0][1] > self.top_speed and self._really_moved():
-            self.top_speed = lows[0][1]
+            t0, before = window.popleft()[:2]
+            self._window_m -= (before + window[0][1]) / 2 * (window[0][0] - t0)
+        span = t_s - window[0][0]
+        if span < TOP_SPEED_WINDOW_S:
+            return
+        if self._window_m > self.top_speed * span:
+            self.top_speed = max(self.top_speed, min(self._window_m, self._travelled(span)) / span)
 
-    def _really_moved(self) -> bool:
-        """Did the player end up where the window's velocities take them (TOP_SPEED_MISMATCH)?"""
-        distance = dx = dy = dz = 0.0
-        samples = iter(self._speeds)
-        t0, v0, head0, (x0, y0, z0) = first = next(samples)
-        last = first
-        for last in samples:
-            t1, v1, _, (x1, y1, z1) = last
+    def _travelled(self, span: float) -> float:
+        """Distance travelled in the window (TOP_SPEED_LEGS); 0 when the player did not end up where its velocities
+        take them (TOP_SPEED_MISMATCH)."""
+        distance = travelled = dx = dy = dz = 0.0
+        leg = 1
+        samples = iter(self._window)
+        t0, v0, start, (x0, y0, z0) = next(samples)
+        began, corner, head = t0, start, start
+        for t1, v1, head, (x1, y1, z1) in samples:
             half = (t1 - t0) / 2
             distance += (v0 + v1) * half
             dx += (x0 + x1) * half
             dy += (y0 + y1) * half
             dz += (z0 + z1) * half
+            if t1 - began >= span * leg / TOP_SPEED_LEGS:
+                travelled += math.dist(corner, head)
+                corner, leg = head, int((t1 - began) / span * TOP_SPEED_LEGS) + 1
             t0, v0, x0, y0, z0 = t1, v1, x1, y1, z1
-        carried = (head0[0] + dx, head0[1] + dy, head0[2] + dz)
-        return math.dist(carried, last[2]) <= max(TOP_SPEED_MISMATCH_M, TOP_SPEED_MISMATCH * distance)
+        travelled += math.dist(corner, head)
+        carried = (start[0] + dx, start[1] + dy, start[2] + dz)
+        return travelled if math.dist(carried, head) <= max(TOP_SPEED_MISMATCH_M, TOP_SPEED_MISMATCH * distance) else 0.0
 
     def result(self, ended_at: datetime) -> PlayerStats:
         p = self.latest

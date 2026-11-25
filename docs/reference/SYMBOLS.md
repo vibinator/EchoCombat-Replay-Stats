@@ -232,9 +232,9 @@ Fixed objects per map, measured from real replays (2026-10-31), for drawing the 
 Payload maps: attacking team, winner, per-player time on the payload (ReplayData "Payload semantics").
 - `ON_PAYLOAD_RADIUS_M`:8 / `FINAL_CHECKPOINT`:9 / **class PayloadAccumulator**:12 [add:21, attacking_team:37, winner:42, push_block:52] / _other:62
 
-### `app/backend/stats/player.py` (244 lines)
+### `app/backend/stats/player.py` (254 lines)
 Per-player accumulator. Rules follow the old app (ReplayData.MD): ping over all frames (except the 999 placeholder),
-- `LEFT_EARLY_S`:15 / `NEAR_DISTANCE_SQ`:16 / `LONE_WOLF_DISTANCE_SQ`:17 / `STOPPED_SPEED`:18 / `PING_PLACEHOLDER`:19 / `PING_CAP`:20 / `TOP_SPEED_WINDOW_S`:21 / `TOP_SPEED_MISMATCH`:30 / `TOP_SPEED_MISMATCH_M`:31 / `TOP_SPEED_MAX_GAP_S`:32 / `FROZEN_S`:33 / **class PlayerAccumulator**:36 [event:81, add:85, _add_in_bounds:125, _track_speed_sum:167, _track_top_speed:178, _really_moved:195, result:212]
+- `LEFT_EARLY_S`:15 / `NEAR_DISTANCE_SQ`:16 / `LONE_WOLF_DISTANCE_SQ`:17 / `STOPPED_SPEED`:18 / `PING_PLACEHOLDER`:19 / `PING_CAP`:20 / `TOP_SPEED_WINDOW_S`:25 / `TOP_SPEED_LEGS`:26 / `TOP_SPEED_MISMATCH`:32 / `TOP_SPEED_MISMATCH_M`:33 / `TOP_SPEED_MAX_GAP_S`:34 / `FROZEN_S`:35 / **class PlayerAccumulator**:38 [event:83, add:87, _add_in_bounds:127, _track_speed_sum:169, _track_top_speed:180, _travelled:200, result:222]
 
 ### `app/backend/stats/quality.py` (46 lines)
 Which matches count for averages (user, 2026-11-07, Review DATA-3): a game of at least COUNTED_MIN_S with at least
