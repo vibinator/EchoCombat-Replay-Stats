@@ -93,16 +93,16 @@ path is in middleware.WRITES / BOT. Console routes need auth.has_console; profil
 | GET | `/api/overview/latest` | latest_matches | app/backend/api/overview.py:154 | The home page's "Latest matches" list on its own: the overview is rebuilt at most every cache_refresh_s (it is |
 | GET | `/api/overview/live` | live | app/backend/api/overview.py:230 | Is a game being played now (the spectator bot is live on Twitch)? The home page's "Game in progress" card |
 | GET | `/api/overview/map-heat` | map_heat_cards | app/backend/api/overview.py:180 |  |
-| GET | `/api/overview/players-seen` | players_seen | app/backend/api/overview.py:425 |  |
+| GET | `/api/overview/players-seen` | players_seen | app/backend/api/overview.py:443 |  |
 | GET | `/api/overview/processing` | processing | app/backend/api/overview.py:163 | Replays still waiting to be read, for the "processing" spinner in the top bar. Not cached: it is the live queu |
 | GET | `/api/players` | search_players | app/backend/api/players.py:35 |  |
-| GET | `/api/players/compare/{user_ids}` | compare_players | app/backend/api/players.py:177 | Profiles of 2-4 players side by side + head-to-head record of the first two. |
-| GET | `/api/players/{user_id}` | get_player | app/backend/api/players.py:210 |  |
+| GET | `/api/players/compare/{user_ids}` | compare_players | app/backend/api/players.py:190 | Profiles of 2-4 players side by side + head-to-head record of the first two. |
+| GET | `/api/players/{user_id}` | get_player | app/backend/api/players.py:223 |  |
 | GET | `/api/players/{user_id}/achievements` | player_achievements | app/backend/api/achievements.py:176 |  |
-| GET | `/api/players/{user_id}/companions` | get_companions | app/backend/api/players.py:511 |  |
-| GET | `/api/players/{user_id}/heatmap` | get_player_heatmap | app/backend/api/players.py:393 |  |
-| GET | `/api/players/{user_id}/heatmap3d` | get_player_heatmap3d | app/backend/api/players.py:430 |  |
-| GET | `/api/players/{user_id}/trends` | get_trends | app/backend/api/players.py:443 |  |
+| GET | `/api/players/{user_id}/companions` | get_companions | app/backend/api/players.py:525 |  |
+| GET | `/api/players/{user_id}/heatmap` | get_player_heatmap | app/backend/api/players.py:407 |  |
+| GET | `/api/players/{user_id}/heatmap3d` | get_player_heatmap3d | app/backend/api/players.py:444 |  |
+| GET | `/api/players/{user_id}/trends` | get_trends | app/backend/api/players.py:457 |  |
 | GET | `/api/profiles/discord/{discord_id}` | get_discord_profile | app/backend/api/profiles.py:184 |  |
 | POST | `/api/profiles/discord/{discord_id}` | edit_discord_profile | app/backend/api/profiles.py:195 | Only the bio and the avatar choice, only by that Discord account itself (logged in with Discord). |
 | GET | `/api/profiles/me` | my_profile | app/backend/api/profiles.py:114 | The logged-in visitor's own profile (from the Discord login only; nothing about anyone else is asked for). |

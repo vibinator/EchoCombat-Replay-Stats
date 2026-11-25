@@ -18,6 +18,17 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.25.3 — 20:46
+
+- **Home: "Top 5 fastest players"** instead of the one fastest player (user, 25 Nov): name, speed, and the map, date and time it
+  was reached, with a link to that match. Each player once, with their best match; counted games only (2+ minutes, 2+ players per
+  team), so it agrees with the leaderboard and Records.
+- **Player page: the top speed opens the match it was reached in**, with its map, date and time under it. It follows the period
+  and map picked on the page.
+- API: `/api/overview` `global.fastest` is now `global.fastest_players`; `/api/players/{id}` `stats.top_speed_match` is new.
+- Needs the update deployed (restart); nothing more is re-read. Until the re-read of 2026.11.25.2 has reached the old
+  glitched matches they stay in the list.
+
 ## 2026.11.25.2 — 20:31
 
 Top speed is real movement only (user, 25 Nov: "the most accurate speed"):

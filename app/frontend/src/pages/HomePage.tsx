@@ -530,7 +530,7 @@ export function HomePage() {
                       <span className="label">#{i + 1}</span>
                       <strong><FitText title={p.name}><Link to={playerPath(p.user_id, p.name)}>{p.name}</Link></FitText></strong>
                       <span className="muted">{num(p.top_speed)} m/s</span>
-                      <span className="muted"><Link to={`/matches/${p.match_id}`}>{title(p.map)} · <LocalTime iso={p.started_at} /></Link></span>
+                      <span className="muted"><Link to={`/matches/${p.match_id}`}>{title(p.map)} · <span className="nowrap"><LocalTime iso={p.started_at} /></span></Link></span>
                     </div>
                   ))}
                 </StatGroup>
