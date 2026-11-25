@@ -51,7 +51,7 @@ def _overview(request: Request, v: visibility.View = visibility.ALL_SHOWN) -> di
         latest = match_cards(db, _latest_matches(db), with_players=True)
         newcomers = _newcomers(db, week)
         trend = _trend(db)
-        globals_ = _global_stats(db, totals)
+        globals_ = _global_stats(db, totals, request.app.state.settings.counted_stats)
         if not wl:  # team win rates too (user, 2026-11-02)
             globals_ = visibility.without(globals_, TEAM_WIN_KEYS)
     return {
@@ -358,8 +358,31 @@ def _player_totals(db):
     ).one()
 
 
-def _global_stats(db, totals=None) -> dict:
-    """Archive-wide facts for the home page. `totals`: _player_totals(db) when the caller has it already."""
+FASTEST_TOP = 5
+FASTEST_SCAN = 200  # fastest single-match rows read before keeping each player's best one
+
+
+def _fastest_players(db, strict: bool) -> list[dict]:
+    """The fastest players with the match they did it in: each player's best one only, and counted games only while
+    that rule is on (stats/quality.py), so the list agrees with the leaderboard and its records."""
+    where = [counted(MatchPlayer.match_id), MatchPlayer.top_speed > 0]
+    if strict:
+        where.append(Match.counted_for_stats == 1)
+    rows = db.execute(
+        select(Player.user_id, Player.name, MatchPlayer.top_speed, MatchPlayer.match_id, Match.map, Match.started_at)
+        .select_from(MatchPlayer).join(Match, Match.id == MatchPlayer.match_id).join(Player, Player.id == MatchPlayer.player_id)
+        .where(*where).order_by(MatchPlayer.top_speed.desc(), Match.started_at).limit(FASTEST_SCAN)
+    ).all()
+    best: dict[str, dict] = {}
+    for r in rows:
+        best.setdefault(r.user_id, {"user_id": r.user_id, "name": r.name, "top_speed": round(r.top_speed, 2),
+                                    "match_id": r.match_id, "map": r.map, "started_at": r.started_at})
+    return list(best.values())[:FASTEST_TOP]
+
+
+def _global_stats(db, totals=None, strict: bool = False) -> dict:
+    """Archive-wide facts for the home page. `totals`: _player_totals(db) when the caller has it already. `strict`:
+    fastest players from counted games only (settings.counted_stats)."""
     if totals is None:
         totals = _player_totals(db)
     avg_len, longest_id, longest_s = None, None, None
@@ -370,10 +393,6 @@ def _global_stats(db, totals=None) -> dict:
         longest_id, longest_s = db.execute(
             select(Match.id, Match.duration_s).where(m).order_by(Match.duration_s.desc()).limit(1)).one()
     slots, deaths = totals.slots, totals.deaths
-    fastest = db.execute(
-        select(Player.user_id, Player.name, MatchPlayer.top_speed, MatchPlayer.match_id).join(Player)
-        .where(mp).order_by(MatchPlayer.top_speed.desc()).limit(1)
-    ).first()
     most_active = db.execute(
         select(Player.user_id, Player.name, func.count()).select_from(MatchPlayer).join(Player)
         .where(mp).group_by(Player.id).order_by(func.count().desc()).limit(1)
@@ -409,8 +428,7 @@ def _global_stats(db, totals=None) -> dict:
         "avg_players_per_match": round(slots / n, 1) if n else None,
         "deaths_est": deaths or 0,
         **_top_gear(db),
-        "fastest": {"user_id": fastest[0], "name": fastest[1], "top_speed": round(fastest[2], 2), "match_id": fastest[3]}
-        if fastest else None,
+        "fastest_players": _fastest_players(db, strict),
         "most_active": {"user_id": most_active[0], "name": most_active[1], "games": most_active[2]} if most_active else None,
         "busiest_day": {"day": busiest[0], "matches": busiest[1]} if busiest else None,
         "payload_attack_win_rate": ratio(payload[1], payload[0]),

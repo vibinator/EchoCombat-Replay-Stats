@@ -8,7 +8,7 @@ import { AchievementsStrip, AchievementsSummary } from "../components/Achievemen
 import { CombatSection } from "../components/CombatView";
 import { ShareBar, Sparkline, SplitBar, VsAverage } from "../components/bars";
 import { LineChart } from "../components/charts";
-import { GearName, MatchTable, NotFoundBox, Status, TableWrap, TeamBadge, isNotFound } from "../components/common";
+import { GearName, LocalTime, MatchTable, NotFoundBox, Status, TableWrap, TeamBadge, isNotFound } from "../components/common";
 import { HEATMAP_CELL_M, HEATMAP_MODES, HeatmapView } from "../components/HeatmapView";
 import { PlayerAvatar, PlayerBio, usePlayerBio } from "../components/PlayerBio";
 import { InfoTip, MoreCard, Skeleton, useActiveTabInView, useColumns } from "../components/ui";
@@ -157,7 +157,10 @@ function cards(s: PlayerStats, avg: Averages = {}, months?: TrendPoint[]): CardR
     ["Deaths*", int(s.deaths_est), `Estimated from leaving the map bounds.${counted}`],
     ["Deaths / game*", num(s.deaths_per_game_est, 2), `The line: per month, all time.${counted}`, trend(months, "deaths_per_game_est", "Deaths per game")],
     ["Average speed", `${num(s.avg_speed, 2)} m/s`, `The line: per month, all time.${counted}`, trend(months, "avg_speed", "Average speed")],
-    ["Top speed", `${num(s.top_speed)} m/s`, `Fastest speed held for a full second.${counted}`],
+    ["Top speed",
+      s.top_speed_match ? <strong><Link to={`/matches/${s.top_speed_match.id}`}>{num(s.top_speed)} m/s</Link></strong> : `${num(s.top_speed)} m/s`,
+      `Fastest speed held for a full second.${s.top_speed_match ? " Opens the match it was reached in." : ""}${counted}`,
+      s.top_speed_match && <span className="muted">{title(s.top_speed_match.map)} · <LocalTime iso={s.top_speed_match.started_at} /></span>],
     ["Time idle", <VsAverage value={s.pct_stopped} average={avg.pct_stopped} />, `Moving slower than 1 m/s. The tick: every player's average.${counted}`],
     ["Inverted", <VsAverage value={s.pct_upside_down} average={avg.pct_upside_down} />, `The tick: every player's average.${counted}`],
     ["Near a teammate", <VsAverage value={s.pct_near_mate} average={avg.pct_near_mate} />, `The tick: every player's average.${counted}`],

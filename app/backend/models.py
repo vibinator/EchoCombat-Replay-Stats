@@ -107,7 +107,7 @@ class MatchPlayer(Base):
     ping_capped_sum: Mapped[float | None]  # readings capped at stats.player.PING_CAP, for averages (DATA-5); NULL until the replay is read again (D57)
     frames_in_bounds: Mapped[int]
     speed_sum: Mapped[float]
-    top_speed: Mapped[float] = mapped_column(index=True)  # home page "fastest player"
+    top_speed: Mapped[float] = mapped_column(index=True)  # home page "top 5 fastest players"
     frames_stopped: Mapped[int]
     frames_upside_down: Mapped[int]
     frames_near_mate: Mapped[int]

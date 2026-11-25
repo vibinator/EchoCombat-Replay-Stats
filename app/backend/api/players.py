@@ -145,6 +145,19 @@ def _profile(db, where, strict: bool = True) -> dict:
     }
 
 
+def _top_speed_match(db, where, strict: bool) -> dict | None:
+    """The match behind a profile's top speed (the same games _profile takes it from); the first one when it was
+    reached more than once."""
+    conditions = [where, MatchPlayer.top_speed > 0]
+    if strict:
+        conditions.append(Match.counted_for_stats == 1)
+    r = db.execute(
+        select(Match.id, Match.map, Match.started_at).select_from(MatchPlayer).join(Match, Match.id == MatchPlayer.match_id)
+        .where(and_(*conditions)).order_by(MatchPlayer.top_speed.desc(), Match.started_at).limit(1)
+    ).first()
+    return {"id": r.id, "map": r.map, "started_at": r.started_at} if r else None
+
+
 def _site_averages(request: Request, period: str, map_: str | None) -> dict:
     """Every player's shares over the same period / map, for the "site average" tick on the profile cards. One scan
     of match_players, so it is kept per filter like the leaderboard aggregate."""
@@ -230,6 +243,7 @@ def _get_player(request: Request, user_id: str, period: str, map: str | None, v:
         wl = not v.hides(*visibility.ids(db, user_id))
         where = _filters(player.id, period, map)
         stats = _profile(db, where, request.app.state.settings.counted_stats)
+        stats["top_speed_match"] = _top_speed_match(db, where, request.app.state.settings.counted_stats)
         if not wl:
             stats = visibility.without(stats)
         ids = ids_of(db, player.user_id)

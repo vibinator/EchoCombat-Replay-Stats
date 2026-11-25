@@ -512,6 +512,8 @@ export interface PlayerStats {
   deaths_per_game_est: number | null;
   avg_speed: number | null;
   top_speed: number | null;
+  /** where the top speed was reached (profile only) */
+  top_speed_match?: { id: number; map: string; started_at: string } | null;
   avg_ping: number | null;
   pct_stopped: number | null;
   pct_upside_down: number | null;
@@ -849,7 +851,8 @@ export interface GlobalStats {
   top_weapons: GearShare[];
   top_ordnances: GearShare[];
   top_tacmods: GearShare[];
-  fastest: { user_id: string; name: string; top_speed: number; match_id: number } | null;
+  /** the 5 fastest, each player's best match only (counted games) */
+  fastest_players: { user_id: string; name: string; top_speed: number; match_id: number; map: string; started_at: string }[];
   most_active: { user_id: string; name: string; games: number } | null;
   busiest_day: { day: string; matches: number } | null;
   /** payload_* and capture_wins: left out while win-loss stats are hidden */

@@ -523,15 +523,22 @@ export function HomePage() {
                   </div>
                 </StatGroup>
               )}
-              <StatGroup title="Records" n={6}>
+              {(g.fastest_players ?? []).length > 0 && (
+                <StatGroup title="Top 5 fastest players" n={5}>
+                  {g.fastest_players.map((p, i) => (
+                    <div className="card" key={p.user_id} title="Fastest speed held for at least one full second">
+                      <span className="label">#{i + 1}</span>
+                      <strong><FitText title={p.name}><Link to={playerPath(p.user_id, p.name)}>{p.name}</Link></FitText></strong>
+                      <span className="muted">{num(p.top_speed)} m/s</span>
+                      <span className="muted"><Link to={`/matches/${p.match_id}`}>{title(p.map)} · <LocalTime iso={p.started_at} /></Link></span>
+                    </div>
+                  ))}
+                </StatGroup>
+              )}
+              <StatGroup title="Records" n={5}>
                 <div className="card">
                   <span className="label">Longest match</span>
                   <strong>{g.longest_match ? <Link to={`/matches/${g.longest_match.id}`}>{duration(g.longest_match.duration_s)}</Link> : "–"}</strong>
-                </div>
-                <div className="card">
-                  <span className="label">Fastest player</span>
-                  <strong>{g.fastest ? <FitText title={g.fastest.name}><Link to={playerPath(g.fastest.user_id, g.fastest.name)}>{g.fastest.name}</Link></FitText> : "–"}</strong>
-                  {g.fastest && <span className="muted">{num(g.fastest.top_speed)} m/s</span>}
                 </div>
                 <div className="card">
                   <span className="label">Most matches</span>

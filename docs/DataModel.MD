@@ -220,7 +220,7 @@ Cached more tightly than other answers (`cache.py`, `api/players.py`), because t
 - matches.session_id; matches.started_at; matches.map; matches(private_match, started_at)
 - players.user_id UNIQUE; players.name
 - match_players(player_id); match_players(player_id, match_id): covering for per-player counts without duplicates (D13);
-  match_players.top_speed (home "fastest player", D50)
+  match_players.top_speed (home "top 5 fastest players", D50)
 - match_player_loadouts(weapon, ordnance, tacmod, match_id, frames): covering, home "most popular gear" (D50)
 - events(match_id, t_s)
 

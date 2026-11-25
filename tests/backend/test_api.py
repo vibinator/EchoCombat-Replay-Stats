@@ -78,10 +78,13 @@ def test_player_search_and_profile(client):
     assert s["games_by_map"] == {"dyson": 1, "surge": 1}
     assert s["avg_ping"] == 60 and s["pct_stopped"] == 0
     assert profile["level"] == 30
+    assert s["top_speed"] == 5.0 and s["top_speed_match"]["map"] == "dyson"  # the match it was reached in
+    assert s["top_speed_match"]["id"] == client.get("/api/matches", params={"map": "dyson"}).json()["items"][0]["id"]
     assert profile["loadouts"][0]["weapon"]["name"] == "Pulsar"
     assert [m["result"] for m in profile["recent_matches"]].count("win") == 1
 
     assert client.get(f"/api/players/{BLUE}", params={"map": "surge"}).json()["stats"]["games"] == 1
+    assert client.get(f"/api/players/{BLUE}", params={"map": "surge"}).json()["stats"]["top_speed_match"] is None  # never moved there
     assert client.get(f"/api/players/{BLUE}", params={"period": "day"}).json()["stats"]["games"] == 0
     assert client.get(f"/api/players/{BLUE}", params={"period": "year"}).status_code == 422
     assert client.get("/api/players/missing").status_code == 404

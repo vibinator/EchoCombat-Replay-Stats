@@ -48,7 +48,11 @@ def test_overview_and_global_stats(client):
     assert {x["name"] for x in g["top_ordnances"]} >= {"Detonator", "Stun Field"}
     assert g["top_tacmods"][0]["name"] == "Repair Matrix"
     assert g["avg_match_s"] > 0 and g["avg_players_per_match"] == 2.0
-    assert g["most_active"]["games"] == 3 and g["fastest"]["top_speed"] > 0
+    assert g["most_active"]["games"] == 3
+    fast = g["fastest_players"]  # each player once, with the match; the one who never moved is not in it
+    assert [(p["user_id"], p["top_speed"], p["map"]) for p in fast] == [(BLUE, 5.0, "dyson")]
+    assert fast[0]["match_id"] in (mid(client, "dyson/a.echoreplay"), mid(client, "dyson/b.echoreplay"))
+    assert fast[0]["started_at"].startswith("2026-10-28T20:45:44")
     assert g["capture_wins"] == {"blue": 1, "orange": 0}
     assert len(o["latest"]) == 3
     # full loadout, match length per mode / map, fun facts, newcomers
