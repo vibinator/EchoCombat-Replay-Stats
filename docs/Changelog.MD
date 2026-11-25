@@ -18,6 +18,13 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.25.4 — 21:05
+
+- **Super Ultra Hyper Turbo is slightly easier on every medal** (user, 25 Nov): top speed in one game 13 / 17 / 19 / 21 m/s for
+  bronze / silver / gold / crown (was 14 / 18 / 20 / 22). Of the 90 regulars (25+ games in the newest 1,600 matches, with the
+  corrected speeds) 99 / 50 / 21 / 10 % reach them, before 88 / 34 / 13 / 7 %.
+- Needs the update deployed (restart); nothing is re-read, medals are worked out from the saved speeds.
+
 ## 2026.11.25.3 — 20:46
 
 - **Home: "Top 5 fastest players"** instead of the one fastest player (user, 25 Nov): name, speed, and the map, date and time it
