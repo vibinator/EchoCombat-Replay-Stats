@@ -18,6 +18,24 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.26.2 — 14:59
+
+- **An instant solo launch gives no top speed** (user, 26 Nov: "big spikes as a solo are not realistic, as shooting behind you
+  is a gradual growth"). A player under 10 m/s who gains 20+ m/s within a twentieth of a second, with nobody moving at 5+ m/s within
+  2.5 m, is launched: no second holding the launch or the coast after it counts, until they slow under 10 m/s. Bree_Plays
+  (Combustion 2022-05-11) went from 0.4 to 60 m/s in one frame along the floor and stopped dead: 41.6 → 13.9. Also e_g2012
+  35.7 → 10.6, P.R.E.C.L.O.U.D 35.2 → 13.3, MUSTYVR 33.6 → 9.9, Vibinator 33.0 → 8.3, oculususername1229 31.9 → 10.9.
+- **Regrabs and gradual speed-ups still count** (user): DinkatorBoi / JavaBava 37.9 / 35.6 (flinging each other, 0-2 m apart),
+  Caprison- 42.1 and Chroined 39.9 (out of Dyson's tubes, 1 → 51 m/s over 2 s, shooting behind them). A sudden stop is a wall crash
+  and is fine.
+- **A step back in the recorder's clock starts a new top-speed window** (user: "make sure you are handling clock jumps, or time
+  skips"). Nektwo 55.1 → 14.2 and davidyarker 52.5 → 14.3 (Combustion 2022-01-09, the clock went 4.8 s back: 4.8 s of flying was
+  counted as one second); Schmoculus 38.0 → under 18 the same way.
+- Of 220 player-matches at 20+ m/s in the 1,551 newest local replays 26 change; 179 of 180 regrabs keep their speed (dr4coo
+  21.2 → 20.2). New home-page top 5: Caprison- 42.1, Chroined 39.9, DinkatorBoi 37.9, JavaBava 35.6, Rapollo2126 34.6.
+- **After the update** every replay is read again (stats version 20, hours on the NAS); it takes the place of the re-read for
+  version 19. Until it is done, speeds by the old and the new rule are mixed in the lists and challenges.
+
 ## 2026.11.26.1 — 09:42
 
 - **A speed reading over 100 m/s is impossible** (user, 26 Nov): a second that holds one gives no top speed. These are the game
