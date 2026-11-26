@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
 import { LEVELS, getMegaPlayer, getMegaVisible, getAchievements, getArenaProgress, getChallenges, getMe, getRarity, loginUrl, type Achievement, type AchievementPeek, type AchievementRarity, type AchievementRule } from "../api";
-import { achievementsPath, pct, ruleText } from "../format";
+import { achievementsPath, medalRuleText, pct, ruleText } from "../format";
 import { useApi } from "../useApi";
 import { Status } from "./common";
 import { EmptyState } from "./ui";
@@ -41,7 +41,7 @@ const inPeriodSection = (a: { new: boolean; group: string | null; period: string
 type AnyBadge = Parameters<typeof Badge>[0]["a"];
 
 /** The game's own end-of-match award cards (MVP, Super Star, Guard ...): their rules all end in "(Award card)" (combat_achievements.py). */
-export const isAwardCard = (a: { name: string }) => a.name.endsWith("(Award card)");
+export const isAwardCard = (a: { name: string; award?: boolean }) => !!a.award || a.name.endsWith("(Award card)");  // flag from the server since names lost their tag (2026-11-26)
 
 /** Which section (tab) a challenge sits in: its period. The one-game period is the Specials tab; the in-game award cards sit in
  *  the tab of their period, in an "Award cards" box (user, 2026-11-26: no tab of their own). */
@@ -247,6 +247,41 @@ function ChallengeArt({ a, className }: { a: AnyBadge; className: string }) {
   return <span className={`${className} glyph`} style={{ WebkitMaskImage: `url(${src})`, maskImage: `url(${src})` }} aria-hidden="true" />;
 }
 
+const HINT_MAX = 48;
+
+/** A few words under a row's name saying what the challenge is (user, 2026-11-26: names stay, but clearer at a glance). */
+// Written by hand where the rule's first words would be cut off or mislead
+const HINTS: Record<number, string> = {
+  18: "Games with 3 deaths or fewer", 23: "Top speed in one game", 42: "Same loadout, games in a row",
+  43: "Few deaths, games in a row", 46: "Close to teammates, in 7 days", 47: "Close to enemies, in 7 days",
+  48: "Average speed, in 7 days", 49: "Upside down, in 7 days", 71: "Close to teammates, all games",
+  72: "Close to enemies, all games", 73: "Average speed, all games", 74: "Upside down, all games",
+  86: "Least-used experimental weapon", 93: "Capture Point wins, 2-0", 112: "Games with Overcharge",
+  123: "Least-used weapon", 124: "Least-used item", 141: "Capture Point win after losing round one",
+  143: "Far from teammates, one game", 147: "Time on a contested point, one game", 150: "Emotes in a game without dying",
+  151: "Emotes in a game you win", 170: "10+ kills without dying, one game", 176: "Most kills in the match",
+  177: "Games with 5 kills, 5 assists, 5 objective eliminations", 178: "Games with 8+ assists, twice your kills",
+  208: "Most kills in the match, in a day", 213: "Most kills in the match, in 7 days",
+};
+
+export function shortHint(a: { id: number; description: string; period: string }): string {
+  if (HINTS[a.id]) return HINTS[a.id];
+  const rule = ruleText(a.description);
+  const when = (s: string) => (/in one day/.test(s) ? ", in a day" : /in any 7 days/.test(s) ? ", in 7 days" : /in any 30 days/.test(s) ? ", in 30 days" : "");
+  let m = /^Play games using only (.+?) in (?:one day|any 7 days|any 30 days)/.exec(rule);
+  if (m) return `Only ${m[1]}${when(rule)}`;
+  m = /^Play games using (.+)$/.exec(rule);
+  if (m) return `Games with ${m[1]}`;
+  m = /^Play games on (\w+)(?: in (?:one day|any 7 days))?$/.exec(rule);
+  if (m) return `${m[1]} games${when(rule)}`;
+  m = /^Play (Capture Point|Payload|Combat pubs?)(?: games)?(?: in (?:one day|any 7 days))?$/.exec(rule);
+  if (m) return `${m[1].replace(/ pubs?$/, " pubs")}${/games/.test(rule) ? " games" : ""}${when(rule)}`;
+  const first = rule.split(/, | \(|: /)[0];
+  if (first.length <= HINT_MAX) return first;
+  const cut = first.slice(0, HINT_MAX);
+  return `${cut.slice(0, cut.lastIndexOf(" "))}…`;
+}
+
 /** A row of the classic list: icon, name and a slim bar in the colour of the medal reached. Pointing at it (mouse or a VR
  *  controller) peeks the card with the medal steps; a click or tap pins it open, another click or the cross closes it. */
 function ChallengeRow({ a, side }: { a: AnyBadge; side: "left" | "right" }) {
@@ -301,6 +336,7 @@ function ChallengeRow({ a, side }: { a: AnyBadge; side: "left" | "right" }) {
             {catalogue ? share : done ? "Completed!" : pct(a.progress)}
           </span>
         </div>
+        <span className="ch-hint">{shortHint(a)}</span>
         {catalogue ? (
           <div className="ch-bar" role="progressbar" aria-label={a.name} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(fill * 100)}>
             <div style={{ width: `${fill * 100}%` }} />
@@ -1364,6 +1400,23 @@ export function AchievementRules({ open = false }: { open?: boolean }) {
 
 const NEXT_TIERS = 5;
 
+/** How to reach the next tier quickly (user, 2026-11-26): where it has to happen (one game / one day / any 7 days / adds up),
+ *  the player's best so far, and the conditions a game must meet. */
+function nextTierHow(a: Achievement, need: number): { where: string; conditions: string } {
+  const unit = a.unit ?? "";
+  const best = `${(a.count ?? 0).toLocaleString()}${unit}`;
+  const goal = `${need.toLocaleString()}${unit}`;
+  const where: Record<string, string> = {
+    game: `In a single game: reach ${goal}. Your best game so far: ${best}.`,
+    day: `All in one day (UK time): reach ${goal}. Your best day so far: ${best}.`,
+    week: `Within any 7 days: reach ${goal}. Your best 7 days so far: ${best}.`,
+    month: `Within any 30 days: reach ${goal}. Your best 30 days so far: ${best}.`,
+    all: `${Math.max(0, need - (a.count ?? 0)).toLocaleString(undefined, { maximumFractionDigits: 1 })}${unit} more: everything in the challenge period adds up.`,
+  };
+  const tags = (a.rules ?? []).filter((t) => / min games$| players per team$|^"Only"|different days$|min on the map$|^Average/.test(t));
+  return { where: where[a.period] ?? "", conditions: tags.map(ruleSentence).join(" · ") };
+}
+
 /** The challenges closest to their next tier (user, 2026-11-26: back, with more detail): what to do, the tier being chased, how
  *  much is left, a bar to that tier, the four tier crowns and how many players have reached a tier in it. Ladders only (they have
  *  a count); Mega Prizes and the out-of-totals challenges left out. */
@@ -1386,19 +1439,22 @@ function NextTiers({ items }: { items: Achievement[] }) {
           const need = a.levels![i];
           const unit = a.unit ?? "";
           const s = share.get(a.id);
+          const how = nextTierHow(a, need);
           return (
             <article key={a.id} className={`next-tier-card t-${n.medal}`}>
               <div className="next-tier-top">
                 <ChallengeArt a={a} className="next-tier-icon" />
                 <div className="next-tier-title">
                   <strong>{a.name}</strong>
-                  <span className="muted">{ruleText(a.description)}</span>
+                  <span className="muted">{medalRuleText(a.description, n.medal)}</span>
                 </div>
               </div>
               <span className="next-tier-left">{levelText(a.count ?? 0, a.levels ?? [], unit)}</span>
               <div className="next-tier-bar" role="progressbar" aria-label={`${a.name}: ${pct(n.fraction)} of the way to ${n.medal}`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(n.fraction * 100)}>
                 <div style={{ width: `${n.fraction * 100}%` }} />
               </div>
+              <span className="next-tier-how">{how.where}</span>
+              {how.conditions && <span className="muted next-tier-req">{how.conditions}</span>}
               <span className="next-tier-count">
                 <b>{(a.count ?? 0).toLocaleString()}{unit}</b> / {need.toLocaleString()}{unit} <span className="muted">· {pct(n.fraction)} of the way</span>
               </span>

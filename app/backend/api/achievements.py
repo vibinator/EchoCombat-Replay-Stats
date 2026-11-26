@@ -564,7 +564,7 @@ def _catalogue(eligible: list) -> list[dict]:
         values = [p[i] for p in eligible]
         out.append({"id": r.id, "name": r.name, "description": r.description, "rules": rule_notes(r), "period": r.period,
                     "icon": icon_file(r), "estimated": r.estimated, "new": r.new, "group": r.group, "counted": r.counted,
-                    "binary": r.binary, "levels": list(r.levels) or None,  # ladder: targets for bronze ... crown
+                    "binary": r.binary, "award": r.award, "levels": list(r.levels) or None,  # ladder: targets for bronze ... crown
                     "unit": r.unit,
                     "unlocked_share": round(sum(v >= unlock_threshold(r) for v in values) / len(values), 4) if values else None,
                     "completed_share": round(sum(v >= 1 for v in values) / len(values), 4) if values else None})

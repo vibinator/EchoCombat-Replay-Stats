@@ -18,6 +18,62 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.26.31 — 23:09
+
+- **"Overclocked" is now "Overcharged"** (user, 26 Nov): the Overcharge Veteran (games using Overcharge, Cumulative). Same id,
+  targets and progress.
+
+## 2026.11.26.30 — 23:05
+
+- **A short hint under every challenge name** (user, 26 Nov: names kept, but clearer at a glance). Each row shows a few grey
+  words saying what it is: "Only Detonator, in a day", "Fission games, in 7 days", "Games with Pulsar", "Close to teammates,
+  in 7 days", "Win the MVP card in one game" ... built from the rule, written by hand where the rule would be cut short.
+- **"Techneium-99" is now "Meltdown on Fission"** (user, 26 Nov): the One Day Fission challenge. Same id, targets and progress.
+
+## 2026.11.26.29 — 23:01
+
+- **No category tags in challenge names** (user, 26 Nov: "now that the challenges are organised, you don't need to put
+  (weapon) etc in the title"). "(Weapon)", "(Ordnance)", "(Tac Mod)", "(Payload)", "(Capture Point)", "(Emotes)",
+  "(Movement)", "(Activity)", "(Wins)", "(Loadout)", "(Map)", "(Combat)" and "(Award card)" are gone; the tabs and topic boxes
+  say it. The names themselves stay. Award cards are now flagged by the server ("award") instead of by their name.
+- **"Your next tiers" says how to get there** (user, 26 Nov). Each card now shows the goal for the next tier ("Play 5 games
+  using only Stun Field in any 7 days"), where it has to happen with the player's best so far ("Within any 7 days: reach 5.
+  Your best 7 days so far: 4." / "4 more: everything in the challenge period adds up."), and the conditions a game must meet
+  (4+ minutes, 3+ players per team, "only" = 90 %+ of the game, games on 3 different days from silver).
+
+## 2026.11.26.28 — 22:58
+
+- **Cumulative targets raised for November's activity** (user, 26 Nov: "let's say November activity holds"; November has
+  about twice the games of the months before).
+  - Gear Veterans (all gear): 20 / 50 / 80 / 120 games (were 15 / 35 / 55 / 80).
+  - The other count-based Cumulative ladders went halfway between their 4-month targets and November's pace (safe if
+    activity drops back): My Other Chassis Is a Toaster 7 / 22 / 43 / 64, 5th Loadout when? 7 / 27 / 54 / 78, Pixel Party!
+    95 / 400 / 800 / 1,400, King of the Hill and Feed the Flamingo 20 / 75 / 130 / 150, the four map ladders 12 / 40 / 60 / 74,
+    King/Queen of Pubs 39 / 140 / 250 / 290, Capture Point Clean Sweep 2 / 18 / 26 / 32, Payload Shutout 2 / 15 / 20 / 27,
+    Payload Freight Train 5 / 23 / 38 / 53 min, Lobby Dance Floor Legend 38 / 120 / 150 / 230, Lobby Regular 18 / 26 / 35 / 46
+    days, Loyal Bot 7 / 10 / 12 / 15 weeks, Time Well Wasted 5 / 19 / 30 / 36 h, Overtime on Kronos II 9 / 26 / 36 / 43, Point
+    Taker 8 / 29 / 40 / 53, No Gun Left Behind, Forbidden Arsenal and Loadout Scholar Bot 2 / 5 / 9 / 15, Nothing Leaves
+    Kronos II 4 / 11 / 14 / 17 min, Capture Point Comeback 2 / 12 / 17 / 19, One-Trick Pony 3 / 16 / 29 / 50.
+  - Streaks (Echo Streak, Ready Every Dawn), averages and the already-hard ones (Versatile Bot, Four-Map Tour, Payload
+    Delivered) stay.
+
+## 2026.11.26.27 — 22:40
+
+- **One Week "only <item>" targets rounded: 5 / 10 / 15 / 20 games** (user, 26 Nov: "more even looking, with the top being
+  20"), the same for every weapon, ordnance and tac mod (were 3 / 10 / 14 / 18). Over the last 4 months: Repair Matrix /
+  Detonator 37-40 / 27 / 18-19 / 13 %, the typical item's crown 4 %. Bronze (5 games) still needs no spread; silver and up need
+  games on 3 different days (the no-spread limit moved from 4 to 5 games with it).
+
+## 2026.11.26.26 — 22:36
+
+- **"I've Got a Fever, and the Only Prescription Is Pew Pew Pew!" is now "Combustion Chamber"** (user, 26 Nov): the One Week
+  Combustion challenge (games on Combustion in any 7 days). Same id, targets and progress.
+
+## 2026.11.26.25 — 22:33
+
+- **Super Ultra Hyper Turbo a tiny bit easier** (user, 26 Nov): 19 / 24 / 29 / 35 m/s (was 19 / 24 / 30 / 37). Bronze and
+  silver unchanged; of the 125 regulars in the newest local replays 54 / 10 / 3 / 2 % reach each tier (crown was 1 %).
+
 ## 2026.11.26.24 — 22:19
 
 - **Cumulative challenges set for the 4-month challenge period** (user, 26 Nov). Measured on the last real 4 months of matches

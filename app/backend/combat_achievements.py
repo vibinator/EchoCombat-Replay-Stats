@@ -21,7 +21,7 @@ from itertools import groupby
 
 from sqlalchemy import func, select
 
-from .achievements import FULL_GAME_S, Rule, _ladder, _tuned, evaluate, icon_file, in_window, medal_times, rule_notes, unlock_dates, unlock_threshold
+from .achievements import FULL_GAME_S, Rule, _ladder, _tuned, evaluate, plain_name, icon_file, in_window, medal_times, rule_notes, unlock_dates, unlock_threshold
 from .aliases import alias_map
 from .models import CombatFile, CombatMatch, CombatPlayer
 
@@ -175,6 +175,8 @@ COMBAT_RULES = [r for r in COMBAT_RULES if r.id not in RETIRED_COMBAT_IDS]
 # and Flawless Chassis have one tier, the crown.
 BINARY_COMBAT_IDS = frozenset({170, *range(249, 265)})
 COMBAT_RULES = [replace(r, binary=True) if r.id in BINARY_COMBAT_IDS else r for r in COMBAT_RULES]
+# The award cards are flagged (the site's "Award cards" box), and no rule carries a category tag in its name (achievements.plain_name)
+COMBAT_RULES = [replace(r, award=r.name.endswith("(Award card)"), name=plain_name(r.name)) for r in COMBAT_RULES]
 
 
 def _card_list(raw) -> list[str]:
@@ -278,7 +280,7 @@ def catalogue(sessions, window: tuple) -> list[dict]:
         values = [results[i]["progress"] for results in eligible]
         out.append({"id": r.id, "name": r.name, "description": r.description, "rules": rule_notes(r), "period": r.period,
                     "icon": icon_file(r), "estimated": r.estimated, "new": r.new, "group": r.group, "counted": r.counted,
-                    "binary": r.binary, "levels": list(r.levels) or None, "unit": r.unit,
+                    "binary": r.binary, "award": r.award, "levels": list(r.levels) or None, "unit": r.unit,
                     "unlocked_share": round(sum(v >= unlock_threshold(r) for v in values) / len(values), 4) if values else None,
                     "completed_share": round(sum(v >= 1 for v in values) / len(values), 4) if values else None})
     return out
