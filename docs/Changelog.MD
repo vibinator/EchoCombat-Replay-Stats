@@ -20,6 +20,15 @@ Working record of what changed in each release, newest first.
 
 ## 2026.11.26.13 — 19:36
 
+- **Regrab top speeds no longer cut in half** (user, 26 Nov: "they said 48 m/s"). In regrab flights the game reports a
+  velocity of exactly 0 for runs of 5-10 frames while the player flies on at 40-68 m/s (12 % of moving frames in these
+  matches). Top speed takes the lower of the readings and the distance covered, so those zeros halved it. Such a frame now
+  counts at the head's speed since the frame before; every other check stays (launches, impossible readings, gaps, clock
+  steps). DinkatorBoi 28.9 → 47.3 and JavaBava 26.4 → 45.5 (match 312237), 30.9 → 49.3 and 29.1 → 48.2 (match 315101).
+  Average speed still uses the readings as they are.
+- **After the update** every replay is read again (stats version 21, hours on the NAS); it replaces the version 20 re-read.
+  Until it is done, old and new top speeds are mixed in the lists and challenges.
+
 ## 2026.11.26.12 — 19:27
 
 - **"Fully complete" made obvious** (user, 26 Nov). The challenge bar's headline now reads "30 of 135 challenges fully complete
