@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
-import { LEVELS, getMegaVisible, getAchievements, getArenaProgress, getChallenges, getMe, getRarity, loginUrl, type Achievement, type AchievementPeek, type AchievementRarity, type AchievementRule } from "../api";
+import { LEVELS, getMegaPlayer, getMegaVisible, getAchievements, getArenaProgress, getChallenges, getMe, getRarity, loginUrl, type Achievement, type AchievementPeek, type AchievementRarity, type AchievementRule } from "../api";
 import { achievementsPath, pct, ruleText } from "../format";
 import { useApi } from "../useApi";
 import { Status } from "./common";
-import { EmptyState, useColumns } from "./ui";
+import { EmptyState } from "./ui";
 
 // Old ecranked.com badge art (app/images -> public/achievements). Tier frames = progress levels
 // 25 / 50 / 75 / 100 % (white / bronze / silver / gold); the lock emblem = below 25 %.
@@ -31,7 +31,7 @@ export const NEW_GROUPS: [name: string, hint: string, groups: string[]][] = [
 
 // Survival, Movement, Emotes and Activity are not themes any more (user, 2026-11-04): their challenges sit with the others of the same
 // period (mostly "In one game"; the all-time ones, Activity included, under "All time").
-const BY_PERIOD = new Set(["Survival", "Movement", "Emotes", "Activity", "Gear in one game"]);
+const BY_PERIOD = new Set(["Survival", "Movement", "Emotes", "Activity", "Profile"]);
 const GEAR_GROUPS = new Set(["Experimental gear", "Gear mastery"]);
 /** Shown under its period (in one game / day / any 7 days / all time) rather than a theme: the old rules, a few themes, and the
  *  "any 7 days" gear challenges (user, 2026-11-04). */
@@ -61,7 +61,10 @@ export function themeOf(a: { new: boolean; group: string | null; period: string 
 const PAGE_LABELS: Record<string, string> = Object.fromEntries(GROUPS); // One Match, One Day, One Week, Cumulative (user, 2026-11-10)
 const PAGES = GROUPS;
 /** Every tab in order: the period pages, then the In-game award cards (user, 2026-11-26). */
-const SECTION_LIST: [id: string, label: string][] = [...PAGES.map(([period]) => [`p-${period}`, PAGE_LABELS[period]] as [string, string]), [AWARDS_ID, "In-game award cards"]];
+// The one-game tab is "Specials" (user, 2026-11-26): only the one-of-a-kind single-match challenges, the Test Drives retired.
+// The award cards tab keeps "One Match" for its one-game cards.
+const TAB_LABELS: Record<string, string> = { ...PAGE_LABELS, game: "Specials" };
+const SECTION_LIST: [id: string, label: string][] = [...PAGES.map(([period]) => [`p-${period}`, TAB_LABELS[period]] as [string, string]), [AWARDS_ID, "In-game award cards"]];
 
 type Filter = "done" | "open" | "new";
 const FILTERS: [Filter, string][] = [["open", "In progress"], ["new", "Not started"], ["done", "Completed"]];
@@ -109,24 +112,73 @@ function listProgress(items: AnyBadge[]): number | null {
 function Section<T extends AnyBadge>({ label, items, only, sort, shares, byPeriod = false }: { label: string; items: T[]; only: Filter | ""; sort: SortBy; shares: Shares; byPeriod?: boolean }) {
   const shown = sortItems(only ? items.filter((a) => status(a) === only) : items, sort, shares);
   if (shown.length === 0) return <p className="muted">No challenge matches.</p>;
+  // grouped by topic, each in a box (user, 2026-11-26); the award cards tab by period instead
+  const groups: [string, AnyBadge[]][] = byPeriod
+    ? PAGES.map(([period, name]) => [name, shown.filter((a) => a.period === period)] as [string, AnyBadge[]])
+    : TOPICS.map((t) => [t, shown.filter((a) => topicOf(a) === t)] as [string, AnyBadge[]]);
   return (
-    <div className="ach-panel ch-panel">
-      {byPeriod
-        ? PAGES.map(([period, name]) => {
-            const part = shown.filter((a) => a.period === period);
-            return part.length === 0 ? null : (
-              <section key={period} className="ach-period-part">
-                <h3>{name} <span className="muted">{part.length}</span></h3>
-                <ChallengeList items={part} label={`${label}, ${name}`} />
-              </section>
-            );
-          })
-        : <ChallengeList items={shown} label={label} />}
+    <div className="ch-groups">
+      {groups.filter(([, list]) => list.length > 0).map(([title, list]) => <ChallengeGroup key={title} title={title} items={list} label={`${label}, ${title}`} />)}
     </div>
   );
 }
 
-function ChallengeList({ items, label }: { items: AnyBadge[]; label: string }) {
+const WEAPONS = ["pulsar", "nova", "comet", "meteor", "blazar", "protostar", "quark", "starburst"];
+const ORDNANCES = ["detonator", "stun field", "arc mine", "instant repair", "attack drone", "dot field", "translocator"];
+const TAC_MODS = ["repair matrix", "threat scanner", "energy barrier", "phase shift", "overcharge", "neutron", "umbral veil"];
+const MAPS = ["dyson", "combustion", "fission", "surge"];
+/** Topic boxes inside a tab, in this order (user, 2026-11-26: weapons, ordnances, tac mods, Payload, Capture Point ...). */
+const TOPICS = ["Profile", "Weapons", "Ordnances", "Tac mods", "Loadouts", "Payload", "Capture Point", "Maps", "Movement", "Positioning", "Survival", "Emotes", "Wins", "Activity", "Combat", "Other"];
+const GROUP_TOPIC: Record<string, string> = { Payload: "Payload", "Capture Point": "Capture Point", Emotes: "Emotes", Wins: "Wins", Activity: "Activity", Movement: "Movement", Survival: "Survival", Combat: "Combat", "Gear mastery": "Loadouts", Profile: "Profile" };
+const mentions = (text: string, words: string[]) => words.some((w) => text.includes(w));
+
+/** The topic box a challenge sits in: its theme, else the gear, mode or map its rule names, else its built-in art. Read from
+ *  the rule text first, as an admin may have given the challenge any icon. */
+export function topicOf(a: { name: string; description: string; group: string | null; icon: string | null }): string {
+  const fromGroup = GROUP_TOPIC[a.group ?? ""];
+  if (fromGroup) return fromGroup;
+  const name = a.name.toLowerCase();
+  const text = `${name} ${a.description.toLowerCase()}`;
+  if (text.includes("payload")) return "Payload";
+  if (text.includes("capture point")) return "Capture Point";
+  if (name.includes("(weapon)")) return "Weapons";
+  if (name.includes("(ordnance)")) return "Ordnances";
+  if (name.includes("(tac mod)")) return "Tac mods";
+  if (mentions(text, WEAPONS)) return "Weapons";
+  if (mentions(text, ORDNANCES)) return "Ordnances";
+  if (mentions(text, TAC_MODS)) return "Tac mods";
+  if (mentions(text, MAPS)) return "Maps";
+  if (/loadout|all 12 items|equipable/.test(text)) return "Loadouts";
+  if (/upside down|speed/.test(text)) return "Movement";
+  if (/close to (a teammate|an enemy)/.test(text)) return "Positioning";
+  if (/\bdie\b|dying|deaths/.test(text)) return "Survival";
+  if (/pubs|hours played|days you played/.test(text)) return "Activity";
+  return "Other";
+}
+
+/** One topic box: its name, how far the player is through it, and its rows in two columns (one when it is short). */
+function ChallengeGroup({ title, items, label }: { title: string; items: AnyBadge[]; label: string }) {
+  const progress = listProgress(items);
+  const done = items.filter((a) => status(a) === "done").length;
+  const wide = items.length > 4;
+  return (
+    <section className={`ch-group${wide ? " wide" : ""}`}>
+      <header className="ch-group-head">
+        <h3>{title}</h3>
+        <span className="ch-group-count">{progress === null ? items.length : `${done}/${items.length} · ${pct(progress)}`}</span>
+      </header>
+      <ChallengeList items={items} label={label} single={!wide} />
+    </section>
+  );
+}
+
+function ChallengeList({ items, label, single = false }: { items: AnyBadge[]; label: string; single?: boolean }) {
+  if (single)
+    return (
+      <div className="ch-list single" aria-label={label}>
+        <div className="ch-col left">{items.map((a) => <ChallengeRow key={a.id} a={a} side="left" />)}</div>
+      </div>
+    );
   const half = Math.ceil(items.length / 2);
   return (
     <div className="ch-list" aria-label={label}>
@@ -215,6 +267,10 @@ function ChallengeRow({ a, side }: { a: AnyBadge; side: "left" | "right" }) {
         </div>
         <div className="ch-bar" role="progressbar" aria-label={a.name} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(fill * 100)}>
           <div style={{ width: `${fill * 100}%` }} />
+          {/* a notch at every medal step (user, 2026-11-26); progress is (medals reached + part of the next) / medals */}
+          {!catalogue && Array.from({ length: (a.levels?.length ?? PERCENT_STEPS.length) - 1 }, (_, i) => (
+            <i key={i} className="ch-notch" style={{ "--at": `${((i + 1) / (a.levels?.length ?? PERCENT_STEPS.length)) * 100}%` } as React.CSSProperties} />
+          ))}
         </div>
       </div>
       <div className={`ch-card ${side}${up ? " up" : ""}`} role="tooltip">
@@ -233,13 +289,13 @@ function ChallengeCard({ a, onClose }: { a: AnyBadge; onClose?: () => void }) {
     <div className={`ch-card-inner${tier ? ` t-${tier}` : ""}`}>
       {onClose && <button type="button" className="tile-close" aria-label="Close" title="Close" onClick={(e) => { e.stopPropagation(); onClose(); }}>×</button>}
       <div className="ch-card-text">
-        <span className="ch-kicker">{isAwardCard(a) ? "In-game award card" : `${PAGE_LABELS[a.period] ?? ""} challenge`}{a.new && <span className="tag" title="A newer challenge">new</span>}</span>
+        <span className="ch-kicker">{isAwardCard(a) ? "In-game award card" : a.period === "game" ? "Special" : `${PAGE_LABELS[a.period] ?? ""} challenge`}{a.new && <span className="tag" title="A newer challenge">new</span>}</span>
         <h4>{a.name}</h4>
         <p className="ch-rule">{ruleText(a.description)}{a.estimated && " *"}</p>
         <ol className="ch-steps">
           {steps.map((s) => (
             <li key={s.medal} className={`t-${s.medal} ${s.state}`}>
-              <i className="ch-tick" aria-hidden="true">{s.state === "done" ? "✓" : ""}</i>
+              <span className="ch-frame-step"><img src={`${IMG}${s.medal}.png`} alt="" />{s.state === "done" && <i className="ch-tick" aria-hidden="true">✓</i>}</span>
               <span className="ch-medal">{s.medal}</span>
               <span className="ch-target">{s.label}</span>
               {s.state === "current" && s.fill > 0 && <span className="ch-step-bar"><span style={{ width: `${s.fill * 100}%` }} /></span>}
@@ -270,7 +326,10 @@ function ChallengeCard({ a, onClose }: { a: AnyBadge; onClose?: () => void }) {
           <span className="muted ch-notes" title="Share of players with 10+ games">{pct(a.unlocked_share)} of players have a medal · {pct(a.completed_share)} completed</span>
         )}
       </div>
-      <div className="ch-card-art"><ChallengeArt a={a} className="ch-big" /></div>
+      <div className="ch-card-art">
+        <ChallengeArt a={a} className="ch-big" />
+        {!catalogue && <img className="ch-frame" src={IMG + (tier ? `${tier}.png` : "lock_clear_no_square.png")} alt={tier ? `${tier} medal` : "no medal yet"} />}
+      </div>
     </div>
   );
 }
@@ -360,7 +419,9 @@ export function GroupedBadges<T extends AnyBadge>({ items: all }: { items: T[] }
       {active && (
         <>
           {tracked && <NotYetStarted items={pageItems as unknown as Achievement[]} />}
-          <Section key={active.id} label={active.label} items={pageItems} only={only} sort={sort} shares={shares} byPeriod={active.id === AWARDS_ID} />
+          <div style={{ "--per": SECTION_COLOUR[active.id] ?? "var(--blue)" } as React.CSSProperties}>
+            <Section key={active.id} label={active.label} items={pageItems} only={only} sort={sort} shares={shares} byPeriod={active.id === AWARDS_ID} />
+          </div>
         </>
       )}
     </>
@@ -372,6 +433,50 @@ export function GroupedBadges<T extends AnyBadge>({ items: all }: { items: T[] }
 export function MegaPrizesSection() {
   const visible = useApi(getMegaVisible, "mega-visible").data?.visible;
   return visible ? <MegaPrizes /> : null; // who sees it is set in the Console ("Visible to"); the server checks it too
+}
+
+/** The player profile's Mega Prizes (user, 2026-11-26): only this player's own progress toward each prize, no ranking or
+ *  other players. Shown to whoever may see the Mega Prizes (Console "Visible to"); the server checks it too. */
+export function MegaPrizesProfile({ userId }: { userId: string }) {
+  const visible = useApi(getMegaVisible, "mega-visible").data?.visible;
+  return visible ? <MegaPrizesProfileBody userId={userId} /> : null;
+}
+
+function MegaPrizesProfileBody({ userId }: { userId: string }) {
+  const d = useApi(() => getMegaPlayer(userId), `mega-player|${userId}`).data;
+  if (!d) return null;
+  const prizes = [
+    { key: "combat", title: `Play ${d.combat.target.toLocaleString()} Echo Combat matches`, ...d.combat, prize: d.combat.prize ?? "Delta-13 from Lone Echo 2" },
+    { key: "arena", title: `Play ${d.arena.target.toLocaleString()} Public Arena matches`, ...d.arena },
+  ];
+  return (
+    <section className="mega-profile" aria-label="Mega Prizes">
+      <div className="mega-profile-head">
+        <strong>Mega Prizes</strong>
+        {d.period.start && <span className="muted">{d.period.start} → {d.period.end ?? "open-ended"}{d.period.active && <span className="live-text"> · recording</span>}</span>}
+      </div>
+      <div className="mega-profile-cards">
+        {prizes.map((x) => {
+          const share = Math.min(1, x.matches / x.target);
+          const won = x.matches >= x.target;
+          return (
+            <div key={x.key} className={`mega-profile-card ${x.key}${won ? " won" : ""}`}>
+              <span className="mega-profile-prize">{x.prize}</span>
+              <span className="muted">{x.title}</span>
+              <div className="mega-profile-bar" role="progressbar" aria-label={x.title} aria-valuemin={0} aria-valuemax={x.target} aria-valuenow={x.matches}>
+                <div style={{ width: `${share * 100}%` }} />
+              </div>
+              <span className="mega-profile-count">
+                <b>{x.matches.toLocaleString()}</b> / {x.target.toLocaleString()}
+                <span className="muted"> · {won ? "prize won!" : `${(x.target - x.matches).toLocaleString()} to go`}</span>
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      {!d.linked && <span className="muted mega-profile-note">No game account linked to this player yet, so nothing is counted here.</span>}
+    </section>
+  );
 }
 
 /** Every player who reaches the target wins the prize: there can be many winners (user, 2026-11-05). */
@@ -839,56 +944,6 @@ export function Badge({ a, compact = false }: { a: AchievementRule & Partial<Pic
   );
 }
 
-/** A compact tile (user, 2026-11-06): art, name and the medal bar. Everything else (description, rules, targets, rarity) is in a
- *  popover: it shows on hover or keyboard focus, and a tap on a touch screen opens / closes it. */
-function Tile({ a }: { a: AnyBadge }) {
-  const [open, setOpen] = useState(false);
-  const [dismissed, setDismissed] = useState(false); // closed with the cross while the mouse is still over the tile: stays shut until it leaves
-  const [side, setSide] = useState("mid");
-  function place(el: HTMLElement) {
-    const r = el.getBoundingClientRect();
-    setSide(r.left < 170 ? "left" : window.innerWidth - r.right < 170 ? "right" : "mid");
-  }
-  function close() {
-    setOpen(false);
-    setDismissed(true);
-  }
-  return (
-    <div className={`tile${open ? " open" : ""}${dismissed ? " dismissed" : ""}`} tabIndex={0} role="button" aria-expanded={open}
-      onMouseEnter={(e) => place(e.currentTarget)} onFocus={(e) => place(e.currentTarget)}
-      onMouseLeave={() => setDismissed(false)}
-      onClick={(e) => {
-        if ((e.target as HTMLElement).closest(".tile-pop")) return; // clicks inside the card (links, text) leave it open
-        place(e.currentTarget);
-        setDismissed(false);
-        setOpen((v) => !v);
-      }}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          if ((e.target as HTMLElement).closest(".tile-pop")) return;
-          e.preventDefault();
-          setDismissed(false);
-          setOpen((v) => !v);
-        } else if (e.key === "Escape") close();
-      }}
-      onBlur={(e) => {
-        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
-          setOpen(false);
-          setDismissed(false);
-        }
-      }}>
-      {/* pointing at the tile again (after closing with the cross) shows the card on hover once more */}
-      <div className="tile-face" onMouseEnter={() => setDismissed(false)}>
-        <Badge a={a} compact />
-      </div>
-      <div className={`tile-pop ${side}`} role="tooltip">
-        {open && <button type="button" className="tile-close" aria-label="Close" title="Close" onClick={(e) => { e.stopPropagation(); close(); }}>×</button>}
-        <Badge a={a} />
-      </div>
-    </div>
-  );
-}
-
 // in a file of its own: the top bar (App.tsx) needs only this, not this whole file in the first download
 export { useAchievementsAccess, type AchievementsAccess } from "../achievementsAccess";
 import { useAchievementsAccess } from "../achievementsAccess";
@@ -932,7 +987,7 @@ function SneakPeek({ peek }: { peek: AchievementPeek }) {
       </div>
       {peek.one_game > 0 && (
         <p className="muted">
-          <strong>{peek.one_game}</strong> One Match challenges: one game, everything on the line. Every one needs at least 3 players on each team.
+          <strong>{peek.one_game}</strong> Specials: one game, everything on the line. Every one needs at least 3 players on each team.
         </p>
       )}
       <h3>
@@ -1001,127 +1056,65 @@ export function AchievementsStrip({ userId, onOpen }: { userId: string; onOpen: 
   return <StripBody userId={userId} onOpen={onOpen} />;
 }
 
-/** Same number for the same text in every browser (FNV-1a, 0..1): a player's goals never change by themselves. */
-function stableHash(text: string): number {
-  let h = 2166136261;
-  for (const c of text) {
-    h ^= c.codePointAt(0)!;
-    h = Math.imul(h, 16777619);
-  }
-  return (h >>> 0) / 4294967296;
-}
+const MEDAL_NAMES: Record<string, string> = { crown: "Crown", gold: "Gold", silver: "Silver", bronze: "Bronze", none: "No medal yet" };
+const INSIDE_FROM = 0.1; // a segment this share of the bar or wider has its name inside; narrower ones are named under the bar
 
-const GOALS = 5; // shown on the player page at least (user, 2026-11-06: five, was three) ...
-const GOALS_MAX = 20; // ... and as many as fill the row on a wider screen (user, 2026-11-16)
-const GOAL_MIN_PX = 150; // as .ach-strip-next in styles.css
-const GOAL_GAP_PX = 8;
-const EASE_BAND = 0.25; // challenges this close in difficulty count as equally easy, and are told apart by the random order
-const AFFINITY_PULL = 0.5; // how much of a medal level a favourite theme is worth
-const GOALS_PER_THEME = 2; // so the five are not all about one thing
-
-/** The player's personal goals (user, 2026-11-06): random, but always the EASIEST next medals for that player, so they start
- *  small and get harder as the player completes them. "Easy" = the lowest medal level being worked on (bronze before gold ...), then
- *  the most of it already done. A goal is a challenge's NEXT medal: reaching it changes the challenge's level, so it gives way to
- *  another one. The pick is a hash of player + challenge + medal level, not stored anywhere: stable while nothing is completed,
- *  different for every player, nothing to save (the site computes everything on request). */
-function pickGoals(userId: string, items: Achievement[], count = GOALS): { a: Achievement; fraction: number }[] {
-  // Play style (user, 2026-11-06): the themes the player is already busy with (Payload, Capture Point, gear, movement ...) count as
-  // easier, so the goals fit what they actually play. A theme's affinity = its challenges with progress, as a share of the player's
-  // most active theme (0..1); it takes up to AFFINITY_PULL off a goal's "ease", so a bronze in an unused theme still beats a gold.
-  const active = new Map<string, number>();
-  for (const a of items) if (a.progress > 0) active.set(a.group ?? a.period, (active.get(a.group ?? a.period) ?? 0) + a.progress);
-  const most = Math.max(0, ...active.values());
-  const affinity = (a: Achievement) => (most ? (active.get(a.group ?? a.period) ?? 0) / most : 0);
-  const easy = items
-    .filter((a) => a.counted && !a.prize && a.progress < 1 && a.levels && a.levels.length > 0 && a.count != null)
-    .flatMap((a) => {
-      const levels = a.levels!;
-      const count = a.count!;
-      const idx = levels.findIndex((need) => count < need); // the medal being worked on, 0 = bronze
-      if (idx < 0) return [];
-      const prev = idx ? levels[idx - 1] : 0;
-      const fraction = Math.max(0, Math.min(1, (count - prev) / (levels[idx] - prev)));
-      const ease = idx + (1 - fraction) * 0.9 - AFFINITY_PULL * affinity(a); // lower = easier; a bronze still beats a gold, unless it is in their style
-      return [{ a, idx, fraction, band: Math.floor(ease / EASE_BAND), roll: stableHash(`${userId}:${a.id}:${idx}`) }];
-    })
-    .sort((x, y) => x.band - y.band || x.roll - y.roll); // easiest band first, in a random order inside the band
-  const picked: typeof easy = [];
-  const perTheme = new Map<string, number>();
-  for (const c of easy) {
-    const theme = c.a.group ?? c.a.period;
-    if ((perTheme.get(theme) ?? 0) >= GOALS_PER_THEME) continue;
-    perTheme.set(theme, (perTheme.get(theme) ?? 0) + 1);
-    picked.push(c);
-    if (picked.length === count) break;
-  }
-  for (const c of easy) if (picked.length < count && !picked.includes(c)) picked.push(c); // few themes left: fill up anyway
-  return picked.map(({ a, fraction }) => ({ a, fraction }));
-}
-
-/** A player's challenges as one bar split by best medal (crowns first, then gold, silver, bronze), the overall progress
- *  and the count per medal. On the player page's strip, and bigger at the top of the player's Achievements page
- *  (user, 2026-11-10: the same bar on both). */
-function MedalBar({ items, overall, completed }: { items: Achievement[]; overall: number; completed?: { done: number; total: number } }) {
+/** A player's challenges as one bar split by best medal (user, 2026-11-26, option B: the same coloured bar, each segment named
+ *  with its count, one headline count out of the regular challenges). Crown = complete. The Combat challenges and "Edit your
+ *  Bio" are out of the totals, so they get a line of their own. On the player page and at the top of their Challenges page. */
+function MedalBar({ items, overall }: { items: Achievement[]; overall: number }) {
   const counted = items.filter((a) => a.counted && !a.prize);
-  const crowns = counted.filter((a) => a.progress >= 1).length;
-  // one coloured segment per medal level, highest first: every crown has its own share of the bar (user, 2026-11-06)
-  const segments = ([["crown", crowns], ...(["gold", "silver", "bronze"] as const).map((m) => [m, counted.filter((a) => a.progress < 1 && a.levels && a.tier === m).length] as const)] as const)
-    .filter(([, n]) => n > 0);
+  const total = counted.length;
+  const complete = counted.filter((a) => a.progress >= 1).length;
+  const per = (m: string) => counted.filter((a) => a.progress < 1 && a.levels && a.tier === m).length;
+  const medals: [string, number][] = [["crown", complete], ["gold", per("gold")], ["silver", per("silver")], ["bronze", per("bronze")]];
+  const segments: [string, number][] = [...medals, ["none", total - medals.reduce((t, [, n]) => t + n, 0)]];
+  const shown = segments.filter(([, n]) => n > 0);
+  const small = shown.filter(([, n]) => total > 0 && n / total < INSIDE_FROM);
+  const extra = items.filter((a) => !a.counted && !a.prize);
+  const label = (m: string, n: number) => `${MEDAL_NAMES[m]} ${n}`;
   return (
     <>
-      <div className="strip-bar" role="img" aria-label={`${crowns} crowns, ${segments.map(([m, n]) => `${n} ${m}`).join(", ")} out of ${counted.length} challenges`}>
-        {segments.map(([m, n]) => (
-          <i key={m} className={`t-${m}`} style={{ width: `${(n / counted.length) * 100}%` }} title={`${n} challenge${n === 1 ? "" : "s"} at ${m}${m === "crown" ? " (completed)" : " as the best medal"}`} />
+      <strong className="medal-headline" title={`Average progress over every challenge, counting partial progress: ${pct(overall)}`}>
+        {complete} of {total} complete
+      </strong>
+      <div className="medal-track" role="img" aria-label={`${complete} of ${total} complete: ${shown.map(([m, n]) => label(m, n)).join(", ")}`}>
+        {shown.map(([m, n]) => (
+          <span key={m} className={`medal-seg ${m === "none" ? "none" : `t-${m}`}`} style={{ width: `${(n / total) * 100}%` }}
+            title={m === "none" ? `${n} challenge${n === 1 ? "" : "s"} without a medal yet` : `${n} challenge${n === 1 ? "" : "s"} at ${m}${m === "crown" ? " (complete)" : " as the best medal"}`}>
+            {n / total >= INSIDE_FROM && <span className="medal-seg-label"><span className="medal-seg-name">{MEDAL_NAMES[m]} </span>{n}</span>}
+          </span>
         ))}
       </div>
-      {completed ? (
-        <span className="muted strip-total" title="Average progress counts partial progress toward every challenge">
-          {pct(overall)} average progress · {completed.done} / {completed.total} completed · {crowns} / {counted.length} crowns
-        </span>
-      ) : (
-        <span className="muted strip-total">{pct(overall)} · {crowns} / {counted.length} crowns</span>
-      )}
-      <span className="strip-medals">
-        {[...segments].reverse().map(([m, n]) => (
-          <span key={m} className={`t-${m}`} title={`Challenges where ${m} is the best medal`}><i />{n}</span>
-        ))}
+      {/* the key: on a wide bar only the segments too narrow for their name; on a narrow one (phones) every segment, as the
+          bar then shows the numbers alone */}
+      <span className={`medal-small${small.length === 0 ? " only-narrow" : ""}`}>
+        {shown.map(([m, n]) => <span key={m} className={`${m === "none" ? "none" : `t-${m}`}${n / total < INSIDE_FROM ? " narrow" : ""}`}><i />{label(m, n)}</span>)}
       </span>
+      {extra.length > 0 && (
+        <span className="muted medal-extra" title="Combat challenges (from the recorder) and Edit your Bio earn medals but are not in the totals or the ranking">
+          Not in the totals: Combat and Edit your Bio, {extra.filter((a) => a.progress >= 1).length} of {extra.length} complete
+        </span>
+      )}
     </>
   );
 }
 
 function StripBody({ userId, onOpen }: { userId: string; onOpen: () => void }) {
   const d = useApi(() => getAchievements(userId), userId).data;
-  const [goalRow, cols] = useColumns(GOAL_MIN_PX, GOAL_GAP_PX, GOALS);
   if (!d) return null;
-  const counted = d.items.filter((a) => a.counted && !a.prize);
-  const next = pickGoals(userId, counted, Math.min(GOALS_MAX, Math.max(GOALS, cols)));
+  // the goals row is gone (user, 2026-11-26): the big medal bar, then one obvious button to the full Challenges page
   return (
     <section className="ach-strip" aria-label="Challenges">
-      <div className="ach-strip-top">
       <button className="ach-strip-head" onClick={onOpen} title="Open the Challenges tab">
         <strong>Challenges</strong>
-        <MedalBar items={d.items} overall={d.overall} />
       </button>
-      <Link className="button ach-all" to={achievementsPath(d.user_id, d.name)}>
-        All challenges →
-      </Link>
+      <div className="medal-bar-big" aria-label="Medals">
+        <MedalBar items={d.items} overall={d.overall} />
       </div>
-      {next.length > 0 && (
-        <>
-          <p className="muted strip-goals" title="Picked for this player from their easiest next medals, leaning towards what they already play (modes, gear, movement ...). Reach one and it is replaced by another; they slowly get harder as you complete them.">
-            Your goals
-          </p>
-          <div className="ach-strip-next" aria-label="Your goals" ref={goalRow}>
-            {next.map(({ a, fraction }) => (
-              <div key={a.id} className="strip-next">
-                <Tile a={a} />
-                <span className="muted">{levelText(a.count ?? 0, a.levels ?? [], a.unit)} ({pct(fraction)} of the way)</span>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
+      <Link className="ach-all-big" to={achievementsPath(d.user_id, d.name)}>
+        View all {d.name}'s challenges <span aria-hidden="true">→</span>
+      </Link>
     </section>
   );
 }
@@ -1306,34 +1299,6 @@ export function AchievementRules({ open = false }: { open?: boolean }) {
   );
 }
 
-const NEXT_MEDALS = 5;
-
-/** The five challenges nearest to their next medal (user, 2026-11-07, Achievements idea 1): the first thing a player sees
- *  on their achievements page. Closest first; ladders only (they have a "N more to reach ..." text); Mega Prizes left out. */
-function NextMedals({ items }: { items: Achievement[] }) {
-  const next = items
-    .filter((a) => a.counted && !a.prize && a.progress < 1 && a.levels && a.levels.length > 0 && a.count != null)
-    .map((a) => ({ a, next: nextMedal(a) }))
-    .filter((x): x is { a: Achievement; next: { fraction: number; medal: string } } => x.next !== null)
-    .sort((x, y) => y.next.fraction - x.next.fraction || LEVELS.indexOf(x.next.medal as (typeof LEVELS)[number]) - LEVELS.indexOf(y.next.medal as (typeof LEVELS)[number]))
-    .slice(0, NEXT_MEDALS);
-  if (next.length === 0) return null;
-  return (
-    <section className="next-medals" aria-label="Your next medals">
-      <h3>Your next medals <span className="muted hint">· closest first</span></h3>
-      <div className="ach-strip-next">
-        {next.map(({ a, next: n }) => (
-          <div key={a.id} className="strip-next">
-            <Tile a={a} />
-            <span className={`medal-chip ${n.medal}`}>{n.medal}</span>
-            <span className="muted">{levelText(a.count ?? 0, a.levels ?? [], a.unit)} ({pct(n.fraction)} of the way)</span>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
 export function AchievementsView({ userId }: { userId: string }) {
   const result = useApi(() => getAchievements(userId), userId);
   const [sort, setSort] = useState<"group" | "closest">("group");
@@ -1345,9 +1310,8 @@ export function AchievementsView({ userId }: { userId: string }) {
       {data && (
         <>
           <div className="medal-bar-big" aria-label="Medals">
-            <MedalBar items={data.items} overall={data.overall} completed={{ done: data.completed, total: data.total }} />
+            <MedalBar items={data.items} overall={data.overall} />
           </div>
-          <NextMedals items={data.items} />
           {sort === "group" && <JumpToNew ready />}
           <label className="inline-check">
             <input type="checkbox" checked={sort === "closest"} onChange={(e) => setSort(e.target.checked ? "closest" : "group")} /> Sort by closest

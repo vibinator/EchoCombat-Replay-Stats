@@ -8,8 +8,8 @@ path is in middleware.WRITES / BOT. Console routes need auth.has_console; profil
 | Method | Path | Handler | Where | Purpose |
 |---|---|---|---|---|
 | GET | `/achievements/custom/{name}` | custom_icon | app/backend/main.py:247 | Icons uploaded on the Console page (D43). Before the site mount, which serves the built-in ones. |
-| GET | `/api/achievements` | list_achievements | app/backend/api/achievements.py:534 | The rule catalogue with rarity: share of players (10+ games) who unlocked (25 %+, tiered: bronze) / completed  |
-| GET | `/api/achievements/recent` | recent_unlocks | app/backend/api/achievements.py:572 | Latest 100 % completions by players active in the last 30 days of the archive. |
+| GET | `/api/achievements` | list_achievements | app/backend/api/achievements.py:535 | The rule catalogue with rarity: share of players (10+ games) who unlocked (25 %+, tiered: bronze) / completed  |
+| GET | `/api/achievements/recent` | recent_unlocks | app/backend/api/achievements.py:573 | Latest 100 % completions by players active in the last 30 days of the archive. |
 | POST | `/api/admin/achievements/{rule_id}/icon` | upload_icon | app/backend/api/admin.py:53 | Body = the PNG file itself (Content-Type: image/png). Stored, then used for this achievement. |
 | PUT | `/api/admin/achievements/{rule_id}/icon` | set_icon | app/backend/api/admin.py:42 |  |
 | GET | `/api/admin/console/achievements` | achievements | app/backend/api/console.py:129 | Every achievement and challenge: name, the rule to win it (same text as on the website) and its icon. |
@@ -26,8 +26,9 @@ path is in middleware.WRITES / BOT. Console routes need auth.has_console; profil
 | POST | `/api/admin/permissions` | change | app/backend/api/permissions.py:97 |  |
 | GET | `/api/admin/status` | status | app/backend/api/admin.py:22 | Status page (admins and console users): live progress of replay processing and everything built from it |
 | GET | `/api/arena/image/{name}` | image | app/backend/api/arena.py:43 | The prize pictures. Not in the public folder: only the Preview role can load them. |
+| GET | `/api/arena/player/{user_id}` | player | app/backend/api/arena.py:201 | One player's own progress toward each Mega Prize, for their profile (user, 2026-11-26: personal progress only, |
 | GET | `/api/arena/progress` | progress | app/backend/api/arena.py:52 |  |
-| GET | `/api/arena/search` | search | app/backend/api/arena.py:195 | Players by name with their progress toward a prize, from the set challenge period on (no start date set = 0). |
+| GET | `/api/arena/search` | search | app/backend/api/arena.py:224 | Players by name with their progress toward a prize, from the set challenge period on (no start date set = 0). |
 | GET | `/api/arena/visible` | visible | app/backend/api/arena.py:35 | May this visitor see the Mega Prizes? (Console "Visible to".) Its own small answer under /api/arena, which is  |
 | GET | `/api/auth/callback` | callback | app/backend/api/auth.py:84 |  |
 | GET | `/api/auth/login` | login | app/backend/api/auth.py:52 |  |

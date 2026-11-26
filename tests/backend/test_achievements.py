@@ -5,9 +5,10 @@ import replay_factory as rf
 from app_helpers import act, add, app_client, make_settings
 
 from backend import admin_actions as actions
-from backend.achievements import medal_times, rule_notes, RULES, Game, _all_time, _easier_platinum, _harder, _scaled, evaluate, icon_file, overall, tier
+from backend.achievements import rule_notes, RULES, Game, _all_time, _easier_platinum, _harder, _scaled, evaluate, icon_file, overall, tier
 
 from backend.combat_achievements import COMBAT_RULES
+from backend.profile_achievements import PROFILE_RULES
 
 BLUE = str(rf.BIG_USER_ID)
 
@@ -19,6 +20,7 @@ def game(day="2026-10-28", map_="dyson", mode="capture_point", deaths=5, loadout
                 top_speed=top, frame_rate=20.0, loadouts={loadout: 1000} if loadout else {})
 
 
+
 def by_id(results):
     return {r["id"]: r for r in results}
 
@@ -26,9 +28,10 @@ def by_id(results):
 def test_catalogue():
     ids = [r.id for r in RULES]
     removed = {91, 99, 80, 81, 82, 83, 84, 85, 113}  # Unstoppable, the first Showboat, and the duplicates removed on 2026-11-05
-    # 75 original + 63 new + 19 Test Drive + Switch Hitter + Attack Drone / Umbral Veil / Neutron (4 each, 2026-11-20); Combat has its own list (combat_achievements); the Mega Prize is not in RULES
-    expected = [i for i in range(5, 152) if i not in removed] + list(range(179, 198)) + [201] + list(range(265, 277))
-    assert ids == expected and len(set(ids)) == 170
+    # 75 original + 63 new + Switch Hitter + Attack Drone / Umbral Veil / Neutron (3 each, 2026-11-20); the 22 Test Drives (179-197,
+    # 268, 272, 276) were retired on 2026-11-26 (D63); Combat has its own list (combat_achievements); the Mega Prize is not in RULES
+    expected = [i for i in range(5, 152) if i not in removed] + [201] + [i for i in range(265, 277) if (i - 265) % 4 != 3]
+    assert ids == expected and len(set(ids)) == 148
     assert next(r for r in RULES if r.id == 151).name == "Showbot (Emotes)" and sum(r.name == "Showbot (Emotes)" for r in RULES) == 1
     assert [r.id for r in RULES if r.new] == [i for i in expected if i >= 80]
     assert all(r.counted for r in RULES)
@@ -40,7 +43,7 @@ def test_catalogue():
     assert icon_file(next(r for r in RULES if r.id == 23)) == "launch_daily.png"
     # every Dot Field challenge has the Dot Field art (user, 2026-11-20); so do the later gear sets
     assert {icon_file(r) for r in RULES if "Dot Field" in r.name or r.id in (136, 138)} == {"dot_field.png"}
-    assert [icon_file(r) for r in RULES if r.id in (265, 270, 276)] == ["attack_drone.png", "umbral_veil.png", "neutron.png"]
+    assert [icon_file(r) for r in RULES if r.id in (265, 270, 275)] == ["attack_drone.png", "umbral_veil.png", "neutron.png"]
     assert {icon_file(r) for r in RULES if "Overcharge" in r.name or r.id in (112, 131, 132)} == {"overcharge.png"}
 
 
@@ -113,9 +116,9 @@ def test_api_and_leaderboard(tmp_path):
         add(client, {f"dyson/{i}.echoreplay": rf.plain(rf.lines(20)) for i in range(2)})
         act(client, actions.set_challenge_window, "2026-01-01", None)
         a = client.get(f"/api/players/{BLUE}/achievements").json()
-        assert a["total"] == len(RULES) and len(a["items"]) == len(RULES) + len(COMBAT_RULES) and 0 <= a["overall"] <= 1
+        assert a["total"] == len(RULES) and len(a["items"]) == len(RULES) + len(COMBAT_RULES) + len(PROFILE_RULES) and 0 <= a["overall"] <= 1
         assert client.get("/api/players/nobody/achievements").status_code == 404
-        assert len(client.get("/api/achievements").json()) == len(RULES) + len(COMBAT_RULES)
+        assert len(client.get("/api/achievements").json()) == len(RULES) + len(COMBAT_RULES) + len(PROFILE_RULES)
         board = client.get("/api/leaderboard", params={"stat": "achievements", "min_games": 1}).json()
         assert {r["name"] for r in board["items"]} == {"Player", "Other"}
         assert board["label"] == "Challenges (overall %)"
@@ -304,9 +307,9 @@ def test_grand_tour_and_medal_collector():
     # Medal Collector counts every challenge at silver or better (more of them since the ladders were retuned on 2026-11-04)
     assert r[126]["count"] >= 1 and r[126]["levels"] == [5, 25, 65, 98]
     r = by_id(evaluate([won("dyson", f"2026-10-{1 + i % 28:02d}") for i in range(120)]))
-    golds = sum(1 for x in r.values() if x["id"] != 126 and x["group"] != "Gear in one game" and (x["count"] >= x["levels"][1] if "levels" in x else x["progress"] >= 1))
+    golds = sum(1 for x in r.values() if x["id"] != 126 and (x["count"] >= x["levels"][1] if "levels" in x else x["progress"] >= 1))
     assert golds > 0 and r[126]["count"] == golds  # Medal Collector counts silver-or-better medals of the others
-    assert any(x["group"] == "Gear in one game" and x["progress"] >= 1 for x in r.values())  # Test Drives were completed, and are not counted
+    assert not any(x["group"] == "Gear in one game" for x in r.values())  # the Test Drives are retired (2026-11-26)
 
 
 def test_hex_gear_codes_are_normalised():
@@ -529,39 +532,10 @@ def test_achiever_facts_and_endpoint(tmp_path):
         assert all(r["total"] == len(RULES) and 0 <= r["completed"] <= len(RULES) and "medals" in r for r in top)
 
 
-def test_test_drive_one_challenge_per_released_item():
-    from backend.achievements import LATE_GEAR, _released_gear, section_of
-
-    drives = {r.name: r for r in RULES if r.group == "Gear in one game"}
-    assert len(drives) == sum(len(x) for x in _released_gear()) + len(LATE_GEAR) == 22
-    assert {"Pulsar (weapon)", "Overcharge (tac mod)", "Dot Field (ordnance)", "Blazar (weapon)",
-            "Attack Drone (ordnance)", "Umbral Veil (tac mod)", "Neutron (tac mod)"} <= set(drives)
-    assert all(r.counted and r.period == "game" and section_of(r) == "In one game" for r in drives.values())
-    pulsar = next(r for r in drives.values() if r.name == "Pulsar (weapon)")
-    assert pulsar.description == "Use the Pulsar weapon for at least 3 minutes in one game"
-    assert rule_notes(pulsar) == ["Best game", "3+ players per team"]
-
-
-def test_test_drive_counts_the_time_in_one_game():
-    pulsar = next(r.id for r in RULES if r.name == "Pulsar (weapon)")
-    nova = next(r.id for r in RULES if r.name == "Nova (weapon)")
-    heal = next(r.id for r in RULES if r.name == "Repair Matrix (tac mod)")
-
-    def swapped(pulsar_frames, nova_frames, play=400.0):
-        g = game(play=play)
-        g.loadouts = {("assault", "heal", "det"): pulsar_frames, ("blaster", "heal", "det"): nova_frames}
-        return g
-
-    r = by_id(evaluate([swapped(600, 400)]))  # 60 % and 40 % of a 400 s game: 240 s and 160 s
-    assert r[pulsar]["progress"] == 1 and r[nova]["progress"] == round(160 / 180, 4) and r[heal]["progress"] == 1
-    r = by_id(evaluate([swapped(600, 400)] * 3))
-    assert r[nova]["progress"] == round(160 / 180, 4)  # one game, not added up over games
-    assert by_id(evaluate([game(play=179.0, loadout=("assault", "heal", "det"))]))[pulsar]["progress"] < 1
-    assert by_id(evaluate([game(play=180.0, loadout=("assault", "heal", "det"))]))[pulsar]["progress"] == 1
-    small = game(loadout=("assault", "heal", "det"))
-    small.enough_players = False
-    assert by_id(evaluate([small]))[pulsar]["progress"] == 0  # a game under 3v3 does not count
-    assert medal_times([game("2026-11-05", loadout=("assault", "heal", "det"))])[pulsar][None].startswith("2026-11-05")
+def test_test_drives_are_retired():
+    """The 22 "use <item> for 3 minutes in one game" rules were retired (user, 2026-11-26, D63); their ids are never reused."""
+    assert not any(r.group == "Gear in one game" for r in RULES)
+    assert not {r.id for r in RULES} & (set(range(179, 198)) | {268, 272, 276})
 
 
 def test_untouchable_needs_a_game_of_six_minutes():

@@ -5524,8 +5524,19 @@ tr.cloud-drop-on td {
 .ch-filter-btn:hover, .ch-filter-btn[aria-expanded="true"] { color: var(--text); border-color: var(--muted); }
 .ch-filter-btn.on { color: var(--blue); border-color: var(--blue); }
 
-.ch-panel { margin-top: 12px; padding: 14px 16px; border-radius: 14px; background: var(--panel); border: 1px solid var(--line); }
+/* topic boxes (user, 2026-11-26): long topics across the page in two columns, short ones side by side */
+.ch-groups { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; align-items: start; }
+.ch-group {
+  padding: 10px 14px 12px; border-radius: 14px; background: var(--panel);
+  border: 1px solid color-mix(in srgb, var(--per) 30%, var(--line));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--per) 18%, transparent);
+}
+.ch-group.wide { grid-column: 1 / -1; }
+.ch-group-head { display: flex; align-items: baseline; gap: 10px; margin: 0 0 6px; padding: 0 10px 6px; border-bottom: 1px solid var(--line); }
+.ch-group-head h3 { margin: 0; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.14em; color: var(--per); }
+.ch-group-count { margin-left: auto; font-size: 0.75rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 .ch-list { display: grid; grid-template-columns: 1fr 1fr; gap: 0 40px; }
+.ch-list.single { grid-template-columns: 1fr; }
 .ch-col { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 
 /* the medal classes (.t-bronze ...) set --tier; these defaults only apply without one */
@@ -5539,16 +5550,20 @@ tr.cloud-drop-on td {
 .ch-row:hover, .ch-row.open, .ch-row:focus-visible { background: var(--surface-2); }
 .ch-row.right { flex-direction: row-reverse; text-align: right; }
 .ch-icon { flex: none; width: 40px; height: 40px; object-fit: contain; }
-.ch-icon.glyph { display: block; background: var(--tier); -webkit-mask: no-repeat center / contain; mask: no-repeat center / contain; }
-.ch-row.not-started .ch-icon { opacity: 0.45; }
-.ch-row[class*=" t-"] .ch-icon.glyph { filter: drop-shadow(0 0 6px color-mix(in srgb, var(--tier) 45%, transparent)); }
+/* icons are white until pointed at, then take the colour of the medal reached (user, 2026-11-26) */
+.ch-icon.glyph { display: block; background: var(--icon-idle, #fff); -webkit-mask: no-repeat center / contain; mask: no-repeat center / contain; transition: background 0.15s; }
+:root[data-theme="light"] .ch-icon.glyph { --icon-idle: var(--text); }
+.ch-row[class*=" t-"]:is(:hover, .open, :focus-visible) .ch-icon.glyph { background: var(--tier); filter: drop-shadow(0 0 6px color-mix(in srgb, var(--tier) 45%, transparent)); }
 .ch-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
 .ch-line { display: flex; align-items: baseline; gap: 8px; }
 .ch-row.right .ch-line { flex-direction: row-reverse; }
 .ch-name { flex: 1; min-width: 0; font-size: 0.98rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ch-state { flex: none; font-size: 0.78rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 .ch-row.done .ch-state { color: var(--tier); font-weight: 700; }
-.ch-bar { height: 7px; border-radius: 999px; background: var(--line); overflow: hidden; display: flex; }
+.ch-bar { position: relative; height: 8px; border-radius: 999px; background: var(--line); overflow: hidden; display: flex; }
+.ch-notch { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--panel); }
+.ch-row.left .ch-notch { left: var(--at); }
+.ch-row.right .ch-notch { right: var(--at); margin: 0 -1px 0 0; }
 .ch-row.right .ch-bar { justify-content: flex-end; }
 .ch-bar > div {
   height: 100%; border-radius: inherit; background: var(--tier); transition: width 0.5s ease;
@@ -5576,20 +5591,24 @@ tr.cloud-drop-on td {
 .ch-card h4 { margin: 0; font-size: 1.15rem; line-height: 1.2; }
 .ch-rule { margin: 0; font-size: 0.85rem; color: var(--muted); }
 .ch-steps { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
-.ch-steps li { display: grid; grid-template-columns: 22px 64px 1fr; align-items: center; gap: 6px; font-size: 0.9rem; }
-.ch-steps li.later { opacity: 0.55; }
+.ch-steps li { display: grid; grid-template-columns: 30px 64px 1fr; align-items: center; gap: 6px; font-size: 0.9rem; }
+.ch-steps li.later { opacity: 0.5; }
+.ch-steps li.later .ch-frame-step img { filter: grayscale(1); }
+/* each step's medal crown in its own colour (user, 2026-11-26), ticked once reached */
+.ch-frame-step { position: relative; width: 28px; height: 28px; }
+.ch-frame-step img { width: 100%; height: 100%; object-fit: contain; }
 .ch-tick {
-  width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-style: normal; font-size: 0.75rem; font-weight: 700;
-  border: 2px solid var(--tier); color: var(--bg);
+  position: absolute; right: -4px; bottom: -3px; width: 14px; height: 14px; border-radius: 50%; display: grid; place-items: center;
+  font-style: normal; font-size: 0.6rem; font-weight: 700; background: var(--ok); color: #fff; box-shadow: 0 0 0 2px var(--panel);
 }
-.ch-steps li.done .ch-tick { background: var(--tier); }
 .ch-medal { text-transform: capitalize; color: var(--tier); font-weight: 700; }
 .ch-target { font-variant-numeric: tabular-nums; }
 .ch-step-bar { grid-column: 2 / -1; height: 4px; border-radius: 999px; background: var(--line); overflow: hidden; }
 .ch-step-bar > span { display: block; height: 100%; background: var(--tier); }
 .ch-status { font-size: 0.85rem; font-weight: 600; }
 .ch-notes { font-size: 0.75rem; }
-.ch-card-art { flex: none; width: 110px; display: grid; place-items: center; }
+.ch-card-art { position: relative; flex: none; width: 120px; display: grid; place-items: center; align-self: center; height: 120px; }
+.ch-frame { position: absolute; right: -10px; bottom: -10px; width: 58px; height: 58px; object-fit: contain; filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.5)); }
 .ch-big { width: 110px; height: 110px; object-fit: contain; }
 .ch-big.glyph { display: block; background: var(--tier); -webkit-mask: no-repeat center / contain; mask: no-repeat center / contain; filter: drop-shadow(0 0 14px color-mix(in srgb, var(--tier) 40%, transparent)); }
 .ch-card-inner:not([class*=" t-"]) .ch-big.glyph { background: var(--muted); filter: none; }
@@ -5601,11 +5620,73 @@ tr.cloud-drop-on td {
   .ch-row.right, .ch-row.right .ch-line { flex-direction: row; text-align: left; }
   .ch-row.right .ch-bar { justify-content: flex-start; }
   .ch-card.right { right: auto; left: 0; }
-  .ch-card-art { width: 72px; }
+  .ch-groups { grid-template-columns: 1fr; }
+  .ch-row.right .ch-notch { right: auto; left: var(--at); margin: 0 0 0 -1px; }
+  .ch-card-art { width: 72px; height: 72px; }
+  .ch-frame { width: 40px; height: 40px; }
   .ch-big { width: 72px; height: 72px; }
   .ch-tabs { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
 }
 @media (prefers-reduced-motion: reduce) {
   .ch-row:hover .ch-card, .ch-row:focus-within .ch-card, .ch-row.open .ch-card { animation: none; }
   .ch-bar > div, .ch-tab-fill { transition: none; }
+}
+
+/* Player page challenge strip (user, 2026-11-26): no goals row; the big medal bar and one obvious button to the full page */
+.ach-strip .medal-bar-big { margin: 6px 0 10px; }
+.ach-all-big {
+  display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 52px; padding: 12px 20px; border-radius: 12px;
+  background: linear-gradient(90deg, var(--period-game), var(--period-all)); color: #0b0d10; font-size: 1.05rem; font-weight: 800;
+  letter-spacing: 0.02em; text-decoration: none; box-shadow: 0 4px 18px color-mix(in srgb, var(--period-game) 30%, transparent);
+  transition: transform 0.12s, box-shadow 0.12s, filter 0.12s;
+}
+.ach-all-big:hover, .ach-all-big:focus-visible { filter: brightness(1.08); transform: translateY(-1px); box-shadow: 0 6px 24px color-mix(in srgb, var(--period-game) 45%, transparent); color: #0b0d10; text-decoration: none; }
+.ach-all-big span { font-size: 1.3rem; transition: transform 0.12s; }
+.ach-all-big:hover span { transform: translateX(4px); }
+:root[data-theme="light"] .ach-all-big, :root[data-theme="light"] .ach-all-big:hover { color: #fff; }
+
+/* Player profile Mega Prizes (user, 2026-11-26): only the player's own progress toward each prize */
+.mega-profile { margin: 12px 0; padding: 10px 12px; border-radius: 8px; background: var(--panel); }
+.mega-profile-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin-bottom: 8px; }
+.mega-profile-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; }
+.mega-profile-card {
+  --prize: var(--period-game);
+  display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--prize) 35%, var(--line));
+  background: linear-gradient(135deg, color-mix(in srgb, var(--prize) 12%, var(--panel)), var(--panel) 70%);
+}
+.mega-profile-card.arena { --prize: var(--period-all); }
+.mega-profile-card.won { --prize: var(--tier-gold); }
+.mega-profile-prize { font-weight: 800; font-size: 1.05rem; color: var(--prize); }
+.mega-profile-bar { height: 10px; border-radius: 999px; background: var(--line); overflow: hidden; }
+.mega-profile-bar > div { height: 100%; border-radius: inherit; background: var(--prize); box-shadow: 0 0 10px color-mix(in srgb, var(--prize) 50%, transparent); }
+.mega-profile-count { font-variant-numeric: tabular-nums; }
+.mega-profile-note { display: block; margin-top: 8px; font-size: 0.8rem; }
+
+/* Medal bar, option B (user, 2026-11-26): one headline count, the medal-coloured bar with each segment named inside (narrow
+   ones named under it), Combat and Edit your Bio on a line of their own */
+.medal-bar-big { flex-direction: column; align-items: stretch; gap: 8px; }
+.medal-headline { font-size: 1.35rem; font-weight: 800; letter-spacing: 0.01em; }
+.medal-track { display: flex; width: 100%; height: 2.4rem; border-radius: 12px; overflow: hidden; background: var(--line); }
+.medal-seg { display: flex; align-items: center; justify-content: center; min-width: 3px; height: 100%; background: var(--tier); overflow: hidden; }
+.medal-seg + .medal-seg { box-shadow: -2px 0 0 var(--panel); }
+.medal-seg.none { background: transparent; }
+.medal-seg-label { padding: 0 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 800; font-size: 0.95rem; color: #14161a; }
+.medal-seg.t-crown .medal-seg-label { color: #fff; }
+.medal-seg.none .medal-seg-label { color: var(--muted); font-weight: 600; }
+:root[data-theme="light"] .medal-seg-label { color: #fff; }
+:root[data-theme="light"] .medal-seg.none .medal-seg-label { color: var(--muted); }
+.medal-small { display: flex; flex-wrap: wrap; gap: 6px 16px; font-weight: 700; }
+.medal-small > span { display: inline-flex; align-items: center; gap: 6px; color: var(--tier, var(--muted)); }
+.medal-small > span.none { color: var(--muted); }
+.medal-small i { width: 12px; height: 12px; border-radius: 3px; background: var(--tier, var(--line)); }
+.medal-extra { font-size: 0.85rem; }
+.medal-bar-big { container-type: inline-size; }
+.medal-small > span:not(.narrow) { display: none; }
+.medal-small.only-narrow { display: none; }
+@container (max-width: 640px) {
+  .medal-seg-name { display: none; }
+  .medal-seg-label { padding: 0 4px; }
+  .medal-small.only-narrow { display: flex; }
+  .medal-small > span:not(.narrow) { display: inline-flex; }
 }

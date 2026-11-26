@@ -277,3 +277,26 @@ def test_top_list_shows_rank_change_and_matches_gained():
     assert (rows["b"]["rank"], rows["b"]["rank_change"], rows["b"]["gained"]) == (2, -1, 0)  # dropped from 1st
     assert (rows["c"]["rank_change"], rows["c"]["gained"]) == (None, 3)  # new on the list
     assert len(_moves([{"user_id": str(i), "name": "x", "count": i} for i in range(30)], {})) == 10  # top 10 only
+
+
+def test_player_progress_adds_up_every_linked_account(tmp_path, monkeypatch):
+    """The profile's Mega Prizes section (user, 2026-11-26): only that player's own counts, from every linked account."""
+    from backend.api import arena as api
+    from backend.models import NakamaAccount, NakamaCombatCounted, NakamaCombatPlayer
+    _, sm = open_db(tmp_path / "p.db", 0)
+    with sm() as db:
+        actions.set_challenge_window(db, "2000-01-01", None)
+        for nid in ("n1", "n2"):
+            db.add(NakamaAccount(user_id=nid, discord_id="d1", username=nid, display_name=None, first_seen_at="t", last_seen_at="t",
+                                 replay_user_id="p1", link="profile"))
+            db.add(NakamaCombatPlayer(user_id=nid, username=nid, display_name=None, discord_id="d1", matches=1, last_match_at="t"))
+        db.add_all([NakamaCombatCounted(match_id=m, user_id=u, counted_at=2e9) for m, u in (("S1", "n1"), ("S2", "n1"), ("S3", "n2"))])
+        db.add(NakamaCombatCounted(match_id="S4", user_id="other", counted_at=2e9))
+        db.add(ArenaPlayer(user_id="a1", username="a", display_name=None, discord_id="d1", matches=7, last_match_at="x"))
+        db.add(ArenaPlayer(user_id="a2", username="b", display_name=None, discord_id="d2", matches=50, last_match_at="x"))
+        db.commit()
+    request = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(sessionmaker=sm)))
+    monkeypatch.setattr(api.auth, "has_preview", lambda r: True)  # the role check is in test_mega_prizes_security
+    got = api.player(request, "p1")
+    assert (got["combat"]["matches"], got["arena"]["matches"], got["linked"]) == (3, 7, True)
+    assert api.player(request, "nobody")["linked"] is False and api.player(request, "nobody")["combat"]["matches"] == 0

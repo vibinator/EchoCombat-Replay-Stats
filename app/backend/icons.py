@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from .achievements import RULES, icon_file
 from .combat_achievements import COMBAT_RULES
+from .profile_achievements import PROFILE_RULES
 from .config import PROJECT_ROOT, Settings
 from .db import utcnow
 from .models import AppSetting
@@ -26,7 +27,7 @@ PNG = b"\x89PNG\r\n\x1a\n"
 # badge art shipped with the site; tier frames and locks are not icons
 BUILT_IN_DIRS = (PROJECT_ROOT / "app" / "frontend" / "dist" / "achievements", PROJECT_ROOT / "app" / "frontend" / "public" / "achievements")
 NOT_ICONS = re.compile(r"^(white|bronze|silver|gold)(_lock)?\.png$|^lock_")
-ALL_RULES = RULES + COMBAT_RULES
+ALL_RULES = RULES + COMBAT_RULES + PROFILE_RULES
 RULE_IDS = {r.id for r in ALL_RULES}
 
 

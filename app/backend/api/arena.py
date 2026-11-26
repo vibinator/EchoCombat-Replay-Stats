@@ -192,6 +192,35 @@ def _combat_winners(db, target: int) -> int:
     return sum(1 for w in combat_totals(db, start, end) if w["count"] >= target)
 
 
+def _period(db) -> dict:
+    start, end = mega_window(db)
+    today = date.today().isoformat()
+    return {"start": start, "end": end, "active": bool(start) and start <= today and (not end or today <= end)}
+
+
+@router.get("/player/{user_id}")
+def player(request: Request, user_id: str):
+    """One player's own progress toward each Mega Prize, for their profile (user, 2026-11-26: personal progress only, no ranking
+    or other players). `user_id` = the replay player. Combat: every Nakama account linked to them (NakamaAccount.replay_user_id;
+    combat_totals already adds their replay-file history to one of those). Arena: those accounts, plus Arena rows carrying their
+    Discord id (a recent replay player's id IS the Discord id). No Discord id or Nakama id is sent back."""
+    _require_preview(request)
+    if len(user_id) > 64:
+        raise ApiError(404, "not_found", "Not found")
+    with request.app.state.sessionmaker() as db:
+        start, end = mega_window(db)
+        accounts = db.scalars(select(NakamaAccount).where(NakamaAccount.replay_user_id == user_id)).all()
+        ids = {a.user_id for a in accounts}
+        discords = {a.discord_id for a in accounts if a.discord_id} | {user_id}
+        combat = sum(w["count"] for w in combat_totals(db, start, end) if w["user_id"] in ids) if ids else 0
+        arena_rows = db.scalars(select(ArenaPlayer).where(ArenaPlayer.user_id.in_(ids) | ArenaPlayer.discord_id.in_(discords))).all()
+        period = _period(db)
+    combat_target = int(MEGA_COMBAT.levels[-1])
+    return {"period": period, "linked": bool(ids or arena_rows),
+            "combat": {"matches": combat, "target": combat_target, "prize": MEGA_COMBAT.prize},
+            "arena": {"matches": sum(r.matches for r in arena_rows), "target": TARGET, "prize": "Jack Series 11 from Lone Echo 1/2"}}
+
+
 @router.get("/search")
 def search(request: Request, q: str = Query("", max_length=60)):
     """Players by name with their progress toward a prize, from the set challenge period on (no start date set = 0).

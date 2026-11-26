@@ -18,6 +18,44 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.26.8 — 18:48
+
+- **Challenges: a simpler medal bar** (user, 26 Nov, option B). The bar on the player profile and at the top of their
+  Challenges page now has one headline, "30 of 148 complete", and each coloured segment says what it is: Crown 30, Gold 17,
+  Silver 16, Bronze 24, No medal yet 61. Segments too narrow for their name are named just under the bar; on a phone the bar
+  shows the numbers and a coloured key underneath names them all. "Average progress" moved into the headline's tooltip, and
+  the unlabelled dots are gone. Combat and Edit your Bio, which are not in the totals, get their own small line.
+
+## 2026.11.26.7 — 18:23
+
+- **Challenges: "One Match" is now "Specials"** (user, 26 Nov, D63). The tab keeps only the one-of-a-kind single-match
+  challenges (36): loadout stunts, movement, Payload, Capture Point, emotes, Untouchable Chassis, Marathon Bot, Beam Me Up,
+  the four original one-match challenges, the Combat feats and the new "Edit your Bio". The award cards tab keeps its
+  "One Match" heading.
+- **The 22 Test Drives are retired** ("Use <item> for 3 minutes in one game"). They are gone from the site, the totals, the
+  ranking and Medal Collector; the Veteran and "only <item>" challenges cover the same gear. Challenge total 170 -> 148.
+  Average progress and rankings shift a little after the update; the challenge period has no start date yet, so no earned
+  medal is lost.
+- **New special: "Edit your Bio"**. Done once the player's page has a bio (log in with Discord, then edit it on the profile).
+  Like the Combat challenges it is out of the totals and ranking. Its icon can be chosen in Console > Achievements.
+
+## 2026.11.26.6 — 17:52
+
+- **Challenges: topic boxes, crowns and notches** (user, 26 Nov). Each tab now groups its challenges into boxes by topic
+  (Weapons, Ordnances, Tac mods, Loadouts, Payload, Capture Point, Maps, Movement, Positioning, Survival, Emotes, Wins,
+  Activity, Combat), each with its own progress; short topics sit side by side. The award cards tab is boxed by period. Icons
+  are white until you point at a row, then take the colour of the medal reached. Every bar has a notch at each medal step.
+  The card shows each step's medal crown in its own colour, ticked once reached, and the crown of the medal reached on the
+  big picture (the pink lock before the first medal).
+- **Challenges page: "Your next medals" removed** (user, 26 Nov). "Not yet started" stays.
+- **Player profile: Mega Prizes** (user, 26 Nov). A Mega Prizes section under the challenge strip shows only that player's
+  own progress toward each prize (Delta-13: Combat matches, Jack Series 11: Public Arena matches), with a bar, the count and
+  how many to go, or "prize won!". No ranking and no other players. Shown to the same people who see the Mega Prizes now
+  (Console "Visible to"). Counts come from every game account linked to the player. New Preview-only endpoint
+  `/api/arena/player/{id}` (sends no Discord or game account ids back).
+- **Player profile: no more "Your goals"** (user, 26 Nov). The challenge strip keeps the big medal bar, with a large
+  "View all <name>'s challenges" button under it.
+
 ## 2026.11.26.5 — 17:19
 
 - **Challenges: the classic list is back, modernised** (user, 26 Nov: the original ECRanked layout is easier in VR). Each tab

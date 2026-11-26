@@ -1501,6 +1501,14 @@ export interface MegaPrizeSearch {
   target: number;
   results: { kind: "combat" | "arena"; name: string; user_id: string; matches: number }[];
 }
+/** One player's own progress toward each Mega Prize, for their profile (no ranking, no other players). */
+export interface MegaPlayerProgress {
+  period: { start: string | null; end: string | null; active: boolean };
+  linked: boolean; // a game account is linked to this player (else both counts are 0)
+  combat: { matches: number; target: number; prize: string | null };
+  arena: { matches: number; target: number; prize: string };
+}
+export const getMegaPlayer = (userId: string) => send<MegaPlayerProgress>(`/api/arena/player/${encodeURIComponent(userId)}`);
 export const searchMegaPrizes = (q: string) => send<MegaPrizeSearch>(`/api/arena/search?q=${encodeURIComponent(q)}`);
 
 // ---- Combat stats (the recorder's match reports; separate from the replay-derived stats above) -----------------------

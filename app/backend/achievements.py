@@ -531,17 +531,8 @@ def _pew_pew_proof(games):
 _pew_pew_proof.min_length = _pew_pew_proof.enough_players = _pew_pew_proof.all_windows = True
 
 
-TEST_DRIVE_S = 180.0
-ONE_GAME_GEAR = "Gear in one game"  # new challenges shown under the "In one game" period, not a theme of their own
-
-
-def _test_drive(slot: str, code: str):
-    """Share of TEST_DRIVE_S that the item was used in one game with 3+ players per team."""
-    def test_drive(games):
-        g = games[0]
-        return g.seconds_used(slot, code) / TEST_DRIVE_S if g.enough_players else 0.0
-    test_drive.enough_players = True  # shown as a rule note
-    return test_drive
+# The Test Drives ("use <item> for 3 minutes in one game", ids 179-197, 268, 272, 276) were retired on 2026-11-26 (user, D63):
+# 22 near-identical rules filled the one-game page; Veteran and the "only <item>" ladders cover the same gear.
 
 
 def _released_gear() -> tuple[list[str], list[str], list[str]]:
@@ -887,7 +878,7 @@ def _build_rules() -> list[Rule]:
         _ladder(125, "Nothing Leaves Kronos II (Payload)", "Total time spent blocking the payload", "payload", lambda gs: sum(g.block_s for g in gs) / 60, (2, 10, 30, 60, 120),
                 "all", " min", estimated=True, new=True, group="Payload"),
         # Medal Collector counts the other rules' medals; filled in by evaluate() (meta)
-        _ladder(126, "Medal Collector", "Earn silver or better on other challenges (each challenge counts once, Test Drives do not count)", None, lambda gs: 0.0, MEDAL_LEVELS,
+        _ladder(126, "Medal Collector", "Earn silver or better on other challenges (each challenge counts once)", None, lambda gs: 0.0, MEDAL_LEVELS,
                 new=True, group="Activity", meta=True),
     ]
     # Gear released on 2026-10-30 gets what the older gear has: "only X" in a week (127-130) and Overcharge in a day / week
@@ -956,24 +947,13 @@ def _build_rules() -> list[Rule]:
     # "Nothing but <item>" (one game using only an item, ids 152-163) was removed on 2026-11-04: the daily "One with the <item>" ladders
     # test the same thing (user).
 
-    # One challenge per released item (user, 2026-11-05): use it for 3 minutes of one game, shown under "In one game". The most
-    # rarely used stay within reach, as one game with the item is enough; in the archive Overcharge has 4 players, Blazar 35.
-    icons = {code: icon for code, _, icon in WEAPONS + ORDNANCES + TACMODS} | GEAR_ICONS
-    weapons, tacmods, ordnances = _released_gear()
-    i = 179
-    for slot, kind, table, codes in (("weapon", "weapon", gear.WEAPONS, weapons), ("tacmod", "tac mod", gear.TACMODS, tacmods), ("ordnance", "ordnance", gear.ORDNANCES, ordnances)):
-        for code in codes:
-            label = gear.lookup(table, code).display_name
-            # No "Test Drive:" prefix (user, 2026-11-06: it repeated 19 times); the name says which kind of item it is instead
-            rules.append(Rule(i, f"{label} ({kind})", f"Use the {label} {kind} for at least {TEST_DRIVE_S / 60:g} minutes in one game", "game", icons.get(code),
-                              _test_drive(slot, code), new=True, group=ONE_GAME_GEAR))
-            i += 1
     # Both Hands (user, 2026-11-06): the arm is a setting (0 or 100 % in nearly every game), so both arms in ONE game is rare (Ambidextrous);
     # games on each arm over any 7 days is open to every player. Id 201: 152-163 were removed earlier and 198-200 are Combat.
     rules.append(_ladder(201, "Two-Handed Bot (Movement)", "Switch your arm setting between games: in any 7 days, play this many games "
                          "with your left arm AND this many with your right arm", None, _v4(_switch_hitter),
                          (1, 2, 3, 4, 6), "week", " games each", new=True, group="Movement"))
-    # Attack Drone, Umbral Veil and Neutron (user, 2026-11-20): the set every other new item has, on the same ladders
+    # Attack Drone, Umbral Veil and Neutron (user, 2026-11-20): the set every other new item has, on the same ladders (their
+    # Test Drives, ids 268 / 272 / 276, retired with the others on 2026-11-26)
     tables = {"weapon": gear.WEAPONS, "tacmod": gear.TACMODS, "ordnance": gear.ORDNANCES}
     for i, (slot, code, tag, day_name, week_name) in enumerate(LATE_GEAR):
         i = 265 + 4 * i
@@ -985,8 +965,6 @@ def _build_rules() -> list[Rule]:
                     _only_games(slot, code), GEAR_DAY, "day", new=True, group="Experimental gear"),
             _ladder(i + 2, f"{week_name} ({tag})", f"Play games using only {label} in any 7 days, silver and up on at least {WEEK_MIN_DAYS} different days", icon,
                     _only_games(slot, code, WEEK_MIN_DAYS), GEAR_WEEK, "week", new=True, group="Experimental gear"),
-            Rule(i + 3, f"{label} ({tag.lower()})", f"Use the {label} {tag.lower()} for at least {TEST_DRIVE_S / 60:g} minutes in one game", "game", icon,
-                 _test_drive(slot, code), new=True, group=ONE_GAME_GEAR),
         ]
     return rules
 
@@ -1147,7 +1125,7 @@ def evaluate(games: list, rules: list[Rule] = RULES) -> list[dict]:
         entries[rule.id] = entry
     for rule in rules:
         if rule.meta:
-            n = sum(1 for r in rules if not r.meta and r.group != ONE_GAME_GEAR and _reached_gold(entries[r.id], r))  # Test Drives are left out (user, 2026-11-05)
+            n = sum(1 for r in rules if not r.meta and _reached_gold(entries[r.id], r))
             progress = round(clamp(_levelled(lambda _: n, rule.levels)([])), 4)
             entries[rule.id] = {
                 "id": rule.id, "name": rule.name, "description": rule.description, "rules": rule_notes(rule), "period": rule.period, "icon": icon_file(rule),
@@ -1163,8 +1141,6 @@ SECTION_MIN_RULES = 4  # a section needs this many challenges to be somebody's "
 
 def section_of(rule: Rule) -> str:
     """The section of the website a rule is shown in: its period (original rules) or its theme (new ones)."""
-    if rule.group == ONE_GAME_GEAR:
-        return PERIOD_SECTIONS[rule.period]
     if rule.new and not (rule.period == "week" and rule.group in ("Experimental gear", "Gear mastery")):  # 7-day gear rules: by period
         return rule.group or "More"
     return PERIOD_SECTIONS[rule.period]

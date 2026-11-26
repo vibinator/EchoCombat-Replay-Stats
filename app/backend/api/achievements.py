@@ -20,7 +20,7 @@ from datetime import date, timedelta
 from fastapi import APIRouter, Query, Request
 from sqlalchemy import func, select
 
-from .. import auth, combat_achievements, icons
+from .. import auth, combat_achievements, icons, profile_achievements
 from ..achievements import RULES, Game, evaluate, icon_file, in_window, medal_times, overall, rule_notes, unlock_dates, unlock_threshold
 from ..admin_actions import (WINDOW_KEYS, achievements_counting, achievements_launched, achievements_visibility,
                              challenge_window, previews_can_see)
@@ -182,6 +182,7 @@ def player_achievements(request: Request, user_id: str):
     # the Combat cards come from the recorder's reports, apart from the replay answer and its totals (D56)
     items = result["items"] + combat_achievements.player_items(request.app.state.sessionmaker, window, user_id)
     with request.app.state.sessionmaker() as db:
+        items += profile_achievements.player_items(db, user_id)  # "Edit your Bio" (user, 2026-11-26): from the page, not games
         return json_reply(request, result | {"items": icons.apply(db, items)})  # icons chosen on the Console page (D43)
 
 
@@ -540,7 +541,7 @@ def list_achievements(request: Request):
     out = _rarity(sessions, data) if data is not None else _catalogue([])
     with sessions() as db:
         window = counted_window(db)
-        return json_reply(request, icons.apply(db, out + combat_achievements.catalogue(sessions, window)))
+        return json_reply(request, icons.apply(db, out + combat_achievements.catalogue(sessions, window) + profile_achievements.catalogue(db)))
 
 
 _rarity_memo: dict[int, tuple[dict, list[dict]]] = {}  # id(sessions) -> (the ranking it was counted from, the catalogue)

@@ -166,7 +166,7 @@ def test_reports_alone_count_on_the_same_page(tmp_path):
             return answer, {r["id"]: r for r in answer["items"]}
 
         answer, one = page("1")  # a player the replays never saw has a page
-        assert answer["name"] == "name1" and answer["games"] == 0 and answer["total"] == len(RULES) and len(answer["items"]) == len(RULES) + len(RULES_HERE)
+        assert answer["name"] == "name1" and answer["games"] == 0 and answer["total"] == len(RULES) and len(answer["items"]) == len(RULES) + len(RULES_HERE) + 1  # + "Edit your Bio" (profile_achievements)
         assert one[173]["count"] == 18  # 2 counted matches: the 3v2 and the 100 s one do not count
         _, two = page("2")
         assert two[173]["count"] == 14  # 3 + 3 + (3 + 5 from the merged id)

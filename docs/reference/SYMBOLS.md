@@ -6,13 +6,13 @@ Architecture.MD / DataModel.MD explain the why.
 
 ### `app/backend/__init__.py` (1 lines)
 
-### `app/backend/achievement_sheet.py` (24 lines)
+### `app/backend/achievement_sheet.py` (25 lines)
 Every achievement / Flamingo Challenge with the rule to win it, for the Console page's export (D45). Built from
-- name_and_rule:11 / csv_bytes:17
+- name_and_rule:12 / csv_bytes:18
 
-### `app/backend/achievements.py` (1293 lines)
+### `app/backend/achievements.py` (1269 lines)
 Achievements (D17): 5-79 from the old ECRanked stat.js comments, thresholds from the rule text; 80+ are new
-- `WEAPONS`:16 / `ORDNANCES`:17 / `TACMODS`:18 / `SLOTS`:19 / `MEDAL_LEVELS`:22 / `MAPS`:23 / `UNRELEASED_WEAPONS`:24 / `GEAR_ICONS`:27 / `LATE_GEAR`:32 / `ONLY_SHARE`:36 / `USED_SHARE`:37 / `UNTOUCHABLE_GAME_S`:38 / `FULL_GAME_S`:39 / `WEEK_MIN_IN_BOUNDS_S`:40 / `WEEK_MIN_DAYS`:41 / `MIN_IN_BOUNDS_S`:42 / `LOADOUT_USED_S`:43 / `SEASON_MIN_GAMES`:44 / `SPEED_MIN_GAMES`:45 / `GEAR_VETERAN`:48 / `GEAR_DAY`:49 / `GEAR_WEEK`:50 / `WEEK_GEAR_FREE`:51 / `TIERS`:52 / **class Game**:56 [won:90, day:94, start_dt:98, week:102, _shares:106, _only:117, share:121, seconds_used:124, _used:130, used:133, loadouts_played:136, main_loadout:141] / **class Rule**:150 / `LEVELS`:171 / four_medals:174 / _levelled:180 / level_tier:192 / unlock_threshold:197 / _num:202 / `HARDER_TOP`:206 / _harder:209 / `ALL_TIME_RAISE`:223 / _all_time:226 / `PLATINUM_EASIER`:239 / _easier_platinum:242 / `VETERAN_HARDER`:251 / `VETERAN_TOP`:255 / _scaled:258 / _ladder:408 / _tiered:425 / clamp:430 / ratio:434 / _only:438 / _count:445 / **class _AvgValue**:449 [_value:458, first_reached:468] / _full:483 / _gearhead_run:492 / `PEW_PEW_MIN_S`:511 / `PEW_PEW_MAX_DEATHS`:512 / _pew_pew_proof:515 / `TEST_DRIVE_S`:534 / `ONE_GAME_GEAR`:535 / _test_drive:538 / _released_gear:547 / _loadouts_tried:554 / _loadouts_used:564 / loadouts_to_try:569 / `LOADOUT_RULE_ID`:580 / `RELEASED`:581 / _equipables_used:584 / _days_all_equipables:592 / _games_using:597 / _only_games:601 / _all_used:613 / _win_streak:618 / _day_streak:629 / _fewest_wins:639 / _least_used:644 / _least_used_equipable:648 / _v4:652 / _on_the_map:663 / _away_from_mates:667 / _untouchable:675 / _if_on_the_map:680 / _both_arms:685 / `ARM_SHARE`:690 / _arm_game:693 / _switch_hitter:700 / _capture:705 / _payload:709 / _pub:713 / _pct:717 / _week_average:721 / _build_rules:725 / `_NOTE_MAP_IDS`:994 / `_NOTE_MIN_IDS`:995 / `_NOTE_4V4_IDS`:996 / `_NOTE_ONLY_IDS`:997 / rule_notes:1000 / _tuned:1025 / `RULES`:1036 / `MEGA_COMBAT`:1041 / `COLOUR_ART`:1046 / icon_file:1049 / tier:1060 / `WEEK`:1064 / `MONTH`:1065 / `ROLLING`:1066 / _rolling_weeks:1069 / _monotone:1088 / _week_key:1093 / _used_periods:1099 / _groups:1104 / _reached_gold:1120 / evaluate:1125 / `PERIOD_SECTIONS`:1160 / `SECTION_MIN_RULES`:1161 / section_of:1164 / achiever_facts:1173 / overall:1194 / mega_combat_games:1198 / in_window:1204 / unlock_dates:1210 / medal_times:1243
+- `WEAPONS`:16 / `ORDNANCES`:17 / `TACMODS`:18 / `SLOTS`:19 / `MEDAL_LEVELS`:22 / `MAPS`:23 / `UNRELEASED_WEAPONS`:24 / `GEAR_ICONS`:27 / `LATE_GEAR`:32 / `ONLY_SHARE`:36 / `USED_SHARE`:37 / `UNTOUCHABLE_GAME_S`:38 / `FULL_GAME_S`:39 / `WEEK_MIN_IN_BOUNDS_S`:40 / `WEEK_MIN_DAYS`:41 / `MIN_IN_BOUNDS_S`:42 / `LOADOUT_USED_S`:43 / `SEASON_MIN_GAMES`:44 / `SPEED_MIN_GAMES`:45 / `GEAR_VETERAN`:48 / `GEAR_DAY`:49 / `GEAR_WEEK`:50 / `WEEK_GEAR_FREE`:51 / `TIERS`:52 / **class Game**:56 [won:90, day:94, start_dt:98, week:102, _shares:106, _only:117, share:121, seconds_used:124, _used:130, used:133, loadouts_played:136, main_loadout:141] / **class Rule**:150 / `LEVELS`:171 / four_medals:174 / _levelled:180 / level_tier:192 / unlock_threshold:197 / _num:202 / `HARDER_TOP`:206 / _harder:209 / `ALL_TIME_RAISE`:223 / _all_time:226 / `PLATINUM_EASIER`:239 / _easier_platinum:242 / `VETERAN_HARDER`:251 / `VETERAN_TOP`:255 / _scaled:258 / _ladder:408 / _tiered:425 / clamp:430 / ratio:434 / _only:438 / _count:445 / **class _AvgValue**:449 [_value:458, first_reached:468] / _full:483 / _gearhead_run:492 / `PEW_PEW_MIN_S`:511 / `PEW_PEW_MAX_DEATHS`:512 / _pew_pew_proof:515 / _released_gear:538 / _loadouts_tried:545 / _loadouts_used:555 / loadouts_to_try:560 / `LOADOUT_RULE_ID`:571 / `RELEASED`:572 / _equipables_used:575 / _days_all_equipables:583 / _games_using:588 / _only_games:592 / _all_used:604 / _win_streak:609 / _day_streak:620 / _fewest_wins:630 / _least_used:635 / _least_used_equipable:639 / _v4:643 / _on_the_map:654 / _away_from_mates:658 / _untouchable:666 / _if_on_the_map:671 / _both_arms:676 / `ARM_SHARE`:681 / _arm_game:684 / _switch_hitter:691 / _capture:696 / _payload:700 / _pub:704 / _pct:708 / _week_average:712 / _build_rules:716 / `_NOTE_MAP_IDS`:972 / `_NOTE_MIN_IDS`:973 / `_NOTE_4V4_IDS`:974 / `_NOTE_ONLY_IDS`:975 / rule_notes:978 / _tuned:1003 / `RULES`:1014 / `MEGA_COMBAT`:1019 / `COLOUR_ART`:1024 / icon_file:1027 / tier:1038 / `WEEK`:1042 / `MONTH`:1043 / `ROLLING`:1044 / _rolling_weeks:1047 / _monotone:1066 / _week_key:1071 / _used_periods:1077 / _groups:1082 / _reached_gold:1098 / evaluate:1103 / `PERIOD_SECTIONS`:1138 / `SECTION_MIN_RULES`:1139 / section_of:1142 / achiever_facts:1149 / overall:1170 / mega_combat_games:1174 / in_window:1180 / unlock_dates:1186 / medal_times:1219
 
 ### `app/backend/admin_actions.py` (530 lines)
 Everything that changes data. The website is read-only (user, 2026-10-30): these run from the admin console
@@ -28,17 +28,17 @@ Virus / malware scanning of Open Cloud uploads (user, 2026-11-10: ClamAV on uplo
 
 ### `app/backend/api/__init__.py` (1 lines)
 
-### `app/backend/api/achievements.py` (582 lines)
+### `app/backend/api/achievements.py` (583 lines)
 Achievements / Flamingo Challenges per player, rarity, recent unlocks, the achievement ranking, and the
-- `RARITY_MIN_GAMES`:37 / `RECENT_DAYS`:38 / _window_info:43 / visible:52 / require_launched:59 / counted_window:65 / get_challenges:73 / `REVEALED_IDS`:89 / _peek:92 / `PEEK`:109 / `FINGERPRINT_MASK`:114 / _stable_hash:117 / _games:123 / player_achievements:177 / `OFFLOAD_MIN_GAMES`:188 / _player_achievements:191 / _player_result:207 / `REUSE_WHILE_IMPORTING_S`:235 / `FIRST_WAIT_S`:236 / _cache_file:247 / _code_signature:256 / _signature:266 / _load_results:275 / _save_results:286 / _collector_paused:306 / _compute:324 / offload:338 / stop_offload:343 / _ranking_job:347 / _player_job:352 / _elsewhere:356 / _compute_ranking:370 / _recent:402 / _store:429 / _refresh_in_background:440 / ranking_state:456 / _key:467 / warm:474 / _everyone:482 / _ready_or_start:515 / achievement_ranking:525 / achievement_progress:529 / list_achievements:535 / _rarity:549 / _catalogue:559 / recent_unlocks:573
+- `RARITY_MIN_GAMES`:37 / `RECENT_DAYS`:38 / _window_info:43 / visible:52 / require_launched:59 / counted_window:65 / get_challenges:73 / `REVEALED_IDS`:89 / _peek:92 / `PEEK`:109 / `FINGERPRINT_MASK`:114 / _stable_hash:117 / _games:123 / player_achievements:177 / `OFFLOAD_MIN_GAMES`:189 / _player_achievements:192 / _player_result:208 / `REUSE_WHILE_IMPORTING_S`:236 / `FIRST_WAIT_S`:237 / _cache_file:248 / _code_signature:257 / _signature:267 / _load_results:276 / _save_results:287 / _collector_paused:307 / _compute:325 / offload:339 / stop_offload:344 / _ranking_job:348 / _player_job:353 / _elsewhere:357 / _compute_ranking:371 / _recent:403 / _store:430 / _refresh_in_background:441 / ranking_state:457 / _key:468 / warm:475 / _everyone:483 / _ready_or_start:516 / achievement_ranking:526 / achievement_progress:530 / list_achievements:536 / _rarity:550 / _catalogue:560 / recent_unlocks:574
 
 ### `app/backend/api/admin.py` (75 lines)
 Staff endpoints under /api/admin: the Status page (admins and console users) and achievement icons (D43, changed
 - require_icon_editor:16 / status:23 / icon_choices:32 / **class IconChoice**:38 / set_icon:43 / upload_icon:54
 
-### `app/backend/api/arena.py` (213 lines)
+### `app/backend/api/arena.py` (242 lines)
 Mega Prizes tab data (Preview role only; Arena counting is separate from Combat, see arena.py).
-- `TARGET`:20 / `SEARCH_LIMIT`:21 / `CLOSEST`:22 / `IMAGES`:23 / `IMAGE_DIR`:24 / _require_preview:27 / visible:36 / image:44 / progress:53 / _replay_history:82 / combat_totals:117 / `TOP`:149 / _moves:152 / top_combat:165 / top_arena:172 / _closest_combat:182 / _combat_winners:189 / search:196
+- `TARGET`:20 / `SEARCH_LIMIT`:21 / `CLOSEST`:22 / `IMAGES`:23 / `IMAGE_DIR`:24 / _require_preview:27 / visible:36 / image:44 / progress:53 / _replay_history:82 / combat_totals:117 / `TOP`:149 / _moves:152 / top_combat:165 / top_arena:172 / _closest_combat:182 / _combat_winners:189 / _period:195 / player:202 / search:225
 
 ### `app/backend/api/auth.py` (118 lines)
 Discord login for achievement previews (D41). Only GET requests: the website stays read-only (D38).
@@ -175,9 +175,9 @@ Heatmap grids in minimap image space (D18). Cells are `cell_m` metres (0.1 m, us
 Prepares the heatmaps of the most active players while the server is idle. First it writes the heights.bin files (heatmaps3d.py) of the most active pl...
 - `TOP_PLAYERS`:25 / `START_AFTER_S`:26 / `BUSY_WAIT_S`:27 / `RECHECK_S`:28 / `PROGRESS_EVERY`:29 / replay_ids:32 / players_and_maps:45 / missing:60 / write_one:70 / **class HeightsWarmer**:74 [start:80, stop:83, run_once:88, build_heatmaps:114, _run:140]
 
-### `app/backend/icons.py` (99 lines)
+### `app/backend/icons.py` (100 lines)
 Achievement icons chosen on the Console page (D43): an existing badge image or an uploaded PNG. The choice is
-- `KEY`:20 / `CUSTOM`:21 / `CUSTOM_NAME`:22 / `MAX_BYTES`:23 / `MAX_SIDE`:24 / `PNG`:25 / `BUILT_IN_DIRS`:27 / `NOT_ICONS`:28 / `ALL_RULES`:29 / `RULE_IDS`:30 / **class IconError**:33 / overrides:37 / apply:42 / custom_dir:48 / built_in:52 / available:57 / default:64 / set_icon:68 / save_upload:85
+- `KEY`:21 / `CUSTOM`:22 / `CUSTOM_NAME`:23 / `MAX_BYTES`:24 / `MAX_SIDE`:25 / `PNG`:26 / `BUILT_IN_DIRS`:28 / `NOT_ICONS`:29 / `ALL_RULES`:30 / `RULE_IDS`:31 / **class IconError**:34 / overrides:38 / apply:43 / custom_dir:49 / built_in:53 / available:58 / default:65 / set_icon:69 / save_upload:86
 
 ### `app/backend/main.py` (263 lines)
 - `FRONTEND_DIST`:37 / `KEPT_SUFFIXES`:49 / `KEPT_MAX_BYTES`:50 / `KEPT_CHECK_S`:51 / **class KeptFile**:55 / **class SinglePageApp**:65 [_keep:81, _kept_response:100, get_response:114] / create_app:137
@@ -209,6 +209,10 @@ MatchStats -> database rows. Callers commit, so a match is stored completely or 
 ### `app/backend/popular.py` (167 lines)
 What people open, remembered across restarts, so a restarted server can build those answers again before they are
 - `FILE_VERSION`:30 / `HALF_LIFE_S`:31 / `MAX_PATHS`:32 / `SAVE_EVERY_S`:33 / `SKIP`:36 / `SCOPE_MARK`:37 / `UA`:38 / _wanted:41 / **class Popular**:52 [_load:62, count:74, top:86, save:90] / _ask:114 / rebuild:140
+
+### `app/backend/profile_achievements.py` (37 lines)
+Challenges about the player's page rather than their games (user, 2026-11-26: "Edit your Bio", a special). Like the Combat
+- `GROUP`:10 / `BIO_RULE`:11 / `PROFILE_RULES`:13 / `NOTES`:14 / _entry:17 / catalogue:23 / player_items:31
 
 ### `app/backend/remote.py` (197 lines)
 Remote processing (user, 2026-11-02): reading replays is slow on the NAS, so another PC can do it.
