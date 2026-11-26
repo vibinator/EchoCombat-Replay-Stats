@@ -5690,3 +5690,30 @@ tr.cloud-drop-on td {
   .medal-small.only-narrow { display: flex; }
   .medal-small > span:not(.narrow) { display: inline-flex; }
 }
+
+/* "Your next tiers" (user, 2026-11-26: back with more detail): one card per challenge, in the colour of the tier being chased */
+.next-tiers { margin: 14px 0; }
+.next-tiers h3 { margin: 0 0 8px; }
+.next-tier-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; }
+.next-tier-card {
+  display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--tier) 40%, var(--line));
+  background: linear-gradient(160deg, color-mix(in srgb, var(--tier) 14%, var(--panel)), var(--panel) 60%);
+}
+.next-tier-top { display: flex; gap: 10px; align-items: flex-start; }
+.next-tier-icon { flex: none; width: 40px; height: 40px; object-fit: contain; }
+.next-tier-icon.glyph { display: block; background: var(--icon-idle, #fff); -webkit-mask: no-repeat center / contain; mask: no-repeat center / contain; }
+:root[data-theme="light"] .next-tier-icon.glyph { --icon-idle: var(--text); }
+.next-tier-title { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.next-tier-title strong { line-height: 1.2; }
+.next-tier-title .muted { font-size: 0.8rem; line-height: 1.3; }
+.next-tier-left { font-weight: 800; color: var(--tier); }
+.next-tier-bar { height: 10px; border-radius: 999px; background: var(--line); overflow: hidden; }
+.next-tier-bar > div { height: 100%; border-radius: inherit; background: var(--tier); box-shadow: 0 0 10px color-mix(in srgb, var(--tier) 50%, transparent); }
+.next-tier-count { font-size: 0.85rem; font-variant-numeric: tabular-nums; }
+.next-tier-ladder { display: flex; align-items: center; gap: 6px; margin-top: auto; }
+.next-tier-ladder > span:not(.next-tier-share) { width: 26px; height: 26px; }
+.next-tier-ladder img { width: 100%; height: 100%; object-fit: contain; }
+.next-tier-ladder .later img { filter: grayscale(1); opacity: 0.45; }
+.next-tier-ladder .current img { filter: drop-shadow(0 0 6px color-mix(in srgb, var(--tier) 70%, transparent)); }
+.next-tier-share { margin-left: auto; font-size: 0.75rem; }

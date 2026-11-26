@@ -261,7 +261,7 @@ function ChallengeRow({ a, side }: { a: AnyBadge; side: "left" | "right" }) {
       <div className="ch-main">
         <div className="ch-line">
           <span className="ch-name">{a.name}</span>
-          <span className="ch-state" title={catalogue ? "Share of players with a medal" : "Overall progress, counting every medal"}>
+          <span className="ch-state" title={catalogue ? "Share of players who reached a tier" : "Overall progress, counting every tier"}>
             {catalogue ? share : done ? "Completed!" : pct(a.progress)}
           </span>
         </div>
@@ -323,12 +323,12 @@ function ChallengeCard({ a, onClose }: { a: AnyBadge; onClose?: () => void }) {
         )}
         {a.rules && a.rules.length > 0 && <span className="muted ch-notes">{a.rules.join(" · ")}</span>}
         {a.unlocked_share != null && (
-          <span className="muted ch-notes" title="Share of players with 10+ games">{pct(a.unlocked_share)} of players have a medal · {pct(a.completed_share)} completed</span>
+          <span className="muted ch-notes" title="Share of players with 10+ games">{pct(a.unlocked_share)} of players reached a tier · {pct(a.completed_share)} completed</span>
         )}
       </div>
       <div className="ch-card-art">
         <ChallengeArt a={a} className="ch-big" />
-        {!catalogue && <img className="ch-frame" src={IMG + (tier ? `${tier}.png` : "lock_clear_no_square.png")} alt={tier ? `${tier} medal` : "no medal yet"} />}
+        {!catalogue && <img className="ch-frame" src={IMG + (tier ? `${tier}.png` : "lock_clear_no_square.png")} alt={tier ? `${tier} tier` : "no tier yet"} />}
       </div>
     </div>
   );
@@ -407,7 +407,7 @@ export function GroupedBadges<T extends AnyBadge>({ items: all }: { items: T[] }
           )}
           <select aria-label="Sort" value={sort} onChange={(e) => setSort(e.target.value as SortBy)}>
             <option value="default">Original order</option>
-            {tracked && <option value="closest">Closest to next medal</option>}
+            {tracked && <option value="closest">Closest to next tier</option>}
             {tracked && <option value="complete">Closest to fully completed (all tiers)</option>}
             <option value="rarest">Rarest first</option>
             <option value="name">A to Z</option>
@@ -757,7 +757,7 @@ function MedalDots({ a }: { a: Achievement }) {
   const chasing = steps.findIndex((s) => !s.done);
   const earned = steps.filter((s) => s.done).length;
   return (
-    <span className="medal-dots" role="img" aria-label={`${earned} of ${steps.length} medals${chasing >= 0 ? `, chasing ${steps[chasing].medal}` : ""}`}>
+    <span className="medal-dots" role="img" aria-label={`${earned} of ${steps.length} tiers${chasing >= 0 ? `, chasing ${steps[chasing].medal}` : ""}`}>
       {steps.map((s, i) => (
         <i key={s.medal} className={`t-${s.medal}${s.done ? " full" : i === chasing && a.progress > 0 ? " half" : ""}`} />
       ))}
@@ -816,7 +816,7 @@ function NotYetStarted({ items }: { items: Achievement[] }) {
       <h3>Not yet started <span className="muted hint">· the easiest ones to begin with</span></h3>
       <div className="badges scroll-row" tabIndex={0} aria-label="Not yet started, scroll sideways">
         {easy.map((a) => (
-          <div key={a.id} className="next-card" style={{ "--next": "var(--tier-bronze)" } as React.CSSProperties} title="First medal: bronze">
+          <div key={a.id} className="next-card" style={{ "--next": "var(--tier-bronze)" } as React.CSSProperties} title="First tier: bronze">
             <Badge a={a} />
           </div>
         ))}
@@ -886,7 +886,7 @@ export function Badge({ a, compact = false }: { a: AchievementRule & Partial<Pic
           </span>
         )}
         {compact && (
-          <span className="tile-pct" title={catalogue ? "Share of players who have unlocked it" : "Overall progress, counting every medal"}>
+          <span className="tile-pct" title={catalogue ? "Share of players who have unlocked it" : "Overall progress, counting every tier"}>
             {!catalogue && <MedalDots a={a as Achievement} />}
             {catalogue
               ? a.unlocked_share == null ? "" : a.unlocked_share === 0 ? "nobody yet" : a.unlocked_share < 0.01 ? "under 1% of players" : `${pct(a.unlocked_share)} of players`
@@ -1056,7 +1056,7 @@ export function AchievementsStrip({ userId, onOpen }: { userId: string; onOpen: 
   return <StripBody userId={userId} onOpen={onOpen} />;
 }
 
-const MEDAL_NAMES: Record<string, string> = { crown: "Crown", gold: "Gold", silver: "Silver", bronze: "Bronze", none: "No medal yet" };
+const MEDAL_NAMES: Record<string, string> = { crown: "Crown", gold: "Gold", silver: "Silver", bronze: "Bronze", none: "No tier yet" };
 const INSIDE_FROM = 0.1; // a segment this share of the bar or wider has its name inside; narrower ones are named under the bar
 
 /** A player's challenges as one bar split by best medal (user, 2026-11-26, option B: the same coloured bar, each segment named
@@ -1081,7 +1081,7 @@ function MedalBar({ items, overall }: { items: Achievement[]; overall: number })
       <div className="medal-track" role="img" aria-label={`${complete} of ${total} complete: ${shown.map(([m, n]) => label(m, n)).join(", ")}`}>
         {shown.map(([m, n]) => (
           <span key={m} className={`medal-seg ${m === "none" ? "none" : `t-${m}`}`} style={{ width: `${(n / total) * 100}%` }}
-            title={m === "none" ? `${n} challenge${n === 1 ? "" : "s"} without a medal yet` : `${n} challenge${n === 1 ? "" : "s"} at ${m}${m === "crown" ? " (complete)" : " as the best medal"}`}>
+            title={m === "none" ? `${n} challenge${n === 1 ? "" : "s"} without a tier yet` : `${n} challenge${n === 1 ? "" : "s"} at ${m}${m === "crown" ? " (complete)" : " as the best tier"}`}>
             {n / total >= INSIDE_FROM && <span className="medal-seg-label"><span className="medal-seg-name">{MEDAL_NAMES[m]} </span>{n}</span>}
           </span>
         ))}
@@ -1092,7 +1092,7 @@ function MedalBar({ items, overall }: { items: Achievement[]; overall: number })
         {shown.map(([m, n]) => <span key={m} className={`${m === "none" ? "none" : `t-${m}`}${n / total < INSIDE_FROM ? " narrow" : ""}`}><i />{label(m, n)}</span>)}
       </span>
       {extra.length > 0 && (
-        <span className="muted medal-extra" title="Combat challenges (from the recorder) and Edit your Bio earn medals but are not in the totals or the ranking">
+        <span className="muted medal-extra" title="Combat challenges (from the recorder) and Edit your Bio earn tiers but are not in the totals or the ranking">
           Not in the totals: Combat and Edit your Bio, {extra.filter((a) => a.progress >= 1).length} of {extra.length} complete
         </span>
       )}
@@ -1109,7 +1109,7 @@ function StripBody({ userId, onOpen }: { userId: string; onOpen: () => void }) {
       <button className="ach-strip-head" onClick={onOpen} title="Open the Challenges tab">
         <strong>Challenges</strong>
       </button>
-      <div className="medal-bar-big" aria-label="Medals">
+      <div className="medal-bar-big" aria-label="Tiers">
         <MedalBar items={d.items} overall={d.overall} />
       </div>
       <Link className="ach-all-big" to={achievementsPath(d.user_id, d.name)}>
@@ -1255,8 +1255,8 @@ export function AchievementRules({ open = false }: { open?: boolean }) {
       <summary>Rules</summary>
       <ul>
         <li>
-          <strong>Medals.</strong> Almost every challenge is a ladder: bronze, silver, gold and a pink crown for completing it. The bar has one step per medal, the
-          colour of a name is the medal reached and the number under each step is its target. A few single-step challenges keep white 25%, bronze
+          <strong>Tiers.</strong> Almost every challenge is a ladder: bronze, silver, gold and a pink crown for completing it. The bar has a notch at each tier, the
+          colour of a name is the tier reached and the number beside each tier is its target. A few single-step challenges keep white 25%, bronze
           50%, silver 75%, gold 100%.
         </li>
         <li>
@@ -1299,6 +1299,62 @@ export function AchievementRules({ open = false }: { open?: boolean }) {
   );
 }
 
+const NEXT_TIERS = 5;
+
+/** The challenges closest to their next tier (user, 2026-11-26: back, with more detail): what to do, the tier being chased, how
+ *  much is left, a bar to that tier, the four tier crowns and how many players have reached a tier in it. Ladders only (they have
+ *  a count); Mega Prizes and the out-of-totals challenges left out. */
+function NextTiers({ items }: { items: Achievement[] }) {
+  const rarity = useApi(getRarity, "rarity").data;
+  const share = new Map((rarity ?? []).map((r) => [r.id, r.unlocked_share]));
+  const next = items
+    .filter((a) => a.counted && !a.prize && a.progress < 1 && a.levels && a.levels.length > 0 && a.count != null)
+    .map((a) => ({ a, next: nextMedal(a) }))
+    .filter((x): x is { a: Achievement; next: { fraction: number; medal: string } } => x.next !== null)
+    .sort((x, y) => y.next.fraction - x.next.fraction || LEVELS.indexOf(x.next.medal as (typeof LEVELS)[number]) - LEVELS.indexOf(y.next.medal as (typeof LEVELS)[number]))
+    .slice(0, NEXT_TIERS);
+  if (next.length === 0) return null;
+  return (
+    <section className="next-tiers" aria-label="Your next tiers">
+      <h3>Your next tiers <span className="muted hint">· closest first</span></h3>
+      <div className="next-tier-cards">
+        {next.map(({ a, next: n }) => {
+          const i = LEVELS.indexOf(n.medal as (typeof LEVELS)[number]);
+          const need = a.levels![i];
+          const unit = a.unit ?? "";
+          const s = share.get(a.id);
+          return (
+            <article key={a.id} className={`next-tier-card t-${n.medal}`}>
+              <div className="next-tier-top">
+                <ChallengeArt a={a} className="next-tier-icon" />
+                <div className="next-tier-title">
+                  <strong>{a.name}</strong>
+                  <span className="muted">{ruleText(a.description)}</span>
+                </div>
+              </div>
+              <span className="next-tier-left">{levelText(a.count ?? 0, a.levels ?? [], unit)}</span>
+              <div className="next-tier-bar" role="progressbar" aria-label={`${a.name}: ${pct(n.fraction)} of the way to ${n.medal}`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(n.fraction * 100)}>
+                <div style={{ width: `${n.fraction * 100}%` }} />
+              </div>
+              <span className="next-tier-count">
+                <b>{(a.count ?? 0).toLocaleString()}{unit}</b> / {need.toLocaleString()}{unit} <span className="muted">· {pct(n.fraction)} of the way</span>
+              </span>
+              <div className="next-tier-ladder" aria-hidden="true">
+                {a.levels!.map((_, j) => (
+                  <span key={j} className={j < i ? "done" : j === i ? "current" : "later"} title={`${LEVELS[j]}: ${a.levels![j].toLocaleString()}${unit}`}>
+                    <img src={`${IMG}${LEVELS[j]}.png`} alt="" />
+                  </span>
+                ))}
+                <span className="muted next-tier-share">{s == null ? "" : s === 0 ? "nobody has a tier yet" : `${pct(s)} of players reached a tier`}</span>
+              </div>
+            </article>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 export function AchievementsView({ userId }: { userId: string }) {
   const result = useApi(() => getAchievements(userId), userId);
   const [sort, setSort] = useState<"group" | "closest">("group");
@@ -1309,9 +1365,10 @@ export function AchievementsView({ userId }: { userId: string }) {
       <Status loading={result.loading} error={result.error} />
       {data && (
         <>
-          <div className="medal-bar-big" aria-label="Medals">
+          <div className="medal-bar-big" aria-label="Tiers">
             <MedalBar items={data.items} overall={data.overall} />
           </div>
+          <NextTiers items={data.items} />
           {sort === "group" && <JumpToNew ready />}
           <label className="inline-check">
             <input type="checkbox" checked={sort === "closest"} onChange={(e) => setSort(e.target.checked ? "closest" : "group")} /> Sort by closest

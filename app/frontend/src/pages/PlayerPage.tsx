@@ -466,7 +466,7 @@ type PlayerTab = "overview" | "combat" | "challenges" | "gear" | "trends" | "com
 const PLAYER_TABS: [PlayerTab, string, string][] = [
   ["overview", "Overview", "Recent matches"],
   ["combat", "Recorder stats", "Separate data: kills, damage"],
-  ["challenges", "Challenges", "Medals and progress"],
+  ["challenges", "Challenges", "Tiers and progress"],
   ["gear", "Loadouts & gear use", "What they play with"],
   ["trends", "Trends", "How they change over time"],
   ["companions", "Played with", "Teammates and opponents"],

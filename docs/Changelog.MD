@@ -18,6 +18,17 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.26.9 — 18:56
+
+- **"Medal" is now "tier" everywhere on the site** (user, 26 Nov: "medals" was confusing next to the crown pictures and the
+  Crown tier). "No tier yet" in the bar, "Recent tiers reached", "Closest to next tier", "x% of players reached a tier",
+  "Tiers and progress" on the profile tab, "tiers reached in total" in Top players, and Lobby Mime Troupe's rule. The
+  "Medal Collector" challenge keeps its name.
+- **"Your next tiers · closest first" is back, with more detail** (user, 26 Nov). Five cards above the tabs on a player's
+  Challenges page, closest first. Each shows the challenge and what to do, "3 more to reach silver" in the colour of that tier,
+  a bar to it with the count ("24 / 27 · 84% of the way"), the four tier crowns (reached, next, later) and how many players
+  have reached a tier in it.
+
 ## 2026.11.26.8 — 18:48
 
 - **Challenges: a simpler medal bar** (user, 26 Nov, option B). The bar on the player profile and at the top of their

@@ -938,7 +938,7 @@ def _build_rules() -> list[Rule]:
                 "loadout", lambda g: g.enough_players and g.won and g.main_loadout() is not None, (1, 10, 18, 36, 70), new=True, group="Gear mastery"),
         _ladder(149, "Quick-Change Chassis (Loadout)", "Use many different loadouts in one game (each must be used for at least 10 % of the game)",
                 "loadout", _v4(lambda gs: gs[0].loadouts_played()), (4, 5, 6, 7, 8), "game", new=True, group="Gear mastery"),
-        _ladder(150, "Lobby Mime Troupe (Emotes)", "Use emotes in a game in which you never die: the more emotes, the higher the medal", None,
+        _ladder(150, "Lobby Mime Troupe (Emotes)", "Use emotes in a game in which you never die: the more emotes, the higher the tier", None,
                 _v4(lambda gs: gs[0].emotes if gs[0].play_time_s >= FULL_GAME_S and gs[0].deaths == 0 else 0), (4, 8, 12, 16, 20), "game",  # x4 (user, 2026-11-03)
                 estimated=True, new=True, group="Emotes"),
         _ladder(151, "Showbot (Emotes)", "Use as many emotes as you can in a game your team wins", None,
