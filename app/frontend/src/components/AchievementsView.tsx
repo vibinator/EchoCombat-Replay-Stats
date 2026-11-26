@@ -40,10 +40,15 @@ const inPeriodSection = (a: { new: boolean; group: string | null; period: string
 
 type AnyBadge = Parameters<typeof Badge>[0]["a"];
 
-/** Which section (tab) a challenge sits in: its period, or the theme section of a new one. */
-export function sectionId(a: { new: boolean; group: string | null; period: string }): string {
+/** The game's own end-of-match award cards (MVP, Super Star, Guard ...): their rules all end in "(Award card)" (combat_achievements.py). */
+export const isAwardCard = (a: { name: string }) => a.name.endsWith("(Award card)");
+const AWARDS_ID = "p-awards";
+
+/** Which section (tab) a challenge sits in: its period, or the In-game award cards tab. */
+export function sectionId(a: { name: string; period: string }): string {
   // Four pages (user, 2026-11-06, renamed 2026-11-10): One Match, One Day, One Week, Cumulative; the theme is a filter inside the page, see themeOf.
-  return `p-${a.period}`;
+  // The award cards moved out of those into a tab of their own (user, 2026-11-26), split by period inside it.
+  return isAwardCard(a) ? AWARDS_ID : `p-${a.period}`;
 }
 
 /** Theme chip of a challenge inside its period page (user, 2026-11-06: themes are filters now, not tabs). */
@@ -55,6 +60,8 @@ export function themeOf(a: { new: boolean; group: string | null; period: string 
 /** The four pages (user, 2026-11-06): in one game, day, week, cumulative (= all time). */
 const PAGE_LABELS: Record<string, string> = Object.fromEntries(GROUPS); // One Match, One Day, One Week, Cumulative (user, 2026-11-10)
 const PAGES = GROUPS;
+/** Every tab in order: the period pages, then the In-game award cards (user, 2026-11-26). */
+const SECTION_LIST: [id: string, label: string][] = [...PAGES.map(([period]) => [`p-${period}`, PAGE_LABELS[period]] as [string, string]), [AWARDS_ID, "In-game award cards"]];
 
 type Filter = "done" | "open" | "new";
 const FILTERS: [Filter, string][] = [["open", "In progress"], ["new", "Not started"], ["done", "Completed"]];
@@ -81,8 +88,8 @@ function sortItems<T extends AnyBadge>(list: T[], by: SortBy, tracked: boolean, 
 
 /** The challenges of one tab, and (for a player) filters Completed / In progress / Not started. Completed achievements are
  *  hidden until you pick Completed; the view opens on the first filter that has something. `only` is the status picked for
- *  the whole page (it replaces the pills). */
-function Section<T extends AnyBadge>({ label, items, only, sort, shares }: { label: string; items: T[]; only: Filter | ""; sort: SortBy; shares: Shares }) {
+ *  the whole page (it replaces the pills). `byPeriod` splits the tiles under One Match / One Day / ... headings (award cards tab). */
+function Section<T extends AnyBadge>({ label, items, only, sort, shares, byPeriod = false }: { label: string; items: T[]; only: Filter | ""; sort: SortBy; shares: Shares; byPeriod?: boolean }) {
   const [picked, setPicked] = useState<Filter | null>(null);
   const tracked = items.every((a) => status(a) !== null);
   const counts = { done: 0, open: 0, new: 0 };
@@ -109,9 +116,23 @@ function Section<T extends AnyBadge>({ label, items, only, sort, shares }: { lab
           ))}
         </div>
       )}
-      <div className="tiles" aria-label={label}>
-        {shown.map((a) => <Tile key={a.id} a={a} />)}
-      </div>
+      {byPeriod
+        ? PAGES.map(([period, name]) => {
+            const part = shown.filter((a) => a.period === period);
+            return part.length === 0 ? null : (
+              <section key={period} className="ach-period-part">
+                <h3>{name} <span className="muted">{part.length}</span></h3>
+                <div className="tiles" aria-label={`${label}, ${name}`}>
+                  {part.map((a) => <Tile key={a.id} a={a} />)}
+                </div>
+              </section>
+            );
+          })
+        : (
+          <div className="tiles" aria-label={label}>
+            {shown.map((a) => <Tile key={a.id} a={a} />)}
+          </div>
+        )}
     </div>
   );
 }
@@ -132,7 +153,7 @@ export function GroupedBadges<T extends AnyBadge>({ items: all }: { items: T[] }
   const term = q.trim().toLowerCase();
   const visible = items.filter((a) => (!term || `${a.name} ${ruleText(a.description)}`.toLowerCase().includes(term))
     && (!tracked || !only || status(a) === only));
-  const sections: { id: string; label: string; items: T[] }[] = PAGES.map(([period]) => ({ id: `p-${period}`, label: PAGE_LABELS[period], items: [] as T[] }));
+  const sections: { id: string; label: string; items: T[] }[] = SECTION_LIST.map(([id, label]) => ({ id, label, items: [] as T[] }));
   for (const a of visible) sections.find((x) => x.id === sectionId(a))?.items.push(a);
   const shownSections = sections.filter((x) => x.items.length > 0);
   // the page comes from the address (?section=), so a link can open one; "Jump to new challenges" (#new) picks the New chip
@@ -179,7 +200,7 @@ export function GroupedBadges<T extends AnyBadge>({ items: all }: { items: T[] }
             ))}
           </div>
           {tracked && <NotYetStarted items={pageItems as unknown as Achievement[]} />}
-          <Section key={active.id} label={active.label} items={pageItems} only={only} sort={sort} shares={shares} />
+          <Section key={active.id} label={active.label} items={pageItems} only={only} sort={sort} shares={shares} byPeriod={active.id === AWARDS_ID} />
         </>
       )}
     </>
@@ -1014,7 +1035,7 @@ function LaunchedSummary({ userId }: { userId: string }) {
         )}
       </div>
       <div className="ach-summary-tabs">
-        {PAGES.map(([period]) => [`p-${period}`, PAGE_LABELS[period]] as const).map(([id, label]) => {
+        {SECTION_LIST.map(([id, label]) => {
           const list = d.items.filter((a) => !a.prize && sectionId(a) === id);
           if (list.length === 0) return null;
           const done = list.filter((a) => a.progress >= 1).length;

@@ -4605,6 +4605,10 @@ button.small {
 .chip.active { background: var(--panel); border-color: var(--blue); }
 .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; margin-top: 8px; }
 @media (max-width: 560px) { .tiles { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); } } /* phones: two per row */
+/* In-game award cards tab (user, 2026-11-26): the cards split under One Match / One Day / One Week / Cumulative headings */
+.ach-period-part + .ach-period-part { margin-top: 16px; }
+.ach-period-part h3 { margin: 12px 0 0; font-size: 1rem; }
+.ach-period-part h3 .muted { font-weight: normal; font-size: 0.85rem; }
 .tile { position: relative; outline-offset: 2px; cursor: pointer; }
 .tile .badge-card.compact { flex-direction: column; text-align: center; height: 100%; gap: 6px; padding: 10px 8px; }
 .tile .badge-card.compact .badge-text { align-items: center; width: 100%; }

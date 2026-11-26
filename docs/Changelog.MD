@@ -18,6 +18,13 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.26.3 — 17:06
+
+- **New Challenges tab: In-game award cards** (user, 26 Nov). The 25 challenges for the game's end-of-match award cards (MVP,
+  Super Star, Guard, Medic, Assassin ...) moved out of One Match / One Day / One Week / Cumulative into one tab, split inside it
+  under those same four headings (16 / 1 / 3 / 5). The status pills, search and sort work there as on the other tabs, and a
+  player's summary has a tile for it. Links to `?section=p-awards` open it. Frontend only, nothing to re-read.
+
 ## 2026.11.26.2 — 14:59
 
 - **An instant solo launch gives no top speed** (user, 26 Nov: "big spikes as a solo are not realistic, as shooting behind you

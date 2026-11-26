@@ -232,7 +232,7 @@ Fixed objects per map, measured from real replays (2026-10-31), for drawing the 
 Payload maps: attacking team, winner, per-player time on the payload (ReplayData "Payload semantics").
 - `ON_PAYLOAD_RADIUS_M`:8 / `FINAL_CHECKPOINT`:9 / **class PayloadAccumulator**:12 [add:21, attacking_team:37, winner:42, push_block:52] / _other:62
 
-### `app/backend/stats/player.py` (320 lines)
+### `app/backend/stats/player.py` (321 lines)
 Per-player accumulator. Rules follow the old app (ReplayData.MD): ping over all frames (except the 999 placeholder),
 - `LEFT_EARLY_S`:15 / `NEAR_DISTANCE_SQ`:16 / `LONE_WOLF_DISTANCE_SQ`:17 / `STOPPED_SPEED`:18 / `PING_PLACEHOLDER`:19 / `PING_CAP`:20 / `TOP_SPEED_WINDOW_S`:25 / `TOP_SPEED_LEGS`:26 / `TOP_SPEED_MISMATCH`:32 / `TOP_SPEED_MISMATCH_M`:33 / `TOP_SPEED_MAX_GAP_S`:34 / `TOP_SPEED_IMPOSSIBLE`:40 / `LAUNCH_STEP_S`:48 / `LAUNCH_FROM`:49 / `LAUNCH_GAIN`:51 / `LAUNCH_NEAR_M`:53 / `LAUNCH_PARTNER_SPEED`:54 / `LAUNCH_SPENT`:56 / `FROZEN_S`:57 / **class PlayerAccumulator**:60 [event:108, add:112, _add_in_bounds:154, _track_speed_sum:197, _track_launch:208, _track_top_speed:245, _travelled:267, result:289]
 
