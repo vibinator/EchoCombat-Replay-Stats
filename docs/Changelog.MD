@@ -18,6 +18,15 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.26.10 — 19:03
+
+- **Player profile: Challenges and Mega Prizes are one row each** (user, 26 Nov: "too much data"). Challenges: the label,
+  "38 of 148 complete", the tier bar with its names inside and a "View all →" button on one line; the counts of the small
+  segments, average progress and the Combat / Edit your Bio line moved into hover text. Mega Prizes: "Delta-13" and "Jack
+  Series 11", each with a slim bar and "412 / 1,000" (or "won!"); the full prize name, the rule, how many to go and the period
+  are in hover text, and a green dot shows while matches are being recorded. On a phone the rows wrap and the bar shows numbers
+  only. The challenges page keeps the full-size bar.
+
 ## 2026.11.26.9 — 18:56
 
 - **"Medal" is now "tier" everywhere on the site** (user, 26 Nov: "medals" was confusing next to the crown pictures and the

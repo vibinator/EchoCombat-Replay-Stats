@@ -445,36 +445,30 @@ export function MegaPrizesProfile({ userId }: { userId: string }) {
 function MegaPrizesProfileBody({ userId }: { userId: string }) {
   const d = useApi(() => getMegaPlayer(userId), `mega-player|${userId}`).data;
   if (!d) return null;
+  // one row (user, 2026-11-26: "too much data"): each prize as a short name, a slim bar and the count; the rest is hover text
   const prizes = [
-    { key: "combat", title: `Play ${d.combat.target.toLocaleString()} Echo Combat matches`, ...d.combat, prize: d.combat.prize ?? "Delta-13 from Lone Echo 2" },
-    { key: "arena", title: `Play ${d.arena.target.toLocaleString()} Public Arena matches`, ...d.arena },
+    { key: "combat", short: "Delta-13", rule: `Play ${d.combat.target.toLocaleString()} Echo Combat matches`, ...d.combat, prize: d.combat.prize ?? "Delta-13 from Lone Echo 2" },
+    { key: "arena", short: "Jack Series 11", rule: `Play ${d.arena.target.toLocaleString()} Public Arena matches`, ...d.arena },
   ];
+  const period = d.period.start ? `${d.period.start} → ${d.period.end ?? "open-ended"}${d.period.active ? " (recording)" : ""}` : "No period set yet";
   return (
-    <section className="mega-profile" aria-label="Mega Prizes">
-      <div className="mega-profile-head">
-        <strong>Mega Prizes</strong>
-        {d.period.start && <span className="muted">{d.period.start} → {d.period.end ?? "open-ended"}{d.period.active && <span className="live-text"> · recording</span>}</span>}
-      </div>
-      <div className="mega-profile-cards">
-        {prizes.map((x) => {
-          const share = Math.min(1, x.matches / x.target);
-          const won = x.matches >= x.target;
-          return (
-            <div key={x.key} className={`mega-profile-card ${x.key}${won ? " won" : ""}`}>
-              <span className="mega-profile-prize">{x.prize}</span>
-              <span className="muted">{x.title}</span>
-              <div className="mega-profile-bar" role="progressbar" aria-label={x.title} aria-valuemin={0} aria-valuemax={x.target} aria-valuenow={x.matches}>
-                <div style={{ width: `${share * 100}%` }} />
-              </div>
-              <span className="mega-profile-count">
-                <b>{x.matches.toLocaleString()}</b> / {x.target.toLocaleString()}
-                <span className="muted"> · {won ? "prize won!" : `${(x.target - x.matches).toLocaleString()} to go`}</span>
-              </span>
-            </div>
-          );
-        })}
-      </div>
-      {!d.linked && <span className="muted mega-profile-note">No game account linked to this player yet, so nothing is counted here.</span>}
+    <section className="mega-profile mega-row" aria-label="Mega Prizes">
+      <strong className="mega-row-label" title={`Only matches inside the Mega Prize period count: ${period}${d.linked ? "" : ". No game account is linked to this player yet."}`}>
+        Mega Prizes{d.period.active && <span className="live-dot" aria-label="recording" />}
+      </strong>
+      {prizes.map((x) => {
+        const won = x.matches >= x.target;
+        return (
+          <span key={x.key} className={`mega-row-prize ${x.key}${won ? " won" : ""}`}
+            title={`${x.prize}: ${x.rule}. ${won ? "Prize won!" : `${(x.target - x.matches).toLocaleString()} to go.`}`}>
+            <span className="mega-row-name">{x.short}</span>
+            <span className="mega-profile-bar" role="progressbar" aria-label={`${x.prize}: ${x.matches} of ${x.target}`} aria-valuemin={0} aria-valuemax={x.target} aria-valuenow={x.matches}>
+              <span style={{ width: `${Math.min(1, x.matches / x.target) * 100}%` }} />
+            </span>
+            <span className="mega-row-count">{won ? "won!" : <><b>{x.matches.toLocaleString()}</b> / {x.target.toLocaleString()}</>}</span>
+          </span>
+        );
+      })}
     </section>
   );
 }
@@ -1062,7 +1056,7 @@ const INSIDE_FROM = 0.1; // a segment this share of the bar or wider has its nam
 /** A player's challenges as one bar split by best medal (user, 2026-11-26, option B: the same coloured bar, each segment named
  *  with its count, one headline count out of the regular challenges). Crown = complete. The Combat challenges and "Edit your
  *  Bio" are out of the totals, so they get a line of their own. On the player page and at the top of their Challenges page. */
-function MedalBar({ items, overall }: { items: Achievement[]; overall: number }) {
+function MedalBar({ items, overall, compact = false }: { items: Achievement[]; overall: number; compact?: boolean }) {
   const counted = items.filter((a) => a.counted && !a.prize);
   const total = counted.length;
   const complete = counted.filter((a) => a.progress >= 1).length;
@@ -1073,6 +1067,23 @@ function MedalBar({ items, overall }: { items: Achievement[]; overall: number })
   const small = shown.filter(([, n]) => total > 0 && n / total < INSIDE_FROM);
   const extra = items.filter((a) => !a.counted && !a.prize);
   const label = (m: string, n: number) => `${MEDAL_NAMES[m]} ${n}`;
+  const extraText = extra.length > 0 ? `Not in the totals: Combat and Edit your Bio, ${extra.filter((a) => a.progress >= 1).length} of ${extra.length} complete` : "";
+  if (compact)
+    // the profile row (user, 2026-11-26: "too much data"): the headline and the bar only; every count is in the hover text
+    return (
+      <>
+        <strong className="medal-headline compact" title={[`Average progress: ${pct(overall)}`, ...shown.map(([m, n]) => label(m, n)), extraText].filter(Boolean).join(" · ")}>
+          {complete} of {total} complete
+        </strong>
+        <div className="medal-track compact" role="img" aria-label={`${complete} of ${total} complete: ${shown.map(([m, n]) => label(m, n)).join(", ")}`}>
+          {shown.map(([m, n]) => (
+            <span key={m} className={`medal-seg ${m === "none" ? "none" : `t-${m}`}`} style={{ width: `${(n / total) * 100}%` }} title={label(m, n)}>
+              {n / total >= INSIDE_FROM && <span className="medal-seg-label"><span className="medal-seg-name">{MEDAL_NAMES[m]} </span>{n}</span>}
+            </span>
+          ))}
+        </div>
+      </>
+    );
   return (
     <>
       <strong className="medal-headline" title={`Average progress over every challenge, counting partial progress: ${pct(overall)}`}>
@@ -1103,17 +1114,13 @@ function MedalBar({ items, overall }: { items: Achievement[]; overall: number })
 function StripBody({ userId, onOpen }: { userId: string; onOpen: () => void }) {
   const d = useApi(() => getAchievements(userId), userId).data;
   if (!d) return null;
-  // the goals row is gone (user, 2026-11-26): the big medal bar, then one obvious button to the full Challenges page
+  // one row (user, 2026-11-26: "too much data"): the label, the headline, the bar and a button to the full page
   return (
-    <section className="ach-strip" aria-label="Challenges">
-      <button className="ach-strip-head" onClick={onOpen} title="Open the Challenges tab">
-        <strong>Challenges</strong>
-      </button>
-      <div className="medal-bar-big" aria-label="Tiers">
-        <MedalBar items={d.items} overall={d.overall} />
-      </div>
-      <Link className="ach-all-big" to={achievementsPath(d.user_id, d.name)}>
-        View all {d.name}'s challenges <span aria-hidden="true">→</span>
+    <section className="ach-strip ach-row" aria-label="Challenges">
+      <button className="ach-row-label" onClick={onOpen} title="Open the Challenges tab">Challenges</button>
+      <MedalBar items={d.items} overall={d.overall} compact />
+      <Link className="ach-all-big compact" to={achievementsPath(d.user_id, d.name)} title={`All of ${d.name}'s challenges`}>
+        View all <span aria-hidden="true">→</span>
       </Link>
     </section>
   );

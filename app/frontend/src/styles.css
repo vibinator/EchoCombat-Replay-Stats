@@ -5717,3 +5717,24 @@ tr.cloud-drop-on td {
 .next-tier-ladder .later img { filter: grayscale(1); opacity: 0.45; }
 .next-tier-ladder .current img { filter: drop-shadow(0 0 6px color-mix(in srgb, var(--tier) 70%, transparent)); }
 .next-tier-share { margin-left: auto; font-size: 0.75rem; }
+
+/* Player profile, one row each (user, 2026-11-26: "too much data") */
+.ach-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.ach-row-label { flex: none; padding: 0; border: 0; background: none; color: var(--text); font: inherit; font-weight: 700; cursor: pointer; }
+.medal-headline.compact { flex: none; font-size: 1rem; font-weight: 700; }
+.medal-track.compact { flex: 1 1 260px; width: auto; height: 1.6rem; border-radius: 8px; }
+.medal-track.compact .medal-seg-label { font-size: 0.8rem; }
+.ach-all-big.compact { flex: none; min-height: 36px; padding: 6px 16px; border-radius: 10px; font-size: 0.95rem; }
+.ach-all-big.compact span { font-size: 1.1rem; }
+.ach-row { container-type: inline-size; }
+@container (max-width: 560px) { .medal-track.compact .medal-seg-name { display: none; } }
+.mega-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 22px; }
+.mega-row-label { flex: none; display: inline-flex; align-items: center; gap: 6px; cursor: help; }
+.live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 6px var(--ok); }
+.mega-row-prize { --prize: var(--period-game); flex: 1 1 240px; display: flex; align-items: center; gap: 10px; min-width: 0; }
+.mega-row-prize.arena { --prize: var(--period-all); }
+.mega-row-prize.won { --prize: var(--tier-gold); }
+.mega-row-name { flex: none; font-weight: 700; color: var(--prize); }
+.mega-row-prize .mega-profile-bar { flex: 1; height: 8px; }
+.mega-row-prize .mega-profile-bar > span { display: block; height: 100%; border-radius: inherit; background: var(--prize); }
+.mega-row-count { flex: none; font-variant-numeric: tabular-nums; font-size: 0.9rem; }
