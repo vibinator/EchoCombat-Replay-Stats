@@ -30,8 +30,9 @@ def test_catalogue():
     removed = {91, 99, 80, 81, 82, 83, 84, 85, 113}  # Unstoppable, the first Showboat, and the duplicates removed on 2026-11-05
     # 75 original + 63 new + Switch Hitter + Attack Drone / Umbral Veil / Neutron (3 each, 2026-11-20); the 22 Test Drives (179-197,
     # 268, 272, 276) were retired on 2026-11-26 (D63); Combat has its own list (combat_achievements); the Mega Prize is not in RULES
-    expected = [i for i in range(5, 152) if i not in removed] + [201] + [i for i in range(265, 277) if (i - 265) % 4 != 3]
-    assert ids == expected and len(set(ids)) == 148
+    retired = {21, 22, 24, 87, 88, 89, 96, 97, 110, 111, 140, 145, 149}  # Specials that repeated another challenge (2026-11-26, D64)
+    expected = [i for i in range(5, 152) if i not in removed | retired] + [201] + [i for i in range(265, 277) if (i - 265) % 4 != 3]
+    assert ids == expected and len(set(ids)) == 135
     assert next(r for r in RULES if r.id == 151).name == "Showbot (Emotes)" and sum(r.name == "Showbot (Emotes)" for r in RULES) == 1
     assert [r.id for r in RULES if r.new] == [i for i in expected if i >= 80]
     assert all(r.counted for r in RULES)
@@ -150,8 +151,8 @@ def test_logic_follows_the_text():
     assert "25+ games" in text[73] and "dying fewer than 5 times a game" in text[43]
     # the counting rules are listed per achievement, not repeated in the description
     notes = {r.id: rule_notes(r) for r in RULES}
-    assert "4+ min games" in notes[18] and "4+ min games" in notes[21] and "4+ min games" in notes[43] and "4+ min games" in notes[42]
-    assert "Best game" in notes[21] and "Best 7 days" in notes[43]
+    assert "4+ min games" in notes[18] and "4+ min games" in notes[43] and "4+ min games" in notes[42]
+    assert "Best game" in notes[23] and "Best 7 days" in notes[43]
     assert "3+ players per team" in notes[139] and "3+ players per team" not in notes[23]
     assert not any("4+ minutes" in d or "best game" in d for d in text.values())
     # 4+ minutes: a short game does not count, even with 0 deaths
@@ -206,11 +207,7 @@ def test_new_gear_challenges():
     r = by_id(evaluate(starburst))
     assert r[105]["tier"] == "gold" and r[108]["tier"] == "gold" and r[105]["new"]  # 30 games on the Veteran ladder: 5 / 19 / 29 / 49
     assert r[86]["progress"] == 0.25  # 1 of the 4 unreleased weapons
-    one_game = Game(**{**game().__dict__, "loadouts": {("assault", "heal", "det"): 250, ("blaster", "sensor", "stun"): 250,
-                                                      ("scout", "shield", "arc"): 250, ("rocket", "wraith", "burst"): 250}})
-    r = by_id(evaluate([one_game]))
-    assert r[87]["progress"] == r[88]["progress"] == r[89]["progress"] == 1.0
-    assert r[110]["progress"] == 4 / 5 and r[111]["progress"] == 4 / 5
+
 
 
 def test_now_public_gear_challenges():
@@ -243,8 +240,7 @@ def test_new_result_challenges():
     attack = played("2026-10-01", True, mode="payload", map="fission", attacking_team="blue", push_s=120.0)
     defend = played("2026-10-01", True, mode="payload", map="fission", attacking_team="orange", block_s=30.0)
     r = by_id(evaluate([attack, defend]))
-    assert (r[94]["tier"], r[94]["count"], r[95]["tier"], r[96]["tier"]) == ("bronze", 1, "bronze", "bronze")  # push 120 s: bronze at 112 s
-    assert (r[97]["tier"], r[97]["unit"]) == ("bronze", " s") and r[96]["estimated"]  # block 30 s = bronze
+    assert (r[94]["tier"], r[94]["count"], r[95]["tier"]) == ("bronze", 1, "bronze")  # Pedal to the Metal / Roadblock retired 2026-11-26
 
 
 def test_tiered_achievements():
@@ -268,7 +264,7 @@ def test_tiered_achievements():
     assert unlock_threshold(rule) == 0.25 and unlock_threshold(next(r for r in RULES if r.id == 69)) == 0.25
     delivery = next(r for r in RULES if r.id == 94)
     assert "Deliver the payload to the end" in delivery.description and delivery.levels == (1, 11, 18, 21)
-    assert "count" not in by_id(evaluate(sweeps(1)))[87]  # single-step rules unchanged
+    assert "count" not in by_id(evaluate(sweeps(1)))[139]  # single-step rules unchanged
 
 
 def test_ladders_with_units_and_periods():
@@ -277,9 +273,6 @@ def test_ladders_with_units_and_periods():
     assert (r[23]["tier"], r[23]["count"], r[23]["unit"]) == ("gold", 24.0, " m/s")  # 14 / 20 / 23 / 28
     assert next(rule for rule in RULES if rule.id == 23).levels == (14, 20, 23, 28)
     assert "14 m/s bronze, 20 m/s silver" in next(x for x in RULES if x.id == 23).description
-    r = by_id(evaluate([game(upside=600)]))
-    assert (r[24]["tier"], r[24]["count"]) == ("gold", 60.0)  # 60 % inverted in one 3+ min game: 10 / 45 / 55 / 65 (TUNED_LEVELS)
-    assert by_id(evaluate([game(upside=900, play=60.0)]))[24]["count"] == 0
 
 
 def test_new_activity_challenges():
@@ -353,12 +346,9 @@ def test_new_gear_matches_the_older_gear():
 
 
 def test_one_game_challenges_need_enough_players():
-    base = game("2026-10-01")
-    long_game = {**base.__dict__, "play_time_s": 1200.0}
-    r = by_id(evaluate([Game(**{**long_game, "enough_players": False})]))
-    assert r[140]["count"] == 0  # Marathon Bot: fewer than 3 per team
-    r = by_id(evaluate([Game(**long_game)]))
-    assert r[140]["count"] == 20
+    still = {**game("2026-10-01").__dict__, "stopped": 960, "in_bounds": 1200}  # Space Statue (Marathon Bot retired 2026-11-26)
+    assert by_id(evaluate([Game(**{**still, "enough_players": False})]))[142]["count"] == 0  # fewer than 3 per team
+    assert by_id(evaluate([Game(**still)]))[142]["tier"] == "crown"
 
 
 def test_lone_wolf_uses_its_own_distance():
@@ -394,14 +384,6 @@ def test_seven_day_upside_down_needs_three_days_and_ten_minutes_in_bounds():
     assert by_id(evaluate([flipped("2026-10-01", 12000), flipped("2026-10-02", 12000)]))[49]["count"] == 0  # two days
 
 
-def test_speed_demon_needs_a_minute_in_bounds():
-    base = game("2026-10-01").__dict__
-    rule = next(rule for rule in RULES if rule.id == 145)
-    assert rule.levels == (3.25, 3.75, 4.25, 4.75)
-    fast = {**base, "speed_sum": 6.0 * 1200}
-    assert by_id(evaluate([Game(**{**fast, "in_bounds": 1200})]))[145]["tier"] == "crown"  # 6 m/s for exactly 1 minute at 20 Hz
-    assert by_id(evaluate([Game(**{**fast, "in_bounds": 1199})]))[145]["count"] == 0
-
 
 def test_seven_day_speed_needs_three_days_and_ten_minutes_in_bounds():
     base = game("2026-10-01").__dict__  # 20 Hz, 4 m/s below
@@ -425,13 +407,6 @@ def test_seven_day_enemy_share_needs_three_days_and_ten_minutes_in_bounds():
     assert by_id(evaluate([close("2026-10-01", 12000), close("2026-10-02", 12000)]))[47]["count"] == 0  # two days
 
 
-def test_can_we_talk_needs_a_minute_in_bounds():
-    base = game("2026-10-01").__dict__
-    assert next(rule for rule in RULES if rule.id == 22).levels == (20, 25, 30, 40)
-    close = {**base, "near_enemy": 600}
-    assert by_id(evaluate([Game(**{**close, "in_bounds": 1200})]))[22]["tier"] == "crown"  # 50 % for exactly 1 minute at 20 Hz
-    assert by_id(evaluate([Game(**{**close, "in_bounds": 1199})]))[22]["count"] == 0
-
 
 def test_seven_day_teammate_share_needs_three_days_and_ten_minutes_in_bounds():
     assert next(rule for rule in RULES if rule.id == 46).levels == (16, 19, 21, 23)
@@ -450,12 +425,6 @@ def test_statue_needs_a_minute_in_bounds():
     assert by_id(evaluate([Game(**{**still, "in_bounds": 1199})]))[142]["count"] == 0
 
 
-def test_full_team_salvo_needs_a_minute_in_bounds():
-    base = game("2026-10-01").__dict__
-    close = {**base, "near_mate": 972}  # 81 % of 1200
-    assert by_id(evaluate([Game(**{**close, "in_bounds": 1200})]))[21]["tier"] == "crown"  # exactly 1 minute at 20 Hz
-    assert by_id(evaluate([Game(**{**close, "in_bounds": 1199})]))[21]["count"] == 0
-
 
 def test_one_day_targets():
     levels = {rule.id: rule.levels for rule in RULES}
@@ -469,7 +438,7 @@ def test_one_day_targets():
 def test_impossible_top_medals_were_lowered():
     levels = {rule.id: rule.levels for rule in RULES}
     assert levels[72] == (6, 9, 10, 11) and levels[73] == (2.6, 2.85, 3.1, 3.4) and levels[100] == (20, 60, 80, 120)
-    assert levels[146] == (2, 3.5, 4, 4.5) and levels[149] == (2, 4, 5, 6) and levels[150] == (2, 6, 8, 10) and levels[151] == (4, 6, 7, 8)
+    assert levels[146] == (2, 3.5, 4, 4.5) and levels[150] == (2, 6, 8, 10) and levels[151] == (4, 6, 7, 8)
 
 
 def test_seven_day_map_and_mode_targets():
@@ -549,3 +518,11 @@ def test_untouchable_needs_a_game_of_six_minutes():
     assert next(rule for rule in RULES if rule.id == 139).description == "Win a game without dying"
     assert "4+ min games" in rule_notes(next(rule for rule in RULES if rule.id == 18))
     assert by_id(evaluate([game("2026-10-01", deaths=0, play=240.0)]))[18]["count"] == 1  # Toaster: still 4 minutes
+
+
+def test_top_players_rank_by_challenges_fully_complete():
+    """Top players (user, 2026-11-26): most challenges fully complete first, average progress only breaks ties."""
+    from backend.api.leaderboard import _by_complete
+    ranking = [(1, 50, 0.9), (2, 40, 0.5), (3, 30, 0.6)]  # (player, games, average progress), as the ranking sorts them
+    progress = {1: [1.0, 0.8, 0.9], 2: [1.0, 1.0, 0.0], 3: [1.0, 1.0, 0.2]}
+    assert [pid for pid, _, _ in _by_complete(ranking, progress)] == [3, 2, 1]  # 2 complete each: the higher average first

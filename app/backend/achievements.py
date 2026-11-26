@@ -1011,7 +1011,14 @@ def _tuned(rule: Rule, levels: tuple[float, ...] | None = None) -> Rule:
     return replace(rule, description=f"{what} ({targets})", levels=levels, score=_levelled(rule.count, levels))
 
 
-RULES = [_tuned(r) for r in _build_rules()]
+# Specials trimmed (user, 2026-11-26, D64): one-game challenges that repeat a One Day / One Week / Cumulative one, or each
+# other, are retired: off the site, out of every total, ranking and Medal Collector; their ids are never reused. Full Team Salvo,
+# Can We Talk About This?, I'm Bat Bot (week / all-time versions exist), Jack of All Trades, Ordnance Sampler, Tac Mod Tinkerer
+# (Versatile Bot), Payload Pedal to the Metal and Roadblock (the all-time push / block totals), Kronos II Armory Raid and Bomb
+# Bay Overload (all 4 in one game), Marathon Bot (Overtime on Kronos II), Boost Junkie (average speed, week / all time) and
+# Quick-Change Chassis (5th Loadout when?). Their functions stay, unused, so an id can come back by taking it out of this set.
+RETIRED_IDS = frozenset({21, 22, 24, 87, 88, 89, 96, 97, 110, 111, 140, 145, 149})
+RULES = [_tuned(r) for r in _build_rules() if r.id not in RETIRED_IDS]
 
 # Mega Prize (user, 2026-11-04): NOT in RULES on purpose. RULES feeds every public list, ranking, medal feed and total; the
 # prize is Preview-only and only served by api/arena.py and the Console report (mega_prizes.py). Written targets are

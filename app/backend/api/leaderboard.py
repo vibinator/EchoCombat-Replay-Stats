@@ -302,13 +302,32 @@ def _leaderboard(request, stat, period, map, private, min_games, weapon, tacmod,
     return result
 
 
+_complete_memo: dict[tuple[int, int], tuple[object, list]] = {}  # (id of the ranking, players) -> (that ranking, sorted)
+
+
+def _by_complete(ranking: list[tuple[int, int, float]], progress: dict[int, list[float]]) -> list[tuple[int, int, float]]:
+    """The eligible players, most challenges fully complete first, then by average progress. Counted once per ranking (it
+    changes every few minutes), not on every request."""
+    key = (id(progress), len(ranking))
+    memo = _complete_memo.get(key)
+    if memo is not None and memo[0] is progress:
+        return memo[1]
+    done = {pid: sum(1 for p in progress.get(pid, ()) if p >= 1) for pid, _, _ in ranking}
+    out = sorted(ranking, key=lambda v: (-done[v[0]], -v[2], -v[1]))  # stable: equal players keep the ranking's order
+    _complete_memo.clear()
+    _complete_memo[key] = (progress, out)
+    return out
+
+
 @router.get("/achievers")
 def achievers(request: Request, limit: int = Query(10, ge=1, le=50), min_games: int = Query(10, ge=1, le=100_000)):
     """The top of the achievements ranking with facts about each player: challenges completed, medals, gold or better,
     strongest section (the Achievements page "Top players")."""
     require_launched(request)
-    ranking = _rank(achievement_ranking(request), True, min_games)[:limit]
     progress = achievement_progress(request)
+    # ranked by challenges fully complete (every tier, up to the crown), average progress breaking ties (user, 2026-11-26:
+    # "Top Players should be fully completed"); the stats leaderboard keeps average progress
+    ranking = _by_complete(_rank(achievement_ranking(request), True, min_games), progress)[:limit]
     with request.app.state.sessionmaker() as db:
         people = {pid: (name, user_id) for pid, name, user_id in
                   db.execute(select(Player.id, Player.name, Player.user_id).where(Player.id.in_([pid for pid, _, _ in ranking])))}

@@ -63,7 +63,7 @@ function TopPlayers() {
   return (
     <div className="ach-pane">
       <div className="section-head">
-        <h2>Top players</h2>
+        <h2>Top players <span className="muted hint">· most challenges fully complete</span></h2>
         <Link to="/leaderboard?stat=challenges">Full leaderboard</Link>
       </div>
       <ol className="top-players" tabIndex={0} aria-label="Top players, scroll sideways">
@@ -72,7 +72,7 @@ function TopPlayers() {
             <span className="rank">#{p.rank}</span>
             <span className="who"><Avatar name={p.name} url={avatars[p.user_id]} size={32} /><Link to={achievementsPath(p.user_id, p.name)} className="name">{p.name}</Link></span>
             <strong className="big">
-              {int(p.completed)} <span className="muted">/ {int(p.total)} completed</span>
+              <img className="medal-crown" src="/achievements/crown.png" alt="" />{int(p.completed)} <span className="muted">/ {int(p.total)} fully complete</span>
             </strong>
             <span className="muted" title="Silver or better = challenges where the player reached the silver, gold or crown tier">{int(p.gold_plus)} challenges at silver or better</span>
             <span className="muted" title="Every tier reached, added up across all challenges (a challenge can give up to 4)">{int(p.medals)} tiers reached in total</span>

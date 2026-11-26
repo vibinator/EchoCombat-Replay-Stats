@@ -86,7 +86,7 @@ def get_challenges(request: Request):
 
 # Shown in full on the "Coming soon" page (user, 2026-10-31; refreshed 2026-11-03): original day, week and all-time
 # challenges plus two of the new 4v4 "In one game" ones (Point Guard, Speed Demon).
-REVEALED_IDS = (9, 45, 70, 146, 145)
+REVEALED_IDS = (9, 45, 70, 146, 142)  # 145 (Boost Junkie) retired 2026-11-26: Space Statue instead
 
 
 def _peek() -> dict:

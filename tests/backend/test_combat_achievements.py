@@ -24,7 +24,8 @@ def results(games):
 
 def test_kept_apart_from_the_replay_rules():
     ids = {r.id for r in RULES_HERE}
-    assert ids == set(range(164, 179)) | set(range(198, 201)) | (set(range(202, 222)) - {211, 212, 216, 218}) | (set(range(233, 244)) - {241, 243}) | set(range(249, 265)) and not ids & {r.id for r in RULES}
+    retired = {164, 165, 166, 167, 168, 169, 199, 200, 202}  # one-game repeats, retired 2026-11-26 (D64)
+    assert ids == (set(range(164, 179)) | set(range(198, 201)) | (set(range(202, 222)) - {211, 212, 216, 218}) | (set(range(233, 244)) - {241, 243}) | set(range(249, 265))) - retired and not ids & {r.id for r in RULES}
     assert all(r.group == "Combat" and r.new and not r.counted for r in RULES_HERE)
     # the module cannot read a replay table: it imports only the combat ones
     tree = ast.parse(Path(ca.__file__).read_text(encoding="utf-8"))
@@ -33,13 +34,9 @@ def test_kept_apart_from_the_replay_rules():
 
 
 def test_one_game_ladders():
-    r = results([game(kills=12, assists=4, deaths=2, damage=1500.5, objective=9, time_s=120.0)])
-    assert r[164]["count"] == 12 and r[164]["tier"] == "bronze" and r[165]["count"] == 4 and r[165]["tier"] is None
-    assert r[166]["count"] == 1500.5 and r[167]["count"] == 10 and r[168]["count"] == 9 and r[169]["count"] == 120
-    assert results([game(kills=1, deaths=9)])[167]["count"] == 0  # never below 0
     assert results([game(kills=10, deaths=0)])[170]["progress"] == 1
     assert results([game(kills=10, deaths=1)])[170]["progress"] == 0 and results([game(kills=9, deaths=0)])[170]["progress"] == 0
-    assert rule_notes(next(x for x in RULES_HERE if x.id == 164)) == ["Best game", "4+ min games", "3+ players per team"]
+    assert rule_notes(next(x for x in RULES_HERE if x.id == 170)) == ["Best game", "4+ min games", "3+ players per team"]
 
 
 def test_days_and_all_time():
@@ -53,13 +50,12 @@ def test_days_and_all_time():
 
 def test_assists_are_above_kills_at_every_medal():
     levels = {r.id: r.levels for r in RULES_HERE}
-    for kills, assists in ((164, 165), (171, 172), (209, 210), (173, 174)):
+    for kills, assists in ((171, 172), (209, 210), (173, 174)):
         assert all(a > k for k, a in zip(levels[kills], levels[assists]))
 
 
 def test_second_set_one_game_and_one_day():
     r = results([game(kills=9, assists=7, deaths=3, objective=8, top=True), game(kills=12, deaths=4, damage=5000.0, time_s=300.0, top=True)])
-    assert r[202]["count"] == 7  # the lowest of kills / assists / objective eliminations in the best game
     assert r[203]["count"] == 9  # 12 kills with 4 deaths do not count
     assert r[204]["count"] == 5000 and r[206]["count"] == 5 and r[208]["count"] == 2  # one day: 300 s = 5 min, two top-fragger games
     assert rule_notes(next(x for x in RULES_HERE if x.id == 209))[0] == "Best 7 days"
@@ -88,8 +84,8 @@ def test_award_cards():
 
 
 def test_medal_dates():
-    times = medal_times([game(kills=8, started="2026-11-04T20:00:00"), game(kills=13)], RULES_HERE)
-    assert times[164]["bronze"].startswith("2026-11-04") and times[164]["gold"].startswith("2026-11-05")
+    times = medal_times([game(kills=60, started="2026-11-04T20:00:00"), game(kills=700)], RULES_HERE)  # Ring Debris: 50 / 350 / 700 / 1200 kills
+    assert times[173]["bronze"].startswith("2026-11-04") and times[173]["gold"].startswith("2026-11-05")
 
 
 def _report(db, session, started=STARTED, duration=400.0, players=()):
@@ -129,7 +125,7 @@ def test_objective_damage_heals_and_stuns(tmp_path):
         g = ca.load_games(db, {})[0]["1"][0]
     assert (g.objective_damage, g.heal_bubbles, g.stuns_given) == (950.0, 6, 3)
     r = results([g])
-    assert (r[198]["tier"], r[199]["tier"], r[200]["tier"]) == ("bronze", "gold", "gold")
+    assert r[198]["tier"] == "bronze"  # heal bubbles and stuns in one game retired 2026-11-26 (the day / week / all-time ones stay)
     report("cut short", True, False)
     report("no log", False, None)
     with sessions() as db:
@@ -180,7 +176,7 @@ def test_reports_alone_count_on_the_same_page(tmp_path):
 
         catalogue = {r["id"]: r for r in _body(client, "/api/achievements")}
         assert catalogue[173]["counted"] is False and catalogue[7]["counted"] is True and catalogue[173]["unlocked_share"] is None  # nobody has 10+ games yet
-        assert any(e["id"] == 164 and e["user_id"] == "4" for e in _body(client, "/api/achievements/recent"))
+        assert any(e["id"] in {x.id for x in RULES_HERE} and e["user_id"] == "4" for e in _body(client, "/api/achievements/recent"))
         assert client.get("/api/players/nobody/achievements").status_code == 404
 
 
@@ -196,5 +192,5 @@ def test_challenge_period_applies(tmp_path):
 
 
 def test_icons_and_sheet_know_them():
-    assert ca.COMBAT_RULES[0].id in icons.RULE_IDS and icons.default(164) == "deaths.png"
-    assert any(row["id"] == 164 for row in achievement_sheet.name_and_rule())
+    assert ca.COMBAT_RULES[0].id in icons.RULE_IDS and icons.default(170) == "deaths.png"
+    assert any(row["id"] == 170 for row in achievement_sheet.name_and_rule())

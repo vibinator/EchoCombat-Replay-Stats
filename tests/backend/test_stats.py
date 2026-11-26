@@ -304,6 +304,18 @@ def test_top_speed_not_over_a_clock_step_back(tmp_path):
     assert p.top_speed == pytest.approx(10.0)
 
 
+def test_top_speed_through_zero_readings_follows_the_head(tmp_path):
+    # DinkatorBoi / JavaBava, Dyson 2026-11-26: in a regrab flight the velocity reads exactly 0 for runs of frames while
+    # the head goes on at 40-68 m/s. Those frames count at the head's speed: 40 m/s with every other reading 0 is 40.
+    x, heads = -60.0, []
+    for _ in range(60):
+        x += 40.0 / 20
+        heads.append((x, 2.0, 3.0))
+    p = _one_player(tmp_path, heads, [(40.0 if i % 3 == 0 else 0.0, 0.0, 0.0) for i in range(60)])
+    assert p.top_speed == pytest.approx(40.0, abs=0.1)
+    assert p.speed_sum == pytest.approx(20 * 40.0)  # average speed keeps the readings as they are
+
+
 def test_unknown_map_counts_all_frames_in_bounds(tmp_path):
     frames = scripted_match()
     for f in frames:

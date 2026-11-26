@@ -265,13 +265,20 @@ function ChallengeRow({ a, side }: { a: AnyBadge; side: "left" | "right" }) {
             {catalogue ? share : done ? "Completed!" : pct(a.progress)}
           </span>
         </div>
-        <div className="ch-bar" role="progressbar" aria-label={a.name} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(fill * 100)}>
-          <div style={{ width: `${fill * 100}%` }} />
-          {/* a notch at every medal step (user, 2026-11-26); progress is (medals reached + part of the next) / medals */}
-          {!catalogue && Array.from({ length: (a.levels?.length ?? PERCENT_STEPS.length) - 1 }, (_, i) => (
-            <i key={i} className="ch-notch" style={{ "--at": `${((i + 1) / (a.levels?.length ?? PERCENT_STEPS.length)) * 100}%` } as React.CSSProperties} />
-          ))}
-        </div>
+        {catalogue ? (
+          <div className="ch-bar" role="progressbar" aria-label={a.name} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(fill * 100)}>
+            <div style={{ width: `${fill * 100}%` }} />
+          </div>
+        ) : (
+          // one segment per tier, each in its own colour with a clear gap between them (user, 2026-11-26)
+          <div className="ch-bar segmented" role="progressbar" aria-label={a.name} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(fill * 100)}>
+            {medalSteps(a).map((s) => (
+              <span key={s.medal} className={`ch-seg t-${s.medal} ${s.state}`} title={`${s.medal}: ${s.label}`}>
+                <span style={{ width: `${s.fill * 100}%` }} />
+              </span>
+            ))}
+          </div>
+        )}
       </div>
       <div className={`ch-card ${side}${up ? " up" : ""}`} role="tooltip">
         <ChallengeCard a={a} onClose={open ? close : undefined} />
@@ -1073,7 +1080,7 @@ function MedalBar({ items, overall, compact = false }: { items: Achievement[]; o
     return (
       <>
         <strong className="medal-headline compact" title={[`Average progress: ${pct(overall)}`, ...shown.map(([m, n]) => label(m, n)), extraText].filter(Boolean).join(" · ")}>
-          {complete} of {total} complete
+          <img className="medal-crown" src={`${IMG}crown.png`} alt="" /><b>{complete}</b>&nbsp;of {total} fully complete
         </strong>
         <div className="medal-track compact" role="img" aria-label={`${complete} of ${total} complete: ${shown.map(([m, n]) => label(m, n)).join(", ")}`}>
           {shown.map(([m, n]) => (
@@ -1087,7 +1094,7 @@ function MedalBar({ items, overall, compact = false }: { items: Achievement[]; o
   return (
     <>
       <strong className="medal-headline" title={`Average progress over every challenge, counting partial progress: ${pct(overall)}`}>
-        {complete} of {total} complete
+        <img className="medal-crown" src={`${IMG}crown.png`} alt="" /><span><b>{complete}</b> of {total} challenges fully complete <span className="muted medal-headline-hint">· every tier, up to the crown</span></span>
       </strong>
       <div className="medal-track" role="img" aria-label={`${complete} of ${total} complete: ${shown.map(([m, n]) => label(m, n)).join(", ")}`}>
         {shown.map(([m, n]) => (

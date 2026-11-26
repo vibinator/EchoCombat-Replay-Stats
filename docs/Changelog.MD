@@ -18,6 +18,31 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.26.13 — 19:36
+
+## 2026.11.26.12 — 19:27
+
+- **"Fully complete" made obvious** (user, 26 Nov). The challenge bar's headline now reads "30 of 135 challenges fully complete
+  · every tier, up to the crown", with the pink crown beside it and the number in crown pink; on the profile row "31 of 135
+  fully complete".
+- **Top players: ranked by challenges fully complete** (user, 26 Nov). The challenges page's Top players now lists the players
+  with the most challenges fully complete first (average progress only breaks a tie), each as "crown 36 / 135 fully complete".
+  The Challenges leaderboard (stats page) still ranks by average progress.
+
+## 2026.11.26.11 — 19:20
+
+- **Specials trimmed to 14** (user, 26 Nov, D64). Retired, because One Day / One Week / Cumulative (or another Special)
+  already covers them: Full Team Salvo, Can We Talk About This?, I'm Bat Bot, Jack of All Trades, Ordnance Sampler, Tac Mod
+  Tinkerer, Kronos II Armory Raid, Bomb Bay Overload, Payload Pedal to the Metal, Payload Roadblock, Marathon Bot, Boost
+  Junkie, Quick-Change Chassis, and the Combat Chassis Crusher, Wingbot, Hull Breach, Net Positive Bot, Point Denied, Parked on
+  the Point, Repair Matrix Medic, Stun Field Trooper and Jack's Toolkit. They are gone from the site, totals, ranking and
+  Medal Collector. Left: Super Ultra Hyper Turbo, Space Statue, Lone Echo, Ambidextrous Bot, Point Guard, Contested Point,
+  Showbot, Lobby Mime Troupe, Untouchable Chassis, Beam Me Up, Flawless Chassis, Ghost of Sparta, Siege Breaker Bot and Edit
+  your Bio. Challenge total 148 -> 135.
+- **Challenge bars: one segment per tier** (user, 26 Nov). Each row's bar is now four separate pieces with a clear gap, each
+  in its own colour (bronze, silver, gold, pink crown); the empty part of a piece is a faint wash of its colour, so every tier
+  shows before it is reached.
+
 ## 2026.11.26.10 — 19:03
 
 - **Player profile: Challenges and Mega Prizes are one row each** (user, 26 Nov: "too much data"). Challenges: the label,

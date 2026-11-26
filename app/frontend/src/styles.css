@@ -5738,3 +5738,25 @@ tr.cloud-drop-on td {
 .mega-row-prize .mega-profile-bar { flex: 1; height: 8px; }
 .mega-row-prize .mega-profile-bar > span { display: block; height: 100%; border-radius: inherit; background: var(--prize); }
 .mega-row-count { flex: none; font-variant-numeric: tabular-nums; font-size: 0.9rem; }
+
+/* Row bars, one segment per tier (user, 2026-11-26: clearer separators, each section in its tier colour). The empty part of each
+   segment is a faint wash of its colour, so every tier is visible before it is reached. */
+.ch-bar.segmented { display: flex; gap: 5px; height: 8px; background: none; border-radius: 0; overflow: visible; }
+.ch-row.right .ch-bar.segmented { flex-direction: row-reverse; }
+.ch-seg { flex: 1; display: flex; height: 100%; border-radius: 999px; overflow: hidden; background: color-mix(in srgb, var(--tier) 16%, var(--line)); }
+.ch-row.right .ch-seg { justify-content: flex-end; }
+.ch-seg > span { display: block; height: 100%; border-radius: inherit; background: var(--tier); }
+.ch-seg.done > span { box-shadow: 0 0 8px color-mix(in srgb, var(--tier) 55%, transparent); }
+@media (max-width: 760px) {
+  .ch-row.right .ch-bar.segmented { flex-direction: row; }
+  .ch-row.right .ch-seg { justify-content: flex-start; }
+}
+
+/* Headline says what "complete" means (user, 2026-11-26): every tier up to the crown, with the crown beside it */
+.medal-headline { display: flex; align-items: center; gap: 8px; }
+.medal-headline b { color: var(--tier-crown); }
+.medal-crown { width: 30px; height: 30px; object-fit: contain; flex: none; }
+.medal-headline.compact .medal-crown { width: 22px; height: 22px; }
+.medal-headline-hint { font-size: 0.9rem; font-weight: 500; }
+.top-players .big .medal-crown { width: 22px; height: 22px; vertical-align: -4px; margin-right: 6px; }
+.ach-pane h2 .hint { font-size: 0.8rem; font-weight: 500; }

@@ -163,6 +163,11 @@ COMBAT_RULES: list[Rule] = [
     _rule(220, "Old Arena Habits", "Total enemies stunned", "stun_field", lambda g: g.stuns_given, (7, 22, 56, 110, 200), "all"),
     _rule(221, "Ready At Dawn", "Games with more kills than deaths", "deaths", lambda g: g.kills > g.deaths, (13, 51, 130, 230, 380), "all"),
 ]
+# Specials trimmed (user, 2026-11-26, D64): the one-game Combat challenges that repeat a One Day / One Week / Cumulative one are
+# retired (kills, assists, damage, kills minus deaths, objective eliminations, time on the objective, heal bubbles, stuns) and
+# Jack's Toolkit (Saturn Trifecta). Ids never reused; taking one out of this set brings it back.
+RETIRED_COMBAT_IDS = frozenset({164, 165, 166, 167, 168, 169, 199, 200, 202})
+COMBAT_RULES = [r for r in COMBAT_RULES if r.id not in RETIRED_COMBAT_IDS]
 
 
 def _card_list(raw) -> list[str]:

@@ -54,6 +54,9 @@ LAUNCH_NEAR_M = 2.5  # another player's head this close: a grab or a regrab, not
 LAUNCH_PARTNER_SPEED = 5.0  # m/s: ... if they move too. Regrab partners fly with you (JavaBava 10-21 m/s beside DinkatorBoi);
 # Scoob (Dyson 2026-11-24) shot off from 3 to 79 m/s past he_is_the_cat, who floated on at 1-2 m/s
 LAUNCH_SPENT = 10.0  # m/s: the launch's speed is used up below this
+# A velocity of exactly 0 while the head moves is no reading (user, 2026-11-26): the API gives 0 for runs of 5-10 frames
+# during regrab flights while the head goes on at 40-68 m/s (DinkatorBoi / JavaBava, Dyson 2026-11-26: 12 % of moving
+# frames, top speed 29-31 instead of 47-52). For top speed such a frame moves at the head's speed since the frame before.
 FROZEN_S = 0.5  # head at exactly the same spot this long: no data coming in, the velocity is stale. A headset is never that still
 
 
@@ -101,6 +104,7 @@ class PlayerAccumulator:
         self._impossible_at = -math.inf  # time of the last reading over TOP_SPEED_IMPOSSIBLE, or of a launch's flight
         self._recent: deque[tuple[float, Vec3, float]] = deque()  # (t_s, head, speed) of the last ~3 LAUNCH_STEP_S, in bounds
         self._launched = False  # flying on a launch's speed (LAUNCH_SPENT)
+        self._last_head: tuple[float, Vec3] | None = None  # (t_s, head) of the previous in-bounds frame
         self._still_at: Vec3 | None = None  # where the head has been exactly since _still_from
         self._still_from = 0.0
         self._still_sum = 0.0  # speed_sum counted since then, taken back when the player turns out to be frozen
@@ -149,6 +153,7 @@ class PlayerAccumulator:
             self._recent.clear()
             self._launched = False
             self._still_at = None
+            self._last_head = None
         self._was_in_bounds = inside
 
     def _add_in_bounds(self, frame: Frame, p: PlayerFrame, teammates, enemies) -> None:
@@ -162,7 +167,11 @@ class PlayerAccumulator:
         if speed < STOPPED_SPEED:
             self.frames_stopped += 1
         self._track_launch(t_s, speed, p, teammates, enemies)
-        self._track_top_speed(t_s, speed, p.head_position, p.velocity)
+        head, velocity, last = p.head_position, p.velocity, self._last_head
+        if speed == 0.0 and last is not None and 0 < t_s - last[0] <= TOP_SPEED_MAX_GAP_S:
+            velocity = tuple((now - before) / (t_s - last[0]) for now, before in zip(head, last[1]))
+        self._last_head = (t_s, head)
+        self._track_top_speed(t_s, math.hypot(*velocity), head, velocity)
 
         if p.arm == "Right":
             self.frames_right_arm += 1

@@ -72,10 +72,10 @@ path is in middleware.WRITES / BOT. Console routes need auth.has_console; profil
 | GET | `/api/health` | health | app/backend/main.py:243 |  |
 | GET | `/api/import` | import_status | app/backend/api/imports.py:24 | Import progress, broken down by what each replay produces. |
 | GET | `/api/leaderboard` | leaderboard | app/backend/api/leaderboard.py:221 |  |
-| GET | `/api/leaderboard/achievers` | achievers | app/backend/api/leaderboard.py:305 | The top of the achievements ranking with facts about each player: challenges completed, medals, gold or better |
-| GET | `/api/leaderboard/gear` | list_gear | app/backend/api/leaderboard.py:319 | Loadout codes + names, for the loadout leaderboard picker (released first, then cut). |
-| GET | `/api/leaderboard/overview` | overview | app/backend/api/leaderboard.py:330 |  |
-| GET | `/api/leaderboard/records` | records | app/backend/api/leaderboard.py:390 |  |
+| GET | `/api/leaderboard/achievers` | achievers | app/backend/api/leaderboard.py:322 | The top of the achievements ranking with facts about each player: challenges completed, medals, gold or better |
+| GET | `/api/leaderboard/gear` | list_gear | app/backend/api/leaderboard.py:338 | Loadout codes + names, for the loadout leaderboard picker (released first, then cut). |
+| GET | `/api/leaderboard/overview` | overview | app/backend/api/leaderboard.py:349 |  |
+| GET | `/api/leaderboard/records` | records | app/backend/api/leaderboard.py:409 |  |
 | GET | `/api/leaderboard/stats` | list_stats | app/backend/api/leaderboard.py:203 | The stats the board can rank by. The same for every visitor unless an admin asks with ?view=admin |
 | GET | `/api/matches` | list_matches | app/backend/api/matches.py:41 |  |
 | GET | `/api/matches/summary` | matches_summary | app/backend/api/matches.py:150 |  |
