@@ -807,6 +807,7 @@ export interface AchievementRule {
   unit?: string; // ladder targets are in this unit ("%", " m/s", " min"); empty = a count
   levels?: number[] | null; // tiered achievements: count targets for bronze, silver, gold, crown
   prize?: string | null; // Mega Prize (in-game item) for completing it
+  binary?: boolean; // won or not: one tier, the crown (one-match award cards, Flawless Chassis, Edit your Bio)
 }
 
 export const LEVELS = ["bronze", "silver", "gold", "crown"] as const;

@@ -18,6 +18,70 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.26.24 — 22:19
+
+- **Cumulative challenges set for the 4-month challenge period** (user, 26 Nov). Measured on the last real 4 months of matches
+  (27 Jul-26 Nov, 255 regulars): most Cumulative ladders already land at a 2-6 % crown and stay. Changed:
+  - Made reachable (nobody could finish them in 4 months): Versatile Bot 1 / 2 / 3 / 4 days (was 1 / 5 / 13 / 23); No Gun Left
+    Behind, Forbidden Arsenal and Loadout Scholar Bot 1 / 3 / 6 / 10 games with the least-used item (were 1 / 18 / 78 / 156);
+    5th Loadout when? 3 / 12 / 24 / 35 loadouts (crown 4 %, was 0 %); Pixel Party! 60 / 250 / 500 / 850 deaths (5 %, was 0 %).
+  - Gear Veterans (all gear): 15 / 35 / 55 / 80 games (Detonator 7 %, Repair Matrix 5 %, the typical item 2 % over 4 months).
+  - Combat all-time, projected from the 3 weeks of reports (x5.8) to a 5 % crown: Ring Debris 120 / 850 / 1,700 / 2,900
+    kills, The Whole Echo Crew 140 / 950 / 1,900 / 3,200 assists, Kronos II Salvage 23k / 180k / 350k / 580k damage, Top Bot
+    3 / 35 / 70 / 120, Saturn Trifecta 7 / 60 / 120 / 210, Service Android 1 / 17 / 35 / 65, Lone Echo MVP 4 / 40 / 70 / 120,
+    Sentinel and Chief Medic 3 / 16 / 27 / 41, Saturn Specialist and Streak Master 2 / 10 / 18 / 28, The Anomaly Doesn't Move
+    14 / 140 / 290 / 520 min, Life Support Systems 50 / 390 / 780 / 1,300, Old Arena Habits 5 / 40 / 75 / 140, Ready At Dawn
+    9 / 85 / 150 / 250. A projection: re-check once the recorder has a month or two of reports.
+- **New special: Full Lobby on Kronos II** (user, 26 Nov): play a full match (4+ minutes) with 5 players on each team for at
+  least half of it. Won or not, one crown; in the Specials tab (Activity). 6 % of public matches in the last 4 months were 5v5,
+  and 148 of 306 regulars played one. Challenge total 128 -> 129.
+
+## 2026.11.26.23 — 22:04
+
+- **Forbidden Arsenal is a ladder now** (user, 26 Nov: "the same ladder as the normal weapons"): games with your least-used
+  experimental weapon (Starburst, Protostar, Quark, Blazar), on No Gun Left Behind's ladder of 1 / 18 / 78 / 156 games. It was
+  "use all 4 experimental weapons", once.
+- **"Only <item>" challenges harder, all gear together** (user, 26 Nov): 2 / 6 / 8 / 10 games in one day and 3 / 10 / 14 / 18
+  in any 7 days (were 1 / 4 / 5 / 7 and 1 / 6 / 9 / 13). Repair Matrix / Detonator crown 13-16 % (was 22-28 %), the typical
+  item 4 % (7 %).
+- **Combat challenges harder** (user, 26 Nov; review of 66 regulars in the recorder reports of 4-25 Nov, paired ones together):
+  - One Day kills 20 / 45 / 65 / 95 and assists 25 / 55 / 80 / 115 (assists stay above kills): crown 12 % / 15 %
+    (were 20 % / 27 %).
+  - One Day time on the objective 4 / 10 / 16 / 24 min, heal bubbles 12 / 35 / 55 / 80, damage 5k / 14k / 21k / 30k,
+    objective eliminations 30 / 75 / 120 / 165: crown 3 % each (were 11-17 %).
+  - Most kills in the match and the MVP card in one day: 2 / 4 / 6 / 8 (were 1 / 3 / 4 / 5): crown 2-3 %.
+  - Guard and Medic cards in any 7 days: 2 / 3 / 5 / 7 (were 1 / 2 / 3 / 4): crown 5 % / 2 %.
+- **"How it counts" written out in full** (user, 26 Nov). Every challenge card lists its rules as sentences ("Your best single
+  game counts", "Only games of 4+ minutes count", "Only games with 3+ players on each team count" ...), says "Any game length"
+  / "Any team size" where there is no such rule, and ends with "Public matches only, played inside the challenge period".
+- **The "Combat and Edit your Bio (separate)" line under the challenge bar is gone** (user, 26 Nov).
+
+## 2026.11.26.22 — 21:50
+
+- **The easiest challenges made harder** (user, 26 Nov, review of every challenge on 194 regulars in the local
+  stats-version-20 matches; paired challenges change together):
+  - Every gear Veteran (all 22, Overclocked included): 10 / 25 / 40 / 60 games (was 5 / 15 / 25 / 40). Detonator and Repair
+    Matrix, the easiest, drop from a 10-12 % crown to 7 %; the typical item 3 % (more over a 3-4 month period).
+  - Tech Support w/RAD_Natalie 18 / 21 / 23 / 25 % and Hug Your Frenemy 9 / 11 / 13 / 15 % (were 16 / 19 / 21 / 23 and
+    8 / 9.5 / 11 / 13): crown 6 % and 5 % (both 9 % before).
+  - Echo Streak 3 / 5 / 7 / 9 wins in a row (was 3 / 5 / 6 / 7): crown 4 % (9 %).
+  - My Other Chassis Is a Toaster 3 / 10 / 20 / 30 games (was 2 / 8 / 15 / 23): crown 6 % (9 %).
+  - The "only <item>" day and 7-day challenges stay: only Repair Matrix and Detonator are easy (22-28 % crown), the typical
+    item is on target at 7 %, and all gear shares one set of numbers.
+
+## 2026.11.26.21 — 21:38
+
+- **Won-or-not challenges have one tier, the crown** (user, 26 Nov: "there is no point having different medals, it is just won
+  / not won"). The 16 one-match award cards, Flawless Chassis and Edit your Bio: one pink bar, empty or full, and the card shows
+  a single crown step. The "total cards won" ladders keep their four tiers.
+- **Lone Echo harder** (user, 26 Nov): 95 / 98 / 99 / 99.5 % of the game away from teammates (was 93 / 97 / 98 / 99). 53 / 24 /
+  13 / 9 % of the 219 regulars in the local stats-version-20 matches reach each tier (was 72 / 35 / 24 / 13 %).
+- **Emote challenges doubled** (user, 26 Nov: "feasible, people just don't do it regularly"): Lobby Mime Troupe 4 / 12 / 16 /
+  20 emotes in a game without dying (was 2 / 6 / 8 / 10; the best regular in the newest local replays did 5, the archive's best
+  since 1 August 11), Showbot 8 / 12 / 14 / 16 emotes in a win (was 4 / 6 / 7 / 8; 10 / 4 / 2 / 1 % of regulars, record 18).
+- **Space Statue retired** (user, 26 Nov: standing still "seems like throwing"); no other challenge rewards standing still.
+  Challenge total 129 -> 128.
+
 ## 2026.11.26.20 — 21:14
 
 - **Award cards sorted into the period tabs** (user, 26 Nov: no tab of their own). Each tab has an "Award cards" box with the

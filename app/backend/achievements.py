@@ -84,6 +84,7 @@ class Game:
     capture_s: float = 0.0  # capture point: time the player's team's progress was rising
     contested_s: float = 0.0
     lone_wolf_near: int | None = 0  # in-bounds frames within 3.5 m of a teammate: Lone Wolf only (None: replay not read again yet, D57)
+    full_lobby: bool = False  # both teams had 5 players for at least half of the match (Full Lobby, user 2026-11-26)
     enough_players: bool = True  # both teams had at least 3 players for at least half of the match (3v3, 3v4, 4v4, 5v5 ... all fine); one-game, win and Payload challenges need it (user, 2026-11-04)
 
     @property
@@ -165,6 +166,7 @@ class Rule:
     meta: bool = False  # Medal Collector: counts the medals of the other rules
     prize: str = ""  # Mega Prize (in-game item) for completing it; shown on the site, handed out outside the app
     counted: bool = True  # False: the Combat achievements (combat_achievements.py), not in RULES and out of every total
+    binary: bool = False  # won or not (user, 2026-11-26: one-match award cards, Flawless Chassis, Edit your Bio): one tier, the crown
 
 
 # Tiered rules (user, 2026-10-31): almost every rule is a ladder. Order (user, 2026-10-31): bronze, silver, gold, diamond, platinum (platinum is the top medal).
@@ -251,7 +253,7 @@ def _easier_platinum(levels: tuple[float, ...]) -> tuple[float, ...]:
 VETERAN_HARDER = 1.32  # gear Veteran ladders (every weapon, ordnance and tac mod): every tier needs 20 % more, then another 10 % (1.2 x 1.1), after the steps above (user, 2026-11-04)
 
 
-# 2026-11-11 (user): every gear Veteran ladder is 5 / 15 / 25 / 40 games, the same for all gear (TUNED_LEVELS): about 43 / 20 / 12 / 7 % of regulars for the gear they play
+# 2026-11-26 (user, for the 4-month period): every gear Veteran ladder is 15 / 35 / 55 / 80 games (Detonator crown 7 %, Repair Matrix 5 %, the typical item 2 % in the last real 4 months); earlier that day 10 / 25 / 40 / 60 games (Detonator / Repair Matrix crown 7 %, the typical item 3 % in a few weeks of matches; a 3-4 month period lifts that), the same for all gear. Before, 2026-11-11 (user): 5 / 15 / 25 / 40 games, the same for all gear (TUNED_LEVELS): about 43 / 20 / 12 / 7 % of regulars for the gear they play
 VETERAN_TOP = (115, 150)  # gear Veteran diamond and platinum: all 18 platinums = ~1,200 weapon games (was 260 = ~2,100), so completing every gear Veteran is possible; platinum is reachable for well over 10 % of active players in 3 months (user, 2026-11-04; from the 31 Oct-3 Nov pace)
 
 
@@ -285,19 +287,22 @@ TUNED_LEVELS: dict[int, tuple[float, ...]] = {
     121: (6, 14, 22, 30, 40),  # Payload Hauler (Payload) (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was the written targets)
     125: (2, 3.75, 5.5, 7, 8.5),  # Nothing Leaves Kronos II (Payload) (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was the written targets)
     141: (1, 5, 9, 13, 15),  # Capture Point Comeback (Capture Point) (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was the written targets)
-    5: (1, 3, 4, 5, 7),  # One with the Pulsar
-    6: (1, 3, 4, 5, 7),  # One with the Nova
-    7: (1, 3, 4, 5, 7),  # One with the Comet
-    8: (1, 3, 4, 5, 7),  # One with the Meteor
-    9: (1, 3, 4, 5, 7),  # Yeet and Delete
-    10: (1, 3, 4, 5, 7),  # Ride the Lightning
-    11: (1, 3, 4, 5, 7),  # Paralyzer
-    12: (1, 3, 4, 5, 7),  # RAD_DavidN Heal Us w/5th Map
-    13: (1, 3, 4, 5, 7),  # Damage Control
-    14: (1, 3, 4, 5, 7),  # Search and Destroy
-    15: (1, 3, 4, 5, 7),  # n00b Protector 9000
-    16: (1, 3, 4, 5, 7),  # Wraith
-    18: (2, 5, 8, 15, 23),  # My Other Chassis Is a Toaster
+    # "Only <item>" (user, 2026-11-26: harder, the same for all gear): 2 / 6 / 8 / 10 games in one day and 3 / 10 / 14 / 18 in any
+    # 7 days (were 1 / 4 / 5 / 7 and 1 / 6 / 9 / 13). On 194 regulars: Repair Matrix / Detonator crown 13-16 % (22-28 %), the
+    # typical item 4 % (7 %); a 3-4 month period gives more tries.
+    5: (2, 4, 6, 8, 10),  # One with the Pulsar
+    6: (2, 4, 6, 8, 10),  # One with the Nova
+    7: (2, 4, 6, 8, 10),  # One with the Comet
+    8: (2, 4, 6, 8, 10),  # One with the Meteor
+    9: (2, 4, 6, 8, 10),  # Yeet and Delete
+    10: (2, 4, 6, 8, 10),  # Ride the Lightning
+    11: (2, 4, 6, 8, 10),  # Paralyzer
+    12: (2, 4, 6, 8, 10),  # RAD_DavidN Heal Us w/5th Map
+    13: (2, 4, 6, 8, 10),  # Damage Control
+    14: (2, 4, 6, 8, 10),  # Search and Destroy
+    15: (2, 4, 6, 8, 10),  # n00b Protector 9000
+    16: (2, 4, 6, 8, 10),  # Wraith
+    18: (3, 6, 10, 20, 30),  # My Other Chassis Is a Toaster (2026-11-26, user: harder, crown 6 % of 194 regulars in the local stats-version-20 matches, was 9 % at 2 / 8 / 15 / 23)
     19: (5, 7, 9, 12, 16),  # Point Captured (user, 2026-11-05: 109 / 64 / 31 / 17 / 6 players since 1 Aug; was 5/7/9/16/22)
     20: (5, 7, 9, 12, 16),  # Checkpoint Reached (user, 2026-11-05: same as Point Captured; 94 / 61 / 35 / 18 / 5 players since 1 Aug; was 5/7/9/16/22)
     21: (40, 46.25, 52.5, 60, 67.5),  # Full Team Salvo (2026-11-11, user: the crown at 3 % of regulars was too low, about 7.5 % wanted: 40 / 55 / 60 / 67.5 %; crown for about 7.5 % of regulars (the 7th best of 91 reached 67.6))  # loosened 2026-11-11 (user): steps of at least 8 % of the crown, the lower medals eased; was 40/47/55/60/67.5
@@ -308,43 +313,50 @@ TUNED_LEVELS: dict[int, tuple[float, ...]] = {
     27: (3, 4, 5, 7, 9),  # Techneium-99
     28: (3, 4, 5, 7, 9),  # Bird of Prey
     29: (9, 13, 18, 24, 30),  # Combat on Quest When? (user, 2026-11-05: 102 / 59 / 31 / 12 / 6 players since 1 Aug; was 9/13/18/31/42)
-    30: (1, 4, 6, 9, 13),  # Pulse Check
-    31: (1, 4, 6, 9, 13),  # Eat My Nova!
-    32: (1, 4, 6, 9, 13),  # Comet Commandments (was Silicon Assassin)
-    33: (1, 4, 6, 9, 13),  # I Came to Drop Bombs
-    34: (1, 4, 6, 9, 13),  # Throws Better Than an Arena Disc
-    35: (1, 4, 6, 9, 13),  # Don't Taze Me Bro Bot
-    36: (1, 4, 6, 9, 13),  # Electroshock Therapy
-    37: (1, 4, 6, 9, 13),  # Fully Juiced
-    38: (1, 4, 6, 9, 13),  # Built to Last
-    39: (1, 4, 6, 9, 13),  # X-Ray Vision Implant Upgrade
-    40: (1, 4, 6, 9, 13),  # Check Out My Cool Screensaver
-    41: (1, 4, 6, 9, 13),  # Ghost in the Shell
+    30: (3, 6, 10, 14, 18),  # Pulse Check
+    31: (3, 6, 10, 14, 18),  # Eat My Nova!
+    32: (3, 6, 10, 14, 18),  # Comet Commandments (was Silicon Assassin)
+    33: (3, 6, 10, 14, 18),  # I Came to Drop Bombs
+    34: (3, 6, 10, 14, 18),  # Throws Better Than an Arena Disc
+    35: (3, 6, 10, 14, 18),  # Don't Taze Me Bro Bot
+    36: (3, 6, 10, 14, 18),  # Electroshock Therapy
+    37: (3, 6, 10, 14, 18),  # Fully Juiced
+    38: (3, 6, 10, 14, 18),  # Built to Last
+    39: (3, 6, 10, 14, 18),  # X-Ray Vision Implant Upgrade
+    40: (3, 6, 10, 14, 18),  # Check Out My Cool Screensaver
+    41: (3, 6, 10, 14, 18),  # Ghost in the Shell
     42: (5, 10, 15, 20, 25),  # Gearhead (user, 2026-11-05: 4+ min games with 3+ players per team; 41 / 19 / 11 / 7 / 5 % of the 843 regulars with 20+ such games reach these; was 4/8/15/39/65, platinum 0.5 %)
     43: (4, 6, 10, 15, 25),  # Pew Pew Proof (user, 2026-11-05: games in a row averaging under 5 deaths, on 3+ days; 20 / 15 / 8.5 / 3.8 / 1.3 % of the same regulars reach these; 25 was the old single step)
     44: (10, 18, 25, 33, 40),  # I'd Rather Be on Kronos II (user, 2026-11-05: 70 / 21 / 13 / 6 / 4 players since 1 Aug; was 10/18/25/52/65)
     45: (10, 18, 25, 33, 40),  # Sakura's Dancing Flamingo (user, 2026-11-05: 69 / 22 / 13 / 6 / 4 players since 1 Aug; was 10/18/25/52/65)
-    46: (16, 17.5, 19, 21, 23),  # Tech Support w/RAD_Natalie (2026-11-11, user: crown for about 7.5 % of regulars after the death and bounds corrections; was 16/20/24/26/28)
-    47: (8, 8.75, 9.5, 11, 13),  # Hug Your Frenemy (2026-11-11, user: crown for about 7.5 % of regulars after the death and bounds corrections; was 12/14/16/18/20)  # loosened 2026-11-11 (user): steps of at least 8 % of the crown, the lower medals eased; was 10/10.5/11/12/13
+    46: (18, 19.5, 21, 23, 25),  # Tech Support w/RAD_Natalie (2026-11-26, user: a bit harder with Hug Your Frenemy, crown 6 % of 194 regulars, was 9 % at 16 / 19 / 21 / 23) (2026-11-11, user: crown for about 7.5 % of regulars after the death and bounds corrections; was 16/20/24/26/28)
+    47: (9, 10, 11, 13, 15),  # Hug Your Frenemy (2026-11-26, user: a bit harder with Tech Support, crown 5 % of 194 regulars, was 9 % at 8 / 9.5 / 11 / 13) (2026-11-11, user: crown for about 7.5 % of regulars after the death and bounds corrections; was 12/14/16/18/20)  # loosened 2026-11-11 (user): steps of at least 8 % of the crown, the lower medals eased; was 10/10.5/11/12/13
     49: (9, 10.5, 12, 20, 27),  # I’ɯ ꓭɐʇ ꓭoʇ (2026-11-11, user: crown for about 7.5 % of regulars after the death and bounds corrections; was 9.3/22/36/47/57)
     50: (4, 6, 8, 12, 18),  # Frame-Drop Hell (user, 2026-11-05: the four map ladders stay equal; 4 to 6 players since 1 Aug reach platinum on each; was 4/6/8/23/44)
     51: (4, 6, 8, 12, 18),  # I've Got a Fever, and the Only Prescription Is Pew Pew Pew!
     52: (4, 6, 8, 12, 18),  # Phoeniconaias minor
     53: (4, 6, 8, 12, 18),  # Phoenicopterus ruber
     54: (15, 30, 50, 65, 80),  # Who Do I Have to Pew Pew Pew to Get a Combat Update Around Here? (user, 2026-11-05: 99 / 27 / 11 / 6 / 5 players since 1 Aug; was 15/30/60/130/195, which nobody ever reached)
-    55: (5, 11, 15, 25, 40),  # Pulsar Veteran
-    56: (5, 11, 15, 25, 40),  # Nova Veteran
-    57: (5, 11, 15, 25, 40),  # Comet Veteran
-    58: (5, 11, 15, 25, 40),  # Meteor Veteran
-    59: (5, 11, 15, 25, 40),  # Detonator Veteran
-    60: (5, 11, 15, 25, 40),  # Stun Field Veteran
-    61: (5, 11, 15, 25, 40),  # Arc Mine Veteran
-    62: (5, 11, 15, 25, 40),  # Instant Repair Veteran
-    63: (5, 11, 15, 25, 40),  # Repair Matrix Veteran
-    64: (5, 11, 15, 25, 40),  # Threat Scanner Veteran
-    65: (5, 11, 15, 25, 40),  # Energy Barrier Veteran
-    66: (5, 11, 15, 25, 40),  # Phase Shift Veteran
-    68: (150, 350, 600, 1200, 2000),  # Pixel Party! (2026-11-11, user: top end 2,000, the rest spread to match; 150 / 600 / 1,200 / 2,000 as four medals. Was 205/440/810/1460/2470 before the death rules were corrected, 150/330/500/900/1500 an hour earlier. Best player in 100 days: 990 deaths, about 10 a day)
+    55: (15, 25, 35, 55, 80),  # Pulsar Veteran
+    56: (15, 25, 35, 55, 80),  # Nova Veteran
+    57: (15, 25, 35, 55, 80),  # Comet Veteran
+    58: (15, 25, 35, 55, 80),  # Meteor Veteran
+    59: (15, 25, 35, 55, 80),  # Detonator Veteran
+    60: (15, 25, 35, 55, 80),  # Stun Field Veteran
+    61: (15, 25, 35, 55, 80),  # Arc Mine Veteran
+    62: (15, 25, 35, 55, 80),  # Instant Repair Veteran
+    63: (15, 25, 35, 55, 80),  # Repair Matrix Veteran
+    64: (15, 25, 35, 55, 80),  # Threat Scanner Veteran
+    65: (15, 25, 35, 55, 80),  # Energy Barrier Veteran
+    66: (15, 25, 35, 55, 80),  # Phase Shift Veteran
+    # 4-month challenge period (user, 2026-11-26): the ladders nobody could finish in the last real 4 months (27 Jul-26 Nov,
+    # 255 regulars) made reachable; the rest already land at a 2-6 % crown and stay.
+    17: (1, 1.5, 2, 3, 4),  # Versatile Bot: days with all 12 items (best regular 2; was 1 / 5 / 13 / 23)
+    67: (3, 7, 12, 24, 35),  # 5th Loadout when?: crown 4 % (was 7 / 29 / 62 / 87, 0 %)
+    123: (1, 2, 3, 6, 10),  # No Gun Left Behind: least-used weapon (best 20; was 1 / 18 / 78 / 156)
+    86: (1, 2, 3, 6, 10),  # Forbidden Arsenal: the same ladder as No Gun Left Behind (best 11)
+    124: (1, 2, 3, 6, 10),  # Loadout Scholar Bot: least-used item (best 12)
+    68: (60, 150, 250, 500, 850),  # Pixel Party! (2026-11-26: crown 5 % over 4 months, was 0 % at 150 / 600 / 1,200 / 2,000) (2026-11-11, user: top end 2,000, the rest spread to match; 150 / 600 / 1,200 / 2,000 as four medals. Was 205/440/810/1460/2470 before the death rules were corrected, 150/330/500/900/1500 an hour earlier. Best player in 100 days: 990 deaths, about 10 a day)
     69: (14, 34, 54, 90, 105),  # King of the Hill (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 14/30/54/95/165)
     70: (14, 34, 54, 90, 105),  # Feed the Flamingo (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 14/29/51/90/155)
     72: (6, 7.5, 9, 10, 11),  # Roboticide (2026-11-11, user: crown for about 7.5 % of regulars after the death and bounds corrections; was 6/8/9/11/14)
@@ -354,54 +366,54 @@ TUNED_LEVELS: dict[int, tuple[float, ...]] = {
     77: (8, 17.5, 27, 40, 50),  # George and I Go Way Back (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 7/15/26/45/80)
     78: (8, 17.5, 27, 40, 50),  # Good ol' George (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 7/15/26/46/75)
     79: (28, 66.5, 105, 180, 210),  # King/Queen of Pubs (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 28/60/105/190/320)
-    90: (3, 4, 5, 6, 7),  # On a Roll
+    90: (3, 4, 5, 7, 9),  # On a Roll / Echo Streak (2026-11-26, user: harder at the top, crown 4 % of 194 regulars, was 9 % at 3 / 5 / 6 / 7)
     96: (100, 120, 140, 175, 205),  # Pedal to the Metal  # 2026-11-11 (user): crown unchanged at about 7.5 % of regulars, steps of 40 / 35 / 30 s; was 112/160/182/198/207
     97: (22, 34, 45, 60, 70),  # Payload Roadblock (2026-11-11, user: crown for about 7.5 % of regulars after the death and bounds corrections; was 22/44/60/73/84)
     98: (3.3, 9.15, 15, 25, 35),  # Payload Freight Train (Payload) (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 3.3/8.6/15/25/46)
     100: (20, 40, 60, 80, 120),  # Dance Floor Legend (user, 2026-11-05: nobody had reached 12480, 5th best since 1 Aug 116; was 48/240/960/3120/12480)
-    101: (1, 3, 4, 5, 7),  # Starburst Stream
-    102: (1, 3, 4, 5, 7),  # Protostar Power Trip
-    103: (1, 3, 4, 5, 7),  # Quark Storm
-    104: (1, 3, 4, 5, 7),  # Here, There and Everywhere
-    105: (5, 11, 15, 25, 40),  # Starburst Veteran
-    106: (5, 11, 15, 25, 40),  # Protostar Veteran
-    107: (5, 11, 15, 25, 40),  # Quark Veteran
-    108: (5, 11, 15, 25, 40),  # Translocator Veteran
-    112: (5, 11, 15, 25, 40),  # Overclocked
+    101: (2, 4, 6, 8, 10),  # Starburst Stream
+    102: (2, 4, 6, 8, 10),  # Protostar Power Trip
+    103: (2, 4, 6, 8, 10),  # Quark Storm
+    104: (2, 4, 6, 8, 10),  # Here, There and Everywhere
+    105: (15, 25, 35, 55, 80),  # Starburst Veteran
+    106: (15, 25, 35, 55, 80),  # Protostar Veteran
+    107: (15, 25, 35, 55, 80),  # Quark Veteran
+    108: (15, 25, 35, 55, 80),  # Translocator Veteran
+    112: (15, 25, 35, 55, 80),  # Overclocked
     114: (10, 12, 14, 19, 25),  # Lobby Regular (Activity) (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 10/19/31/47/75)
     115: (6, 7, 8, 10, 12),  # Loyal Bot (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 6/11/16/23/32)
     117: (3.5, 8.75, 14, 22, 26),  # Time Well Wasted on Kronos II (Activity) (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 3.5/7.7/14/26/43)
     122: (1, 2, 3, 7, 12),  # Grand Tour
-    127: (1, 4, 6, 9, 13),  # Star Power
-    128: (1, 4, 6, 9, 13),  # Protostar Powerhouse
-    129: (1, 4, 6, 9, 13),  # Quark Quake
-    130: (1, 4, 6, 9, 13),  # Blink and You'll Miss It
-    131: (1, 3, 4, 5, 7),  # Full Charge
-    132: (1, 4, 6, 9, 13),  # Charged Up
-    133: (5, 11, 15, 25, 40),  # Blazar Veteran
-    134: (5, 11, 15, 25, 40),  # Dot Field Veteran
-    135: (1, 3, 4, 5, 7),  # Blazing Trail
-    136: (1, 3, 4, 5, 7),  # Dot to Dot
-    137: (1, 4, 6, 9, 13),  # Blazar Barrage
-    138: (1, 4, 6, 9, 13),  # Dot Matrix
-    265: (5, 11, 15, 25, 40),  # Attack Drone Veteran (user, 2026-11-20: the same gear numbers)
-    266: (1, 3, 4, 5, 7),  # Attack Drone Ace
-    267: (1, 4, 6, 9, 13),  # Attack Drone Swarm
-    269: (5, 11, 15, 25, 40),  # Umbral Veil Veteran
-    270: (1, 3, 4, 5, 7),  # Behind the Umbral Veil
-    271: (1, 4, 6, 9, 13),  # Shrouded in the Umbral Veil
-    273: (5, 11, 15, 25, 40),  # Neutron Veteran
-    274: (1, 3, 4, 5, 7),  # Neutron Star
-    275: (1, 4, 6, 9, 13),  # Neutron Flux
+    127: (3, 6, 10, 14, 18),  # Star Power
+    128: (3, 6, 10, 14, 18),  # Protostar Powerhouse
+    129: (3, 6, 10, 14, 18),  # Quark Quake
+    130: (3, 6, 10, 14, 18),  # Blink and You'll Miss It
+    131: (2, 4, 6, 8, 10),  # Full Charge
+    132: (3, 6, 10, 14, 18),  # Charged Up
+    133: (15, 25, 35, 55, 80),  # Blazar Veteran
+    134: (15, 25, 35, 55, 80),  # Dot Field Veteran
+    135: (2, 4, 6, 8, 10),  # Blazing Trail
+    136: (2, 4, 6, 8, 10),  # Dot to Dot
+    137: (3, 6, 10, 14, 18),  # Blazar Barrage
+    138: (3, 6, 10, 14, 18),  # Dot Matrix
+    265: (15, 25, 35, 55, 80),  # Attack Drone Veteran (user, 2026-11-20: the same gear numbers)
+    266: (2, 4, 6, 8, 10),  # Attack Drone Ace
+    267: (3, 6, 10, 14, 18),  # Attack Drone Swarm
+    269: (15, 25, 35, 55, 80),  # Umbral Veil Veteran
+    270: (2, 4, 6, 8, 10),  # Behind the Umbral Veil
+    271: (3, 6, 10, 14, 18),  # Shrouded in the Umbral Veil
+    273: (15, 25, 35, 55, 80),  # Neutron Veteran
+    274: (2, 4, 6, 8, 10),  # Neutron Star
+    275: (3, 6, 10, 14, 18),  # Neutron Flux
     142: (50, 55, 60, 67.5, 75),  # Statue (2026-11-11, user: eased and rounded after the play-area bounds, spawn points and death rules were corrected (stats version 16), which made it harder; was 54/61/67/73/80)  # loosened 2026-11-11 (user): steps of at least 8 % of the crown, the lower medals eased; was 50/55/60/70/75
-    143: (93, 95, 97, 98, 99),  # Lone Wolf (2026-11-11, user: eased and rounded after the play-area bounds, spawn points and death rules were corrected (stats version 16), which made it harder; was 94.6/96.4/98.2/99.1/100)
+    143: (95, 96, 98, 99, 99.5),  # Lone Echo (2026-11-26, user: harder, 95 / 98 / 99 / 99.5 = 53 / 24 / 13 / 9 % of the 219 regulars in the local stats-version-20 matches, 4+ min 3v3 games; 93 / 97 / 98 / 99 was 72 / 35 / 24 / 13 %) (2026-11-11, user: eased and rounded after the play-area bounds, spawn points and death rules were corrected (stats version 16), which made it harder; was 94.6/96.4/98.2/99.1/100)
     48: (2.25, 2.5, 2.75, 3.25, 3.65),  # The Wings of RAD_Wyvern (2026-11-11, user: crown for about 7.5 % of regulars after the death and bounds corrections; was 2.75/3/3.25/3.5/3.75)  # loosened 2026-11-11 (user): steps of at least 8 % of the crown, the lower medals eased; was 2.75/3/3.25/3.5/3.65
     145: (3.25, 3.5, 3.75, 4.25, 4.75),  # Speed Demon (2026-11-11, user: crown for about 7.5 % of regulars after the death and bounds corrections; was 3.5/3.75/4/4.5/5)  # loosened 2026-11-11 (user): steps of at least 8 % of the crown, the lower medals eased; was 3.5/3.75/4/4.5/4.75
     146: (2, 3, 3.5, 4, 4.5),  # Point Guard (user, 2026-11-05: nobody had reached 6.5, best since 1 Aug 5; was 2/3/3.5/5.5/6.5)
     148: (2, 6, 12, 22, 38),  # One-Trick Pony
     149: (2, 3, 4, 5, 6),  # Loadout Roulette (user, 2026-11-05: nobody had reached 10, best since 1 Aug 6; was 4/5/6/9/10)
-    150: (2, 4, 6, 8, 10),  # Mime Troupe (user, 2026-11-05: nobody had reached 26, best since 1 Aug 11; was 4/8/12/21/26)
-    151: (4, 5, 6, 7, 8),  # Showbot (2026-11-11, user: crown for about 7.5 % of regulars after the death and bounds corrections; was 4/6/8/10/14)
+    150: (4, 8, 12, 16, 20),  # Mime Troupe (2026-11-26, user: doubled, "feasible, people just don't do it regularly"; the best regular in the 1,538 newest local replays had 5, the archive's best since 1 Aug was 11) (user, 2026-11-05: nobody had reached 26, best since 1 Aug 11; was 4/8/12/21/26)
+    151: (8, 10, 12, 14, 16),  # Showbot (2026-11-26, user: doubled; 10 / 4 / 2 / 1 % of the 125 regulars in the 1,538 newest local replays, was 28 / 15 / 10 / 10 %; record 18) (2026-11-11, user: crown for about 7.5 % of regulars after the death and bounds corrections; was 4/6/8/10/14)
 }
 
 
@@ -806,8 +818,11 @@ def _build_rules() -> list[Rule]:
     # New (80+): data the old site never used. Ids 80-85 and 113 were removed on 2026-11-05 as duplicates (user): 80-85 counted the
     # same games as the experimental gear Veterans, 113 the same as King/Queen of Pubs (id 79).
     rules += [
-        Rule(86, "Forbidden Arsenal (Weapon)", "Use all 4 experimental weapons: Starburst, Protostar, Quark and Blazar", "all", "loadout",
-             _all_used("weapon", {c for c, _ in UNRELEASED_WEAPONS}), new=True, group="Experimental gear"),
+        # The same ladder as No Gun Left Behind (123) does for the 4 standard weapons (user, 2026-11-26: "should be the same ladder as
+        # the normal weapons"); was "use all 4 experimental weapons", once
+        _ladder(86, "Forbidden Arsenal (Weapon)", "Play games with your least-used experimental weapon (of Starburst, Protostar, Quark and Blazar)", "loadout",
+                lambda games: min(sum(1 for g in games if code in g.used("weapon")) for code, _ in UNRELEASED_WEAPONS),
+                (1, 5, 15, 50, 100), new=True, group="Experimental gear"),
         Rule(87, "Jack of All Trades", "Use all 4 weapons (Pulsar, Nova, Comet and Meteor) in one game", "game", "loadout",
              _all_used("weapon", {c for c, _, _ in WEAPONS}), new=True, group="Gear mastery"),
         Rule(88, "Ordnance Sampler", "Use all 4 ordnances (Detonator, Stun Field, Arc Mine and Instant Repair) in one game", "game", "loadout",
@@ -952,6 +967,10 @@ def _build_rules() -> list[Rule]:
     rules.append(_ladder(201, "Two-Handed Bot (Movement)", "Switch your arm setting between games: in any 7 days, play this many games "
                          "with your left arm AND this many with your right arm", None, _v4(_switch_hitter),
                          (1, 2, 3, 4, 6), "week", " games each", new=True, group="Movement"))
+    # Full Lobby (user, 2026-11-26: a fun special): a full 5v5 match of 4+ minutes, won or not. 6 % of public matches in the
+    # last 4 months; 148 of 306 regulars played one. Id 279 (277 Edit your Bio, 278 the dropped regrab special).
+    rules.append(Rule(279, "Full Lobby on Kronos II (Activity)", "Play a full match with 5 players on each team", "game", None,
+                      _full(lambda gs: 1.0 if gs[0].full_lobby else 0.0), new=True, group="Activity", binary=True))
     # Attack Drone, Umbral Veil and Neutron (user, 2026-11-20): the set every other new item has, on the same ladders (their
     # Test Drives, ids 268 / 272 / 276, retired with the others on 2026-11-26)
     tables = {"weapon": gear.WEAPONS, "tacmod": gear.TACMODS, "ordnance": gear.ORDNANCES}
@@ -977,6 +996,7 @@ _NOTE_ONLY_IDS = {42, 148}
 
 # Rules a challenge's own function applies that the generic tags cannot say (user, 2026-11-26: the speed rules in the card)
 EXTRA_NOTES: dict[int, list[str]] = {
+    279: ["5 players on each team for at least half of the match"],
     23: ["Top speed = your fastest average speed over 1 second", "Regrab flights and shooting backwards count",
          "Instant launches, readings over 100 m/s and jumps in the recorder's clock do not count"],
 }
@@ -1030,8 +1050,9 @@ def _tuned(rule: Rule, levels: tuple[float, ...] | None = None) -> Rule:
 # Quick-Change Chassis (5th Loadout when?); later that day Beam Me Up, Translocator (109, user), then the closest overlaps left:
 # Untouchable Chassis (139, Flawless Chassis / My Other Chassis Is a Toaster), Ambidextrous Bot (144, Two-Handed Bot) and Point
 # Guard (146, time on the objective), and the two counts made entirely of others: Centurion Bot (92, Capture Point + Payload wins)
-# and Payload Hauler (121, attacking + defending wins). Their functions stay, unused, so an id can come back by taking it out.
-RETIRED_IDS = frozenset({21, 22, 24, 87, 88, 89, 92, 96, 97, 109, 110, 111, 121, 139, 140, 144, 145, 146, 149})
+# and Payload Hauler (121, attacking + defending wins); Space Statue (142, user: it rewards standing still, "it seems like
+# throwing"). Their functions stay, unused, so an id can come back by taking it out.
+RETIRED_IDS = frozenset({21, 22, 24, 87, 88, 89, 92, 96, 97, 109, 110, 111, 121, 139, 140, 142, 144, 145, 146, 149})
 RULES = [_tuned(r) for r in _build_rules() if r.id not in RETIRED_IDS]
 
 # Mega Prize (user, 2026-11-04): NOT in RULES on purpose. RULES feeds every public list, ranking, medal feed and total; the
@@ -1137,7 +1158,8 @@ def evaluate(games: list, rules: list[Rule] = RULES) -> list[dict]:
         progress = round(clamp(best), 4)
         entry = {
             "id": rule.id, "name": rule.name, "description": rule.description, "rules": rule_notes(rule), "period": rule.period,
-            "icon": icon_file(rule), "estimated": rule.estimated, "new": rule.new, "group": rule.group, "counted": rule.counted, "progress": progress, "tier": tier(progress),
+            "icon": icon_file(rule), "estimated": rule.estimated, "new": rule.new, "group": rule.group, "counted": rule.counted, "binary": rule.binary, "progress": progress,
+            "tier": ("crown" if progress >= 1 else None) if rule.binary else tier(progress),
         }
         if n is not None:  # the website shows "12 / 25 for diamond"
             entry |= {"tier": level_tier(n, rule.levels), "count": round(n, 2), "levels": list(rule.levels), "unit": rule.unit}

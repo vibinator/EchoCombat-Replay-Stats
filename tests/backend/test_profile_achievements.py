@@ -28,3 +28,13 @@ def test_complete_once_the_page_has_a_bio(tmp_path):
     assert (done["progress"], done["unlocked_at"], done["counted"]) == (1.0, "2026-11-20", False)
     assert blank["progress"] == none["progress"] == 0.0 and none["unlocked_at"] is None
     assert entry["unlocked_share"] == 0.25 and "progress" not in entry  # one of four players
+
+
+def test_edit_your_bio_is_won_or_not(tmp_path):
+    _, sm = open_db(tmp_path / "c.db", 0)
+    with sm() as db:
+        db.add(Player(user_id="p1", name="p1", first_seen_at="t", last_seen_at="t"))
+        db.add(PlayerProfile(user_id="p1", discord_id="d1", bio="Hi", show_avatar=True, linked_at="t", updated_at="2026-11-26T10:00:00"))
+        db.commit()
+        [item] = pa.player_items(db, "p1")
+    assert (item["binary"], item["tier"]) == (True, "crown")

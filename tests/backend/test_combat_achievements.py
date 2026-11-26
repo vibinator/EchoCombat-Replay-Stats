@@ -83,8 +83,8 @@ def test_award_cards():
 
 
 def test_medal_dates():
-    times = medal_times([game(kills=60, started="2026-11-04T20:00:00"), game(kills=700)], RULES_HERE)  # Ring Debris: 50 / 350 / 700 / 1200 kills
-    assert times[173]["bronze"].startswith("2026-11-04") and times[173]["gold"].startswith("2026-11-05")
+    times = medal_times([game(kills=150, started="2026-11-04T20:00:00"), game(kills=800)], RULES_HERE)  # Ring Debris: 120 / 850 / 1,700 / 2,900 kills
+    assert times[173]["bronze"].startswith("2026-11-04") and times[173]["silver"].startswith("2026-11-05")
 
 
 def _report(db, session, started=STARTED, duration=400.0, players=()):
@@ -191,3 +191,13 @@ def test_challenge_period_applies(tmp_path):
 def test_icons_and_sheet_know_them():
     assert ca.COMBAT_RULES[0].id in icons.RULE_IDS and icons.default(170) == "deaths.png"
     assert any(row["id"] == 170 for row in achievement_sheet.name_and_rule())
+
+
+def test_one_match_award_cards_and_flawless_are_won_or_not():
+    """User, 2026-11-26: "there is no point having different medals, it is just won / not won": one tier, the crown."""
+    binary = {r.id for r in RULES_HERE if r.binary}
+    assert binary == {170, *range(249, 265)}
+    won = results([game(awards=["mvp"])])[249]
+    assert (won["binary"], won["tier"], won["progress"]) == (True, "crown", 1)
+    assert results([game(awards=[])])[249]["tier"] is None
+    assert results([game(awards=["mvp"])])[235]["binary"] is False  # the "total cards won" ladders keep their tiers

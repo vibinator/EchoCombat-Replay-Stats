@@ -86,7 +86,7 @@ def get_challenges(request: Request):
 
 # Shown in full on the "Coming soon" page (user, 2026-10-31; refreshed 2026-11-03): original day, week and all-time
 # challenges plus two of the new 4v4 "In one game" ones (Point Guard, Speed Demon).
-REVEALED_IDS = (9, 45, 70, 147, 142)  # 145 (Boost Junkie) and 146 (Point Guard) retired 2026-11-26: Space Statue, Contested Point
+REVEALED_IDS = (9, 45, 70, 147, 143)  # 145 (Boost Junkie), 146 (Point Guard), 142 (Space Statue) retired 2026-11-26: Contested Point, Lone Echo
 
 
 def _peek() -> dict:
@@ -161,14 +161,15 @@ def _games(db, player_ids: list[int] | None = None, fingerprints: dict[int, int]
          team, winner, attacking, blue_rounds, orange_rounds, push, block, emotes, stopped, left, right, contested,
          blue_cap, orange_cap, lone_wolf_near) = row = tuple(row)
         four = sizes.get((mid, "blue"), 0) >= 3 and sizes.get((mid, "orange"), 0) >= 3
-        fp[pid] = (fp.get(pid, 0) + _stable_hash(row + (four,))) & FINGERPRINT_MASK
+        full = sizes.get((mid, "blue"), 0) >= 5 and sizes.get((mid, "orange"), 0) >= 5  # Full Lobby (5v5)
+        fp[pid] = (fp.get(pid, 0) + _stable_hash(row + (four, full))) & FINGERPRINT_MASK
         games[pid].append(Game(
             started_at=started, map=map_, mode=mode, private=private, play_time_s=play, deaths=deaths,
             in_bounds=bounds, near_mate=mate, near_enemy=enemy, upside=upside, speed_sum=speed, top_speed=top,
             frame_rate=hz, loadouts=loadouts.get((mid, pid), {}), team=team, winner=winner, attacking_team=attacking,
             rounds_lost=orange_rounds if team == "blue" else blue_rounds, push_s=push, block_s=block, emotes=emotes,
             stopped=stopped, left_arm=left, right_arm=right, contested_s=contested,
-            capture_s=blue_cap if team == "blue" else orange_cap, enough_players=four, lone_wolf_near=lone_wolf_near,
+            capture_s=blue_cap if team == "blue" else orange_cap, enough_players=four, full_lobby=full, lone_wolf_near=lone_wolf_near,
         ))
     return games
 
@@ -563,7 +564,7 @@ def _catalogue(eligible: list) -> list[dict]:
         values = [p[i] for p in eligible]
         out.append({"id": r.id, "name": r.name, "description": r.description, "rules": rule_notes(r), "period": r.period,
                     "icon": icon_file(r), "estimated": r.estimated, "new": r.new, "group": r.group, "counted": r.counted,
-                    "levels": list(r.levels) or None,  # ladder: targets for bronze ... crown
+                    "binary": r.binary, "levels": list(r.levels) or None,  # ladder: targets for bronze ... crown
                     "unit": r.unit,
                     "unlocked_share": round(sum(v >= unlock_threshold(r) for v in values) / len(values), 4) if values else None,
                     "completed_share": round(sum(v >= 1 for v in values) / len(values), 4) if values else None})

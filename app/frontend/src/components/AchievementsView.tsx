@@ -218,8 +218,15 @@ function ChallengeList({ items, label, single = false }: { items: AnyBadge[]; la
 }
 
 /** One medal step of a challenge for the card: done, being chased (with how far along), or later. */
+/** A won-or-not challenge (user, 2026-11-26): a single step, the crown. */
+const BINARY_STEP = { medal: "crown", label: "Complete" };
+
 function medalSteps(a: AnyBadge): { medal: string; label: string; state: "done" | "current" | "later"; fill: number }[] {
   const catalogue = a.progress === undefined;
+  if (a.binary) {
+    const done = !catalogue && (a.progress ?? 0) >= 1;
+    return [{ ...BINARY_STEP, fill: done ? 1 : 0, state: done ? "done" : catalogue ? "later" : "current" }];
+  }
   const raw = a.levels && (catalogue || a.count != null)
     ? a.levels.map((need, i) => {
         const prev = i ? a.levels![i - 1] : 0;
@@ -316,6 +323,44 @@ function ChallengeRow({ a, side }: { a: AnyBadge; side: "left" | "right" }) {
   );
 }
 
+/** A short rule tag from the server written out as a sentence (user, 2026-11-26: the rules in full in the card). */
+function ruleSentence(tag: string): string {
+  const fixed: Record<string, string> = {
+    "Best game": "Your best single game counts",
+    "Best day": "Your best day counts (UK time)",
+    "Best 7 days": "Your best 7 days in a row count",
+    "Best 30 days": "Your best 30 days in a row count",
+    "All-time total": "Every game in the challenge period adds up",
+    "3+ players per team": "Only games with 3+ players on each team count",
+  };
+  if (fixed[tag]) return fixed[tag];
+  let m = /^([\d.]+)\+ min games$/.exec(tag);
+  if (m) return `Only games of ${m[1]}+ minutes count`;
+  m = /^Average, (\d+)\+ games$/.exec(tag);
+  if (m) return `Your average over all your games; needs ${m[1]}+ games`;
+  m = /^([\d.]+)\+ min on the map$/.exec(tag);
+  if (m) return `You must be on the map for ${m[1]}+ minutes`;
+  m = /^"Only" = (\d+%)\+ of the game$/.exec(tag);
+  if (m) return `"Only" means ${m[1]}+ of the game with it`;
+  m = /^Silver\+: (\d+)\+ different days$/.exec(tag);
+  if (m) return `Silver and up need games on ${m[1]}+ different days`;
+  m = /^([\d.]+)\+ min per loadout$/.exec(tag);
+  if (m) return `A loadout counts after ${m[1]}+ minutes with it`;
+  return tag;
+}
+
+/** Every counting rule of a challenge: its own, then what is NOT required (no length / team size rule), then the rule all
+ *  share. Profile challenges (Edit your Bio) are not about games, so only their own lines. */
+function countingRules(a: AnyBadge): string[] {
+  const tags = a.rules ?? [];
+  if (a.group === "Profile") return tags;
+  const out = tags.map(ruleSentence);
+  if (!tags.some((t) => / min games$/.test(t))) out.push("Any game length");
+  if (!tags.some((t) => /players (per|on each) team/.test(t))) out.push("Any team size");
+  out.push("Public matches only, played inside the challenge period");
+  return out;
+}
+
 /** The card a row opens: what to do, every medal step (ticked when reached), where the player stands, and the big picture. */
 function ChallengeCard({ a, onClose }: { a: AnyBadge; onClose?: () => void }) {
   const catalogue = a.progress === undefined;
@@ -357,12 +402,10 @@ function ChallengeCard({ a, onClose }: { a: AnyBadge; onClose?: () => void }) {
             ))}
           </span>
         )}
-        {a.rules && a.rules.length > 0 && (
-          <div className="ch-rules">
-            <span className="ch-rules-head">How it counts</span>
-            <ul>{a.rules.map((r) => <li key={r}>{r}</li>)}</ul>
-          </div>
-        )}
+        <div className="ch-rules">
+          <span className="ch-rules-head">How it counts</span>
+          <ul>{countingRules(a).map((r) => <li key={r}>{r}</li>)}</ul>
+        </div>
         {a.unlocked_share != null && (
           <span className="muted ch-notes" title="Share of players with 10+ games">{pct(a.unlocked_share)} of players reached a tier · {pct(a.completed_share)} completed</span>
         )}
@@ -761,8 +804,9 @@ const PERCENT_STEPS = [{ medal: "white", at: 0.25 }, { medal: "bronze", at: 0.5 
 /** One segment per medal, each filled in its own colour with the target underneath, so the progress to every
  *  tier is visible (user, 2026-10-31). Tiered rules segment by count, the others by percentage. */
 function TierSteps({ a }: { a: Achievement & AchievementRule }) {
-  const steps =
-    a.levels && a.count != null
+  const steps = a.binary
+    ? [{ ...BINARY_STEP, fill: a.progress >= 1 ? 1 : 0 }]
+    : a.levels && a.count != null
       ? a.levels.map((need, i) => {
           const prev = i ? a.levels![i - 1] : 0;
           return { medal: LEVELS[i], label: `${need.toLocaleString()}${a.unit ?? ""}`, fill: Math.max(0, Math.min(1, (a.count! - prev) / (need - prev))) };
@@ -786,7 +830,7 @@ function TierSteps({ a }: { a: Achievement & AchievementRule }) {
 /** The medal ladder as four dots on a compact tile (user, 2026-11-07, Achievements idea 4): filled = earned, half = the
  *  one being chased, empty = later. Ladders use bronze / silver / gold / crown; single-step rules their percentage steps. */
 function MedalDots({ a }: { a: Achievement }) {
-  const steps = a.levels && a.count != null
+  const steps = a.binary ? [{ medal: "crown", done: a.progress >= 1 }] : a.levels && a.count != null
     ? a.levels.map((need, i) => ({ medal: LEVELS[i], done: a.count! >= need }))
     : PERCENT_STEPS.map((s) => ({ medal: s.medal, done: a.progress >= s.at }));
   const chasing = steps.findIndex((s) => !s.done);
@@ -1103,12 +1147,6 @@ function MedalBar({ items, overall, compact = false }: { items: Achievement[]; o
   const tiers = (["gold", "silver", "bronze"] as const).map((m) => `${per(m)} at ${m}`);
   const started = counted.filter((a) => a.progress > 0).length;
   const hover = [`${complete} complete`, ...tiers, `${total - started} not started`, `Average progress: ${pct(overall)}`].join(" · ");
-  const extra = items.filter((a) => !a.counted && !a.prize);
-  const extraLine = extra.length > 0 && (
-    <span className="muted medal-extra" title="Combat challenges (from the recorder's match reports) and Edit your Bio earn tiers but are not in the totals or the ranking">
-      Combat and Edit your Bio (separate): {extra.filter((a) => a.progress >= 1).length} of {extra.length} complete
-    </span>
-  );
   const headline = compact ? (
     <strong className="medal-headline compact" title={hover}>
       <img className="medal-crown" src={`${IMG}crown.png`} alt="" /><b>{complete}</b>&nbsp;of {total} fully complete
@@ -1126,7 +1164,7 @@ function MedalBar({ items, overall, compact = false }: { items: Achievement[]; o
     </div>
   );
   if (compact) return <>{headline}{bar}</>;
-  return <>{headline}{bar}{extraLine}</>;
+  return <>{headline}{bar}</>;
 }
 
 function StripBody({ userId, onOpen }: { userId: string; onOpen: () => void }) {

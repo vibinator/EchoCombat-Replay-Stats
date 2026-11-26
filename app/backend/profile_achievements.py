@@ -10,14 +10,14 @@ from .models import Player, PlayerProfile
 
 GROUP = "Profile"
 BIO_RULE = Rule(277, "Edit your Bio", "Write a bio on your player page (log in with Discord, then edit it on your profile)", "game", None,
-                lambda games: 0.0, new=True, group=GROUP, counted=False)
+                lambda games: 0.0, new=True, group=GROUP, counted=False, binary=True)
 PROFILE_RULES = [BIO_RULE]
 NOTES = ["On your player page", "Discord login"]
 
 
 def _entry(rule: Rule) -> dict:
     return {"id": rule.id, "name": rule.name, "description": rule.description, "rules": NOTES, "period": rule.period,
-            "icon": rule.icon, "estimated": False, "new": rule.new, "group": rule.group, "counted": rule.counted,
+            "icon": rule.icon, "estimated": False, "new": rule.new, "group": rule.group, "counted": rule.counted, "binary": rule.binary,
             "levels": None, "unit": ""}
 
 
@@ -33,5 +33,5 @@ def player_items(db, user_id: str) -> list[dict]:
     """This player's cards: the bio one is complete once their page has a bio (the date it was last edited)."""
     profile = db.get(PlayerProfile, user_id)
     has_bio = bool(profile and profile.bio and profile.bio.strip())
-    return [_entry(BIO_RULE) | {"progress": 1.0 if has_bio else 0.0, "tier": "gold" if has_bio else None,
+    return [_entry(BIO_RULE) | {"progress": 1.0 if has_bio else 0.0, "tier": "crown" if has_bio else None,
                                 "unlocked_at": profile.updated_at[:10] if has_bio else None}]
