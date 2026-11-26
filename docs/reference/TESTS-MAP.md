@@ -116,6 +116,10 @@ Mega Prizes security (user, 2026-11-04): the prize data is Preview-only, the win
 ### `tests/backend/test_phase7.py` (16 tests)
 - test_tracks_round_trip, test_tracks_ram_cache, test_recorder_pads_gaps_and_absence, test_cells_follow_verified_orientation, test_rasterise_draws_lines_but_not_jumps, test_rasterise_matches_to_cell_on_every_map, test_build_layers_matches_per_sample_reference, test_match_heatmap, test_match_heatmap_per_player, test_timeline, test_capture_time_packet_loss_and_emotes, test_player_heatmap, test_player_heatmap_validation, test_player_heatmap_cache_refreshes_after_import, test_leaderboard, test_match_export
 
+### `tests/backend/test_profile_achievements.py` (2 tests)
+Challenges about the player's page (profile_achievements.py): "Edit your Bio" (user, 2026-11-26).
+- test_edit_your_bio_is_a_special_out_of_every_total, test_complete_once_the_page_has_a_bio
+
 ### `tests/backend/test_profile_bio.py` (2 tests)
 A bio written on My profile shows on the player's own page (user, 2026-11-10: "it doesn't show up on their profile page").
 - test_bio_from_my_profile_shows_on_the_player_page, test_the_owner_can_edit_the_bio_on_the_player_page

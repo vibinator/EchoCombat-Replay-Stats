@@ -31,7 +31,7 @@ export const NEW_GROUPS: [name: string, hint: string, groups: string[]][] = [
 
 // Survival, Movement, Emotes and Activity are not themes any more (user, 2026-11-04): their challenges sit with the others of the same
 // period (mostly "In one game"; the all-time ones, Activity included, under "All time").
-const BY_PERIOD = new Set(["Survival", "Movement", "Emotes", "Activity"]);
+const BY_PERIOD = new Set(["Survival", "Movement", "Emotes", "Activity", "Profile"]);
 const GEAR_GROUPS = new Set(["Experimental gear", "Gear mastery"]);
 /** Shown under its period (in one game / day / any 7 days / all time) rather than a theme: the old rules, a few themes, and the
  *  "any 7 days" gear challenges (user, 2026-11-04). */
@@ -42,14 +42,13 @@ type AnyBadge = Parameters<typeof Badge>[0]["a"];
 
 /** The game's own end-of-match award cards (MVP, Super Star, Guard ...): their rules all end in "(Award card)" (combat_achievements.py). */
 export const isAwardCard = (a: { name: string }) => a.name.endsWith("(Award card)");
-const AWARDS_ID = "p-awards";
 
-/** Which section (tab) a challenge sits in: its period, or Specials. Specials (user, 2026-11-26: the award cards tab renamed, the
- *  one-game tab folded into it) holds the in-game award cards and every one-game challenge. */
+/** Which section (tab) a challenge sits in: its period. The one-game period is the Specials tab; the in-game award cards sit in
+ *  the tab of their period, in an "Award cards" box (user, 2026-11-26: no tab of their own). */
 export function sectionId(a: { name: string; period: string }): string {
   // Four pages (user, 2026-11-06, renamed 2026-11-10): One Match, One Day, One Week, Cumulative; the theme is a filter inside the page, see themeOf.
   // The award cards moved out of those into a tab of their own (user, 2026-11-26), split by period inside it.
-  return isAwardCard(a) || a.period === "game" ? AWARDS_ID : `p-${a.period}`;
+  return `p-${a.period}`;
 }
 
 /** Theme chip of a challenge inside its period page (user, 2026-11-06: themes are filters now, not tabs). */
@@ -62,9 +61,9 @@ export function themeOf(a: { new: boolean; group: string | null; period: string 
 const PAGE_LABELS: Record<string, string> = Object.fromEntries(GROUPS); // One Match, One Day, One Week, Cumulative (user, 2026-11-10)
 const PAGES = GROUPS;
 /** Every tab in order: the period pages, then Specials (user, 2026-11-26). The one-game page is always empty now, so it is hidden. */
-// Specials first (user, 2026-11-26), then the period pages; the one-game page is always empty now (its challenges are in
-// Specials), so it is hidden.
-const SECTION_LIST: [id: string, label: string][] = [[AWARDS_ID, "Specials"], ...PAGES.map(([period]) => [`p-${period}`, PAGE_LABELS[period]] as [string, string])];
+// Specials (the one-game challenges) first, then One Day / One Week / Cumulative; the award cards are in these by period (user, 2026-11-26)
+const TAB_LABELS: Record<string, string> = { ...PAGE_LABELS, game: "Specials" };
+const SECTION_LIST: [id: string, label: string][] = PAGES.map(([period]) => [`p-${period}`, TAB_LABELS[period]] as [string, string]);
 
 type Filter = "done" | "open" | "new";
 const FILTERS: [Filter, string][] = [["open", "In progress"], ["new", "Not started"], ["done", "Completed"]];
@@ -97,7 +96,6 @@ const SECTION_COLOUR: Record<string, string> = {
   "p-week": "var(--period-week)",
   "p-month": "var(--period-month)",
   "p-all": "var(--period-all)",
-  [AWARDS_ID]: "var(--period-awards)",
 };
 
 /** Overall progress of a list of challenges (0..1); null for catalogue entries (no player). */
@@ -108,16 +106,12 @@ function listProgress(items: AnyBadge[]): number | null {
 
 /** The challenges of one tab as the classic two-column list (user, 2026-11-26, like the original ECRanked page): the first half
  *  down the left, the rest down the right with the icons on the outer edge. Every status shows (completed ones say so), unless
- *  `only` picks one. `byPeriod` splits the list under One Match / One Day / ... headings (award cards tab). */
-function Section<T extends AnyBadge>({ label, items, only, sort, shares, byPeriod = false }: { label: string; items: T[]; only: Filter | ""; sort: SortBy; shares: Shares; byPeriod?: boolean }) {
+ *  `only` picks one. */
+function Section<T extends AnyBadge>({ label, items, only, sort, shares }: { label: string; items: T[]; only: Filter | ""; sort: SortBy; shares: Shares }) {
   const shown = sortItems(only ? items.filter((a) => status(a) === only) : items, sort, shares);
   if (shown.length === 0) return <p className="muted">No challenge matches.</p>;
-  // grouped by topic, each in a box (user, 2026-11-26). Specials: the one-game challenges by topic, then the award cards by period
-  const byTopic = (list: AnyBadge[]) => TOPICS.map((t) => [t, list.filter((a) => topicOf(a) === t)] as [string, AnyBadge[]]);
-  const groups: [string, AnyBadge[]][] = byPeriod
-    ? [...byTopic(shown.filter((a) => !isAwardCard(a))),
-       ...PAGES.map(([period, name]) => [`Award cards · ${name}`, shown.filter((a) => isAwardCard(a) && a.period === period)] as [string, AnyBadge[]])]
-    : byTopic(shown);
+  // grouped by topic, each in a box (user, 2026-11-26); the award cards of this period in a box of their own
+  const groups: [string, AnyBadge[]][] = TOPICS.map((t) => [t, shown.filter((a) => topicOf(a) === t)] as [string, AnyBadge[]]);
   return (
     <div className="ch-groups">
       {packGroups(groups.filter(([, list]) => list.length > 0)).map(({ title, items: list, wide }) => (
@@ -134,11 +128,10 @@ const HALF_MAX = 4; // a box with this many challenges or fewer can sit beside a
  *  rows in two columns. A pair stays together right after the first box of the two. */
 function packGroups(groups: [string, AnyBadge[]][]): { title: string; items: AnyBadge[]; wide: boolean }[] {
   const out: { title: string; items: AnyBadge[]; wide: boolean }[] = [];
-  const waiting = new Map<string, string>(); // kind + number of challenges -> the box waiting for a partner
+  const waiting = new Map<number, string>(); // number of challenges -> the box waiting for a partner
   for (const [title, items] of groups) {
-    // award card boxes pair only with each other, topic boxes only with topic boxes (user, 2026-11-26)
     const n = items.length;
-    const key = `${title.startsWith("Award cards") ? "award" : "topic"}:${n}`;
+    const key = n;
     if (n > HALF_MAX) {
       out.push({ title, items, wide: true });
       continue;
@@ -161,13 +154,14 @@ const ORDNANCES = ["detonator", "stun field", "arc mine", "instant repair", "att
 const TAC_MODS = ["repair matrix", "threat scanner", "energy barrier", "phase shift", "overcharge", "neutron", "umbral veil"];
 const MAPS = ["dyson", "combustion", "fission", "surge"];
 /** Topic boxes inside a tab, in this order (user, 2026-11-26: weapons, ordnances, tac mods, Payload, Capture Point ...). */
-const TOPICS = ["Weapons", "Ordnances", "Tac mods", "Loadouts", "Payload", "Capture Point", "Maps", "Movement", "Positioning", "Survival", "Emotes", "Wins", "Activity", "Combat", "Other"];
-const GROUP_TOPIC: Record<string, string> = { Payload: "Payload", "Capture Point": "Capture Point", Emotes: "Emotes", Wins: "Wins", Activity: "Activity", Movement: "Movement", Survival: "Survival", Combat: "Combat", "Gear mastery": "Loadouts" };
+const TOPICS = ["Profile", "Weapons", "Ordnances", "Tac mods", "Loadouts", "Payload", "Capture Point", "Maps", "Movement", "Positioning", "Survival", "Emotes", "Wins", "Activity", "Award cards", "Combat", "Other"];
+const GROUP_TOPIC: Record<string, string> = { Payload: "Payload", "Capture Point": "Capture Point", Emotes: "Emotes", Wins: "Wins", Activity: "Activity", Movement: "Movement", Survival: "Survival", Combat: "Combat", "Gear mastery": "Loadouts", Profile: "Profile" };
 const mentions = (text: string, words: string[]) => words.some((w) => text.includes(w));
 
 /** The topic box a challenge sits in: its theme, else the gear, mode or map its rule names, else its built-in art. Read from
  *  the rule text first, as an admin may have given the challenge any icon. */
 export function topicOf(a: { name: string; description: string; group: string | null; icon: string | null }): string {
+  if (isAwardCard(a)) return "Award cards";
   const fromGroup = GROUP_TOPIC[a.group ?? ""];
   if (fromGroup) return fromGroup;
   const name = a.name.toLowerCase();
@@ -363,7 +357,12 @@ function ChallengeCard({ a, onClose }: { a: AnyBadge; onClose?: () => void }) {
             ))}
           </span>
         )}
-        {a.rules && a.rules.length > 0 && <span className="muted ch-notes">{a.rules.join(" · ")}</span>}
+        {a.rules && a.rules.length > 0 && (
+          <div className="ch-rules">
+            <span className="ch-rules-head">How it counts</span>
+            <ul>{a.rules.map((r) => <li key={r}>{r}</li>)}</ul>
+          </div>
+        )}
         {a.unlocked_share != null && (
           <span className="muted ch-notes" title="Share of players with 10+ games">{pct(a.unlocked_share)} of players reached a tier · {pct(a.completed_share)} completed</span>
         )}
@@ -462,7 +461,7 @@ export function GroupedBadges<T extends AnyBadge>({ items: all }: { items: T[] }
         <>
           {tracked && <NotYetStarted items={pageItems as unknown as Achievement[]} />}
           <div style={{ "--per": SECTION_COLOUR[active.id] ?? "var(--blue)" } as React.CSSProperties}>
-            <Section key={active.id} label={active.label} items={pageItems} only={only} sort={sort} shares={shares} byPeriod={active.id === AWARDS_ID} />
+            <Section key={active.id} label={active.label} items={pageItems} only={only} sort={sort} shares={shares} />
           </div>
         </>
       )}
@@ -1092,65 +1091,42 @@ export function AchievementsStrip({ userId, onOpen }: { userId: string; onOpen: 
   return <StripBody userId={userId} onOpen={onOpen} />;
 }
 
-const MEDAL_NAMES: Record<string, string> = { crown: "Crown", gold: "Gold", silver: "Silver", bronze: "Bronze", none: "No tier yet" };
-const INSIDE_FROM = 0.1; // a segment this share of the bar or wider has its name inside; narrower ones are named under the bar
-
-/** A player's challenges as one bar split by best medal (user, 2026-11-26, option B: the same coloured bar, each segment named
- *  with its count, one headline count out of the regular challenges). Crown = complete. The Combat challenges and "Edit your
- *  Bio" are out of the totals, so they get a line of their own. On the player page and at the top of their Challenges page. */
+/** A player's challenges as one bar: how many are fully complete (every tier, up to the crown) out of the regular ones (user,
+ *  2026-11-26: the tier split was still confusing; the tier counts and average progress are hover text now). The Combat
+ *  challenges are out of the totals, so they get a line of their own. On the player page and at the top of their Challenges page. */
 function MedalBar({ items, overall, compact = false }: { items: Achievement[]; overall: number; compact?: boolean }) {
   const counted = items.filter((a) => a.counted && !a.prize);
   const total = counted.length;
   const complete = counted.filter((a) => a.progress >= 1).length;
+  const share = total ? complete / total : 0;
   const per = (m: string) => counted.filter((a) => a.progress < 1 && a.levels && a.tier === m).length;
-  const medals: [string, number][] = [["crown", complete], ["gold", per("gold")], ["silver", per("silver")], ["bronze", per("bronze")]];
-  const segments: [string, number][] = [...medals, ["none", total - medals.reduce((t, [, n]) => t + n, 0)]];
-  const shown = segments.filter(([, n]) => n > 0);
-  const small = shown.filter(([, n]) => total > 0 && n / total < INSIDE_FROM);
+  const tiers = (["gold", "silver", "bronze"] as const).map((m) => `${per(m)} at ${m}`);
+  const started = counted.filter((a) => a.progress > 0).length;
+  const hover = [`${complete} complete`, ...tiers, `${total - started} not started`, `Average progress: ${pct(overall)}`].join(" · ");
   const extra = items.filter((a) => !a.counted && !a.prize);
-  const label = (m: string, n: number) => `${MEDAL_NAMES[m]} ${n}`;
-  const extraText = extra.length > 0 ? `Not in the totals: Combat, ${extra.filter((a) => a.progress >= 1).length} of ${extra.length} complete` : "";
-  if (compact)
-    // the profile row (user, 2026-11-26: "too much data"): the headline and the bar only; every count is in the hover text
-    return (
-      <>
-        <strong className="medal-headline compact" title={[`Average progress: ${pct(overall)}`, ...shown.map(([m, n]) => label(m, n)), extraText].filter(Boolean).join(" · ")}>
-          <img className="medal-crown" src={`${IMG}crown.png`} alt="" /><b>{complete}</b>&nbsp;of {total} fully complete
-        </strong>
-        <div className="medal-track compact" role="img" aria-label={`${complete} of ${total} complete: ${shown.map(([m, n]) => label(m, n)).join(", ")}`}>
-          {shown.map(([m, n]) => (
-            <span key={m} className={`medal-seg ${m === "none" ? "none" : `t-${m}`}`} style={{ width: `${(n / total) * 100}%` }} title={label(m, n)}>
-              {n / total >= INSIDE_FROM && <span className="medal-seg-label"><span className="medal-seg-name">{MEDAL_NAMES[m]} </span>{n}</span>}
-            </span>
-          ))}
-        </div>
-      </>
-    );
-  return (
-    <>
-      <strong className="medal-headline" title={`Average progress over every challenge, counting partial progress: ${pct(overall)}`}>
-        <img className="medal-crown" src={`${IMG}crown.png`} alt="" /><span><b>{complete}</b> of {total} challenges fully complete <span className="muted medal-headline-hint">· every tier, up to the crown</span></span>
-      </strong>
-      <div className="medal-track" role="img" aria-label={`${complete} of ${total} complete: ${shown.map(([m, n]) => label(m, n)).join(", ")}`}>
-        {shown.map(([m, n]) => (
-          <span key={m} className={`medal-seg ${m === "none" ? "none" : `t-${m}`}`} style={{ width: `${(n / total) * 100}%` }}
-            title={m === "none" ? `${n} challenge${n === 1 ? "" : "s"} without a tier yet` : `${n} challenge${n === 1 ? "" : "s"} at ${m}${m === "crown" ? " (complete)" : " as the best tier"}`}>
-            {n / total >= INSIDE_FROM && <span className="medal-seg-label"><span className="medal-seg-name">{MEDAL_NAMES[m]} </span>{n}</span>}
-          </span>
-        ))}
-      </div>
-      {/* the key: on a wide bar only the segments too narrow for their name; on a narrow one (phones) every segment, as the
-          bar then shows the numbers alone */}
-      <span className={`medal-small${small.length === 0 ? " only-narrow" : ""}`}>
-        {shown.map(([m, n]) => <span key={m} className={`${m === "none" ? "none" : `t-${m}`}${n / total < INSIDE_FROM ? " narrow" : ""}`}><i />{label(m, n)}</span>)}
-      </span>
-      {extra.length > 0 && (
-        <span className="muted medal-extra" title="Combat challenges (from the recorder) earn tiers but are not in the totals or the ranking">
-          Not in the totals: Combat, {extra.filter((a) => a.progress >= 1).length} of {extra.length} complete
-        </span>
-      )}
-    </>
+  const extraLine = extra.length > 0 && (
+    <span className="muted medal-extra" title="Combat challenges (from the recorder's match reports) and Edit your Bio earn tiers but are not in the totals or the ranking">
+      Combat and Edit your Bio (separate): {extra.filter((a) => a.progress >= 1).length} of {extra.length} complete
+    </span>
   );
+  const headline = compact ? (
+    <strong className="medal-headline compact" title={hover}>
+      <img className="medal-crown" src={`${IMG}crown.png`} alt="" /><b>{complete}</b>&nbsp;of {total} fully complete
+    </strong>
+  ) : (
+    <strong className="medal-headline" title={hover}>
+      <img className="medal-crown" src={`${IMG}crown.png`} alt="" /><span><b>{complete}</b> of {total} challenges fully complete</span>
+    </strong>
+  );
+  const bar = (
+    <div className={`complete-track${compact ? " compact" : ""}`} role="progressbar" title={hover}
+      aria-label={`${complete} of ${total} challenges fully complete`} aria-valuemin={0} aria-valuemax={total} aria-valuenow={complete}>
+      <div style={{ width: `${share * 100}%` }} />
+      <span className="complete-pct">{pct(share)}</span>
+    </div>
+  );
+  if (compact) return <>{headline}{bar}</>;
+  return <>{headline}{bar}{extraLine}</>;
 }
 
 function StripBody({ userId, onOpen }: { userId: string; onOpen: () => void }) {
@@ -1417,6 +1393,8 @@ export function AchievementsView({ userId }: { userId: string }) {
           <div className="medal-bar-big" aria-label="Tiers">
             <MedalBar items={data.items} overall={data.overall} />
           </div>
+          {/* the player's own Mega Prize progress (user, 2026-11-26), as on their profile; only for who may see the prizes */}
+          <MegaPrizesProfile userId={userId} />
           <NextTiers items={data.items} />
           {sort === "group" && <JumpToNew ready />}
           <label className="inline-check">

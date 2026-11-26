@@ -5761,3 +5761,16 @@ tr.cloud-drop-on td {
 .top-players .big .medal-crown { width: 22px; height: 22px; vertical-align: -4px; margin-right: 6px; }
 .ach-pane h2 .hint { font-size: 0.8rem; font-weight: 500; }
 .ch-col.full { grid-column: 1 / -1; }
+
+/* The card's counting rules as a short list (user, 2026-11-26) */
+.ch-rules { display: flex; flex-direction: column; gap: 2px; margin-top: 2px; }
+.ch-rules-head { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); }
+.ch-rules ul { margin: 0; padding-left: 16px; font-size: 0.8rem; color: var(--muted); }
+.ch-rules li { line-height: 1.35; }
+
+/* The challenge bar, complete challenges only (user, 2026-11-26): one crown-pink fill and the share at its right end */
+.complete-track { position: relative; width: 100%; height: 1.6rem; border-radius: 999px; background: var(--line); overflow: hidden; }
+.complete-track > div { height: 100%; border-radius: inherit; background: var(--tier-crown); box-shadow: 0 0 14px color-mix(in srgb, var(--tier-crown) 45%, transparent); }
+.complete-pct { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-weight: 800; font-size: 0.9rem; color: var(--text); }
+.complete-track.compact { flex: 1 1 220px; width: auto; height: 1.1rem; }
+.complete-track.compact .complete-pct { font-size: 0.75rem; right: 8px; }

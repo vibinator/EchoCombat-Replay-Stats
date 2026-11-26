@@ -8,6 +8,7 @@ from backend import admin_actions as actions
 from backend.achievements import rule_notes, RULES, Game, _all_time, _easier_platinum, _harder, _scaled, evaluate, icon_file, overall, tier
 
 from backend.combat_achievements import COMBAT_RULES
+from backend.profile_achievements import PROFILE_RULES
 
 BLUE = str(rf.BIG_USER_ID)
 
@@ -29,9 +30,9 @@ def test_catalogue():
     removed = {91, 99, 80, 81, 82, 83, 84, 85, 113}  # Unstoppable, the first Showboat, and the duplicates removed on 2026-11-05
     # 75 original + 63 new + Switch Hitter + Attack Drone / Umbral Veil / Neutron (3 each, 2026-11-20); the 22 Test Drives (179-197,
     # 268, 272, 276) were retired on 2026-11-26 (D63); Combat has its own list (combat_achievements); the Mega Prize is not in RULES
-    retired = {21, 22, 24, 87, 88, 89, 96, 97, 109, 110, 111, 139, 140, 144, 145, 146, 149}  # Specials trimmed (2026-11-26, D64)
+    retired = {21, 22, 24, 87, 88, 89, 92, 96, 97, 109, 110, 111, 121, 139, 140, 144, 145, 146, 149}  # Specials trimmed (2026-11-26, D64)
     expected = [i for i in range(5, 152) if i not in removed | retired] + [201] + [i for i in range(265, 277) if (i - 265) % 4 != 3]
-    assert ids == expected and len(set(ids)) == 131
+    assert ids == expected and len(set(ids)) == 129
     assert next(r for r in RULES if r.id == 151).name == "Showbot (Emotes)" and sum(r.name == "Showbot (Emotes)" for r in RULES) == 1
     assert [r.id for r in RULES if r.new] == [i for i in expected if i >= 80]
     assert all(r.counted for r in RULES)
@@ -116,9 +117,9 @@ def test_api_and_leaderboard(tmp_path):
         add(client, {f"dyson/{i}.echoreplay": rf.plain(rf.lines(20)) for i in range(2)})
         act(client, actions.set_challenge_window, "2026-01-01", None)
         a = client.get(f"/api/players/{BLUE}/achievements").json()
-        assert a["total"] == len(RULES) and len(a["items"]) == len(RULES) + len(COMBAT_RULES) and 0 <= a["overall"] <= 1
+        assert a["total"] == len(RULES) and len(a["items"]) == len(RULES) + len(COMBAT_RULES) + len(PROFILE_RULES) and 0 <= a["overall"] <= 1
         assert client.get("/api/players/nobody/achievements").status_code == 404
-        assert len(client.get("/api/achievements").json()) == len(RULES) + len(COMBAT_RULES)
+        assert len(client.get("/api/achievements").json()) == len(RULES) + len(COMBAT_RULES) + len(PROFILE_RULES)
         board = client.get("/api/leaderboard", params={"stat": "achievements", "min_games": 1}).json()
         assert {r["name"] for r in board["items"]} == {"Player", "Other"}
         assert board["label"] == "Challenges (overall %)"
@@ -152,7 +153,12 @@ def test_logic_follows_the_text():
     notes = {r.id: rule_notes(r) for r in RULES}
     assert "4+ min games" in notes[18] and "4+ min games" in notes[43] and "4+ min games" in notes[42]
     assert "Best game" in notes[23] and "Best 7 days" in notes[43]
-    assert "3+ players per team" in notes[142] and "3+ players per team" not in notes[23]
+    assert "3+ players per team" in notes[142] and "3+ players per team" not in notes[86]
+    assert {"4+ min games", "3+ players per team"} <= set(notes[23])  # top speed: full-size games only (user, 2026-11-26)
+    assert by_id(evaluate([game(top=30.0, play=200.0)]))[23]["count"] == 0  # under 4 minutes
+    small = game(top=30.0)
+    small.enough_players = False
+    assert by_id(evaluate([small]))[23]["count"] == 0  # under 3 per team
     assert not any("4+ minutes" in d or "best game" in d for d in text.values())
     # 4+ minutes: a short game does not count, even with 0 deaths
     assert by_id(evaluate([game(deaths=0, play=60.0)]))[18]["progress"] == 0
@@ -267,9 +273,9 @@ def test_tiered_achievements():
 def test_ladders_with_units_and_periods():
     """Per-game ladders count the best game, units are in the text, short games do not count."""
     r = by_id(evaluate([game(top=24.0), game(top=9.0)]))
-    assert (r[23]["tier"], r[23]["count"], r[23]["unit"]) == ("silver", 24.0, " m/s")  # 18 / 23 / 28 / 35 (2026-11-26)
-    assert next(rule for rule in RULES if rule.id == 23).levels == (18, 23, 28, 35)
-    assert "18 m/s bronze, 23 m/s silver" in next(x for x in RULES if x.id == 23).description
+    assert (r[23]["tier"], r[23]["count"], r[23]["unit"]) == ("silver", 24.0, " m/s")  # 19 / 24 / 30 / 37 (2026-11-26)
+    assert next(rule for rule in RULES if rule.id == 23).levels == (19, 24, 30, 37)
+    assert "19 m/s bronze, 24 m/s silver" in next(x for x in RULES if x.id == 23).description
 
 
 def test_new_activity_challenges():

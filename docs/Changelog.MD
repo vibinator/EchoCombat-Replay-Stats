@@ -18,6 +18,46 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.26.20 — 21:14
+
+- **Award cards sorted into the period tabs** (user, 26 Nov: no tab of their own). Each tab has an "Award cards" box with the
+  cards of its period: the 16 one-match cards in Specials, Most Valuable Jack in One Day, Jack of the Week / Guard Duty / Medic
+  on Call in One Week, the six "total cards won" ladders in Cumulative. Tabs: Specials, One Day, One Week, Cumulative.
+
+## 2026.11.26.19 — 21:08
+
+- **Award cards back in a tab of their own** (user, 26 Nov). Tabs: Specials, One Day, One Week, Cumulative, In-game award cards.
+  Specials holds the one-game challenges again (Super Ultra Hyper Turbo, Space Statue, Lone Echo, Contested Point, Showbot,
+  Lobby Mime Troupe, Flawless Chassis); the award cards tab is boxed by period (One Match, One Day, Cumulative) as before.
+- **"Edit your Bio" is back** in Specials, in its own Profile box (user, 26 Nov). Done once the player's page has a bio; out of
+  the totals and ranking like Combat.
+- **Super Ultra Hyper Turbo a little harder for regrab speeds** (user, 26 Nov): 19 / 24 / 30 / 37 m/s (was 18 / 23 / 28 / 35).
+  Read with the current top-speed code on the 1,538 newest local replays (4+ min 3v3 games), 54 / 10 / 3 / 1 % of the 125
+  regulars reach each tier (was 69 / 14 / 4 / 2 %); the fastest is at 37.9 m/s.
+- A regrab special ("speed gained with a teammate") was built and then dropped at the user's request the same day: no new
+  stat, no extra re-read.
+
+## 2026.11.26.18 — 20:46
+
+- **Challenge bar: complete challenges only** (user, 26 Nov: the tier split was still confusing). One crown-pink bar filled to
+  the challenges fully complete, with the share at its end ("30 of 129 challenges fully complete · 23%"). The count per tier,
+  the challenges not started and the average progress are in the hover text. The Combat line reads "Combat challenges
+  (separate): 1 of 9 complete". The same on the profile row.
+- **Super Ultra Hyper Turbo needs full-size games** (user, 26 Nov): like the other one-game challenges, a top speed only counts
+  in a game of 4+ minutes with 3+ players per team (it counted any game). Its card lists both rules.
+
+## 2026.11.26.17 — 20:43
+
+- **Centurion Bot and Payload Hauler retired** (user, 26 Nov: "overlap is ok, just avoid duplicates"). Their counts were made
+  entirely of other challenges (all wins = Capture Point + Payload wins; Payload wins = attacking + defending wins). Challenge
+  total 131 -> 129.
+- **Challenge cards say how they count** (user, 26 Nov). The pop-out card lists the counting rules under "How it counts"
+  instead of one grey line. Super Ultra Hyper Turbo now spells out its rules: best game; top speed = your fastest average speed
+  over 1 second; regrab flights and shooting backwards count; instant launches, readings over 100 m/s and jumps in the
+  recorder's clock do not; any game length and team size.
+- **Mega Prizes on a player's Challenges page** (user, 26 Nov): the same one-row personal progress as on the profile, under the
+  tier bar (only for who may see the Mega Prizes).
+
 ## 2026.11.26.16 — 20:14
 
 - **Specials is the first tab** (user, 26 Nov); the Challenges page opens on it. Tabs: Specials, One Day, One Week, Cumulative.

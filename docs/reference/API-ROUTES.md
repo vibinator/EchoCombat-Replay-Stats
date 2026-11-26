@@ -8,8 +8,8 @@ path is in middleware.WRITES / BOT. Console routes need auth.has_console; profil
 | Method | Path | Handler | Where | Purpose |
 |---|---|---|---|---|
 | GET | `/achievements/custom/{name}` | custom_icon | app/backend/main.py:247 | Icons uploaded on the Console page (D43). Before the site mount, which serves the built-in ones. |
-| GET | `/api/achievements` | list_achievements | app/backend/api/achievements.py:534 | The rule catalogue with rarity: share of players (10+ games) who unlocked (25 %+, tiered: bronze) / completed  |
-| GET | `/api/achievements/recent` | recent_unlocks | app/backend/api/achievements.py:572 | Latest 100 % completions by players active in the last 30 days of the archive. |
+| GET | `/api/achievements` | list_achievements | app/backend/api/achievements.py:535 | The rule catalogue with rarity: share of players (10+ games) who unlocked (25 %+, tiered: bronze) / completed  |
+| GET | `/api/achievements/recent` | recent_unlocks | app/backend/api/achievements.py:573 | Latest 100 % completions by players active in the last 30 days of the archive. |
 | POST | `/api/admin/achievements/{rule_id}/icon` | upload_icon | app/backend/api/admin.py:53 | Body = the PNG file itself (Content-Type: image/png). Stored, then used for this achievement. |
 | PUT | `/api/admin/achievements/{rule_id}/icon` | set_icon | app/backend/api/admin.py:42 |  |
 | GET | `/api/admin/console/achievements` | achievements | app/backend/api/console.py:129 | Every achievement and challenge: name, the rule to win it (same text as on the website) and its icon. |
