@@ -75,64 +75,202 @@ function status(a: AnyBadge): Filter | null {
 type SortBy = "default" | "closest" | "complete" | "rarest" | "name";
 type Shares = Map<number, number | null>;
 
-/** Order of the cards in a section. Default: a player's list is closest-to-the-next-medal first, a catalogue keeps the rule order. */
-function sortItems<T extends AnyBadge>(list: T[], by: SortBy, tracked: boolean, shares: Shares): T[] {
+/** Order of the rows in a tab. Default: the rule order for everyone, so a challenge stays in the same spot between visits (classic
+ *  list, user 2026-11-26: it replaced closest-to-the-next-medal first for a player). */
+function sortItems<T extends AnyBadge>(list: T[], by: SortBy, shares: Shares): T[] {
   const out = [...list];
   const closest = (x: T) => nextMedalFraction(x as unknown as Achievement) ?? 0;
   if (by === "complete") return out.sort((x, y) => (y.progress ?? 0) - (x.progress ?? 0)); // overall progress over all tiers
   if (by === "name") return out.sort((x, y) => x.name.localeCompare(y.name));
   if (by === "rarest") return out.sort((x, y) => (shares.get(x.id) ?? 1) - (shares.get(y.id) ?? 1));
-  if (by === "closest" || (by === "default" && tracked)) return out.sort((x, y) => closest(y) - closest(x));
+  if (by === "closest") return out.sort((x, y) => closest(y) - closest(x));
   return out;
 }
 
-/** The challenges of one tab, and (for a player) filters Completed / In progress / Not started. Completed achievements are
- *  hidden until you pick Completed; the view opens on the first filter that has something. `only` is the status picked for
- *  the whole page (it replaces the pills). `byPeriod` splits the tiles under One Match / One Day / ... headings (award cards tab). */
+/** Colour of each tab (user, 2026-11-26: big coloured tabs, like the old site's Community / Day / Week / Season). */
+const SECTION_COLOUR: Record<string, string> = {
+  "p-game": "var(--period-game)",
+  "p-day": "var(--period-day)",
+  "p-week": "var(--period-week)",
+  "p-month": "var(--period-month)",
+  "p-all": "var(--period-all)",
+  [AWARDS_ID]: "var(--period-awards)",
+};
+
+/** Overall progress of a list of challenges (0..1); null for catalogue entries (no player). */
+function listProgress(items: AnyBadge[]): number | null {
+  if (items.length === 0 || items.some((a) => a.progress === undefined)) return null;
+  return items.reduce((sum, a) => sum + (a.progress ?? 0), 0) / items.length;
+}
+
+/** The challenges of one tab as the classic two-column list (user, 2026-11-26, like the original ECRanked page): the first half
+ *  down the left, the rest down the right with the icons on the outer edge. Every status shows (completed ones say so), unless
+ *  `only` picks one. `byPeriod` splits the list under One Match / One Day / ... headings (award cards tab). */
 function Section<T extends AnyBadge>({ label, items, only, sort, shares, byPeriod = false }: { label: string; items: T[]; only: Filter | ""; sort: SortBy; shares: Shares; byPeriod?: boolean }) {
-  const [picked, setPicked] = useState<Filter | null>(null);
-  const tracked = items.every((a) => status(a) !== null);
-  const counts = { done: 0, open: 0, new: 0 };
-  if (tracked) for (const a of items) counts[status(a)!]++;
-  const filter = only || picked || FILTERS.find(([f]) => counts[f] > 0)?.[0] || "open";
-  const shown = sortItems(tracked ? items.filter((a) => status(a) === filter) : items, sort, tracked, shares);
-  const overall = tracked ? items.reduce((sum, a) => sum + (a.progress ?? 0), 0) / items.length : 0;
+  const shown = sortItems(only ? items.filter((a) => status(a) === only) : items, sort, shares);
+  if (shown.length === 0) return <p className="muted">No challenge matches.</p>;
   return (
-    <div className="ach-panel">
-      {tracked && (
-        <div className="section-progress" title={`${counts.done} of ${items.length} completed, ${pct(overall)} overall`}>
-          <div className="bar" style={{ "--sec": `var(--tier-${sectionMedal(overall) ?? "bar-default"})` } as React.CSSProperties} role="progressbar" aria-label={`${label} progress`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(overall * 100)}>
-            <div style={{ width: `${overall * 100}%` }} />
-          </div>
-          <span className="muted">{counts.done}/{items.length} completed · {pct(overall)}</span>
-        </div>
-      )}
-      {tracked && !only && (
-        <div className="tabs" role="tablist">
-          {FILTERS.map(([f, text]) => (
-            <button key={f} role="tab" aria-selected={filter === f} className={filter === f ? "tab active" : "tab"} onClick={() => setPicked(f)}>
-              {text} ({counts[f]})
-            </button>
-          ))}
-        </div>
-      )}
+    <div className="ach-panel ch-panel">
       {byPeriod
         ? PAGES.map(([period, name]) => {
             const part = shown.filter((a) => a.period === period);
             return part.length === 0 ? null : (
               <section key={period} className="ach-period-part">
                 <h3>{name} <span className="muted">{part.length}</span></h3>
-                <div className="tiles" aria-label={`${label}, ${name}`}>
-                  {part.map((a) => <Tile key={a.id} a={a} />)}
-                </div>
+                <ChallengeList items={part} label={`${label}, ${name}`} />
               </section>
             );
           })
-        : (
-          <div className="tiles" aria-label={label}>
-            {shown.map((a) => <Tile key={a.id} a={a} />)}
-          </div>
+        : <ChallengeList items={shown} label={label} />}
+    </div>
+  );
+}
+
+function ChallengeList({ items, label }: { items: AnyBadge[]; label: string }) {
+  const half = Math.ceil(items.length / 2);
+  return (
+    <div className="ch-list" aria-label={label}>
+      <div className="ch-col left">{items.slice(0, half).map((a) => <ChallengeRow key={a.id} a={a} side="left" />)}</div>
+      <div className="ch-col right">{items.slice(half).map((a) => <ChallengeRow key={a.id} a={a} side="right" />)}</div>
+    </div>
+  );
+}
+
+/** One medal step of a challenge for the card: done, being chased (with how far along), or later. */
+function medalSteps(a: AnyBadge): { medal: string; label: string; state: "done" | "current" | "later"; fill: number }[] {
+  const catalogue = a.progress === undefined;
+  const raw = a.levels && (catalogue || a.count != null)
+    ? a.levels.map((need, i) => {
+        const prev = i ? a.levels![i - 1] : 0;
+        return { medal: LEVELS[i] as string, label: `${need.toLocaleString()}${a.unit ?? ""}`, fill: catalogue ? 0 : Math.max(0, Math.min(1, (a.count! - prev) / (need - prev))) };
+      })
+    : PERCENT_STEPS.map((s, i) => {
+        const prev = i ? PERCENT_STEPS[i - 1].at : 0;
+        return { medal: s.medal, label: `${Math.round(s.at * 100)}%`, fill: catalogue ? 0 : Math.max(0, Math.min(1, ((a.progress ?? 0) - prev) / (s.at - prev))) };
+      });
+  const chasing = catalogue ? -1 : raw.findIndex((s) => s.fill < 1);
+  return raw.map((s, i) => ({ ...s, state: s.fill >= 1 ? "done" : i === chasing ? "current" : "later" }));
+}
+
+/** The challenge's art: a silhouette tinted by the medal reached (uploads and "colour_" art keep their own colours). */
+function ChallengeArt({ a, className }: { a: AnyBadge; className: string }) {
+  const src = IMG + (a.icon ?? GENERIC_ICON);
+  if (keepsColours(a.icon)) return <img className={className} src={src} alt="" />;
+  return <span className={`${className} glyph`} style={{ WebkitMaskImage: `url(${src})`, maskImage: `url(${src})` }} aria-hidden="true" />;
+}
+
+/** A row of the classic list: icon, name and a slim bar in the colour of the medal reached. Pointing at it (mouse or a VR
+ *  controller) peeks the card with the medal steps; a click or tap pins it open, another click or the cross closes it. */
+function ChallengeRow({ a, side }: { a: AnyBadge; side: "left" | "right" }) {
+  const [open, setOpen] = useState(false);
+  const [dismissed, setDismissed] = useState(false); // closed with the cross while still pointed at: stays shut until the pointer leaves
+  const [up, setUp] = useState(false);
+  const catalogue = a.progress === undefined;
+  const tier = a.tier ?? null;
+  const done = !catalogue && a.progress! >= 1;
+  const started = !catalogue && a.progress! > 0;
+  const fill = catalogue ? a.unlocked_share ?? 0 : a.progress!;
+  function place(el: HTMLElement) {
+    const r = el.getBoundingClientRect();
+    const below = window.innerHeight - r.bottom;
+    setUp(below < 320 && r.top > below); // open upward near the bottom of the screen
+  }
+  function close() {
+    setOpen(false);
+    setDismissed(true);
+  }
+  const share = a.unlocked_share == null ? "" : a.unlocked_share === 0 ? "nobody yet" : a.unlocked_share < 0.01 ? "under 1% of players" : `${pct(a.unlocked_share)} of players`;
+  return (
+    <div className={`ch-row ${side}${open ? " open" : ""}${dismissed ? " dismissed" : ""}${done ? " done" : ""}${tier ? ` t-${tier}` : ""}${catalogue ? " catalogue" : started ? " started" : " not-started"}`}
+      tabIndex={0} role="button" aria-expanded={open}
+      onMouseEnter={(e) => { place(e.currentTarget); }} onFocus={(e) => place(e.currentTarget)}
+      onMouseLeave={() => setDismissed(false)}
+      onClick={(e) => {
+        if ((e.target as HTMLElement).closest(".ch-card")) return; // clicks inside the card (links, text) leave it open
+        place(e.currentTarget);
+        setDismissed(false);
+        setOpen((v) => !v);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          if ((e.target as HTMLElement).closest(".ch-card")) return;
+          e.preventDefault();
+          setDismissed(false);
+          setOpen((v) => !v);
+        } else if (e.key === "Escape") close();
+      }}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+          setOpen(false);
+          setDismissed(false);
+        }
+      }}>
+      <ChallengeArt a={a} className="ch-icon" />
+      <div className="ch-main">
+        <div className="ch-line">
+          <span className="ch-name">{a.name}</span>
+          <span className="ch-state" title={catalogue ? "Share of players with a medal" : "Overall progress, counting every medal"}>
+            {catalogue ? share : done ? "Completed!" : pct(a.progress)}
+          </span>
+        </div>
+        <div className="ch-bar" role="progressbar" aria-label={a.name} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(fill * 100)}>
+          <div style={{ width: `${fill * 100}%` }} />
+        </div>
+      </div>
+      <div className={`ch-card ${side}${up ? " up" : ""}`} role="tooltip">
+        <ChallengeCard a={a} onClose={open ? close : undefined} />
+      </div>
+    </div>
+  );
+}
+
+/** The card a row opens: what to do, every medal step (ticked when reached), where the player stands, and the big picture. */
+function ChallengeCard({ a, onClose }: { a: AnyBadge; onClose?: () => void }) {
+  const catalogue = a.progress === undefined;
+  const tier = a.tier ?? null;
+  const steps = medalSteps(a);
+  return (
+    <div className={`ch-card-inner${tier ? ` t-${tier}` : ""}`}>
+      {onClose && <button type="button" className="tile-close" aria-label="Close" title="Close" onClick={(e) => { e.stopPropagation(); onClose(); }}>×</button>}
+      <div className="ch-card-text">
+        <span className="ch-kicker">{isAwardCard(a) ? "In-game award card" : `${PAGE_LABELS[a.period] ?? ""} challenge`}{a.new && <span className="tag" title="A newer challenge">new</span>}</span>
+        <h4>{a.name}</h4>
+        <p className="ch-rule">{ruleText(a.description)}{a.estimated && " *"}</p>
+        <ol className="ch-steps">
+          {steps.map((s) => (
+            <li key={s.medal} className={`t-${s.medal} ${s.state}`}>
+              <i className="ch-tick" aria-hidden="true">{s.state === "done" ? "✓" : ""}</i>
+              <span className="ch-medal">{s.medal}</span>
+              <span className="ch-target">{s.label}</span>
+              {s.state === "current" && s.fill > 0 && <span className="ch-step-bar"><span style={{ width: `${s.fill * 100}%` }} /></span>}
+            </li>
+          ))}
+        </ol>
+        {!catalogue && (
+          <span className="ch-status">
+            {a.progress! >= 1
+              ? `Completed${a.unlocked_at ? ` ${a.unlocked_at}` : ""}`
+              : a.levels && a.count != null ? levelText(a.count, a.levels, a.unit) : `${pct(a.progress)} of the way`}
+          </span>
         )}
+        {a.prize && <span className="tag mega-prize" title="Mega Prize for completing this challenge">Mega Prize: {a.prize}</span>}
+        {!catalogue && a.try_next && a.try_next.length > 0 && a.progress! < 1 && (
+          <span className="muted try-next">
+            Try next:{" "}
+            {a.try_next.map((l, i) => (
+              <span key={l.label}>
+                {i > 0 && " · "}
+                <Link to={`/leaderboard?stat=loadout&weapon=${l.weapon}&ordnance=${l.ordnance}&tacmod=${l.tacmod}`} title="Who plays this loadout most">{l.label}</Link>
+              </span>
+            ))}
+          </span>
+        )}
+        {a.rules && a.rules.length > 0 && <span className="muted ch-notes">{a.rules.join(" · ")}</span>}
+        {a.unlocked_share != null && (
+          <span className="muted ch-notes" title="Share of players with 10+ games">{pct(a.unlocked_share)} of players have a medal · {pct(a.completed_share)} completed</span>
+        )}
+      </div>
+      <div className="ch-card-art"><ChallengeArt a={a} className="ch-big" /></div>
     </div>
   );
 }
@@ -148,6 +286,7 @@ export function GroupedBadges<T extends AnyBadge>({ items: all }: { items: T[] }
   const [only, setOnly] = useState<Filter | "">("");
   // the theme chips and the "New only" box are gone (user, 2026-11-07): the search box and the status / sort selects remain
   const [sort, setSort] = useState<SortBy>("default");
+  const [toolsOpen, setToolsOpen] = useState(false);
   const [params, setParams] = useSearchParams();
   const tracked = items.length > 0 && items.every((a) => status(a) !== null);
   const term = q.trim().toLowerCase();
@@ -168,37 +307,58 @@ export function GroupedBadges<T extends AnyBadge>({ items: all }: { items: T[] }
     else next.set("section", id);
     setParams(next, { replace: true, preventScrollReset: true });
   }
+  // search, status and sort sit behind a filter button (user, 2026-11-26: nobody should have to type in VR); they stay open
+  // while one of them is in use, so a filter is never hidden
+  const filtering = term !== "" || only !== "" || sort !== "default";
+  const showTools = toolsOpen || filtering;
   return (
     <>
-      <div className="ach-toolbar">
-        <input type="search" placeholder="Filter challenges" aria-label="Filter challenges" value={q} onChange={(e) => setQ(e.target.value)} />
-        {tracked && (
-          <select aria-label="Status" value={only} onChange={(e) => setOnly(e.target.value as Filter | "")}>
-            <option value="">All statuses</option>
-            {FILTERS.map(([f, text]) => (
-              <option key={f} value={f}>{text}</option>
-            ))}
-          </select>
+      <div className="ch-tabs-row">
+        {active && (
+          <div className="ch-tabs" id="new" role="tablist" aria-label="Challenge groups">
+            {shownSections.map((x) => {
+              const progress = listProgress(x.items);
+              const done = progress === null ? 0 : x.items.filter((a) => status(a) === "done").length;
+              return (
+                <button key={x.id} role="tab" aria-selected={active.id === x.id} className={`ch-tab${active.id === x.id ? " active" : ""}`}
+                  style={{ "--per": SECTION_COLOUR[x.id] ?? "var(--blue)" } as React.CSSProperties} onClick={() => pick(x.id)}>
+                  <span className="ch-tab-fill" style={{ width: `${(progress ?? 0) * 100}%` }} aria-hidden="true" />
+                  <span className="ch-tab-label">{x.label}</span>
+                  <span className="ch-tab-hint">{progress === null ? `${x.items.length} challenges` : `${done}/${x.items.length} · ${pct(progress)}`}</span>
+                </button>
+              );
+            })}
+          </div>
         )}
-        <select aria-label="Sort" value={sort} onChange={(e) => setSort(e.target.value as SortBy)}>
-          <option value="default">{tracked ? "Closest to next medal" : "Original order"}</option>
-          {tracked && <option value="closest">Closest to next medal (all)</option>}
-          {tracked && <option value="complete">Closest to fully completed (all tiers)</option>}
-          <option value="rarest">Rarest first</option>
-          <option value="name">A to Z</option>
-        </select>
+        <button type="button" className={`ch-filter-btn${filtering ? " on" : ""}`} aria-expanded={showTools} aria-label="Search, filter and sort"
+          title="Search, filter and sort" onClick={() => setToolsOpen((v) => !v)}>
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M3 5h18l-7 8v5l-4 2v-7z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" /></svg>
+        </button>
       </div>
+      {showTools && (
+        <div className="ach-toolbar">
+          <input type="search" placeholder="Filter challenges" aria-label="Filter challenges" value={q} onChange={(e) => setQ(e.target.value)} />
+          {tracked && (
+            <select aria-label="Status" value={only} onChange={(e) => setOnly(e.target.value as Filter | "")}>
+              <option value="">All statuses</option>
+              {FILTERS.map(([f, text]) => (
+                <option key={f} value={f}>{text}</option>
+              ))}
+            </select>
+          )}
+          <select aria-label="Sort" value={sort} onChange={(e) => setSort(e.target.value as SortBy)}>
+            <option value="default">Original order</option>
+            {tracked && <option value="closest">Closest to next medal</option>}
+            {tracked && <option value="complete">Closest to fully completed (all tiers)</option>}
+            <option value="rarest">Rarest first</option>
+            <option value="name">A to Z</option>
+          </select>
+          {filtering && <button type="button" onClick={() => { setQ(""); setOnly(""); setSort("default"); setToolsOpen(false); }}>Clear</button>}
+        </div>
+      )}
       {shownSections.length === 0 && <p className="muted">No challenge matches.</p>}
       {active && (
         <>
-          <div className="tabs section-tabs ach-tabs" id="new" role="tablist" aria-label="Challenge groups">
-            {shownSections.map((x) => (
-              <button key={x.id} role="tab" aria-selected={active.id === x.id} className={active.id === x.id ? "tab active" : "tab"} onClick={() => pick(x.id)}>
-                <span className="tab-label">{x.label}</span>
-                <span className="tab-hint">{x.items.length}</span>
-              </button>
-            ))}
-          </div>
           {tracked && <NotYetStarted items={pageItems as unknown as Achievement[]} />}
           <Section key={active.id} label={active.label} items={pageItems} only={only} sort={sort} shares={shares} byPeriod={active.id === AWARDS_ID} />
         </>

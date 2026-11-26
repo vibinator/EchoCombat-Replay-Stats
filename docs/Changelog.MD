@@ -18,6 +18,27 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.26.5 — 17:19
+
+- **Challenges: the classic list is back, modernised** (user, 26 Nov: the original ECRanked layout is easier in VR). Each tab
+  is now two columns of rows: the icon on the outer edge, the name, and a slim bar in the colour of the medal reached
+  ("Completed!" when every medal is done). Pointing at a row (mouse or VR controller) shows a card with the big picture and
+  every medal step ticked off, with its target and how far along the next one is. A click or tap pins the card open; another
+  click, the cross or Esc closes it. The period tabs are big coloured buttons (One Match cyan, One Day coral, One Week
+  green, Cumulative violet, award cards orange), each filled to the player's progress in it. Search, status and sort sit
+  behind the funnel button beside the tabs, so nobody has to type. The list keeps the original order by default ("Closest to
+  next medal" is in the sort menu), and completed challenges show with the rest rather than behind a Completed filter. Phones
+  get a single column. Nothing to do: shows after the update.
+
+## 2026.11.26.4 — 17:10
+
+- **Matches per map: every weapon, ordnance and tac mod** (user, 26 Nov). The Weapon / Ordnance / Tac mod chips now list all
+  gear that was ever held, not only gear held 0.5 % of the time or more. New: Blazar (0.09 % of weapon time), Dot Field
+  (0.11 %), Attack Drone (0.01 %), Overcharge, Umbral Veil and Neutron (each under 0.01 % of tac mod time). Gear that rare has
+  too little for "Favoured spots" on most maps, so the note under the cards says so and offers "Show everywhere it was held",
+  which draws it on every map. The heat still counts where gear is carried: the replays do not say when it is fired or used.
+  No re-read; the new chips show after the update.
+
 ## 2026.11.26.3 — 17:06
 
 - **New Challenges tab: In-game award cards** (user, 26 Nov). The 25 challenges for the game's end-of-match award cards (MVP,

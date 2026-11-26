@@ -294,7 +294,6 @@ FAVOURED_ALPHA = (0.30, 0.95)  # a favoured spot is a patch, not a wash: visible
 FAVOURED_CAP_QUANTILE = 0.999  # a cell counts for no more than this one: somebody parked in one spot for hours
 FAVOURED_SPIKE = 2.0
 # (Surge has such a cell) would otherwise light a square around it in the layer of whatever they were holding
-MIN_LAYER_SHARE = 0.005  # gear held less than this share of the time is not offered: too little to draw
 
 
 def _strength(total: np.ndarray) -> np.ndarray | None:
@@ -826,7 +825,7 @@ class MapHeat:
     # -- answer -------------------------------------------------------------------------------------------------
 
     def answer(self, layer: str = TEAM_LAYER, view: str = VIEWS[0], against: str | None = None) -> dict:
-        """The cards' overlays for one layer, and the layers there are (gear hardly ever held is left out; the most
+        """The cards' overlays for one layer, and the layers there are (every piece of gear ever held, the most
         held first within its group). `view` (not for both teams): "favoured" = where it is more than usual, "all" =
         everywhere it was. `against` = another layer: the two compared (render_compare), whatever the view."""
         teams = [LAYER_INDEX[f"team:{t}"] for t in TEAMS]
@@ -887,7 +886,7 @@ class MapHeat:
             held = [(int(samples[LAYER_INDEX[f"{name}:{code}"]]), code) for code in table] if len(samples) else []
             total = sum(n for n, _ in held)
             for n, code in sorted(held, key=lambda item: -item[0]):
-                if n and n / total >= MIN_LAYER_SHARE:
+                if n:  # every piece of gear held at all (user, 2026-11-26; was 0.5 % of the time and up)
                     layers.append({"key": f"{name}:{code}", "group": name, "code": code,
                                    "label": table[code].display_name, "cut": table[code].cut,
                                    "share": round(n / total, 4)})

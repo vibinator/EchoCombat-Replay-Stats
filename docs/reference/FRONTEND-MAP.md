@@ -14,8 +14,8 @@ lines and CRLF.
 - exports: preloadPage:71, App:318
 - api.ts calls: getProcessing, loginUrl, reloadOnce
 
-### `app/frontend/src/components/AchievementsView.tsx` (1213 lines)
-- exports: keepsColours:14, GROUPS:16, NEW_GROUPS:26, isAwardCard:44, sectionId:48, themeOf:55, GroupedBadges:142, MegaPrizesSection:212, JumpToNew:441, Badge:590, ComingSoon:816, AchievementsStrip:838, AchievementsSummary:969, ChallengeBanner:1057, RecordingWindow:1082, AchievementRules:1099, AchievementsView:1177
+### `app/frontend/src/components/AchievementsView.tsx` (1373 lines)
+- exports: keepsColours:14, GROUPS:16, NEW_GROUPS:26, isAwardCard:44, sectionId:48, themeOf:55, GroupedBadges:280, MegaPrizesSection:372, JumpToNew:601, Badge:750, ComingSoon:976, AchievementsStrip:998, AchievementsSummary:1129, ChallengeBanner:1217, RecordingWindow:1242, AchievementRules:1259, AchievementsView:1337
 - api.ts calls: getAchievements, loginUrl
 
 ### `app/frontend/src/components/Avatar.tsx` (27 lines)
@@ -80,7 +80,7 @@ lines and CRLF.
 - exports: Map3DProps:48, Map3D:84
 - api.ts calls: getPlayback3d
 
-### `app/frontend/src/components/MapHeatCards.tsx` (396 lines)
+### `app/frontend/src/components/MapHeatCards.tsx` (404 lines)
 - exports: MapHeatCards:191
 - api.ts calls: getMapHeat
 

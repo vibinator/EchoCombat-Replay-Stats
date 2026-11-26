@@ -92,14 +92,19 @@ def test_favoured_view_shows_where_gear_is_held_more_than_usual():
     assert map_heat.render_favoured(gear // 100, group // 100) is None  # a handful of samples per cell: not drawn
 
 
-def test_rare_gear_is_not_offered(client):
+def test_rare_gear_is_offered_gear_never_held_is_not(client):
     client.get("/api/overview/map-heat")
     heat = client.app.state.map_heat
     with heat.lock:
         heat.counts["dyson"][map_heat.LAYER_INDEX["weapon:assault"], 5, 5] += 10_000
         heat.counts["dyson"][map_heat.LAYER_INDEX["weapon:smg"], 5, 5] = 10  # a moment of one player: 0.1 %
-    keys = [layer["key"] for layer in heat.answer()["layers"]]
-    assert "weapon:smg" not in keys and "weapon:assault" in keys
+        for counts in heat.counts.values():
+            counts[map_heat.LAYER_INDEX["weapon:chain"]] = 0
+    layers = heat.answer()["layers"]
+    keys = [layer["key"] for layer in layers]
+    assert "weapon:smg" in keys and "weapon:assault" in keys and "weapon:chain" not in keys
+    weapons = [layer["share"] for layer in layers if layer["group"] == "weapon"]
+    assert weapons == sorted(weapons, reverse=True)  # the most held first
 
 
 def test_bad_layer(client):

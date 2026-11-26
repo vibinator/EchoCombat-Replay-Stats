@@ -358,7 +358,15 @@ export function MapHeatCards({ byMap, total, avgByMap }: { byMap: Record<string,
       )}
       {d && Object.keys(d.maps).length === 0 && !heat.loading && (
         <p className="muted map-heat-note">
-          Nothing to draw for this choice{fromPoses ? ": upside down is read from the 3D tracks, and too few matches have them yet" : d.building ? " yet: still being counted" : ": too little of it in the archive"}.
+          {/* rare gear (held well under 1 % of the time): too little for favoured spots, but "Everywhere" still draws it */}
+          {!d.building && d.view === "favoured" && shown && GEAR.includes(shown.group) ? (
+            <>
+              <GearLabel name={shown.label} /> is held too rarely to tell its favoured spots.{" "}
+              <button type="button" className="secondary" onClick={() => update({ view: "all" })}>Show everywhere it was held</button>
+            </>
+          ) : (
+            <>Nothing to draw for this choice{fromPoses ? ": upside down is read from the 3D tracks, and too few matches have them yet" : d.building ? " yet: still being counted" : ": too little of it in the archive"}.</>
+          )}
         </p>
       )}
       {d && Object.keys(d.maps).length > 0 && (

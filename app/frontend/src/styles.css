@@ -49,6 +49,13 @@
   --tier-diamond: #6cb8ff;
   --tier-crown: #e0388f;
   --tier-bar-default: var(--blue);
+  /* Challenges page tab colours (user, 2026-11-26: big coloured tabs like the old site) */
+  --period-game: #19d9fc;
+  --period-day: #ff6b7d;
+  --period-week: #5ad48a;
+  --period-month: #f0c230;
+  --period-all: #a78bfa;
+  --period-awards: #ea7924;
   --bg: #16181c;
   --panel: #1f2228;
   --line: #30343c;
@@ -1011,6 +1018,12 @@ nav {
   --tier-gold: #8a6500;
   --tier-diamond: #1560b5;
   --tier-crown: #bb2072;
+  --period-game: #0087a8;
+  --period-day: #c8344a;
+  --period-week: #1f8a4c;
+  --period-month: #8a6500;
+  --period-all: #6d4fd1;
+  --period-awards: #c25a10;
   --bg: #f4f5f7;
   --panel: #ffffff;
   --line: #d9dce1;
@@ -5474,4 +5487,125 @@ tr.cloud-drop-on td {
   table.stack td:has(> .loadout.stacked) { flex-wrap: wrap; }
   table.stack td > .loadout.stacked { margin-left: auto; text-align: left; }
   table.stack td > .loadout.stacked + .muted { flex-basis: 100%; }
+}
+
+/* ---- Challenges page, classic list (user, 2026-11-26): the original ECRanked layout, modernised. Big coloured period tabs,
+   two columns of rows (icon on the outer edge, name, slim bar in the medal colour), and a card with the medal steps that
+   peeks on hover (mouse or VR controller) and pins open on a click or tap. ---- */
+.ch-tabs-row { display: flex; align-items: stretch; gap: 8px; margin-top: 16px; }
+.ch-tabs { flex: 1; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+.ch-tab {
+  --per: var(--blue);
+  position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  min-height: 56px; padding: 8px 12px; border: 1px solid color-mix(in srgb, var(--per) 35%, var(--line)); border-radius: 12px;
+  background: var(--panel); color: var(--text); font: inherit; cursor: pointer; text-align: center;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+}
+.ch-tab-fill {
+  position: absolute; inset: 0 auto 0 0; background: color-mix(in srgb, var(--per) 22%, transparent);
+  transition: width 0.4s ease; pointer-events: none;
+}
+.ch-tab::before { /* the colour swatch along the left edge, like the old tabs */
+  content: ""; position: absolute; inset: 0 auto 0 0; width: 6px; background: var(--per);
+}
+.ch-tab-label, .ch-tab-hint { position: relative; }
+.ch-tab-label { font-weight: 700; font-size: 1rem; letter-spacing: 0.02em; }
+.ch-tab-hint { font-size: 0.75rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.ch-tab:hover { border-color: var(--per); }
+.ch-tab.active {
+  border-color: var(--per); background: color-mix(in srgb, var(--per) 12%, var(--panel));
+  box-shadow: 0 0 0 1px var(--per), 0 0 18px color-mix(in srgb, var(--per) 35%, transparent);
+}
+.ch-tab.active .ch-tab-hint { color: var(--text); }
+.ch-filter-btn {
+  flex: none; width: 48px; height: 56px; align-self: flex-start; display: grid; place-items: center; padding: 0; border: 1px solid var(--line); border-radius: 12px;
+  background: var(--panel); color: var(--muted); cursor: pointer;
+}
+.ch-filter-btn:hover, .ch-filter-btn[aria-expanded="true"] { color: var(--text); border-color: var(--muted); }
+.ch-filter-btn.on { color: var(--blue); border-color: var(--blue); }
+
+.ch-panel { margin-top: 12px; padding: 14px 16px; border-radius: 14px; background: var(--panel); border: 1px solid var(--line); }
+.ch-list { display: grid; grid-template-columns: 1fr 1fr; gap: 0 40px; }
+.ch-col { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+
+/* the medal classes (.t-bronze ...) set --tier; these defaults only apply without one */
+.ch-row:not([class*=" t-"]) { --tier: var(--muted); }
+.ch-row {
+  position: relative; display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 6px 10px; border-radius: 10px;
+  cursor: pointer; outline-offset: 2px; transition: background 0.15s;
+}
+.ch-row.catalogue:not([class*=" t-"]) { --tier: var(--text); }
+.ch-row.started:not([class*=" t-"]) { --tier: var(--text); }
+.ch-row:hover, .ch-row.open, .ch-row:focus-visible { background: var(--surface-2); }
+.ch-row.right { flex-direction: row-reverse; text-align: right; }
+.ch-icon { flex: none; width: 40px; height: 40px; object-fit: contain; }
+.ch-icon.glyph { display: block; background: var(--tier); -webkit-mask: no-repeat center / contain; mask: no-repeat center / contain; }
+.ch-row.not-started .ch-icon { opacity: 0.45; }
+.ch-row[class*=" t-"] .ch-icon.glyph { filter: drop-shadow(0 0 6px color-mix(in srgb, var(--tier) 45%, transparent)); }
+.ch-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.ch-line { display: flex; align-items: baseline; gap: 8px; }
+.ch-row.right .ch-line { flex-direction: row-reverse; }
+.ch-name { flex: 1; min-width: 0; font-size: 0.98rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ch-state { flex: none; font-size: 0.78rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.ch-row.done .ch-state { color: var(--tier); font-weight: 700; }
+.ch-bar { height: 7px; border-radius: 999px; background: var(--line); overflow: hidden; display: flex; }
+.ch-row.right .ch-bar { justify-content: flex-end; }
+.ch-bar > div {
+  height: 100%; border-radius: inherit; background: var(--tier); transition: width 0.5s ease;
+  box-shadow: 0 0 8px color-mix(in srgb, var(--tier) 50%, transparent);
+}
+.ch-row.catalogue .ch-bar > div { background: var(--muted); box-shadow: none; }
+.ch-row.started:not([class*=" t-"]) .ch-bar > div { background: var(--blue); }
+
+.ch-card { display: none; position: absolute; top: 100%; z-index: 30; width: min(460px, 92vw); padding-top: 6px; cursor: default; text-align: left; }
+.ch-card.left { left: 0; }
+.ch-card.right { right: 0; }
+.ch-card.up { top: auto; bottom: 100%; padding-top: 0; padding-bottom: 6px; }
+.ch-row:hover .ch-card, .ch-row:focus-within .ch-card, .ch-row.open .ch-card { display: block; animation: ch-pop 0.12s ease-out; }
+.ch-row.dismissed .ch-card { display: none !important; }
+@keyframes ch-pop { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.ch-card-inner:not([class*=" t-"]) { --tier: var(--text); }
+.ch-card-inner {
+  position: relative; display: flex; gap: 16px; padding: 16px 18px; border-radius: 14px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--tier) 12%, var(--panel)), var(--panel) 65%); border: 1px solid var(--line);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+}
+.ch-card-inner[class*=" t-"] { border-color: color-mix(in srgb, var(--tier) 45%, var(--line)); }
+.ch-card-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.ch-kicker { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); display: flex; gap: 6px; align-items: center; }
+.ch-card h4 { margin: 0; font-size: 1.15rem; line-height: 1.2; }
+.ch-rule { margin: 0; font-size: 0.85rem; color: var(--muted); }
+.ch-steps { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.ch-steps li { display: grid; grid-template-columns: 22px 64px 1fr; align-items: center; gap: 6px; font-size: 0.9rem; }
+.ch-steps li.later { opacity: 0.55; }
+.ch-tick {
+  width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-style: normal; font-size: 0.75rem; font-weight: 700;
+  border: 2px solid var(--tier); color: var(--bg);
+}
+.ch-steps li.done .ch-tick { background: var(--tier); }
+.ch-medal { text-transform: capitalize; color: var(--tier); font-weight: 700; }
+.ch-target { font-variant-numeric: tabular-nums; }
+.ch-step-bar { grid-column: 2 / -1; height: 4px; border-radius: 999px; background: var(--line); overflow: hidden; }
+.ch-step-bar > span { display: block; height: 100%; background: var(--tier); }
+.ch-status { font-size: 0.85rem; font-weight: 600; }
+.ch-notes { font-size: 0.75rem; }
+.ch-card-art { flex: none; width: 110px; display: grid; place-items: center; }
+.ch-big { width: 110px; height: 110px; object-fit: contain; }
+.ch-big.glyph { display: block; background: var(--tier); -webkit-mask: no-repeat center / contain; mask: no-repeat center / contain; filter: drop-shadow(0 0 14px color-mix(in srgb, var(--tier) 40%, transparent)); }
+.ch-card-inner:not([class*=" t-"]) .ch-big.glyph { background: var(--muted); filter: none; }
+.ch-panel .ach-period-part h3 { margin-bottom: 6px; }
+
+/* phones: one column, every row the same way round */
+@media (max-width: 760px) {
+  .ch-list { grid-template-columns: 1fr; }
+  .ch-row.right, .ch-row.right .ch-line { flex-direction: row; text-align: left; }
+  .ch-row.right .ch-bar { justify-content: flex-start; }
+  .ch-card.right { right: auto; left: 0; }
+  .ch-card-art { width: 72px; }
+  .ch-big { width: 72px; height: 72px; }
+  .ch-tabs { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ch-row:hover .ch-card, .ch-row:focus-within .ch-card, .ch-row.open .ch-card { animation: none; }
+  .ch-bar > div, .ch-tab-fill { transition: none; }
 }

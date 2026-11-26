@@ -1298,7 +1298,7 @@ export interface MapHeat {
   maps: Record<string, { image: string; matches: number; top?: number; average?: number }>;
   /** What a palette entry of the pictures means (map_heat.READ), for the read-out under the pointer (heatRead.ts). */
   read?: { steps?: number; from?: number; share_steps?: number; alpha_steps?: number; contrast?: number };
-  layers: MapHeatLayer[]; // "team" first, then per group the most held first; gear hardly ever held is left out
+  layers: MapHeatLayer[]; // "team" first, then per group the most held first; every piece of gear held at all
   days?: number; // 0 = all time, else the last so many days
   matches?: number; // matches the pictures are counted from (for upside down: those with 3D tracks)
   building: boolean; // the monthly count is running: the images show what has been added so far
