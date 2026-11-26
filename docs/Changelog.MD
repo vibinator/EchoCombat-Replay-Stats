@@ -18,6 +18,16 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.26.1 — 09:42
+
+- **A speed reading over 100 m/s is impossible** (user, 26 Nov): a second that holds one gives no top speed. These are the game
+  throwing a player out of the map's geometry: Hezza_ (Dyson, 20 Nov 01:33, #4 on the home page at 34.1 m/s) went from 2 to 121 m/s
+  in one frame and back. Real flights stay under 60 m/s. Of 24,694 player-matches in the newest 1,680 matches 39 change: Derkit1304
+  31.1 → 10.6, Hezza_ 34.1 → 27.4, Scoob 36.7 → 33.4; the fastest real flights (Caprison- 42.1, Chroined 39.9, DinkatorBoi 37.9)
+  stay the same.
+- **After the update** every replay is read again (stats version 19, hours on the NAS); it takes the place of the re-read for
+  version 18.
+
 ## 2026.11.25.5 — 21:48
 
 - **Top speed is the fastest average over one second, and the distance has to be travelled** (user, 25 Nov: no peaks, "this can easily

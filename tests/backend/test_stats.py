@@ -229,6 +229,18 @@ def test_top_speed_in_slow_motion_recording(tmp_path):
     assert p.top_speed == pytest.approx(7.2)
 
 
+def test_no_top_speed_from_an_impossible_reading(tmp_path):
+    # Match of 2026-11-20 01:33 (Hezza_): flying at 15 m/s, thrown out of the map's geometry at 110 m/s for 0.2 s,
+    # the head really carried along. A second holding it would read 34 m/s; only the seconds without it count.
+    speeds = [15.0] * 30 + [110.0] * 4 + [15.0] * 26
+    x, heads = -60.0, []
+    for s in speeds:
+        heads.append((x, 2.0, 3.0))
+        x += s / 20
+    p = _one_player(tmp_path, heads, [(s, 0.0, 0.0) for s in speeds])
+    assert p.top_speed == pytest.approx(15.0)
+
+
 def test_top_speed_not_over_a_recording_gap(tmp_path):
     # Two fast moments 2 s apart, nothing recorded in between, 20 m/s on both sides for half a second.
     stamps = [i / 20 for i in range(10)] + [2.5 + i / 20 for i in range(10)]

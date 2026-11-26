@@ -109,7 +109,7 @@ Sources inspected (read-only): `ECRanked/Replays/{combustion,dyson,fission,surge
 | Play time per player | frames present × Δt | C |
 | Crashed / left early | last frame seen < end − 45 s (old rule) | C (heuristic) |
 | Deaths | in-bounds → out-of-bounds transition of head position, per-map bounds (old rule) | A — heuristic, unvalidated |
-| Avg/top speed | ‖velocity‖, checked against head positions: velocity goes stale when a player's data stops (2026-11-25, stats v17); top = fastest 1 s average, never more than the distance travelled, over seconds in which the player really moved that way (stats v18) | C |
+| Avg/top speed | ‖velocity‖, checked against head positions: velocity goes stale when a player's data stops (2026-11-25, stats v17); top = fastest 1 s average, never more than the distance travelled, over seconds in which the player really moved that way (stats v18) and no reading went over 100 m/s, the game throwing a player out of the geometry (stats v19) | C |
 | % stopped | speed < 1 m/s | C |
 | % upside down | body.up.y < 0 | C |
 | % near teammate / enemy | head distance² < 7 (≈2.65 m) | C |

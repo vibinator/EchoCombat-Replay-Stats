@@ -91,7 +91,7 @@ Index: `(status, source_mtime)` for newest-first claiming. Files removed from th
 | ping_capped_sum | REAL NULL | the same readings capped at 400 ms (`stats/player.py: PING_CAP`): profile / leaderboard / trend averages use `COALESCE(ping_capped_sum, ping_sum)`; the match page shows the raw average. Added in place (D57), NULL until the replay is read again (stats v11, 2026-11-07) |
 | frames_in_bounds | INTEGER NOT NULL | denominator for below |
 | speed_sum | REAL NOT NULL | ÷ frames_in_bounds = avg speed; a player frozen (head at exactly the same spot) for 0.5 s or longer adds nothing (`stats/player.py: FROZEN_S`, stats v17) |
-| top_speed | REAL NOT NULL | fastest average speed over 1 s (stats v18): the lower of the velocity readings' average and the distance travelled, in quarter-second steps along the way; in-bounds samples, window resets on leaving the play area and after a recording gap > 0.5 s; only counts when the player ended up where the velocity takes them (`stats/player.py: TOP_SPEED_MISMATCH`). Before v18: highest speed held all through 1 s |
+| top_speed | REAL NOT NULL | fastest average speed over 1 s (stats v18): the lower of the velocity readings' average and the distance travelled, in quarter-second steps along the way; in-bounds samples, window resets on leaving the play area and after a recording gap > 0.5 s; only counts when the player ended up where the velocity takes them (`stats/player.py: TOP_SPEED_MISMATCH`); no second holding a reading over 100 m/s (v19, `TOP_SPEED_IMPOSSIBLE`). Before v18: highest speed held all through 1 s |
 | frames_stopped | INTEGER NOT NULL | speed < 1 m/s |
 | frames_upside_down | INTEGER NOT NULL | body.up.y < 0 |
 | frames_near_mate | INTEGER NOT NULL | dist² < 7 |

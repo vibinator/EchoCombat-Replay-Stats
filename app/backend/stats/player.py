@@ -32,6 +32,10 @@ TOP_SPEED_LEGS = 4
 TOP_SPEED_MISMATCH = 0.5  # share of the distance the velocity stands for
 TOP_SPEED_MISMATCH_M = 0.5  # always allowed: the head moves about on its own, the velocity is the body's
 TOP_SPEED_MAX_GAP_S = 0.5  # a longer gap in the recording starts a new window: nobody saw what happened in between
+# A reading above this is impossible (user, 2026-11-26): no second that holds one counts. They are the game throwing a
+# player out of the map's geometry: 0 to 121 m/s in one frame and back (Hezza_, 2026-11-20). Real flights stay under
+# 60 m/s; 0.4 % of player-matches have such a reading.
+TOP_SPEED_IMPOSSIBLE = 100.0
 FROZEN_S = 0.5  # head at exactly the same spot this long: no data coming in, the velocity is stale. A headset is never that still
 
 
@@ -76,6 +80,7 @@ class PlayerAccumulator:
         self._loadout: tuple[str, str, str] | None = None
         self._window: deque[tuple] = deque()  # (t_s, speed, head position, velocity), in-bounds only
         self._window_m = 0.0  # the distance the speeds in it stand for
+        self._impossible_at = -math.inf  # time of the last reading over TOP_SPEED_IMPOSSIBLE
         self._still_at: Vec3 | None = None  # where the head has been exactly since _still_from
         self._still_from = 0.0
         self._still_sum = 0.0  # speed_sum counted since then, taken back when the player turns out to be frozen
@@ -179,6 +184,8 @@ class PlayerAccumulator:
 
     def _track_top_speed(self, t_s: float, speed: float, head: Vec3, velocity: Vec3) -> None:
         window = self._window
+        if speed > TOP_SPEED_IMPOSSIBLE:
+            self._impossible_at = t_s
         if window:
             t0, before = window[-1][:2]
             if t_s - t0 > TOP_SPEED_MAX_GAP_S:
@@ -192,7 +199,7 @@ class PlayerAccumulator:
             t0, before = window.popleft()[:2]
             self._window_m -= (before + window[0][1]) / 2 * (window[0][0] - t0)
         span = t_s - window[0][0]
-        if span < TOP_SPEED_WINDOW_S:
+        if span < TOP_SPEED_WINDOW_S or window[0][0] <= self._impossible_at:
             return
         if self._window_m > self.top_speed * span:
             self.top_speed = max(self.top_speed, min(self._window_m, self._travelled(span)) / span)
