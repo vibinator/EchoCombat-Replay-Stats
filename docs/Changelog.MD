@@ -18,6 +18,33 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.26.16 — 20:14
+
+- **Specials is the first tab** (user, 26 Nov); the Challenges page opens on it. Tabs: Specials, One Day, One Week, Cumulative.
+- **Award card boxes stay together** (user, 26 Nov): in Specials an award card box only sits beside another award card box,
+  and a topic box only beside another topic box.
+
+## 2026.11.26.15 — 20:11
+
+- **Five more one-game challenges retired** (user, 26 Nov: the closest overlaps left): Untouchable Chassis (Flawless
+  Chassis, My Other Chassis Is a Toaster), Ghost of Sparta (games with more kills than deaths), Ambidextrous Bot (Two-Handed
+  Bot), Point Guard (time on the objective) and Siege Breaker Bot (the Point Control award card). Challenge total 134 -> 131.
+- **"Edit your Bio" removed** (user, 26 Nov).
+- **One tab less: "In-game award cards" is now "Specials"** (user, 26 Nov). The one-game tab is gone; its challenges moved into
+  Specials: Super Ultra Hyper Turbo (the single-game speed challenge), Space Statue, Lone Echo, Contested Point, Showbot, Lobby
+  Mime Troupe and Flawless Chassis, in their topic boxes, then the award cards in boxes by period ("Award cards · One Match",
+  "· One Day", "· Cumulative"). Tabs: One Day, One Week, Cumulative, Specials; the page opens on One Day.
+
+## 2026.11.26.14 — 19:55
+
+- **Super Ultra Hyper Turbo is much harder** (user, 26 Nov): 18 / 23 / 28 / 35 m/s top speed (was 14 / 20 / 23 / 28). Of the
+  348 regulars in the newest 4,000 public matches, 51 / 12 / 3 / 1 % already reach each tier (was 84 / 32 / 12 / 3 %); the
+  fastest is at 38.5 m/s, so the crown stays reachable.
+- **Beam Me Up, Translocator retired** (user, 26 Nov). Specials is down to 13; challenge total 135 -> 134.
+- **No empty space in the challenge boxes** (user, 26 Nov). On every tab, a short box now sits beside another short box only
+  when both have the same number of challenges (same height); a short box without such a partner takes the full width. In a
+  full-width box with an odd number of challenges, the last one stretches across both columns instead of leaving a gap.
+
 ## 2026.11.26.13 — 19:36
 
 - **Regrab top speeds no longer cut in half** (user, 26 Nov: "they said 48 m/s"). In regrab flights the game reports a
@@ -26,6 +53,9 @@ Working record of what changed in each release, newest first.
   counts at the head's speed since the frame before; every other check stays (launches, impossible readings, gaps, clock
   steps). DinkatorBoi 28.9 → 47.3 and JavaBava 26.4 → 45.5 (match 312237), 30.9 → 49.3 and 29.1 → 48.2 (match 315101).
   Average speed still uses the readings as they are.
+- In the 1,555 newest local replays 226 of 9,441 player-matches go up (median +2.5 m/s), 1 goes down 0.7. Players reaching
+  the speed challenge's 23 m/s: +2 of 882 (14: +5, 17: +9, 20: +10); the targets stay. New top 5: DinkatorBoi 49.3, JavaBava
+  48.2, DinkatorBoi 47.3, JavaBava 45.5, DinkatorBoi 37.9 (their 2026-11-02 regrab, unchanged).
 - **After the update** every replay is read again (stats version 21, hours on the NAS); it replaces the version 20 re-read.
   Until it is done, old and new top speeds are mixed in the lists and challenges.
 

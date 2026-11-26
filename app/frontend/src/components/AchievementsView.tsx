@@ -31,7 +31,7 @@ export const NEW_GROUPS: [name: string, hint: string, groups: string[]][] = [
 
 // Survival, Movement, Emotes and Activity are not themes any more (user, 2026-11-04): their challenges sit with the others of the same
 // period (mostly "In one game"; the all-time ones, Activity included, under "All time").
-const BY_PERIOD = new Set(["Survival", "Movement", "Emotes", "Activity", "Profile"]);
+const BY_PERIOD = new Set(["Survival", "Movement", "Emotes", "Activity"]);
 const GEAR_GROUPS = new Set(["Experimental gear", "Gear mastery"]);
 /** Shown under its period (in one game / day / any 7 days / all time) rather than a theme: the old rules, a few themes, and the
  *  "any 7 days" gear challenges (user, 2026-11-04). */
@@ -44,11 +44,12 @@ type AnyBadge = Parameters<typeof Badge>[0]["a"];
 export const isAwardCard = (a: { name: string }) => a.name.endsWith("(Award card)");
 const AWARDS_ID = "p-awards";
 
-/** Which section (tab) a challenge sits in: its period, or the In-game award cards tab. */
+/** Which section (tab) a challenge sits in: its period, or Specials. Specials (user, 2026-11-26: the award cards tab renamed, the
+ *  one-game tab folded into it) holds the in-game award cards and every one-game challenge. */
 export function sectionId(a: { name: string; period: string }): string {
   // Four pages (user, 2026-11-06, renamed 2026-11-10): One Match, One Day, One Week, Cumulative; the theme is a filter inside the page, see themeOf.
   // The award cards moved out of those into a tab of their own (user, 2026-11-26), split by period inside it.
-  return isAwardCard(a) ? AWARDS_ID : `p-${a.period}`;
+  return isAwardCard(a) || a.period === "game" ? AWARDS_ID : `p-${a.period}`;
 }
 
 /** Theme chip of a challenge inside its period page (user, 2026-11-06: themes are filters now, not tabs). */
@@ -60,11 +61,10 @@ export function themeOf(a: { new: boolean; group: string | null; period: string 
 /** The four pages (user, 2026-11-06): in one game, day, week, cumulative (= all time). */
 const PAGE_LABELS: Record<string, string> = Object.fromEntries(GROUPS); // One Match, One Day, One Week, Cumulative (user, 2026-11-10)
 const PAGES = GROUPS;
-/** Every tab in order: the period pages, then the In-game award cards (user, 2026-11-26). */
-// The one-game tab is "Specials" (user, 2026-11-26): only the one-of-a-kind single-match challenges, the Test Drives retired.
-// The award cards tab keeps "One Match" for its one-game cards.
-const TAB_LABELS: Record<string, string> = { ...PAGE_LABELS, game: "Specials" };
-const SECTION_LIST: [id: string, label: string][] = [...PAGES.map(([period]) => [`p-${period}`, TAB_LABELS[period]] as [string, string]), [AWARDS_ID, "In-game award cards"]];
+/** Every tab in order: the period pages, then Specials (user, 2026-11-26). The one-game page is always empty now, so it is hidden. */
+// Specials first (user, 2026-11-26), then the period pages; the one-game page is always empty now (its challenges are in
+// Specials), so it is hidden.
+const SECTION_LIST: [id: string, label: string][] = [[AWARDS_ID, "Specials"], ...PAGES.map(([period]) => [`p-${period}`, PAGE_LABELS[period]] as [string, string])];
 
 type Filter = "done" | "open" | "new";
 const FILTERS: [Filter, string][] = [["open", "In progress"], ["new", "Not started"], ["done", "Completed"]];
@@ -112,15 +112,48 @@ function listProgress(items: AnyBadge[]): number | null {
 function Section<T extends AnyBadge>({ label, items, only, sort, shares, byPeriod = false }: { label: string; items: T[]; only: Filter | ""; sort: SortBy; shares: Shares; byPeriod?: boolean }) {
   const shown = sortItems(only ? items.filter((a) => status(a) === only) : items, sort, shares);
   if (shown.length === 0) return <p className="muted">No challenge matches.</p>;
-  // grouped by topic, each in a box (user, 2026-11-26); the award cards tab by period instead
+  // grouped by topic, each in a box (user, 2026-11-26). Specials: the one-game challenges by topic, then the award cards by period
+  const byTopic = (list: AnyBadge[]) => TOPICS.map((t) => [t, list.filter((a) => topicOf(a) === t)] as [string, AnyBadge[]]);
   const groups: [string, AnyBadge[]][] = byPeriod
-    ? PAGES.map(([period, name]) => [name, shown.filter((a) => a.period === period)] as [string, AnyBadge[]])
-    : TOPICS.map((t) => [t, shown.filter((a) => topicOf(a) === t)] as [string, AnyBadge[]]);
+    ? [...byTopic(shown.filter((a) => !isAwardCard(a))),
+       ...PAGES.map(([period, name]) => [`Award cards · ${name}`, shown.filter((a) => isAwardCard(a) && a.period === period)] as [string, AnyBadge[]])]
+    : byTopic(shown);
   return (
     <div className="ch-groups">
-      {groups.filter(([, list]) => list.length > 0).map(([title, list]) => <ChallengeGroup key={title} title={title} items={list} label={`${label}, ${title}`} />)}
+      {packGroups(groups.filter(([, list]) => list.length > 0)).map(({ title, items: list, wide }) => (
+        <ChallengeGroup key={title} title={title} items={list} label={`${label}, ${title}`} wide={wide} />
+      ))}
     </div>
   );
+}
+
+const HALF_MAX = 4; // a box with this many challenges or fewer can sit beside another one
+
+/** The boxes in order, with no empty space (user, 2026-11-26): a short box sits beside the next short box with the SAME number of
+ *  challenges (so both are the same height); one without such a partner, and every long box, takes the full width with its
+ *  rows in two columns. A pair stays together right after the first box of the two. */
+function packGroups(groups: [string, AnyBadge[]][]): { title: string; items: AnyBadge[]; wide: boolean }[] {
+  const out: { title: string; items: AnyBadge[]; wide: boolean }[] = [];
+  const waiting = new Map<string, string>(); // kind + number of challenges -> the box waiting for a partner
+  for (const [title, items] of groups) {
+    // award card boxes pair only with each other, topic boxes only with topic boxes (user, 2026-11-26)
+    const n = items.length;
+    const key = `${title.startsWith("Award cards") ? "award" : "topic"}:${n}`;
+    if (n > HALF_MAX) {
+      out.push({ title, items, wide: true });
+      continue;
+    }
+    const partner = waiting.get(key);
+    if (partner !== undefined) {
+      out.splice(out.findIndex((b) => b.title === partner) + 1, 0, { title, items, wide: false });
+      waiting.delete(key);
+    } else {
+      waiting.set(key, title);
+      out.push({ title, items, wide: false });
+    }
+  }
+  const alone = new Set(waiting.values());
+  return out.map((b) => (alone.has(b.title) ? { ...b, wide: true } : b));
 }
 
 const WEAPONS = ["pulsar", "nova", "comet", "meteor", "blazar", "protostar", "quark", "starburst"];
@@ -128,8 +161,8 @@ const ORDNANCES = ["detonator", "stun field", "arc mine", "instant repair", "att
 const TAC_MODS = ["repair matrix", "threat scanner", "energy barrier", "phase shift", "overcharge", "neutron", "umbral veil"];
 const MAPS = ["dyson", "combustion", "fission", "surge"];
 /** Topic boxes inside a tab, in this order (user, 2026-11-26: weapons, ordnances, tac mods, Payload, Capture Point ...). */
-const TOPICS = ["Profile", "Weapons", "Ordnances", "Tac mods", "Loadouts", "Payload", "Capture Point", "Maps", "Movement", "Positioning", "Survival", "Emotes", "Wins", "Activity", "Combat", "Other"];
-const GROUP_TOPIC: Record<string, string> = { Payload: "Payload", "Capture Point": "Capture Point", Emotes: "Emotes", Wins: "Wins", Activity: "Activity", Movement: "Movement", Survival: "Survival", Combat: "Combat", "Gear mastery": "Loadouts", Profile: "Profile" };
+const TOPICS = ["Weapons", "Ordnances", "Tac mods", "Loadouts", "Payload", "Capture Point", "Maps", "Movement", "Positioning", "Survival", "Emotes", "Wins", "Activity", "Combat", "Other"];
+const GROUP_TOPIC: Record<string, string> = { Payload: "Payload", "Capture Point": "Capture Point", Emotes: "Emotes", Wins: "Wins", Activity: "Activity", Movement: "Movement", Survival: "Survival", Combat: "Combat", "Gear mastery": "Loadouts" };
 const mentions = (text: string, words: string[]) => words.some((w) => text.includes(w));
 
 /** The topic box a challenge sits in: its theme, else the gear, mode or map its rule names, else its built-in art. Read from
@@ -157,10 +190,9 @@ export function topicOf(a: { name: string; description: string; group: string | 
 }
 
 /** One topic box: its name, how far the player is through it, and its rows in two columns (one when it is short). */
-function ChallengeGroup({ title, items, label }: { title: string; items: AnyBadge[]; label: string }) {
+function ChallengeGroup({ title, items, label, wide }: { title: string; items: AnyBadge[]; label: string; wide: boolean }) {
   const progress = listProgress(items);
   const done = items.filter((a) => status(a) === "done").length;
-  const wide = items.length > 4;
   return (
     <section className={`ch-group${wide ? " wide" : ""}`}>
       <header className="ch-group-head">
@@ -179,11 +211,14 @@ function ChallengeList({ items, label, single = false }: { items: AnyBadge[]; la
         <div className="ch-col left">{items.map((a) => <ChallengeRow key={a.id} a={a} side="left" />)}</div>
       </div>
     );
-  const half = Math.ceil(items.length / 2);
+  // an odd one out stretches across both columns, so no box has an empty slot (user, 2026-11-26)
+  const half = Math.floor(items.length / 2);
+  const last = items.length % 2 ? items[items.length - 1] : null;
   return (
     <div className="ch-list" aria-label={label}>
-      <div className="ch-col left">{items.slice(0, half).map((a) => <ChallengeRow key={a.id} a={a} side="left" />)}</div>
-      <div className="ch-col right">{items.slice(half).map((a) => <ChallengeRow key={a.id} a={a} side="right" />)}</div>
+      {half > 0 && <div className="ch-col left">{items.slice(0, half).map((a) => <ChallengeRow key={a.id} a={a} side="left" />)}</div>}
+      {half > 0 && <div className="ch-col right">{items.slice(half, half * 2).map((a) => <ChallengeRow key={a.id} a={a} side="right" />)}</div>}
+      {last && <div className="ch-col full"><ChallengeRow a={last} side="left" /></div>}
     </div>
   );
 }
@@ -1074,7 +1109,7 @@ function MedalBar({ items, overall, compact = false }: { items: Achievement[]; o
   const small = shown.filter(([, n]) => total > 0 && n / total < INSIDE_FROM);
   const extra = items.filter((a) => !a.counted && !a.prize);
   const label = (m: string, n: number) => `${MEDAL_NAMES[m]} ${n}`;
-  const extraText = extra.length > 0 ? `Not in the totals: Combat and Edit your Bio, ${extra.filter((a) => a.progress >= 1).length} of ${extra.length} complete` : "";
+  const extraText = extra.length > 0 ? `Not in the totals: Combat, ${extra.filter((a) => a.progress >= 1).length} of ${extra.length} complete` : "";
   if (compact)
     // the profile row (user, 2026-11-26: "too much data"): the headline and the bar only; every count is in the hover text
     return (
@@ -1110,8 +1145,8 @@ function MedalBar({ items, overall, compact = false }: { items: Achievement[]; o
         {shown.map(([m, n]) => <span key={m} className={`${m === "none" ? "none" : `t-${m}`}${n / total < INSIDE_FROM ? " narrow" : ""}`}><i />{label(m, n)}</span>)}
       </span>
       {extra.length > 0 && (
-        <span className="muted medal-extra" title="Combat challenges (from the recorder) and Edit your Bio earn tiers but are not in the totals or the ranking">
-          Not in the totals: Combat and Edit your Bio, {extra.filter((a) => a.progress >= 1).length} of {extra.length} complete
+        <span className="muted medal-extra" title="Combat challenges (from the recorder) earn tiers but are not in the totals or the ranking">
+          Not in the totals: Combat, {extra.filter((a) => a.progress >= 1).length} of {extra.length} complete
         </span>
       )}
     </>

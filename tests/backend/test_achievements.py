@@ -8,7 +8,6 @@ from backend import admin_actions as actions
 from backend.achievements import rule_notes, RULES, Game, _all_time, _easier_platinum, _harder, _scaled, evaluate, icon_file, overall, tier
 
 from backend.combat_achievements import COMBAT_RULES
-from backend.profile_achievements import PROFILE_RULES
 
 BLUE = str(rf.BIG_USER_ID)
 
@@ -30,9 +29,9 @@ def test_catalogue():
     removed = {91, 99, 80, 81, 82, 83, 84, 85, 113}  # Unstoppable, the first Showboat, and the duplicates removed on 2026-11-05
     # 75 original + 63 new + Switch Hitter + Attack Drone / Umbral Veil / Neutron (3 each, 2026-11-20); the 22 Test Drives (179-197,
     # 268, 272, 276) were retired on 2026-11-26 (D63); Combat has its own list (combat_achievements); the Mega Prize is not in RULES
-    retired = {21, 22, 24, 87, 88, 89, 96, 97, 110, 111, 140, 145, 149}  # Specials that repeated another challenge (2026-11-26, D64)
+    retired = {21, 22, 24, 87, 88, 89, 96, 97, 109, 110, 111, 139, 140, 144, 145, 146, 149}  # Specials trimmed (2026-11-26, D64)
     expected = [i for i in range(5, 152) if i not in removed | retired] + [201] + [i for i in range(265, 277) if (i - 265) % 4 != 3]
-    assert ids == expected and len(set(ids)) == 135
+    assert ids == expected and len(set(ids)) == 131
     assert next(r for r in RULES if r.id == 151).name == "Showbot (Emotes)" and sum(r.name == "Showbot (Emotes)" for r in RULES) == 1
     assert [r.id for r in RULES if r.new] == [i for i in expected if i >= 80]
     assert all(r.counted for r in RULES)
@@ -117,9 +116,9 @@ def test_api_and_leaderboard(tmp_path):
         add(client, {f"dyson/{i}.echoreplay": rf.plain(rf.lines(20)) for i in range(2)})
         act(client, actions.set_challenge_window, "2026-01-01", None)
         a = client.get(f"/api/players/{BLUE}/achievements").json()
-        assert a["total"] == len(RULES) and len(a["items"]) == len(RULES) + len(COMBAT_RULES) + len(PROFILE_RULES) and 0 <= a["overall"] <= 1
+        assert a["total"] == len(RULES) and len(a["items"]) == len(RULES) + len(COMBAT_RULES) and 0 <= a["overall"] <= 1
         assert client.get("/api/players/nobody/achievements").status_code == 404
-        assert len(client.get("/api/achievements").json()) == len(RULES) + len(COMBAT_RULES) + len(PROFILE_RULES)
+        assert len(client.get("/api/achievements").json()) == len(RULES) + len(COMBAT_RULES)
         board = client.get("/api/leaderboard", params={"stat": "achievements", "min_games": 1}).json()
         assert {r["name"] for r in board["items"]} == {"Player", "Other"}
         assert board["label"] == "Challenges (overall %)"
@@ -153,7 +152,7 @@ def test_logic_follows_the_text():
     notes = {r.id: rule_notes(r) for r in RULES}
     assert "4+ min games" in notes[18] and "4+ min games" in notes[43] and "4+ min games" in notes[42]
     assert "Best game" in notes[23] and "Best 7 days" in notes[43]
-    assert "3+ players per team" in notes[139] and "3+ players per team" not in notes[23]
+    assert "3+ players per team" in notes[142] and "3+ players per team" not in notes[23]
     assert not any("4+ minutes" in d or "best game" in d for d in text.values())
     # 4+ minutes: a short game does not count, even with 0 deaths
     assert by_id(evaluate([game(deaths=0, play=60.0)]))[18]["progress"] == 0
@@ -216,9 +215,7 @@ def test_now_public_gear_challenges():
     r = by_id(evaluate(quark_day))
     assert r[103]["tier"] == "crown" and r[104]["tier"] == "crown"  # only Quark / only Translocator, 10 in one day
     assert r[107]["tier"] == "bronze" and r[112]["tier"] == "bronze"  # 10 Quark / Overcharge games on the veteran ladder 5/15/50/150/500
-    assert r[101]["progress"] == 0.0 and r[109]["progress"] == 0.5  # no Starburst; Translocator without Dot Field
-    both = Game(**{**game().__dict__, "loadouts": {("assault", "heal", "loc"): 500, ("assault", "heal", "dot"): 500}})
-    assert by_id(evaluate([both]))[109]["progress"] == 1.0
+    assert r[101]["progress"] == 0.0  # no Starburst (Beam Me Up, Translocator, 109, retired 2026-11-26)
 
 
 def test_new_result_challenges():
@@ -264,15 +261,15 @@ def test_tiered_achievements():
     assert unlock_threshold(rule) == 0.25 and unlock_threshold(next(r for r in RULES if r.id == 69)) == 0.25
     delivery = next(r for r in RULES if r.id == 94)
     assert "Deliver the payload to the end" in delivery.description and delivery.levels == (1, 11, 18, 21)
-    assert "count" not in by_id(evaluate(sweeps(1)))[139]  # single-step rules unchanged
+    assert "count" not in by_id(evaluate(sweeps(1)))[86]  # single-step rules unchanged
 
 
 def test_ladders_with_units_and_periods():
     """Per-game ladders count the best game, units are in the text, short games do not count."""
     r = by_id(evaluate([game(top=24.0), game(top=9.0)]))
-    assert (r[23]["tier"], r[23]["count"], r[23]["unit"]) == ("gold", 24.0, " m/s")  # 14 / 20 / 23 / 28
-    assert next(rule for rule in RULES if rule.id == 23).levels == (14, 20, 23, 28)
-    assert "14 m/s bronze, 20 m/s silver" in next(x for x in RULES if x.id == 23).description
+    assert (r[23]["tier"], r[23]["count"], r[23]["unit"]) == ("silver", 24.0, " m/s")  # 18 / 23 / 28 / 35 (2026-11-26)
+    assert next(rule for rule in RULES if rule.id == 23).levels == (18, 23, 28, 35)
+    assert "18 m/s bronze, 23 m/s silver" in next(x for x in RULES if x.id == 23).description
 
 
 def test_new_activity_challenges():
@@ -360,15 +357,6 @@ def test_lone_wolf_uses_its_own_distance():
     assert "3.5 m" in next(rule for rule in RULES if rule.id == 143).description
 
 
-def test_untouchable_is_one_medal_and_needs_a_minute_in_bounds():
-    base = {**game("2026-10-01", deaths=0, play=400.0).__dict__, "team": "blue", "winner": "blue"}
-    assert next(rule for rule in RULES if rule.id == 139).levels == ()  # one win is the whole challenge
-    assert by_id(evaluate([Game(**{**base, "in_bounds": 1200})]))[139]["progress"] == 1.0  # exactly 1 minute at 20 Hz
-    assert by_id(evaluate([Game(**{**base, "in_bounds": 1199})]))[139]["progress"] == 0
-    assert by_id(evaluate([Game(**{**base, "in_bounds": 0})]))[139]["progress"] == 0  # never on the map: could not die
-    assert by_id(evaluate([Game(**{**base, "in_bounds": 1200, "deaths": 1})]))[139]["progress"] == 0
-    assert by_id(evaluate([Game(**{**base, "in_bounds": 1200, "winner": "orange"})]))[139]["progress"] == 0
-
 
 def test_lone_wolf_has_no_value_before_the_replay_is_read_again():
     base = game("2026-10-01", mate=0).__dict__
@@ -438,7 +426,7 @@ def test_one_day_targets():
 def test_impossible_top_medals_were_lowered():
     levels = {rule.id: rule.levels for rule in RULES}
     assert levels[72] == (6, 9, 10, 11) and levels[73] == (2.6, 2.85, 3.1, 3.4) and levels[100] == (20, 60, 80, 120)
-    assert levels[146] == (2, 3.5, 4, 4.5) and levels[150] == (2, 6, 8, 10) and levels[151] == (4, 6, 7, 8)
+    assert levels[150] == (2, 6, 8, 10) and levels[151] == (4, 6, 7, 8)
 
 
 def test_seven_day_map_and_mode_targets():
@@ -506,18 +494,6 @@ def test_test_drives_are_retired():
     assert not any(r.group == "Gear in one game" for r in RULES)
     assert not {r.id for r in RULES} & (set(range(179, 198)) | {268, 272, 276})
 
-
-def test_untouchable_needs_a_game_of_six_minutes():
-    """Untouchable Chassis counts games of 6+ minutes (user, 2026-11-11); the other death achievements keep 4."""
-    base = {**game("2026-10-01", deaths=0).__dict__, "team": "blue", "winner": "blue", "in_bounds": 1200}
-    assert by_id(evaluate([Game(**{**base, "play_time_s": 360.0})]))[139]["progress"] == 1.0
-    assert by_id(evaluate([Game(**{**base, "play_time_s": 359.0})]))[139]["progress"] == 0
-    notes = rule_notes(next(rule for rule in RULES if rule.id == 139))
-    assert "6+ min games" in notes
-    assert notes == ["Best game", "6+ min games", "3+ players per team", "1+ min on the map"]
-    assert next(rule for rule in RULES if rule.id == 139).description == "Win a game without dying"
-    assert "4+ min games" in rule_notes(next(rule for rule in RULES if rule.id == 18))
-    assert by_id(evaluate([game("2026-10-01", deaths=0, play=240.0)]))[18]["count"] == 1  # Toaster: still 4 minutes
 
 
 def test_top_players_rank_by_challenges_fully_complete():

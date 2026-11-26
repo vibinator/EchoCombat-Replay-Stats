@@ -165,8 +165,9 @@ COMBAT_RULES: list[Rule] = [
 ]
 # Specials trimmed (user, 2026-11-26, D64): the one-game Combat challenges that repeat a One Day / One Week / Cumulative one are
 # retired (kills, assists, damage, kills minus deaths, objective eliminations, time on the objective, heal bubbles, stuns) and
-# Jack's Toolkit (Saturn Trifecta). Ids never reused; taking one out of this set brings it back.
-RETIRED_COMBAT_IDS = frozenset({164, 165, 166, 167, 168, 169, 199, 200, 202})
+# Jack's Toolkit (Saturn Trifecta); later that day Siege Breaker Bot (198, the Point Control award card) and Ghost of Sparta (203,
+# games with more kills than deaths / Flawless Chassis). Ids never reused; taking one out of this set brings it back.
+RETIRED_COMBAT_IDS = frozenset({164, 165, 166, 167, 168, 169, 198, 199, 200, 202, 203})
 COMBAT_RULES = [r for r in COMBAT_RULES if r.id not in RETIRED_COMBAT_IDS]
 
 

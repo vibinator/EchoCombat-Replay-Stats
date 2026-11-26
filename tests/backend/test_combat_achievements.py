@@ -24,7 +24,7 @@ def results(games):
 
 def test_kept_apart_from_the_replay_rules():
     ids = {r.id for r in RULES_HERE}
-    retired = {164, 165, 166, 167, 168, 169, 199, 200, 202}  # one-game repeats, retired 2026-11-26 (D64)
+    retired = {164, 165, 166, 167, 168, 169, 198, 199, 200, 202, 203}  # one-game repeats, retired 2026-11-26 (D64)
     assert ids == (set(range(164, 179)) | set(range(198, 201)) | (set(range(202, 222)) - {211, 212, 216, 218}) | (set(range(233, 244)) - {241, 243}) | set(range(249, 265))) - retired and not ids & {r.id for r in RULES}
     assert all(r.group == "Combat" and r.new and not r.counted for r in RULES_HERE)
     # the module cannot read a replay table: it imports only the combat ones
@@ -56,7 +56,6 @@ def test_assists_are_above_kills_at_every_medal():
 
 def test_second_set_one_game_and_one_day():
     r = results([game(kills=9, assists=7, deaths=3, objective=8, top=True), game(kills=12, deaths=4, damage=5000.0, time_s=300.0, top=True)])
-    assert r[203]["count"] == 9  # 12 kills with 4 deaths do not count
     assert r[204]["count"] == 5000 and r[206]["count"] == 5 and r[208]["count"] == 2  # one day: 300 s = 5 min, two top-fragger games
     assert rule_notes(next(x for x in RULES_HERE if x.id == 209))[0] == "Best 7 days"
 
@@ -124,8 +123,6 @@ def test_objective_damage_heals_and_stuns(tmp_path):
     with sessions() as db:
         g = ca.load_games(db, {})[0]["1"][0]
     assert (g.objective_damage, g.heal_bubbles, g.stuns_given) == (950.0, 6, 3)
-    r = results([g])
-    assert r[198]["tier"] == "bronze"  # heal bubbles and stuns in one game retired 2026-11-26 (the day / week / all-time ones stay)
     report("cut short", True, False)
     report("no log", False, None)
     with sessions() as db:
@@ -162,7 +159,7 @@ def test_reports_alone_count_on_the_same_page(tmp_path):
             return answer, {r["id"]: r for r in answer["items"]}
 
         answer, one = page("1")  # a player the replays never saw has a page
-        assert answer["name"] == "name1" and answer["games"] == 0 and answer["total"] == len(RULES) and len(answer["items"]) == len(RULES) + len(RULES_HERE) + 1  # + "Edit your Bio" (profile_achievements)
+        assert answer["name"] == "name1" and answer["games"] == 0 and answer["total"] == len(RULES) and len(answer["items"]) == len(RULES) + len(RULES_HERE)
         assert one[173]["count"] == 18  # 2 counted matches: the 3v2 and the 100 s one do not count
         _, two = page("2")
         assert two[173]["count"] == 14  # 3 + 3 + (3 + 5 from the merged id)

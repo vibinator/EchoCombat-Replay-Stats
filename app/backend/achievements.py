@@ -273,7 +273,7 @@ TUNED_LEVELS: dict[int, tuple[float, ...]] = {
     74: (2, 5, 8, 11, 17),  # toB taB m'I (2026-11-11, user: crown for about 7.5 % of regulars after the death and bounds corrections; was the written targets)
     140: (12, 13, 14, 15.5, 17),  # Marathon Bot (2026-11-11, user: crown for about 7.5 % of regulars after the death and bounds corrections; was the written targets)  # loosened 2026-11-11 (user): steps of at least 8 % of the crown, the lower medals eased; was 12/13/14/16/17
     147: (2, 3, 4, 5, 5.5),  # Contested Point (2026-11-11, user: crown for about 7.5 % of regulars after the death and bounds corrections; was the written targets)
-    23: (14, 17, 20, 23, 28),  # Super Ultra Hyper Turbo (2026-11-25, stats version 18: top speed is the average over a second, about 10 % higher; 14 / 20 / 23 / 28 keeps 13 / 17 / 19 / 21 as hard: 100 / 54 / 22 / 11 % of the 90 regulars in the newest 1,600 matches, before 99 / 49 / 21 / 10 %; earlier that day, user: slightly easier on every medal, was 14/16/18/20/22, 88 / 34 / 13 / 7 %; 2026-11-11, user: crown for about 7.5 % of regulars after the death and bounds corrections; was the written targets)
+    23: (18, 20, 23, 28, 35),  # Super Ultra Hyper Turbo (2026-11-26, user: much harder, 18 / 23 / 28 / 35 = 51 / 12 / 3 / 1 % of the 348 regulars in the newest 4,000 public matches, was 84 / 32 / 12 / 3 %; record 38.5 m/s) (2026-11-25, stats version 18: top speed is the average over a second, about 10 % higher; 14 / 20 / 23 / 28 keeps 13 / 17 / 19 / 21 as hard: 100 / 54 / 22 / 11 % of the 90 regulars in the newest 1,600 matches, before 99 / 49 / 21 / 10 %; earlier that day, user: slightly easier on every medal, was 14/16/18/20/22, 88 / 34 / 13 / 7 %; 2026-11-11, user: crown for about 7.5 % of regulars after the death and bounds corrections; was the written targets)
     92: (6, 21, 36, 65, 80),  # Centurion Bot (Wins) (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was the written targets)
     93: (1, 6.5, 12, 18, 22),  # Capture Point Clean Sweep (Capture Point) (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was the written targets)
     94: (1, 6, 11, 18, 21),  # Payload Delivered (Payload) (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was the written targets)
@@ -1016,8 +1016,10 @@ def _tuned(rule: Rule, levels: tuple[float, ...] | None = None) -> Rule:
 # Can We Talk About This?, I'm Bat Bot (week / all-time versions exist), Jack of All Trades, Ordnance Sampler, Tac Mod Tinkerer
 # (Versatile Bot), Payload Pedal to the Metal and Roadblock (the all-time push / block totals), Kronos II Armory Raid and Bomb
 # Bay Overload (all 4 in one game), Marathon Bot (Overtime on Kronos II), Boost Junkie (average speed, week / all time) and
-# Quick-Change Chassis (5th Loadout when?). Their functions stay, unused, so an id can come back by taking it out of this set.
-RETIRED_IDS = frozenset({21, 22, 24, 87, 88, 89, 96, 97, 110, 111, 140, 145, 149})
+# Quick-Change Chassis (5th Loadout when?); later that day Beam Me Up, Translocator (109, user), then the closest overlaps left:
+# Untouchable Chassis (139, Flawless Chassis / My Other Chassis Is a Toaster), Ambidextrous Bot (144, Two-Handed Bot) and Point
+# Guard (146, time on the objective). Their functions stay, unused, so an id can come back by taking it out of this set.
+RETIRED_IDS = frozenset({21, 22, 24, 87, 88, 89, 96, 97, 109, 110, 111, 139, 140, 144, 145, 146, 149})
 RULES = [_tuned(r) for r in _build_rules() if r.id not in RETIRED_IDS]
 
 # Mega Prize (user, 2026-11-04): NOT in RULES on purpose. RULES feeds every public list, ranking, medal feed and total; the

@@ -5760,3 +5760,4 @@ tr.cloud-drop-on td {
 .medal-headline-hint { font-size: 0.9rem; font-weight: 500; }
 .top-players .big .medal-crown { width: 22px; height: 22px; vertical-align: -4px; margin-right: 6px; }
 .ach-pane h2 .hint { font-size: 0.8rem; font-weight: 500; }
+.ch-col.full { grid-column: 1 / -1; }

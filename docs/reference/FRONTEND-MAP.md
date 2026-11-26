@@ -14,8 +14,8 @@ lines and CRLF.
 - exports: preloadPage:71, App:318
 - api.ts calls: getProcessing, loginUrl, reloadOnce
 
-### `app/frontend/src/components/AchievementsView.tsx` (1408 lines)
-- exports: keepsColours:14, GROUPS:16, NEW_GROUPS:26, isAwardCard:44, sectionId:48, themeOf:55, topicOf:137, GroupedBadges:346, MegaPrizesSection:440, MegaPrizesProfile:447, JumpToNew:707, Badge:856, ComingSoon:1032, AchievementsStrip:1054, AchievementsSummary:1136, ChallengeBanner:1224, RecordingWindow:1249, AchievementRules:1266, AchievementsView:1372
+### `app/frontend/src/components/AchievementsView.tsx` (1443 lines)
+- exports: keepsColours:14, GROUPS:16, NEW_GROUPS:26, isAwardCard:44, sectionId:49, themeOf:56, topicOf:170, GroupedBadges:381, MegaPrizesSection:475, MegaPrizesProfile:482, JumpToNew:742, Badge:891, ComingSoon:1067, AchievementsStrip:1089, AchievementsSummary:1171, ChallengeBanner:1259, RecordingWindow:1284, AchievementRules:1301, AchievementsView:1407
 - api.ts calls: getAchievements, getMegaPlayer, loginUrl
 
 ### `app/frontend/src/components/Avatar.tsx` (27 lines)
