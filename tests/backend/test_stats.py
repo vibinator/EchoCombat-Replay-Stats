@@ -147,14 +147,15 @@ def test_timeline_events(tmp_path):
 
 
 def test_top_speed_is_no_peak(tmp_path):
-    # One 30 m/s spike frame must not become the top speed: it only adds to the second's average.
+    # One 30 m/s spike frame must not become the top speed. Here the head really hops 1.5 m in that frame, from 2 m/s:
+    # an instant launch (stats v20), so no second holding it counts.
     frames = []
     for i in range(60):
         p = rf.player()
         p["velocity"] = [30.0, 0.0, 0.0] if i == 30 else [2.0, 0.0, 0.0]
         frames.append(rf.frame(teams=[{"players": [p]}, {}, {}]))
     s = stats_for(tmp_path, rf.lines_from(rf.carried(frames)))
-    assert s.players[0].top_speed == pytest.approx((2.0 * 19 + 30.0) / 20)  # 3.4
+    assert s.players[0].top_speed == pytest.approx(2.0)
 
 
 def _one_player(tmp_path, heads, velocities, stamps=None):
@@ -241,11 +242,66 @@ def test_no_top_speed_from_an_impossible_reading(tmp_path):
     assert p.top_speed == pytest.approx(15.0)
 
 
+def _launch_run():
+    """Still for 1 s, 30 m/s from one frame to the next for 1.5 s, 5 m/s for 0.5 s, then flying at 15 m/s (20 fps)."""
+    speeds = [0.0] * 20 + [30.0] * 30 + [5.0] * 10 + [15.0] * 25
+    x, heads = -60.0, []
+    for s in speeds:
+        x += s / 20
+        heads.append((x, 2.0, 3.0))
+    return heads, [(s, 0.0, 0.0) for s in speeds]
+
+
+def test_no_top_speed_from_an_instant_launch(tmp_path):
+    # Bree_Plays, Combustion 2022-05-11: from standing on the floor to 60 m/s in one frame, alone. Neither the launch
+    # nor the coast after it counts; once slowed down (LAUNCH_SPENT) flying counts again.
+    heads, velocities = _launch_run()
+    p = _one_player(tmp_path, heads, velocities)
+    assert p.top_speed == pytest.approx(15.0)
+
+
+def _launch_with_mate(tmp_path, mate_moves: bool):
+    heads, velocities = _launch_run()
+    frames = []
+    for i, (head, velocity) in enumerate(zip(heads, velocities)):
+        p, mate = rf.player(), rf.player(user_id=rf.BIG_USER_ID + 2, name="Mate", slot=1)
+        p["head"], p["velocity"] = _pose(head), list(velocity)
+        mate_head = (head[0], head[1], head[2] + 1.0) if mate_moves else (heads[min(i, 20)][0], 2.0, 4.0)
+        mate["head"], mate["velocity"] = _pose(mate_head), list(velocity) if mate_moves else [1.0, 0.0, 0.0]
+        frames.append(rf.frame(teams=[{"players": [p, mate]}, {}, {}]))
+    return next(s for s in stats_for(tmp_path, rf.lines_from(frames)).players if s.user_id == str(rf.BIG_USER_ID))
+
+
+def test_a_launch_by_a_grabbing_player_counts(tmp_path):
+    # A regrab: the partner's head is within LAUNCH_NEAR_M when the speed comes and they move too (DinkatorBoi /
+    # JavaBava, 2026-11-02).
+    assert _launch_with_mate(tmp_path, mate_moves=True).top_speed == pytest.approx(30.0)
+
+
+def test_a_launch_past_a_still_player_is_no_grab(tmp_path):
+    # Scoob, Dyson 2026-11-24: shot off from 3 to 79 m/s 0.8 m from he_is_the_cat, who floated on at 1-2 m/s.
+    assert _launch_with_mate(tmp_path, mate_moves=False).top_speed == pytest.approx(15.0)
+
+
 def test_top_speed_not_over_a_recording_gap(tmp_path):
     # Two fast moments 2 s apart, nothing recorded in between, 20 m/s on both sides for half a second.
     stamps = [i / 20 for i in range(10)] + [2.5 + i / 20 for i in range(10)]
     p = _one_player(tmp_path, [(20.0 * t - 25, 2.0, 3.0) for t in stamps], [(20.0, 0.0, 0.0)] * 20, stamps)
     assert p.top_speed == 0.0
+
+
+def test_top_speed_not_over_a_clock_step_back(tmp_path):
+    # Combustion 2022-01-09 (Nektwo, david.yarker): the recorder's clock goes 4.8 s back mid-match while the player
+    # drifts at 1.6 m/s; then flying at 10 m/s. The second after the step must not hold the 4.8 s of flying since
+    # (was 50 m/s).
+    stamps = [i / 20 for i in range(120)] + [1.23 + i / 20 for i in range(120)]
+    speeds = [1.6] * 130 + [10.0] * 110
+    x, heads = -60.0, []
+    for s in speeds:
+        x += s / 20
+        heads.append((x, 2.0, 3.0))
+    p = _one_player(tmp_path, heads, [(s, 0.0, 0.0) for s in speeds], stamps)
+    assert p.top_speed == pytest.approx(10.0)
 
 
 def test_unknown_map_counts_all_frames_in_bounds(tmp_path):

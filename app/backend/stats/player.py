@@ -32,10 +32,28 @@ TOP_SPEED_LEGS = 4
 TOP_SPEED_MISMATCH = 0.5  # share of the distance the velocity stands for
 TOP_SPEED_MISMATCH_M = 0.5  # always allowed: the head moves about on its own, the velocity is the body's
 TOP_SPEED_MAX_GAP_S = 0.5  # a longer gap in the recording starts a new window: nobody saw what happened in between
+# So does a step back in the recorder's clock (user, 2026-11-26): david.yarker / Nektwo, Combustion 2022-01-09, clock
+# 4.8 s back at 236 s; the window then held 6 s of flying at 10 m/s as one second, 52-55 m/s.
 # A reading above this is impossible (user, 2026-11-26): no second that holds one counts. They are the game throwing a
 # player out of the map's geometry: 0 to 121 m/s in one frame and back (Hezza_, 2026-11-20). Real flights stay under
 # 60 m/s; 0.4 % of player-matches have such a reading.
 TOP_SPEED_IMPOSSIBLE = 100.0
+# An instant solo launch is no flight (user, 2026-11-26: "big spikes as a solo are not realistic, as shooting behind you
+# is a gradual growth"): under LAUNCH_FROM, then LAUNCH_GAIN more within a twentieth of a second, with nobody moving
+# close enough to have grabbed the player. The tenth before ends a tenth before that twentieth: a launch can take two or
+# three frames. Bree_Plays (Combustion, 2022-05-11) went from 0.4 to 60 m/s in one frame along the floor, coasted 47 m
+# and stopped dead. Regrabs (partner within 2 m, flying too) and gradual speed-ups (Caprison- 1 -> 51 m/s over 2 s,
+# shooting behind him) count. No second holding the launch or the coast after it counts, until the player has slowed
+# under LAUNCH_SPENT. Stopping dead is fine: that is a crash into a wall (user).
+LAUNCH_STEP_S = 0.1
+LAUNCH_FROM = 10.0  # m/s over the tenth before, by the head positions; e_g2012 (Combustion 2022-07-23) launched from 6.1.
+# Where the head stood exactly still in it the data was stale (a lag catch-up), and the velocity readings count too
+LAUNCH_GAIN = 20.0  # m/s more over the last twentieth, from the head positions (the velocity can read 0 mid-launch). A
+# tenth's average misses a launch that turns the player round (e_g2012: 6 m/s one way, then 57 m/s back)
+LAUNCH_NEAR_M = 2.5  # another player's head this close: a grab or a regrab, not a launch
+LAUNCH_PARTNER_SPEED = 5.0  # m/s: ... if they move too. Regrab partners fly with you (JavaBava 10-21 m/s beside DinkatorBoi);
+# Scoob (Dyson 2026-11-24) shot off from 3 to 79 m/s past he_is_the_cat, who floated on at 1-2 m/s
+LAUNCH_SPENT = 10.0  # m/s: the launch's speed is used up below this
 FROZEN_S = 0.5  # head at exactly the same spot this long: no data coming in, the velocity is stale. A headset is never that still
 
 
@@ -80,7 +98,9 @@ class PlayerAccumulator:
         self._loadout: tuple[str, str, str] | None = None
         self._window: deque[tuple] = deque()  # (t_s, speed, head position, velocity), in-bounds only
         self._window_m = 0.0  # the distance the speeds in it stand for
-        self._impossible_at = -math.inf  # time of the last reading over TOP_SPEED_IMPOSSIBLE
+        self._impossible_at = -math.inf  # time of the last reading over TOP_SPEED_IMPOSSIBLE, or of a launch's flight
+        self._recent: deque[tuple[float, Vec3, float]] = deque()  # (t_s, head, speed) of the last ~3 LAUNCH_STEP_S, in bounds
+        self._launched = False  # flying on a launch's speed (LAUNCH_SPENT)
         self._still_at: Vec3 | None = None  # where the head has been exactly since _still_from
         self._still_from = 0.0
         self._still_sum = 0.0  # speed_sum counted since then, taken back when the player turns out to be frozen
@@ -126,6 +146,8 @@ class PlayerAccumulator:
         if not inside:
             self._window.clear()
             self._window_m = 0.0
+            self._recent.clear()
+            self._launched = False
             self._still_at = None
         self._was_in_bounds = inside
 
@@ -139,6 +161,7 @@ class PlayerAccumulator:
         self._track_speed_sum(t_s, speed, p.head_position)
         if speed < STOPPED_SPEED:
             self.frames_stopped += 1
+        self._track_launch(t_s, speed, p, teammates, enemies)
         self._track_top_speed(t_s, speed, p.head_position, p.velocity)
 
         if p.arm == "Right":
@@ -182,13 +205,50 @@ class PlayerAccumulator:
         self.speed_sum += speed
         self._still_sum += speed
 
+    def _track_launch(self, t_s: float, speed: float, p: PlayerFrame, teammates, enemies) -> None:
+        """Instant launches (LAUNCH_GAIN): while one's speed lasts, no second counts for top speed."""
+        head, recent = p.head_position, self._recent
+        if recent and not 0 <= t_s - recent[-1][0] <= TOP_SPEED_MAX_GAP_S:
+            recent.clear()
+            self._launched = False
+        recent.append((t_s, head, speed))
+        while len(recent) > 2 and recent[1][0] <= t_s - 3 * LAUNCH_STEP_S:
+            recent.popleft()
+        if len(recent) < 3:
+            return
+        t1, h1 = recent[-2][:2]
+        if not self._launched and math.dist(h1, head) < LAUNCH_GAIN * (t_s - t1):
+            return  # this frame is no fast move: nothing launched (the common case, kept cheap)
+        a = next((i for i in range(len(recent) - 2, -1, -1) if recent[i][0] <= t_s - LAUNCH_STEP_S / 2 + 1e-3), 0)
+        ta, ha = recent[a][:2]
+        now = math.dist(ha, head) / (t_s - ta)
+        if self._launched:
+            self._launched = now >= LAUNCH_SPENT
+        else:
+            c = next((i for i in range(a, -1, -1) if recent[i][0] <= ta - LAUNCH_STEP_S + 1e-3), 0)
+            if c == 0:
+                return
+            (tb, hb), (tc, hc) = recent[0][:2], recent[c][:2]
+            before = math.dist(hb, hc) / (tc - tb)
+            if any(recent[i][1] == recent[i + 1][1] for i in range(c)):  # stale: the velocity says what happened
+                before = max(before, *(recent[i][2] for i in range(c + 1)))
+            if before < LAUNCH_FROM and now - before >= LAUNCH_GAIN:
+                x, y, z = head
+                near = LAUNCH_NEAR_M ** 2
+                self._launched = not any(
+                    o is not p and (x - o.head_position[0]) ** 2 + (y - o.head_position[1]) ** 2
+                    + (z - o.head_position[2]) ** 2 < near and math.hypot(*o.velocity) >= LAUNCH_PARTNER_SPEED
+                    for o in (*teammates, *enemies))
+        if self._launched:
+            self._impossible_at = t_s
+
     def _track_top_speed(self, t_s: float, speed: float, head: Vec3, velocity: Vec3) -> None:
         window = self._window
         if speed > TOP_SPEED_IMPOSSIBLE:
             self._impossible_at = t_s
         if window:
             t0, before = window[-1][:2]
-            if t_s - t0 > TOP_SPEED_MAX_GAP_S:
+            if not 0 <= t_s - t0 <= TOP_SPEED_MAX_GAP_S:
                 window.clear()
                 self._window_m = 0.0
             else:
