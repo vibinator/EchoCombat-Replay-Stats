@@ -4,7 +4,11 @@ separate from the Combat stats: own tables (arena_players, arena_counted), own m
 The list (https://g.echovrce.com/status/matches) only shows the matches running right now, so this polls it and
 remembers who is in which public Arena match. A player counts once per match after MIN_PRESENT_S (4 minutes) in it.
 Polling is kept very low (user, 2026-11-04): one small GET per `arena_poll_s` (10 s since 2026-11-05, was 60 s), the database is only written
-when a match is counted, a failed request backs off (x2, up to 5 minutes), and the rest of the state is in memory."""
+when a match is counted, a failed request backs off (x2, up to 5 minutes), and the rest of the state is in memory.
+
+Every counted (match, player) is kept for good, with its time, inside the Mega Prize period or not (user, 2026-11-27: "count the
+amount of arena games from the start day/time of the Mega Prize Period ... keep the history of arena games"). The period is
+only a filter when the totals are read (api/arena.py arena_totals / combat_totals), so moving its dates recounts at once."""
 
 import logging
 import threading
@@ -25,10 +29,10 @@ MIN_SEEN = 6
 TIMEOUT_S = 5
 MAX_BYTES = 5_000_000
 MAX_BACKOFF_S = 300.0
-KEEP_COUNTED_S = 2 * 86400
-PRUNE_EVERY_S = 3600
+DEDUPE_S = 2 * 86400  # counted (match, player) pairs kept in memory against counting twice: a match never lasts this long
+TRIM_EVERY_S = 3600
 ACCOUNT_REFRESH_S = 600  # an account already stored is written again at most this often (last seen)
-WINDOW_CHECK_S = 300  # the challenge period is looked up at most this often
+WINDOW_CHECK_S = 300  # the Mega Prize period is looked up at most this often (Console status line only)
 NON_PLAYER_TEAMS = {"spectator", "moderator"}  # on the match list's "team" field: watching, not playing, so never counted (user, 2026-11-04)
 STATUS_OK_POLLS = 3  # the Console says "working" when the list was read within this many polls
 log = logging.getLogger("uvicorn.error")
@@ -53,14 +57,13 @@ class _Kind:
     """One game type counted from the same list (Arena, Combat): its own tables and in-memory state, same rules
     (user, 2026-11-05: the Echo Combat Mega Prize is counted from the Nakama match list too, no longer from the replays)."""
 
-    def __init__(self, name, is_match, player_model, counted_model, keep_s):
+    def __init__(self, name, is_match, player_model, counted_model):
         self.audited = counted_model is NakamaCombatCounted  # only Combat keeps the audit columns
-        self.keep_s = keep_s  # counted rows older than this are pruned; None = kept for good (Combat history)
         self.name, self.is_match, self.player_model, self.counted_model = name, is_match, player_model, counted_model
         self.seen: dict[tuple[str, str], list[float]] = {}  # (match id, user id) -> [last seen, seconds present]
-        self.counted: set[tuple[str, str]] = set()
+        self.counted: dict[tuple[str, str], float] = {}  # (match id, user id) -> counted at, the last DEDUPE_S only
         self.loaded = False
-        self.pruned = 0.0
+        self.trimmed = 0.0
         self.last_counted: float | None = None
         self.counted_since_start = 0
         self.matches_now = self.players_now = 0
@@ -71,12 +74,12 @@ class Tracker:
     def __init__(self, sessionmaker, settings, fetch=None):
         self.sessionmaker, self.interval = sessionmaker, settings.arena_poll_s
         self.fetch = fetch or self._fetch
-        self.arena = _Kind("arena", is_public_arena, ArenaPlayer, ArenaCounted, KEEP_COUNTED_S)
-        self.combat = _Kind("combat", is_public_combat, NakamaCombatPlayer, NakamaCombatCounted, None)
+        self.arena = _Kind("arena", is_public_arena, ArenaPlayer, ArenaCounted)
+        self.combat = _Kind("combat", is_public_combat, NakamaCombatPlayer, NakamaCombatCounted)
         self._kinds = (self.arena, self.combat)
         self._accounts: dict[str, tuple] = {}  # Nakama user id -> (discord id, username, display name, written at)
         self.accounts_seen = 0
-        self._window: tuple[float, bool] = (0.0, False)  # (checked at, inside the challenge period)
+        self._window: tuple[float, bool] = (0.0, False)  # (checked at, inside the Mega Prize period), for the status line
         # for the Console's status line; in memory, costs no request. Unix times.
         self._last_ok: float | None = None
         self._last_error: tuple[float, str] | None = None
@@ -111,8 +114,8 @@ class Tracker:
                 log.warning("arena poll failed (%s); next try in %d s", e, wait)
 
     def _in_period(self, now: float) -> bool:
-        """Counting starts at the Mega Prize period (user, 2026-11-05; before that the challenge period, 2026-11-04): nothing before its start date or after its end.
-        No start date set = nothing counts yet (unlike Combat, there is no archive to count from)."""
+        """Is today inside the Mega Prize period? Only for the Console's status line: matches are recorded either way and the
+        period filters them when the totals are read (user, 2026-11-27). No start date set = outside."""
         if now - self._window[0] >= WINDOW_CHECK_S or self._window[0] == 0.0:
             with self.sessionmaker() as db:
                 start, end = mega_window(db)
@@ -126,10 +129,7 @@ class Tracker:
         data = self.fetch()
         self._collect_accounts(data, now)  # every poll, inside the period or not: who is playing, and their links
         self._last_ok = now
-        if not self._in_period(now):
-            for k in self._kinds:
-                k.seen.clear()  # time spent before the period does not count towards the 4 minutes
-            return 0  # nothing is counted outside the period
+        self._in_period(now)  # the status line; recording never waits for the period (user, 2026-11-27)
         return sum(self._poll_kind(k, data, now) for k in self._kinds)
 
     def _collect_accounts(self, data: dict, now: float) -> None:
@@ -168,10 +168,16 @@ class Tracker:
         acc.replay_user_id, acc.link = discord_links.account_link(db, acc.discord_id)
 
     def _poll_kind(self, k: _Kind, data: dict, now: float) -> int:
-        if not k.loaded:  # after a restart: what was already counted
+        if not k.loaded:  # after a restart: what was counted lately (an older match id never comes back on the list)
             with self.sessionmaker() as db:
-                k.counted = {(m, u) for m, u in db.execute(select(k.counted_model.match_id, k.counted_model.user_id))}
-            k.loaded = True
+                k.counted = {(m, u): at for m, u, at in db.execute(
+                    select(k.counted_model.match_id, k.counted_model.user_id, k.counted_model.counted_at)
+                    .where(k.counted_model.counted_at >= now - DEDUPE_S))}
+            k.loaded, k.trimmed = True, now
+        elif now - k.trimmed >= TRIM_EVERY_S:  # the history stays in the database; memory keeps only the last DEDUPE_S
+            # a match still on the list is never forgotten: counting it again would break the table's unique key
+            k.counted = {key: at for key, at in k.counted.items() if at >= now - DEDUPE_S or key in k.seen}
+            k.trimmed = now
         present: dict[tuple[str, str], dict] = {}
         barred: set[str] = set()
         small: set[tuple[str, str]] = set()  # in a match that is smaller than 3v3 right now: may not count yet
@@ -207,9 +213,8 @@ class Tracker:
                 new.append((key, p))
         for key in [key for key, v in k.seen.items() if key not in present and now - v[0] > 2 * self.interval + 1]:
             del k.seen[key]  # gone from the list
-        prune = k.keep_s is not None and now - k.pruned >= PRUNE_EVERY_S
-        if new or prune:
-            self._save(k, new, now, prune)
+        if new:
+            self._save(k, new, now)
         k.matches_now = sum(1 for label in data.get("labels") or [] if k.is_match(label))
         k.players_now = len(present)
         if new:
@@ -246,10 +251,10 @@ class Tracker:
                 db.execute(delete(k.counted_model).where(k.counted_model.user_id.in_(hit)))
                 db.execute(delete(k.player_model).where(k.player_model.user_id.in_(hit)))
                 db.commit()
-        k.counted = {key for key in k.counted if key[1] not in user_ids}
+        k.counted = {key: at for key, at in k.counted.items() if key[1] not in user_ids}
         k.seen = {key: v for key, v in k.seen.items() if key[1] not in user_ids}
 
-    def _save(self, k: _Kind, new, now: float, prune: bool) -> None:
+    def _save(self, k: _Kind, new, now: float) -> None:
         stamp = datetime.fromtimestamp(now).isoformat(timespec="seconds")
         with self.sessionmaker() as db:
             for (match_id, user_id), p in new:
@@ -268,10 +273,5 @@ class Tracker:
                 row.display_name = p.get("display_name") or row.display_name
                 row.discord_id = p.get("discord_id") or row.discord_id
                 row.last_match_at = stamp
-                k.counted.add((match_id, user_id))
-            if prune:
-                db.execute(delete(k.counted_model).where(k.counted_model.counted_at < now - k.keep_s))
+                k.counted[(match_id, user_id)] = now
             db.commit()
-        if prune:
-            k.pruned = now
-            k.loaded = False  # re-read what is still counted (pruned rows leave memory too)

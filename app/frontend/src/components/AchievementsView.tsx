@@ -574,8 +574,9 @@ const MEGA_NOTES = {
 
 function MegaPrizesProfileBody({ userId }: { userId: string }) {
   const d = useApi(() => getMegaPlayer(userId), `mega-player|${userId}`).data;
-  // the row opens to the prize cards: pictures, the prize and what counts (user, 2026-11-27); closed by default
-  const [open, setOpen] = useState(false);
+  // the row opens to the prize cards: pictures, the prize and what counts (user, 2026-11-27); open by default
+  // (user, 2026-11-27), "Less" still closes it
+  const [open, setOpen] = useState(true);
   if (!d) return null;
   // one row (user, 2026-11-26: "too much data"): each prize as a short name, a slim bar and the count; the rest is hover text
   const prizes = [

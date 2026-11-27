@@ -898,7 +898,7 @@ function Dashboard({ api }: { api: ConsoleApi }) {
 
 const ARENA_STATES: Record<ArenaStatus["state"], [value: string, detail: string]> = {
   off: ["Off", "Not running on this server"],
-  outside_period: ["Waiting", "Outside the Mega Prize period: the match list is not being read"],
+  outside_period: ["Recording", "Outside the Mega Prize period: matches are saved, the prizes count only those inside it"],
   waiting: ["Starting", "No answer from the match list yet"],
   working: ["Working", ""],
   failing: ["Failing", "The match list has not answered lately"],

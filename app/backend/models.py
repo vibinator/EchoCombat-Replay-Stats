@@ -353,7 +353,8 @@ class ConsoleLog(Base):
 
 class ArenaPlayer(Base):
     """Public Echo Arena matches per player, counted from the live Nakama match list (arena.py). Completely separate
-    from the Combat stats (user, 2026-11-04). Kept across rebuilds: it cannot be recomputed from anything."""
+    from the Combat stats (user, 2026-11-04). Kept across rebuilds: it cannot be recomputed from anything. `matches` is the
+    all-time total; the Mega Prize counts only the ArenaCounted rows inside its period (user, 2026-11-27)."""
 
     __tablename__ = "arena_players"
 
@@ -366,7 +367,8 @@ class ArenaPlayer(Base):
 
 
 class ArenaCounted(Base):
-    """A (match, player) already counted, so a restart or a rejoin never counts it twice. Pruned after 2 days."""
+    """A (match, player) counted, with its time: the Arena history the Mega Prize period is counted from. Kept for good since
+    2026-11-27 (it was pruned after 2 days before), and a restart or a rejoin never counts a match twice."""
 
     __tablename__ = "arena_counted"
 

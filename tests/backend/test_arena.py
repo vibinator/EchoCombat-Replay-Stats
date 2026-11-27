@@ -9,7 +9,12 @@ from sqlalchemy import select
 from backend import admin_actions as actions
 from backend.arena import MIN_PRESENT_S, Tracker, is_public_arena
 from backend.db import open_db
-from backend.models import ArenaPlayer
+from backend.models import ArenaCounted, ArenaPlayer
+
+
+def arena_rows(db, user_id, n, at=2e9):
+    """n counted Arena matches of one player (the Mega Prize counts these rows inside its period, user 2026-11-27)."""
+    db.add_all([ArenaCounted(match_id=f"{user_id}-m{i}", user_id=user_id, counted_at=at) for i in range(n)])
 
 
 def label(match_id, users, mode="echo_arena", lobby="public"):
@@ -59,7 +64,7 @@ def test_status_outside_the_period(tmp_path):
     t, sm = tracker(tmp_path, [[label("m1", list("abcdef"))]], period=False)
     t.start()
     try:
-        assert t.poll(now=1000.0) == 0  # no period set: nothing is counted, but the accounts on the list are collected
+        assert t.poll(now=1000.0) == 0  # first look: nobody has been in the match 4 minutes yet; the accounts are collected
         assert t.status(now=1000.0)["state"] == "outside_period"
         with sm() as db:
             assert db.scalar(select(NakamaAccount.username).where(NakamaAccount.user_id == "a")) == "a"
@@ -106,14 +111,26 @@ def test_short_stays_and_other_modes_do_not_count(tmp_path):
         assert db.scalars(select(ArenaPlayer)).all() == []
 
 
-def test_nothing_counts_before_the_challenge_period(tmp_path):
-    t, sm = tracker(tmp_path, [[label("m1", ["a"])]] * 7, period=False)
-    assert [t.poll(now=1000.0 + 60 * i) for i in range(6)] == [0] * 6
+def test_matches_are_recorded_outside_the_period_and_the_period_filters_them(tmp_path):
+    """User, 2026-11-27: the Mega Prize counts the Arena games from the start of its period; the history is kept, so
+    changing the dates recounts at once."""
+    from backend.api.arena import arena_totals
+    from datetime import datetime
+    six = list("abcdef")
+    steps = int(MIN_PRESENT_S // 60) + 2
+    t0 = datetime(2026, 11, 20, 12).timestamp()
+    t, sm = tracker(tmp_path, [[label("m1", six)]] * steps + [[label("m2", six)]] * steps, period=False)
+    assert sum(t.poll(now=t0 + 60 * i) for i in range(steps)) == 6  # no period set: recorded all the same
+    t1 = datetime(2026, 11, 25, 12).timestamp()
+    assert sum(t.poll(now=t1 + 60 * i) for i in range(steps)) == 6
     with sm() as db:
-        actions.set_challenge_window(db, "2999-01-01", None)  # starts in the future: still nothing
-        db.commit()
-    t._window = (0.0, False)
-    assert t.poll(now=2000.0) == 0
+        assert db.scalar(select(ArenaPlayer.matches).where(ArenaPlayer.user_id == "a")) == 2  # all-time total
+        assert arena_totals(db, None, None) == []  # no period: nothing counts for the prize
+        assert {w["user_id"]: w["count"] for w in arena_totals(db, "2026-11-01", None)} == {u: 2 for u in six}
+        assert {w["user_id"]: w["count"] for w in arena_totals(db, "2026-11-21", None)} == {u: 1 for u in six}  # later start
+        assert {w["user_id"]: w["count"] for w in arena_totals(db, "2026-11-01", "2026-11-20")} == {u: 1 for u in six}  # end day included
+        assert arena_totals(db, "2026-11-26", None) == []
+    assert t.status(now=t1)["state"] in ("off", "outside_period")  # the Console says it is outside the period
 
 
 @pytest.fixture
@@ -132,6 +149,9 @@ def test_winners_report_needs_console_and_lists_nobody_without_a_period(client):
     from backend import mega_prizes
     with client.app.state.sessionmaker() as db:
         db.add(ArenaPlayer(user_id="u", username="u", display_name="U", discord_id=None, matches=1000, last_match_at="x"))
+        arena_rows(db, "u", 1000)
+        db.add(ArenaPlayer(user_id="v", username="v", display_name="V", discord_id=None, matches=5000, last_match_at="x"))
+        arena_rows(db, "v", 999)  # its all-time total is not what counts: only the matches inside the period
         db.commit()
         none = mega_prizes.report(db)
         assert [len(p["winners"]) for p in none["prizes"]] == [0, 0]  # no start date set: nobody has won yet
@@ -166,7 +186,9 @@ def test_search_finds_arena_players_by_name(tmp_path, monkeypatch):
     from backend.api import arena as api
     _, sm = open_db(tmp_path / "s.db", 0)
     with sm() as db:
+        actions.set_mega_window(db, "2000-01-01", None)
         db.add(ArenaPlayer(user_id="u1", username="zed", display_name="Zed The Great", discord_id=None, matches=40, last_match_at="x"))
+        arena_rows(db, "u1", 40)
         db.commit()
     from types import SimpleNamespace
     request = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(sessionmaker=sm)))
@@ -214,11 +236,12 @@ def test_combat_counted_from_the_list_once_per_match_and_kept(tmp_path):
     with sm() as db:
         assert db.scalar(select(NakamaCombatPlayer.matches).where(NakamaCombatPlayer.user_id == "a")) == 1
         assert db.scalar(select(ArenaPlayer.matches).where(ArenaPlayer.user_id == "a")) == 1  # Arena separate
-    t._pruned = 0.0
-    t.combat.pruned = 0.0
-    t.poll(now=1000.0 + 3 * 86400)  # far later: Arena rows are pruned, Combat history stays
+    t.arena.trimmed = t.combat.trimmed = 0.0
+    t.poll(now=1000.0 + 3 * 86400)  # far later: both histories stay (Arena kept for good since 2026-11-27), memory is trimmed
     with sm() as db:
         assert db.scalar(select(NakamaCombatCounted.match_id).where(NakamaCombatCounted.user_id == "a")) == "S1.node"
+        assert db.scalar(select(ArenaCounted.match_id).where(ArenaCounted.user_id == "a")) == "m1"
+    assert ("m1", "a") in t.arena.counted  # still on the list: remembered, so never counted twice
 
 
 def test_combat_totals_from_nakama_only(tmp_path):
@@ -294,6 +317,8 @@ def test_player_progress_adds_up_every_linked_account(tmp_path, monkeypatch):
         db.add(NakamaCombatCounted(match_id="S4", user_id="other", counted_at=2e9))
         db.add(ArenaPlayer(user_id="a1", username="a", display_name=None, discord_id="d1", matches=7, last_match_at="x"))
         db.add(ArenaPlayer(user_id="a2", username="b", display_name=None, discord_id="d2", matches=50, last_match_at="x"))
+        arena_rows(db, "a1", 7)
+        arena_rows(db, "a2", 50)
         db.commit()
     request = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(sessionmaker=sm)))
     monkeypatch.setattr(api.auth, "has_preview", lambda r: True)  # the role check is in test_mega_prizes_security

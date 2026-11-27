@@ -9,7 +9,7 @@ from test_discord_preview import BLUE, CONSOLE, DB_MEMBER, DB_ROLE, MEMBER, NO_R
 
 from backend import admin_actions as actions
 from backend import mega_prizes
-from backend.models import ArenaPlayer
+from backend.models import ArenaCounted, ArenaPlayer
 
 PRIZE_URLS = ["/api/arena/progress", "/api/arena/search?q=zed", "/api/arena/player/99", "/api/arena/image/jack_front.png", "/api/arena/image/d13_back.png"]
 CONSOLE_URLS = ["/api/admin/console/mega-prizes", "/api/admin/console/mega-prizes.csv"]
@@ -19,6 +19,7 @@ WORDS = ("Echo Combat Veteran", "Mega Prize", "BioMass", "Jack Model", "OG High 
 def seed(client):
     with client.app.state.sessionmaker() as db:
         db.add(ArenaPlayer(user_id="n1", username="zed", display_name="Zed", discord_id="99", matches=1100, last_match_at="x"))
+        db.add_all([ArenaCounted(match_id=f"m{i}", user_id="n1", counted_at=2e9) for i in range(1100)])
         db.commit()
 
 
@@ -51,6 +52,9 @@ def test_preview_role_sees_the_prizes_but_not_the_winners_report(tmp_path, disco
             r = client.get(url)
             assert r.status_code == 200, url
             assert r.headers["cache-control"] == "private, no-store" and r.headers["cloudflare-cdn-cache-control"] == "no-store", url
+        with client.app.state.sessionmaker() as db:
+            actions.set_mega_window(db, "2000-01-01", None)  # the prize counts the matches inside its period
+            db.commit()
         found = client.get("/api/arena/search?q=zed").json()["results"]
         assert found == [{"kind": "arena", "name": "Zed", "user_id": "n1", "matches": 1100}]  # no Discord id in the answer
         assert "discord" not in client.get("/api/arena/progress").text.lower()

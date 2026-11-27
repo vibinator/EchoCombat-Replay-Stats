@@ -82,6 +82,39 @@ def _cached_totals(request: Request, db, start: str | None, end: str | None) -> 
     return _remember(request, ("combat", start, end), lambda: combat_totals(db, start, end))
 
 
+def _cached_arena(request: Request, db, start: str | None, end: str | None) -> list[dict]:
+    """arena_totals for the period, from the same 10-minute cache (keyed on the period, so new dates count at once)."""
+    return _remember(request, ("arena", start, end), lambda: arena_totals(db, start, end))
+
+
+def _bounds(start: str, end: str | None, as_of: float | None) -> tuple[float, float | None]:
+    """The Mega Prize period as epoch seconds: from its start day 00:00 to the end of its end day (server time)."""
+    lo = datetime.fromisoformat(start).timestamp()
+    hi = datetime.fromisoformat(end).timestamp() + 86400 if end else None
+    if as_of is not None:
+        hi = as_of if hi is None else min(hi, as_of)
+    return lo, hi
+
+
+def arena_totals(db, start: str | None, end: str | None, as_of: float | None = None) -> list[dict]:
+    """Public Arena matches per player inside the Mega Prize period, most matches first (user, 2026-11-27: "the number should
+    reflect FROM the data picked from the mega prize period"). Counted from the kept (match, player) rows by the time each
+    was counted, so changing the period recounts. Arena matches counted before 2026-11-27 had their rows pruned after 2 days,
+    so only their per-player total (ArenaPlayer.matches) is left and it cannot be placed in a period: it is not used.
+    `as_of` (epoch s) = only what was known by then (the change over the last day)."""
+    if not start:
+        return []
+    lo, hi = _bounds(start, end, as_of)
+    q = (select(ArenaCounted.user_id, ArenaPlayer.display_name, ArenaPlayer.username, ArenaPlayer.discord_id, func.count())
+         .join(ArenaPlayer, ArenaPlayer.user_id == ArenaCounted.user_id)
+         .where(ArenaCounted.counted_at >= lo).group_by(ArenaCounted.user_id))
+    if hi:
+        q = q.where(ArenaCounted.counted_at < hi)
+    rows = [{"name": display or username, "username": username, "user_id": user_id, "discord_id": discord_id, "count": count}
+            for user_id, display, username, discord_id, count in db.execute(q)]
+    return sorted(rows, key=lambda w: -w["count"])
+
+
 @router.get("/progress")
 def progress(request: Request, limit: int = Query(10, ge=1, le=100)):
     _require_preview(request)
@@ -92,18 +125,17 @@ def progress(request: Request, limit: int = Query(10, ge=1, le=100)):
 
 def _progress(request: Request, db, limit: int, period: tuple) -> dict:
     """The body of /progress, counted at most every MEGA_CACHE_S."""
-    rows = db.scalars(select(ArenaPlayer).where(ArenaPlayer.matches >= TARGET)
-                     .order_by(ArenaPlayer.matches.desc()).limit(limit)).all()  # only those who reached it (user, 2026-11-04)
-    near_arena = db.scalars(select(ArenaPlayer).where(ArenaPlayer.matches < TARGET)
-                            .order_by(ArenaPlayer.matches.desc()).limit(CLOSEST)).all()
+    arena = _cached_arena(request, db, *period)  # inside the Mega Prize period only (user, 2026-11-27)
+    rows = [w for w in arena if w["count"] >= TARGET][:limit]  # only those who reached it (user, 2026-11-04)
+    near_arena = [w for w in arena if w["count"] < TARGET][:CLOSEST]
     combat_target = int(MEGA_COMBAT.levels[-1])
     # the Combat totals once, shared by the top 10, the closest and the winners (user, 2026-11-27: Mega Prizes slow to
     # load; this was counted 4 times per request, each time re-reading the replay history)
     totals = _cached_totals(request, db, *period)
     near_combat = _closest_combat(totals, combat_target)
-    won_arena = db.scalar(select(func.count()).select_from(ArenaPlayer).where(ArenaPlayer.matches >= TARGET)) or 0
+    won_arena = sum(1 for w in arena if w["count"] >= TARGET)
     won_combat = _combat_winners(totals, combat_target)
-    moves = {"top_combat": top_combat(db, totals), "top_arena": top_arena(db)}
+    moves = {"top_combat": top_combat(db, totals), "top_arena": top_arena(db, arena)}
     r = MEGA_COMBAT  # kept out of RULES, so no public list or ranking has it
     combat = [{"id": r.id, "name": r.name, "description": r.description, "period": r.period, "icon": icon_file(r), "estimated": False,
                "new": r.new, "group": r.group, "levels": list(r.levels), "unit": r.unit, "prize": r.prize}]
@@ -111,13 +143,12 @@ def _progress(request: Request, db, limit: int, period: tuple) -> dict:
     return {"target": TARGET, "min_minutes": 4, "combat": combat,
             # the Mega Prize period (its own dates, or the challenge period): the cards show a live dot while it is running
             "period": {"start": period[0], "end": period[1], "active": bool(period[0]) and period[0] <= today and (not period[1] or today <= period[1])},
-            "players": [{"user_id": r.user_id, "name": r.display_name or r.username, "matches": r.matches,
-                         "completed": r.matches >= TARGET} for r in rows],
+            "players": [{"user_id": w["user_id"], "name": w["name"], "matches": w["count"], "completed": True} for w in rows],
             # the two players nearest to the prize who have not reached it yet (user, 2026-11-04)
             "winners_combat": won_combat, "winners_arena": won_arena,
             **moves,  # the top 10 of each prize with the change over the last day (user, 2026-11-06)
             "closest_combat": near_combat,
-            "closest_arena": [{"user_id": a.user_id, "name": a.display_name or a.username, "matches": a.matches} for a in near_arena]}
+            "closest_arena": [{"user_id": w["user_id"], "name": w["name"], "matches": w["count"]} for w in near_arena]}
 
 
 def _replay_history(db, start: str, end: str | None, accounts: dict[str, object]) -> dict[str, int]:
@@ -162,10 +193,7 @@ def combat_totals(db, start: str | None, end: str | None, as_of: float | None = 
     rank change over the last day)."""
     if not start:
         return []
-    lo = datetime.fromisoformat(start).timestamp()
-    hi = datetime.fromisoformat(end).timestamp() + 86400 if end else None
-    if as_of is not None:
-        hi = as_of if hi is None else min(hi, as_of)
+    lo, hi = _bounds(start, end, as_of)
     n = func.count().label("n")
     q = (select(NakamaCombatCounted.user_id, NakamaCombatPlayer.display_name, NakamaCombatPlayer.username,
                 NakamaCombatPlayer.discord_id, n)
@@ -212,14 +240,13 @@ def top_combat(db, now: list[dict] | None = None) -> list[dict]:
     return _moves(now, {w["user_id"]: w["count"] for w in day_ago})
 
 
-def top_arena(db) -> list[dict]:
-    """Arena only keeps totals, so a day ago = the total minus the matches counted in the last day (ArenaCounted keeps 2 days)."""
-    players = db.execute(select(ArenaPlayer.user_id, ArenaPlayer.display_name, ArenaPlayer.username, ArenaPlayer.matches)
-                         .order_by(ArenaPlayer.matches.desc())).all()
-    recent = dict(db.execute(select(ArenaCounted.user_id, func.count()).where(ArenaCounted.counted_at >= time.time() - 86400)
-                             .group_by(ArenaCounted.user_id)).all())
-    now = [{"user_id": u, "name": d or un, "count": m} for u, d, un, m in players]
-    return _moves(now, {u: m - recent.get(u, 0) for u, _, _, m in players})
+def top_arena(db, now: list[dict] | None = None) -> list[dict]:
+    """`now` = arena_totals for the current period when the caller already has it; a day ago is counted the same way."""
+    start, end = mega_window(db)
+    if now is None:
+        now = arena_totals(db, start, end)
+    day_ago = arena_totals(db, start, end, as_of=time.time() - 86400)
+    return _moves(now, {w["user_id"]: w["count"] for w in day_ago})
 
 
 def _closest_combat(totals: list[dict], target: int) -> list[dict]:
@@ -254,29 +281,28 @@ def player(request: Request, user_id: str):
         ids = {a.user_id for a in accounts}
         discords = {a.discord_id for a in accounts if a.discord_id} | {user_id}
         combat = sum(w["count"] for w in _cached_totals(request, db, start, end) if w["user_id"] in ids) if ids else 0
-        arena_rows = db.scalars(select(ArenaPlayer).where(ArenaPlayer.user_id.in_(ids) | ArenaPlayer.discord_id.in_(discords))).all()
+        arena_ids = set(db.scalars(select(ArenaPlayer.user_id).where(ArenaPlayer.user_id.in_(ids) | ArenaPlayer.discord_id.in_(discords))))
+        arena = sum(w["count"] for w in _cached_arena(request, db, start, end) if w["user_id"] in arena_ids) if arena_ids else 0
         period = _period(db)
     combat_target = int(MEGA_COMBAT.levels[-1])
-    return {"period": period, "linked": bool(ids or arena_rows),
+    return {"period": period, "linked": bool(ids or arena_ids),
             "combat": {"matches": combat, "target": combat_target, "prize": MEGA_COMBAT.prize},
-            "arena": {"matches": sum(r.matches for r in arena_rows), "target": TARGET, "prize": "Jack Series 11 from Lone Echo 1/2"}}
+            "arena": {"matches": arena, "target": TARGET, "prize": "Jack Series 11 from Lone Echo 1/2"}}
 
 
 @router.get("/search")
 def search(request: Request, q: str = Query("", max_length=60)):
     """Players by name with their progress toward a prize, from the set challenge period on (no start date set = 0).
-    Combat and Arena: public matches of 4+ minutes from the live match list. Arena: public matches of 4+ minutes from the live match list."""
+    Combat and Arena: public matches of 4+ minutes from the live match list, inside the Mega Prize period."""
     _require_preview(request)
     term = q.strip().lower().replace("%", "").replace("_", "")
     if len(term) < 2:
         return {"target": TARGET, "results": []}
-    like = f"%{term}%"
     with request.app.state.sessionmaker() as db:
         start, end = mega_window(db)
         combat = [w for w in _cached_totals(request, db, start, end) if term in (w["name"] or "").lower()][:SEARCH_LIMIT]
-        arena = db.scalars(select(ArenaPlayer).where(func.lower(ArenaPlayer.username).like(like)
-                                                     | func.lower(func.coalesce(ArenaPlayer.display_name, "")).like(like))
-                           .order_by(ArenaPlayer.matches.desc()).limit(SEARCH_LIMIT)).all()
+        arena = [w for w in _cached_arena(request, db, start, end)
+                 if term in (w["name"] or "").lower() or term in (w["username"] or "").lower()][:SEARCH_LIMIT]
     results = [{"kind": "combat", "name": w["name"], "user_id": w["user_id"], "matches": w["count"]} for w in combat]
-    results += [{"kind": "arena", "name": a.display_name or a.username, "user_id": a.user_id, "matches": a.matches} for a in arena]
+    results += [{"kind": "arena", "name": w["name"], "user_id": w["user_id"], "matches": w["count"]} for w in arena]
     return {"target": TARGET, "results": results}

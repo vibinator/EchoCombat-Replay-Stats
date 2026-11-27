@@ -18,6 +18,12 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.27.10 — 15:05
+
+- **Player profile: Mega Prizes open by default** (user, 27 Nov). The Mega Prizes row on a player's Challenges profile
+  now shows the prize cards (pictures, prize, what counts, progress) straight away; "Less ▴" still closes it.
+- Needs the update deployed (frontend only); nothing is re-read.
+
 ## 2026.11.27.9 — 14:35
 
 - **Challenges page: tighter spacing** (user, 27 Nov). Less space above "Top players" / "Recent tiers reached" and above

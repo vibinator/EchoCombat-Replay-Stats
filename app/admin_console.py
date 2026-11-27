@@ -396,7 +396,7 @@ def cmd_mega_period(sessions, start: str | None, end: str | None, clear: bool, v
         if clear or start is not None or end is not None:
             new = (None, None) if clear else (current[0] if start is None else start, current[1] if end is None else end)
             current = actions.set_mega_window(db, *new)
-            print("Saved. The Mega Prize winners and the Arena counter use the new dates straight away.")
+            print("Saved. The Mega Prize counts (Combat and Arena) use the new dates straight away; matches are recorded either way.")
         if visible:
             actions.set_mega_visibility(db, visible)
             print(f"Saved. The Mega Prizes are visible to {actions.VISIBILITY[visible]}.")

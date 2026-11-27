@@ -6,12 +6,9 @@ Lone Echo 1/2). Counted inside the Mega Prize period (its own Start-End dates, a
 import csv
 from io import StringIO
 
-from sqlalchemy import select
-
 from .achievements import MEGA_COMBAT
 from .admin_actions import mega_window
-from .api.arena import TARGET as ARENA_TARGET, combat_totals
-from .models import ArenaPlayer
+from .api.arena import TARGET as ARENA_TARGET, arena_totals, combat_totals
 
 ARENA_PRIZE = "Jack Series 11 from Lone Echo 1/2"
 
@@ -24,8 +21,7 @@ def report(db) -> dict:
     arena: list[dict] = []
     if start:  # no start date set = no period yet, nobody has won anything
         combat = [w for w in combat_totals(db, start, end) if w["count"] >= target]
-        arena = [{"name": r.display_name or r.username, "user_id": r.user_id, "discord_id": r.discord_id, "count": r.matches}
-                 for r in db.scalars(select(ArenaPlayer).where(ArenaPlayer.matches >= ARENA_TARGET).order_by(ArenaPlayer.matches.desc()))]
+        arena = [{k: w[k] for k in ("name", "user_id", "discord_id", "count")} for w in arena_totals(db, start, end) if w["count"] >= ARENA_TARGET]
     return {"period": {"start": start, "end": end},
             "prizes": [{"prize": combat_rule.prize, "challenge": f"Play {target} Echo Combat Matches", "target": target, "winners": combat},
                        {"prize": ARENA_PRIZE, "challenge": f"Play {ARENA_TARGET} Public Arena Matches", "target": ARENA_TARGET, "winners": arena}]}
