@@ -243,6 +243,18 @@ class LeagueMember(Base):
     archive_checked: Mapped[bool | None]  # earlier Rookie seasons read once from the player's own page (/api/player/<id>)
 
 
+class ChallengePin(Base):
+    """A challenge a player pinned to work on (user, 2026-11-27): at most 3 per player, set on the website by the Discord
+    account that may edit that player's bio (api/pins.py), shown to every visitor of their page. Removed by itself once
+    the challenge is completed. Keyed by the main player id (D34). Kept across rebuilds."""
+
+    __tablename__ = "challenge_pins"
+
+    user_id: Mapped[str] = mapped_column(primary_key=True)
+    achievement_id: Mapped[int] = mapped_column(primary_key=True)
+    pinned_at: Mapped[str]
+
+
 class PlayerAlias(Base):
     """Admin player merge (D34): `alias_user_id` is the same person as `main_user_id`. Kept across rebuilds."""
 

@@ -18,6 +18,11 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.27.6 — 12:38
+
+- **Mega Prizes "More" button on the left** (user, 27 Nov): on a player page the Mega Prizes row's More / Less button now
+  sits just after the "Mega Prizes" label, like View all on the Challenges row, instead of at the far right.
+
 ## 2026.11.27.5 — 12:27
 
 - **Showbot and Lobby Mime Troupe twice as hard again** (user, 27 Nov: an emote takes 2-4 s and has no cooldown, so a

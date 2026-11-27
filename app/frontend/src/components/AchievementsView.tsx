@@ -586,6 +586,10 @@ function MegaPrizesProfileBody({ userId }: { userId: string }) {
       <strong className="mega-row-label" title={`Only matches inside the Mega Prize period count: ${period}${d.linked ? "" : ". No game account is linked to this player yet."}`}>
         Mega Prizes{d.period.active && <span className="live-dot" aria-label="recording" />}
       </strong>
+      {/* on the left, after the label (user, 2026-11-27), like the Challenges row's View all */}
+      <button type="button" className="secondary mega-row-toggle" onClick={() => setOpen(!open)} aria-expanded={open} aria-controls={`mega-profile-more-${userId}`}>
+        {open ? "Less ▴" : "More ▾"}
+      </button>
       {prizes.map((x) => {
         const won = x.matches >= x.target;
         return (
@@ -599,9 +603,6 @@ function MegaPrizesProfileBody({ userId }: { userId: string }) {
           </span>
         );
       })}
-      <button type="button" className="secondary mega-row-toggle" onClick={() => setOpen(!open)} aria-expanded={open} aria-controls={`mega-profile-more-${userId}`}>
-        {open ? "Less ▴" : "More ▾"}
-      </button>
       {open && (
         <div className="mega-row-more" id={`mega-profile-more-${userId}`}>
           <span className="muted">Only matches inside the Mega Prize period count: {period}.{d.linked ? "" : " No game account is linked to this player yet."}</span>

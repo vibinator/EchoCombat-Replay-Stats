@@ -184,6 +184,8 @@ def player_achievements(request: Request, user_id: str):
     items = result["items"] + combat_achievements.player_items(request.app.state.sessionmaker, window, user_id)
     with request.app.state.sessionmaker() as db:
         items += profile_achievements.player_items(db, user_id)  # "Edit your Bio" (user, 2026-11-26): from the page, not games
+        from . import pins  # pins.py imports this module
+        pins.drop_completed(db, user_id, items)  # a completed pin removes itself (user, 2026-11-27)
         return json_reply(request, result | {"items": icons.apply(db, items)})  # icons chosen on the Console page (D43)
 
 
