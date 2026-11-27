@@ -18,6 +18,26 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.27.11 — 15:08
+
+- **Arena Mega Prize follows the Mega Prize Period** (user, 27 Nov: "the number should reflect FROM the data picked from
+  the mega prize period"). The Arena count was a running total that only went up, so changing the dates did nothing.
+  It is now counted from the saved Arena matches inside the period, like Combat: changing the dates in the Console
+  recounts at once (the 10-minute Mega Prize cache is keyed on the period). Used by the Mega Prizes cards, top 10 with
+  the change over the last day, closest players, search, a player's profile row and the Console winners report.
+- **Arena match history kept for good.** Counted Arena matches were deleted after 2 days; they are now kept, like
+  Combat's. Matches are recorded all the time, inside the period or not, and the period only filters them, so moving the
+  start date earlier picks up matches already played. Applies to the Combat Mega Prize recording too.
+- Arena matches counted before this update are gone (only the last 2 days of them were still saved), so Arena Mega
+  Prize counts start from what is still in the database. The old all-time per-player totals are kept but no longer
+  shown as the prize count.
+- Console: the Arena counter reads "Recording" outside the period (it used to say the list was not being read);
+  `admin.bat mega-period` says both prizes use the new dates straight away.
+- The poller remembers only the last 2 days of counted matches in memory (the history stays in the database), so it
+  doesn't grow over a long uptime.
+- The code for this went in with 2026.11.27.10 (committed alongside another change); this entry describes it.
+- Needs the update deployed (backend + frontend); nothing is re-read.
+
 ## 2026.11.27.10 — 15:05
 
 - **Player profile: Mega Prizes open by default** (user, 27 Nov). The Mega Prizes row on a player's Challenges profile
