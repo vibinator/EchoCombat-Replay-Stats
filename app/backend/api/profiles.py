@@ -17,7 +17,7 @@ from fastapi import APIRouter, Request
 from pydantic import BaseModel
 from sqlalchemy import select
 
-from .. import auth, discord_links, discord_names
+from .. import aliases, auth, discord_links, discord_names
 from ..discord_links import main_id as _main_id
 from ..errors import ApiError
 from ..models import ArenaPlayer, DiscordProfile, NakamaAccount, NakamaCombatPlayer, Player, PlayerProfile
@@ -90,7 +90,8 @@ def _id_avatar(request: Request, db, user_id: str) -> str | None:
 def _account(db, user_id: str) -> dict | None:
     """The Echo (Nakama) account linked to this replay player, collected from the match list (arena.py): its name and when it
     was last seen playing. No Discord id: it is not shown to visitors."""
-    accounts = db.scalars(select(NakamaAccount).where(NakamaAccount.replay_user_id == user_id).order_by(NakamaAccount.last_seen_at.desc()))
+    own = aliases.ids_of(db, _main_id(db, user_id))  # every merged id: the account may be linked to one of them (2026-11-27)
+    accounts = db.scalars(select(NakamaAccount).where(NakamaAccount.replay_user_id.in_(own)).order_by(NakamaAccount.last_seen_at.desc()))
     acc = next((a for a in accounts.all() if a.discord_id is None or discord_links.allowed(db, user_id, a.discord_id)), None)
     return None if acc is None else {"name": acc.display_name or acc.username, "last_seen": acc.last_seen_at}
 

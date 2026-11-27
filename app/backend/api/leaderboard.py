@@ -321,9 +321,10 @@ def _by_complete(ranking: list[tuple[int, int, float]], progress: dict[int, list
 
 
 @router.get("/achievers")
-def achievers(request: Request, limit: int = Query(10, ge=1, le=50), min_games: int = Query(10, ge=1, le=100_000)):
+def achievers(request: Request, limit: int = Query(10, ge=1, le=50), min_games: int = Query(1, ge=1, le=100_000)):
     """The top of the achievements ranking with facts about each player: challenges completed, medals, gold or better,
-    strongest section (the Achievements page "Top players")."""
+    strongest section (the Achievements page "Top players"). No minimum of games (user, 2026-11-27: "shouldn't have a
+    min, just the top players with the most amount of challenges won"); was 10, which left it empty early in a period."""
     require_launched(request)
     progress = achievement_progress(request)
     # ranked by challenges fully complete (every tier, up to the crown), average progress breaking ties (user, 2026-11-26:

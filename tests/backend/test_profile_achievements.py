@@ -112,10 +112,42 @@ def test_won_league_cards_count_in_totals_ranking_and_medal_collector(tmp_path):
     data = {"rows": [(pid1, 20, 0.1), (pid2, 20, 0.1)], "progress": {pid1: base, pid2: list(base)}, "recent": []}
     ranked = pa.with_league(data, extra)
     one, two = ranked["progress"][pid1], ranked["progress"][pid2]
-    assert one[-5:] == [1.0, 1.0, 0.0, 0.0, 0.0] and one[index] == pa._collector(6) and two[index] == pa._collector(4)
+    league = slice(len(RULES), len(RULES) + 5)  # the Combat cards come after them
+    assert one[league] == [1.0, 1.0, 0.0, 0.0, 0.0] and one[index] == pa._collector(6) and two[index] == pa._collector(4)
     assert len(one) == len(two) == len(pa.COUNTED_RULES) and data["progress"][pid1] is base  # the cached ranking is not changed
     rows = dict((p, o) for p, _, o in ranked["rows"])
-    assert rows[pid1] > rows[pid2] == round(0.1 * len(RULES) / (len(RULES) + 5), 4)
+    assert rows[pid1] > rows[pid2] == round(0.1 * len(RULES) / len(pa.COUNTED_RULES), 4)
     facts = achiever_facts(one, pa.COUNTED_RULES)
     assert facts["completed"] == 2 and facts["total"] == len(pa.COUNTED_RULES)
     assert all(pa._collector_count(pa._collector(n)) == n for n in range(0, 75))  # the count comes back from the progress
+
+
+def test_combat_cards_count_in_the_ranking_and_medal_collector():
+    """The Combat challenges count (user, 2026-11-27: "Make Combat count"): added on top of the replay ranking, in the
+    average and Medal Collector (a ladder from silver on); a player with reports but no replay game joins it once."""
+    from backend.achievements import achiever_facts
+
+    index = pa._COLLECTOR
+    n = len(COMBAT_RULES)
+    base = [0.0] * len(RULES)
+    base[index] = pa._collector(4)
+    data = {"rows": [(1, 20, 0.1)], "progress": {1: base}, "recent": []}
+    cards = [1.0, 1.0] + [0.0] * (n - 2)
+    combat = {1: (cards, 3, 7, True), 2: (cards, 2, 5, True), 3: (cards, 2, 5, False), 4: ([0.0] * n, 0, 0, True)}
+    ranked = pa.with_league(data, {}, combat)
+    rows = {p: (g, o) for p, g, o in ranked["rows"]}
+    assert set(rows) == {1, 2}  # 3 is a merged id (its main row 2 is listed), 4 has no counted Combat game
+    one = ranked["progress"][1]
+    assert one[-n:] == cards and one[index] == pa._collector(7) and len(one) == len(pa.COUNTED_RULES)
+    assert rows[1] == (20, round((0.1 * len(RULES) - pa._collector(4) + pa._collector(7) + 2) / len(pa.COUNTED_RULES), 4))
+    assert rows[2][0] == 5 and ranked["progress"][2][index] == pa._collector(2)
+    assert achiever_facts(one, pa.COUNTED_RULES)["completed"] == 2
+
+    # the player's own answer: a Combat ladder at silver adds to Medal Collector, a crown also to "completed"
+    mc = RULES[index]
+    ladder = next(r for r in COMBAT_RULES if r.levels and not r.binary)
+    silver = {"id": ladder.id, "counted": True, "progress": 0.5, "count": ladder.levels[1]}
+    crown = {"id": ladder.id, "counted": True, "progress": 1.0, "count": ladder.levels[-1]}
+    collector = {"id": mc.id, "counted": True, "progress": pa._collector(4), "count": 4, "tier": None}
+    out, items = pa.counted_answer({"total": len(RULES), "completed": 3, "overall": 0.5}, [collector, silver, crown])
+    assert items[0]["count"] == 6 and out["completed"] == 4 and out["total"] == len(RULES) + 2

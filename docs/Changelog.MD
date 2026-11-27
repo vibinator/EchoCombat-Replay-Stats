@@ -18,6 +18,13 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.27.22 — 23:34
+
+- **Top players on /challenges has no minimum of games** (user, 27 Nov: "shouldn't have a min, just the top players
+  with the most amount of challenges won"). It needed 10 games inside the challenge period, so it stayed empty for the
+  first hours of a period (2026-11-27: the most anyone had was 9). Still ranked by challenges fully complete, average
+  progress breaking ties. The stats leaderboard's own minimum is unchanged.
+
 ## 2026.11.27.21 — 22:36
 
 - **The challenge period is back on /challenges, in small text next to "All challenges"** (user, 27 Nov): start → end (or "open-ended"), on the viewer's clock; hover text says only matches inside it count. Hidden until a start date is set.

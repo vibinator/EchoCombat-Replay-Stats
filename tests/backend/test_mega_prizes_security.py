@@ -9,7 +9,7 @@ from test_discord_preview import BLUE, CONSOLE, DB_MEMBER, DB_ROLE, MEMBER, NO_R
 
 from backend import admin_actions as actions
 from backend import mega_prizes
-from backend.models import ArenaCounted, ArenaPlayer
+from backend.models import ArenaCounted, ArenaPlayer, PlayerAlias
 
 PRIZE_URLS = ["/api/arena/progress", "/api/arena/search?q=zed", "/api/arena/player/99", "/api/arena/image/jack_front.png", "/api/arena/image/d13_back.png"]
 CONSOLE_URLS = ["/api/admin/console/mega-prizes", "/api/admin/console/mega-prizes.csv"]
@@ -60,6 +60,12 @@ def test_preview_role_sees_the_prizes_but_not_the_winners_report(tmp_path, disco
         assert "discord" not in client.get("/api/arena/progress").text.lower()
         own = client.get("/api/arena/player/99").json()  # a profile's own progress: by the Discord id, no ids sent back
         assert own["arena"]["matches"] == 1100 and own["linked"] is True and "n1" not in str(own)
+        # merged into an older id (user, 2026-11-27: echofox's page 341 showed 0): the main page counts the merged id's account
+        with client.app.state.sessionmaker() as db:
+            db.add(PlayerAlias(alias_user_id="99", main_user_id="341", created_at="x"))
+            db.commit()
+        merged = client.get("/api/arena/player/341").json()
+        assert merged["arena"]["matches"] == 1100 and merged["linked"] is True
         for url in CONSOLE_URLS:  # Console only: it lists Discord ids
             assert client.get(url).status_code == 403, url
         assert client.get("/api/arena/image/../../main.py").status_code in (404, 405)  # only the two named pictures

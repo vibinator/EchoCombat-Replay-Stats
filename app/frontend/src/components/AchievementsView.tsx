@@ -27,7 +27,7 @@ export const GROUPS: [Achievement["period"], string][] = [
 export const NEW_GROUPS: [name: string, hint: string, groups: string[]][] = [
   ["Gear", "Experimental weapons and ordnances (never released), and using all four weapons, ordnances or tac mods in one game", ["Experimental gear", "Gear mastery"]],
   ["Modes & wins", "Winning, streaks, and Payload and Capture Point play", ["Wins", "Payload", "Capture Point"]],
-  ["Combat", "Kills, assists, damage and objective play, from the game's own counters in the recorder's match reports, from 4 November 2026 on, apart from the replay stats. Targets are provisional. These do not count toward your average progress, totals or Medal Collector.", ["Combat"]],
+  ["Combat", "Kills, assists, damage and objective play, from the game's own counters in the recorder's match reports, from 4 November 2026 on, apart from the replay stats. They count like the rest: in your totals, average progress, Top players and Medal Collector.", ["Combat"]],
 ];
 
 // Survival, Movement, Emotes and Activity are not themes any more (user, 2026-11-04): their challenges sit with the others of the same
@@ -1265,7 +1265,7 @@ export function AchievementsStrip({ userId, onOpen }: { userId: string; onOpen: 
 
 /** A player's challenges as one bar: how many are fully complete (every tier, up to the crown) out of the regular ones (user,
  *  2026-11-26: the tier split was still confusing; the tier counts and average progress are hover text now). The Combat
- *  challenges are out of the totals, so they get a line of their own. On the player page and at the top of their Challenges page. */
+ *  challenges count too (user, 2026-11-27: "Make Combat count"). On the player page and at the top of their Challenges page. */
 function MedalBar({ items, overall, compact = false }: { items: Achievement[]; overall: number; compact?: boolean }) {
   const counted = items.filter((a) => a.counted && !a.prize);
   const total = counted.length;
@@ -1353,7 +1353,7 @@ function LaunchedSummary({ userId }: { userId: string }) {
   const result = useApi(() => getAchievements(userId), userId);
   const d = result.data;
   if (!d) return result.loading ? <p className="muted" aria-busy="true">Working out this player's challenges…</p> : null;
-  const counted = d.items.filter((a) => a.counted); // the Combat section is left out of the totals for now
+  const counted = d.items.filter((a) => a.counted); // Combat included since 2026-11-27 (user: "Make Combat count")
   const gold = counted.filter((a) => a.progress >= 1).length; // crown for ladders, 100 % for single-step ones
   const unlocked = counted.filter((a) => a.tier).length;
   const added = d.items.filter((a) => a.new);
@@ -1478,7 +1478,7 @@ export function AchievementRules({ open = false }: { open?: boolean }) {
         </li>
         <li>
           <strong>Combat section.</strong> These use the game's own counters from the recorder's match reports, from 4 November 2026 on, apart from the
-          replay stats. You earn medals as usual, but their targets are provisional and they do not count toward average progress, totals, rankings or Medal Collector.
+          replay stats. They count like every other challenge: toward average progress, totals, Top players, the leaderboard and Medal Collector.
         </li>
         <li>* Deaths are estimated from the recording.</li>
       </ul>

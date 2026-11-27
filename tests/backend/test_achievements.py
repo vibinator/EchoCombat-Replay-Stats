@@ -482,7 +482,7 @@ def test_achiever_facts_and_endpoint(tmp_path):
     with app_client(make_settings(tmp_path)) as client:
         add(client, {f"dyson/{i}.echoreplay": rf.plain(rf.lines(20)) for i in range(2)})
         act(client, actions.set_challenge_window, "2026-01-01", None)
-        top = client.get("/api/leaderboard/achievers", params={"min_games": 1}).json()
+        top = client.get("/api/leaderboard/achievers").json()  # no minimum of games (user, 2026-11-27)
         assert {r["name"] for r in top} == {"Player", "Other"}
         assert all(r["total"] == len(COUNTED_RULES) and 0 <= r["completed"] <= len(RULES) and "medals" in r for r in top)  # + George League (user, 2026-11-27)
 

@@ -27,7 +27,7 @@ def test_kept_apart_from_the_replay_rules():
     ids = {r.id for r in RULES_HERE}
     retired = {164, 165, 166, 167, 168, 169, 198, 199, 200, 202, 203}  # one-game repeats, retired 2026-11-26 (D64)
     assert ids == (set(range(164, 179)) | set(range(198, 201)) | (set(range(202, 222)) - {211, 212, 216, 218}) | (set(range(233, 244)) - {241, 243}) | set(range(249, 265))) - retired and not ids & {r.id for r in RULES}
-    assert all(r.group == "Combat" and r.new and not r.counted for r in RULES_HERE)
+    assert all(r.group == "Combat" and r.new and r.counted for r in RULES_HERE)  # full challenges since 2026-11-27 (user: "Make Combat count")
     # the module cannot read a replay table: it imports only the combat ones
     tree = ast.parse(Path(ca.__file__).read_text(encoding="utf-8"))
     models = {a.name for n in ast.walk(tree) if isinstance(n, ast.ImportFrom) and n.module == "models" for a in n.names}
@@ -187,7 +187,7 @@ def test_reports_alone_count_on_the_same_page(tmp_path):
         assert after["overall"] == before["overall"] and after["completed"] == before["completed"] and after["total"] == before["total"]
 
         catalogue = {r["id"]: r for r in _body(client, "/api/achievements")}
-        assert catalogue[173]["counted"] is False and catalogue[7]["counted"] is True and catalogue[173]["unlocked_share"] is None  # nobody has 10+ games yet
+        assert catalogue[173]["counted"] is True and catalogue[7]["counted"] is True and catalogue[173]["unlocked_share"] is None  # nobody has 10+ games yet
         assert any(e["id"] in {x.id for x in RULES_HERE} and e["user_id"] == "4" for e in _body(client, "/api/achievements/recent"))
         assert client.get("/api/players/nobody/achievements").status_code == 404
 

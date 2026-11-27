@@ -9,7 +9,8 @@ from fastapi import APIRouter, Query, Request
 from fastapi.responses import FileResponse
 from sqlalchemy import func, select
 
-from .. import auth
+from .. import aliases, auth
+from ..discord_links import main_id
 from ..achievements import FULL_GAME_S, MEGA_COMBAT, icon_file
 from ..arena import COMBAT_MIN_TEAM
 from ..admin_actions import mega_visible, mega_window, window_active
@@ -293,9 +294,12 @@ def player(request: Request, user_id: str):
         raise ApiError(404, "not_found", "Not found")
     with request.app.state.sessionmaker() as db:
         start, end = mega_window(db)
-        accounts = db.scalars(select(NakamaAccount).where(NakamaAccount.replay_user_id == user_id)).all()
+        # every id merged into the player (user, 2026-11-27: echofox's page, 341, showed 0: their account on the match list
+        # is linked to the Discord-id player merged into it, not to 341 itself)
+        own = aliases.ids_of(db, main_id(db, user_id))
+        accounts = db.scalars(select(NakamaAccount).where(NakamaAccount.replay_user_id.in_(own))).all()
         ids = {a.user_id for a in accounts}
-        discords = {a.discord_id for a in accounts if a.discord_id} | {user_id}
+        discords = {a.discord_id for a in accounts if a.discord_id} | own
         combat = sum(w["count"] for w in _cached_totals(request, db, start, end) if w["user_id"] in ids) if ids else 0
         arena_ids = set(db.scalars(select(ArenaPlayer.user_id).where(ArenaPlayer.user_id.in_(ids) | ArenaPlayer.discord_id.in_(discords))))
         arena = sum(w["count"] for w in _cached_arena(request, db, start, end) if w["user_id"] in arena_ids) if arena_ids else 0

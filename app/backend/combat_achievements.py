@@ -1,6 +1,8 @@
 """Combat achievements (user, 2026-11-05): built only from the recorder's match reports (combat_matches, combat_players), kept
 completely apart from the replay data and from RULES. They use the same medal engine and show on the same Achievements page, but
-they never read a replay table, and the replay-based overall %, totals, rankings and Medal Collector never count them.
+they never read a replay table. Since 2026-11-27 they count (user: "Make Combat count"): in the totals, the average, Top players,
+the challenges leaderboard and Medal Collector, added on top of the replay answer when it is looked at (profile_achievements),
+never mixed into the replay evaluation.
 
 What counts is judged from the report itself: 4+ minutes present and 2+ players per team (each there for at least half of the
 match; user, 2026-11-27: was 3+, the replay rules keep 3+). The challenge period applies too. Merged accounts (player_aliases) add up.
@@ -178,6 +180,9 @@ BINARY_COMBAT_IDS = frozenset({170, *range(249, 265)})
 COMBAT_RULES = [replace(r, binary=True) if r.id in BINARY_COMBAT_IDS else r for r in COMBAT_RULES]
 # The award cards are flagged (the site's "Award cards" box), and no rule carries a category tag in its name (achievements.plain_name)
 COMBAT_RULES = [replace(r, award=r.name.endswith("(Award card)"), name=plain_name(r.name)) for r in COMBAT_RULES]
+# Full challenges (user, 2026-11-27: "Make Combat count"): were counted=False (provisional, 2026-11-05). Changing a target now
+# changes people's tiers, totals and ranking.
+COMBAT_RULES = [replace(r, counted=True) for r in COMBAT_RULES]
 
 
 def _card_list(raw) -> list[str]:
@@ -259,6 +264,12 @@ def _everyone(sessions, window: tuple) -> dict:
             data = {"players": players, "names": names, "aliases": aliases}
             _cache[id(sessions)] = (key, data)
             return data
+
+
+def everyone(sessions, window: tuple) -> dict:
+    """{"players": {main user id: {"games", "results" (COMBAT_RULES order), "medals"}}, "names", "aliases"}; the same
+    object while nothing changed."""
+    return _everyone(sessions, window)
 
 
 def player_items(sessions, window: tuple, user_id: str) -> list[dict]:

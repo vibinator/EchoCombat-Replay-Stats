@@ -183,11 +183,12 @@ def player_achievements(request: Request, user_id: str):
     with request.app.state.sessionmaker() as db:
         window = counted_window(db)  # part of the cache key: an admin period change shows at once
     result, status = cached_status(request, **_player_job_spec(request, user_id, window), persist=True)
-    # the Combat cards come from the recorder's reports, apart from the replay answer and its totals (D56)
+    # the Combat cards come from the recorder's reports, apart from the replay answer (D56); counted in its totals since
+    # 2026-11-27 (user: "Make Combat count"), added by counted_answer below
     items = result["items"] + combat_achievements.player_items(request.app.state.sessionmaker, window, user_id)
     with request.app.state.sessionmaker() as db:
         items += profile_achievements.player_items(db, user_id)  # "Edit your Bio" (user, 2026-11-26): from the page, not games
-        # the George League cards count as full challenges (user, 2026-11-27): in the totals and Medal Collector
+        # the George League and Combat cards count as full challenges (user, 2026-11-27): in the totals and Medal Collector
         result, items = profile_achievements.counted_answer(result, items)
         from . import pins  # pins.py imports this module
         # a completed pin removes itself (user, 2026-11-27); the pins left are public, so they ride in this shared answer
@@ -595,8 +596,9 @@ _league_memo: dict[int, tuple[dict, float, dict]] = {}  # id(sessions) -> (the r
 
 
 def _counted(request: Request) -> dict:
-    """The ranking with the George League cards in it (user, 2026-11-27: full challenges). Put on top of the cached
-    ranking, not into it: the league changes without any game."""
+    """The ranking with the George League and Combat cards in it (user, 2026-11-27: full challenges). Put on top of the
+    cached ranking, not into it: the league changes without any game, and the Combat cards come from the recorder's
+    reports (kept apart from the replay data, only added together here). New reports show within LEAGUE_REFRESH_S."""
     sessions = request.app.state.sessionmaker
     data = _everyone(request)
     memo = _league_memo.get(id(sessions))
@@ -604,7 +606,8 @@ def _counted(request: Request) -> dict:
         return memo[2]
     with sessions() as db:
         extra = profile_achievements.league_progress(db)
-    out = profile_achievements.with_league(data, extra)
+        combat = profile_achievements.combat_progress(db, combat_achievements.everyone(sessions, counted_window(db)))
+    out = profile_achievements.with_league(data, extra, combat)
     _league_memo[id(sessions)] = (data, time.monotonic(), out)
     return out
 
@@ -614,7 +617,7 @@ def achievement_ranking(request: Request) -> list[tuple[int, int, float]]:
 
 
 def achievement_progress(request: Request) -> dict[int, list[float]]:
-    """player_id -> progress per rule (profile_achievements.COUNTED_RULES order: RULES, then the George League cards),
+    """player_id -> progress per rule (profile_achievements.COUNTED_RULES order: RULES, the George League cards, Combat),
     from the same cached computation as the ranking."""
     return _counted(request)["progress"]
 

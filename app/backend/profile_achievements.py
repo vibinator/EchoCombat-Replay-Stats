@@ -1,13 +1,15 @@
 """Challenges about the player's page rather than their games (user, 2026-11-26: "Edit your Bio", a special; removed and
-brought back the same day). Like the Combat challenges they are added to a player's answer apart from the replay ones, and
-stay out of every total, the ranking and Medal Collector (counted=False): the replay evaluation is cached per set of games,
-and a bio changes without any game. The George League ones count as full challenges (user, 2026-11-27): they are put on
-top of the cached answers when looked at (counted_answer, with_league)."""
+brought back the same day). They are added to a player's answer apart from the replay ones; "Edit your Bio" stays out of
+every total, the ranking and Medal Collector (counted=False): the replay evaluation is cached per set of games, and a bio
+changes without any game. The George League ones count as full challenges (user, 2026-11-27), and so do the Combat ones
+(user, 2026-11-27: "Make Combat count"): they are put on top of the cached answers when looked at (counted_answer,
+with_league)."""
 
 from sqlalchemy import func, select
 
 from . import aliases, discord_links
-from .achievements import RULES, Rule, _levelled, clamp, level_tier
+from .achievements import RULES, Rule, _levelled, _reached_gold, clamp, level_tier
+from .combat_achievements import COMBAT_RULES
 from .models import DiscordProfile, LeagueMember, NakamaAccount, Player, PlayerProfile
 
 GROUP = "Profile"
@@ -99,7 +101,11 @@ def player_items(db, user_id: str) -> list[dict]:
 # the league cards are put on top of them when they are looked at: they add to the total, the completed count and
 # the average, and a won card is one more challenge for Medal Collector.
 
-COUNTED_RULES = [*RULES, *LEAGUE_RULES]  # the rules behind a ranking row's progress list (with_league), in this order
+# The Combat challenges count the same way (user, 2026-11-27: "Make Combat count"): from the recorder's reports, cached
+# apart from the replay answer and only added to it here, never mixed into the replay evaluation.
+EXTRA_RULES = [*LEAGUE_RULES, *COMBAT_RULES]  # put on top of the replay answer, in this order
+COUNTED_RULES = [*RULES, *EXTRA_RULES]  # the rules behind a ranking row's progress list (with_league), in this order
+_EXTRA_BY_ID = {r.id: r for r in EXTRA_RULES}
 _COLLECTOR = next(i for i, r in enumerate(RULES) if r.meta)  # Medal Collector
 _COLLECTOR_RULE = RULES[_COLLECTOR]
 
@@ -123,13 +129,14 @@ def _collector_count(progress: float) -> float:
 def counted_answer(result: dict, items: list[dict]) -> tuple[dict, list[dict]]:
     """One player's answer with the league cards in its totals and Medal Collector (new dicts: `result` and its items
     are the cached ones)."""
-    league = [i for i in items if i.get("group") == LEAGUE_GROUP and i.get("counted")]
+    league = [i for i in items if i["id"] in _EXTRA_BY_ID and i.get("counted")]  # the league and Combat cards
     won = sum(1 for i in league if i["progress"] >= 1)
+    collected = sum(1 for i in league if _reached_gold(i, _EXTRA_BY_ID[i["id"]]))  # Medal Collector: a ladder from silver on
     old = new = 0.0
-    if won:
+    if collected:
         for k, item in enumerate(items):
             if item["id"] == _COLLECTOR_RULE.id and "count" in item:
-                n = item["count"] + won
+                n = item["count"] + collected
                 old, new = item["progress"], _collector(n)
                 items = items[:k] + [item | {"count": n, "progress": new, "tier": level_tier(n, _COLLECTOR_RULE.levels)}] + items[k + 1:]
                 break
@@ -158,16 +165,45 @@ def league_progress(db) -> dict[int, list[float]]:
     return out
 
 
-def with_league(data: dict, extra: dict[int, list[float]]) -> dict:
-    """The ranking ({"rows": [(player row id, games, overall)], "progress": {id: [per RULES]}, ...}) with the league cards
-    appended to every progress list (COUNTED_RULES order) and in every average and Medal Collector."""
+def combat_progress(db, combat: dict) -> dict[int, tuple[list[float], int, int, bool]]:
+    """player row id -> (progress of each Combat card in COMBAT_RULES order, how many count for Medal Collector, counted
+    Combat games, whether the row is the main one of a merged player), from combat_achievements.everyone(). Every row of
+    a merged player gets the cards (the replay ranking is per row, like the league cards)."""
+    players, merged = combat["players"], combat["aliases"]
+    out: dict[int, tuple[list[float], int, int, bool]] = {}
+    for pid, user_id in db.execute(select(Player.id, Player.user_id)):
+        main = merged.get(user_id, user_id)
+        p = players.get(main)
+        if p is not None:
+            results = p["results"]
+            out[pid] = ([r["progress"] for r in results],
+                        sum(1 for r, rule in zip(results, COMBAT_RULES) if _reached_gold(r, rule)), len(p["games"]),
+                        main == user_id)
+    return out
+
+
+def with_league(data: dict, extra: dict[int, list[float]], combat: dict[int, tuple[list[float], int, int, bool]] | None = None) -> dict:
+    """The ranking ({"rows": [(player row id, games, overall)], "progress": {id: [per RULES]}, ...}) with the league and
+    Combat cards appended to every progress list (COUNTED_RULES order) and in every average and Medal Collector. A player
+    with Combat reports but no replay game in the period joins it, with their Combat games as `games`."""
+    combat = combat or {}
     none = [0.0] * len(LEAGUE_RULES)
+    no_combat = ([0.0] * len(COMBAT_RULES), 0, 0, True)
     total = len(RULES)
     progress, rows = {}, []
-    for pid, games, overall in data["rows"]:
+    listed = data["rows"]
+    have = {pid for pid, _, _ in listed}
+    joining = [pid for pid, c in combat.items() if pid not in have and c[2] and c[3]]  # the main row only: listed once
+    if joining:
+        blank = [0.0] * len(RULES)
+        # no replay game: the replay cards at 0 (Medal Collector too, before the Combat ones), ranked by the Combat games
+        listed = [*listed, *((pid, combat[pid][2], 0.0) for pid in joining)]
+        data = data | {"progress": {**data["progress"], **{pid: blank for pid in joining}}}
+    for pid, games, overall in listed:
         values = data["progress"][pid]
-        league = extra.get(pid, none)
-        won = sum(1 for v in league if v >= 1)
+        cards, collected, _, _ = combat.get(pid, no_combat)
+        league = [*extra.get(pid, none), *cards]
+        won = sum(1 for v in extra.get(pid, none) if v >= 1) + collected  # Medal Collector: league won, Combat from silver on
         if won:
             values = list(values)
             old = values[_COLLECTOR]

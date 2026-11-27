@@ -354,7 +354,7 @@ TUNED_LEVELS: dict[int, tuple[float, ...]] = {
     # 4-month challenge period (user, 2026-11-26): the ladders nobody could finish in the last real 4 months (27 Jul-26 Nov,
     # 255 regulars) made reachable; the rest already land at a 2-6 % crown and stay.
     17: (1, 1.5, 2, 3, 4),  # Versatile Bot: days with all 12 items (best regular 2; was 1 / 5 / 13 / 23)
-    67: (5, 15, 25, 50, 75),  # rounder numbers (user, 2026-11-27), was (7, 17, 27, 54, 78); halfway to November's pace (user, 2026-11-26);  # I Use All the Loadouts (was 5th Loadout when?): crown 4 % (was 7 / 29 / 62 / 87, 0 %)
+    67: (5, 15, 25, 50, 100),  # crown 100 (user, 2026-11-27), was 75; rounder numbers (user, 2026-11-27), was (7, 17, 27, 54, 78); halfway to November's pace (user, 2026-11-26);  # I Use All the Loadouts (was 5th Loadout when?): crown 4 % (was 7 / 29 / 62 / 87, 0 %)
     123: (2, 3, 5, 10, 15),  # rounder numbers (user, 2026-11-27), was (2, 3.5, 5, 9, 15); halfway to November's pace (user, 2026-11-26);  # No Gun Left Behind: least-used weapon (best 20; was 1 / 18 / 78 / 156)
     86: (2, 3, 5, 10, 15),  # rounder numbers (user, 2026-11-27), was (2, 3.5, 5, 9, 15); halfway to November's pace (user, 2026-11-26);  # Forbidden Arsenal: the same ladder as No Gun Left Behind (best 11)
     124: (2, 3, 5, 10, 15),  # rounder numbers (user, 2026-11-27), was (2, 3.5, 5, 9, 15); halfway to November's pace (user, 2026-11-26);  # Loadout Scholar Bot: least-used item (best 12)
@@ -368,7 +368,7 @@ TUNED_LEVELS: dict[int, tuple[float, ...]] = {
     77: (10, 25, 40, 60, 75),  # rounder numbers (user, 2026-11-27), was (12, 26, 40, 60, 74); halfway to November's pace (user, 2026-11-26);  # George and I Go Way Back (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 7/15/26/45/80)
     78: (10, 25, 40, 60, 75),  # rounder numbers (user, 2026-11-27), was (12, 26, 40, 60, 74); halfway to November's pace (user, 2026-11-26);  # Good ol' George (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 7/15/26/46/75)
     79: (50, 150, 250, 500, 1000),  # rounder numbers (user, 2026-11-27), was (39, 89, 140, 250, 290); halfway to November's pace (user, 2026-11-26);  # King/Queen of Pubs (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 28/60/105/190/320)
-    90: (3, 4, 5, 7, 9),  # On a Roll / Echo Streak (2026-11-26, user: harder at the top, crown 4 % of 194 regulars, was 9 % at 3 / 5 / 6 / 7)
+    90: (3, 4, 5, 7, 10),  # crown an even 10 (user, 2026-11-27), was 9; On a Roll / Echo Streak (2026-11-26, user: harder at the top, crown 4 % of 194 regulars, was 9 % at 3 / 5 / 6 / 7)
     96: (100, 120, 140, 175, 205),  # Pedal to the Metal  # 2026-11-11 (user): crown unchanged at about 7.5 % of regulars, steps of 40 / 35 / 30 s; was 112/160/182/198/207
     97: (22, 34, 45, 60, 70),  # Payload Roadblock (2026-11-11, user: crown for about 7.5 % of regulars after the death and bounds corrections; was 22/44/60/73/84)
     98: (5, 15, 25, 40, 50),  # rounder numbers (user, 2026-11-27), was (5, 14, 23, 38, 53); halfway to November's pace (user, 2026-11-26);  # Payload Freight Train (Payload) (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 3.3/8.6/15/25/46)
