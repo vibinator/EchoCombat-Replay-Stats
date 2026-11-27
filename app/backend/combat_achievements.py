@@ -2,8 +2,8 @@
 completely apart from the replay data and from RULES. They use the same medal engine and show on the same Achievements page, but
 they never read a replay table, and the replay-based overall %, totals, rankings and Medal Collector never count them.
 
-What counts is judged from the report itself: 4+ minutes present and 3+ players per team (each there for at least half of the
-match), the same limits as the replay rules. The challenge period applies too. Merged accounts (player_aliases) add up.
+What counts is judged from the report itself: 4+ minutes present and 2+ players per team (each there for at least half of the
+match; user, 2026-11-27: was 3+, the replay rules keep 3+). The challenge period applies too. Merged accounts (player_aliases) add up.
 
 Targets are PROVISIONAL (user, 2026-11-05: "we will work on this as more data comes in"). One-game and one-day targets come from
 about one day of reports (4-5 Nov 2026), near what the top 40 / 20 / 12 / 7.5 / 5 % reached, rounded up as bests rise over time;
@@ -26,7 +26,7 @@ from .aliases import alias_map
 from .models import CombatFile, CombatMatch, CombatPlayer
 
 GROUP = "Combat"
-MIN_PER_TEAM = 3
+MIN_PER_TEAM = 2  # 2v2 and up (user, 2026-11-27: was 3v3); the replay challenges keep 3+ per team
 RARITY_MIN_GAMES = 10
 RECENT_DAYS = 30
 
@@ -62,6 +62,7 @@ def _total(value):
     def total(games):
         return sum(value(g) for g in games)
     total.min_length = total.enough_players = True  # shown as rule notes; load_games only keeps games that meet them
+    total.min_per_team = MIN_PER_TEAM
     return total
 
 

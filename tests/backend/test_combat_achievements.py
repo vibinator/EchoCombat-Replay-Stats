@@ -9,7 +9,7 @@ from app_helpers import act, add, app_client, make_settings
 from backend import achievement_sheet, admin_actions as actions, combat_achievements as ca, icons
 from backend.achievements import RULES, evaluate, medal_times, rule_notes
 from backend.models import CombatFile, CombatMatch, CombatPlayer, PlayerAlias
-from backend.profile_achievements import PROFILE_RULES
+from backend.profile_achievements import COUNTED_RULES, PROFILE_RULES
 
 RULES_HERE = ca.COMBAT_RULES
 STARTED = "2026-11-05T20:00:00"
@@ -37,7 +37,7 @@ def test_kept_apart_from_the_replay_rules():
 def test_one_game_ladders():
     assert results([game(kills=10, deaths=0)])[170]["progress"] == 1
     assert results([game(kills=10, deaths=1)])[170]["progress"] == 0 and results([game(kills=9, deaths=0)])[170]["progress"] == 0
-    assert rule_notes(next(x for x in RULES_HERE if x.id == 170)) == ["Best game", "4+ min games", "3+ players per team"]
+    assert rule_notes(next(x for x in RULES_HERE if x.id == 170)) == ["Best game", "4+ min games", "2+ players per team"]  # Combat: 2v2 and up (user, 2026-11-27)
 
 
 def test_days_and_all_time():
@@ -106,6 +106,20 @@ FULL = [("1", "blue", 400.0, 9, 2), ("2", "blue", 400.0, 3, 11), ("3", "blue", 4
         ("4", "orange", 400.0, 12, 0), ("5", "orange", 400.0, 0, 0), ("6", "orange", 400.0, 0, 0)]
 
 
+def test_combat_challenges_count_from_2v2(tmp_path):
+    """Combat challenges count games of 2v2 and up (user, 2026-11-27: was 3v3); a 2v1 does not count."""
+    from backend.db import open_db
+
+    engine, sessions = open_db(tmp_path / "s.db", 0)
+    with sessions() as db:
+        _report(db, "A0000000-0000-0000-0000-000000000011", players=FULL[:2] + FULL[3:5])  # 2v2
+        _report(db, "A0000000-0000-0000-0000-000000000012", started="2026-11-05T21:00:00", players=FULL[:2] + FULL[3:4])  # 2v1
+        db.commit()
+        games = ca.load_games(db, {})[0]
+    assert len(games["1"]) == 1 and len(games["5"]) == 1 and "3" not in games
+    assert ca.MIN_PER_TEAM == 2
+    engine.dispose()
+
 def test_objective_damage_heals_and_stuns(tmp_path):
     """Siege Breaker reads every report; Field Medic and Shock Trooper only a complete event log, whose counts can be trusted."""
     from backend.db import open_db
@@ -148,7 +162,7 @@ def test_reports_alone_count_on_the_same_page(tmp_path):
         assert {r["progress"] for r in before["items"] if r["group"] == "Combat"} == {0}
         with sessions() as db:
             _report(db, "A0000000-0000-0000-0000-000000000001", players=FULL)  # no replay has this session id
-            _report(db, "A0000000-0000-0000-0000-000000000002", players=FULL[:3] + FULL[3:5])  # 3v2: too small
+            _report(db, "A0000000-0000-0000-0000-000000000002", players=FULL[:2] + FULL[3:4])  # 2v1: too small (2v2 and up count, user 2026-11-27)
             # player 1 is there for 100 s only: not counted for them, but their 30 kills still top the match
             _report(db, "A0000000-0000-0000-0000-000000000003", players=[("1", "blue", 100.0, 30, 0), ("8", "blue", 400.0, 0, 0)] + FULL[1:])
             db.add(PlayerAlias(alias_user_id="77", main_user_id="2", created_at="x"))
@@ -160,8 +174,8 @@ def test_reports_alone_count_on_the_same_page(tmp_path):
             return answer, {r["id"]: r for r in answer["items"]}
 
         answer, one = page("1")  # a player the replays never saw has a page
-        assert answer["name"] == "name1" and answer["games"] == 0 and answer["total"] == len(RULES) and len(answer["items"]) == len(RULES) + len(RULES_HERE) + len(PROFILE_RULES)  # + Edit your Bio and the George League ones (profile_achievements)
-        assert one[173]["count"] == 18  # 2 counted matches: the 3v2 and the 100 s one do not count
+        assert answer["name"] == "name1" and answer["games"] == 0 and answer["total"] == len(COUNTED_RULES) and len(answer["items"]) == len(RULES) + len(RULES_HERE) + len(PROFILE_RULES)  # + Edit your Bio and the George League ones (profile_achievements)
+        assert one[173]["count"] == 18  # 2 counted matches: the 2v1 and the 100 s one do not count
         _, two = page("2")
         assert two[173]["count"] == 14  # 3 + 3 + (3 + 5 from the merged id)
         assert two[174]["count"] == 34  # 11 + 11 + (11 + 1 from the merged id)

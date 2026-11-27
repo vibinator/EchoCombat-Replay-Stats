@@ -1023,7 +1023,7 @@ def _rule_notes(rule: Rule) -> list[str]:
     if getattr(fn, "min_length", False) or rule.id in _NOTE_MIN_IDS:
         notes.append(f"{getattr(fn, 'min_s', FULL_GAME_S) / 60:g}+ min games")
     if getattr(fn, "enough_players", False) or rule.id in _NOTE_4V4_IDS:
-        notes.append("3+ players per team")
+        notes.append(f"{getattr(fn, 'min_per_team', 3)}+ players per team")  # Combat: 2+ (user, 2026-11-27)
     if rule.id in _NOTE_MAP_IDS:
         notes.append(f"{MIN_IN_BOUNDS_S / 60:g}+ min on the map")
     if getattr(fn, "use_only", False) or rule.id in _NOTE_ONLY_IDS:
@@ -1202,13 +1202,13 @@ def section_of(rule: Rule) -> str:
     return PERIOD_SECTIONS[rule.period]
 
 
-def achiever_facts(progress: list[float]) -> dict:
-    """Fun facts about one player from the progress per rule (same order as RULES): challenges completed, medals earned
+def achiever_facts(progress: list[float], rules: list[Rule] = RULES) -> dict:
+    """Fun facts about one player from the progress per rule (same order as `rules`): challenges completed, medals earned
     (one per ladder step reached, a single-step rule counts once), challenges at gold or better, and the section with
     the highest average progress."""
     completed = medals = gold_plus = 0
     sections: dict[str, list[float]] = defaultdict(list)
-    for rule, p in zip(RULES, progress):
+    for rule, p in zip(rules, progress):
         sections[section_of(rule)].append(p)
         completed += p >= 1
         if rule.levels:
@@ -1219,7 +1219,7 @@ def achiever_facts(progress: list[float]) -> dict:
             medals += 1
             gold_plus += 1
     best = max(((sum(v) / len(v), name) for name, v in sections.items() if len(v) >= SECTION_MIN_RULES), default=(0.0, None))
-    return {"completed": completed, "total": len(RULES), "medals": medals, "gold_plus": gold_plus,
+    return {"completed": completed, "total": len(rules), "medals": medals, "gold_plus": gold_plus,
             "best_section": best[1] if best[0] > 0 else None, "best_section_share": round(best[0], 4)}
 
 

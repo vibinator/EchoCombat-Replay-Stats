@@ -8,7 +8,7 @@ from backend import admin_actions as actions
 from backend.achievements import rule_notes, RULES, Game, _all_time, _easier_platinum, _harder, _scaled, evaluate, icon_file, overall, tier
 
 from backend.combat_achievements import COMBAT_RULES
-from backend.profile_achievements import PROFILE_RULES
+from backend.profile_achievements import COUNTED_RULES, PROFILE_RULES
 
 BLUE = str(rf.BIG_USER_ID)
 
@@ -117,7 +117,7 @@ def test_api_and_leaderboard(tmp_path):
         add(client, {f"dyson/{i}.echoreplay": rf.plain(rf.lines(20)) for i in range(2)})
         act(client, actions.set_challenge_window, "2026-01-01", None)
         a = client.get(f"/api/players/{BLUE}/achievements").json()
-        assert a["total"] == len(RULES) and len(a["items"]) == len(RULES) + len(COMBAT_RULES) + len(PROFILE_RULES) and 0 <= a["overall"] <= 1
+        assert a["total"] == len(COUNTED_RULES) and len(a["items"]) == len(RULES) + len(COMBAT_RULES) + len(PROFILE_RULES) and 0 <= a["overall"] <= 1
         assert client.get("/api/players/nobody/achievements").status_code == 404
         assert len(client.get("/api/achievements").json()) == len(RULES) + len(COMBAT_RULES) + len(PROFILE_RULES)
         board = client.get("/api/leaderboard", params={"stat": "achievements", "min_games": 1}).json()
@@ -484,7 +484,7 @@ def test_achiever_facts_and_endpoint(tmp_path):
         act(client, actions.set_challenge_window, "2026-01-01", None)
         top = client.get("/api/leaderboard/achievers", params={"min_games": 1}).json()
         assert {r["name"] for r in top} == {"Player", "Other"}
-        assert all(r["total"] == len(RULES) and 0 <= r["completed"] <= len(RULES) and "medals" in r for r in top)
+        assert all(r["total"] == len(COUNTED_RULES) and 0 <= r["completed"] <= len(RULES) and "medals" in r for r in top)  # + George League (user, 2026-11-27)
 
 
 def test_test_drives_are_retired():

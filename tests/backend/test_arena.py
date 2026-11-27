@@ -252,6 +252,23 @@ def combat_label(match_id, users):
                          "team": "blue" if i % 2 else "orange"} for i, u in enumerate(users)]}
 
 
+def test_combat_prize_counts_from_2v2_arena_stays_3v3(tmp_path):
+    """The Echo Combat Mega Prize counts 2v2 and up (user, 2026-11-27: "for ONLY the combat mega prizes"); Arena keeps 3v3."""
+    from backend.models import NakamaCombatCounted
+    steps = int(MIN_PRESENT_S // 60) + 2
+    two = combat_label("S2.node", list("abcd"))  # 2v2
+    one = combat_label("S3.node", list("xyz"))  # 2v1: too small
+    arena_two = label("m9", list("pqrs"))
+    for i, p in enumerate(arena_two["players"]):
+        p["team"] = "blue" if i < 2 else "orange"  # an Arena 2v2: not counted
+    t, sm = tracker(tmp_path, [[two, one, arena_two]] * steps)
+    for i in range(steps):
+        t.poll(now=1000.0 + 60 * i)
+    with sm() as db:
+        assert {(c.match_id, c.user_id) for c in db.scalars(select(NakamaCombatCounted))} == {("S2.node", u) for u in "abcd"}
+        assert db.scalar(select(ArenaPlayer.user_id)) is None
+
+
 def test_combat_counted_from_the_list_once_per_match_and_kept(tmp_path):
     from backend.models import NakamaCombatCounted, NakamaCombatPlayer
     six = list("abcdef")

@@ -105,8 +105,8 @@ The Combat section of the Achievements page (ids 164-178, 198-200 and 202-221 wi
 `COMBAT_RULES`, which is not in `RULES`, so replay-based overall %, totals, rankings and Medal Collector never include it. The
 `/api/players/{id}/achievements`, `/api/achievements` and `/api/achievements/recent` answers add its cards after the replay ones.
 
-A game counts when the report shows the player present for 4+ minutes and 3+ players per team, each there for at least half of the
-match. The challenge period applies to the report's start time. A report with no replay counts, and someone with reports but no
+A game counts when the report shows the player present for 4+ minutes and 2+ players per team, each there for at least half of the
+match (user, 2026-11-27: was 3+; the replay challenges keep 3+). The challenge period applies to the report's start time. A report with no replay counts, and someone with reports but no
 replay still gets a page. Results are rebuilt when a report is read, a merge changes or the period changes; only players whose
 counted games changed are evaluated again.
 

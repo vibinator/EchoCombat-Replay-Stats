@@ -6,6 +6,7 @@ from backend.combat_achievements import COMBAT_RULES
 from backend.db import open_db
 from backend.icons import RULE_IDS
 from backend.models import NakamaAccount, Player, PlayerProfile
+from sqlalchemy import select
 
 
 def _card(items, rule):
@@ -42,11 +43,12 @@ def test_edit_your_bio_is_won_or_not(tmp_path):
     assert (item["binary"], item["tier"]) == (True, "crown")
 
 
-def test_george_league_specials_are_out_of_every_total():
-    """The George League Specials (user, 2026-11-27): Rookie League only, from the league's own site."""
+def test_george_league_specials_are_full_challenges():
+    """The George League Specials (user, 2026-11-27): Rookie League only, from the league's own site; they count as full
+    challenges (user, same day), Edit your Bio stays out of the totals."""
     assert [r.id for r in pa.LEAGUE_RULES] == [280, 281, 282, 283, 284]
     for r in pa.LEAGUE_RULES:
-        assert (r.period, r.counted, r.binary, r.group) == ("game", False, True, "George League")
+        assert (r.period, r.counted, r.binary, r.group) == ("game", True, True, "George League")
         assert r.id not in {x.id for x in RULES + COMBAT_RULES} and r.id in RULE_IDS
         assert "Rookie" in r.description
     assert pa.LEAGUE_RULE.name == "Join Echo Combat George League"
@@ -75,3 +77,45 @@ def test_league_cards_follow_the_players_discord_account(tmp_path):
     assert three[L]["progress"] == three[T]["progress"] == 0.0
     assert (shares[L], shares[T]) == (0.5, 0.25)  # 2 / 1 of the 4 players here; the member without a page is not counted
     assert one[L]["rules"] == pa.LEAGUE_NOTES
+
+
+def test_won_league_cards_count_in_totals_ranking_and_medal_collector(tmp_path):
+    """A won George League card is one more challenge fully complete (user, 2026-11-27): in the player's totals, the
+    ranking's progress and average, and Medal Collector (one more challenge counted)."""
+    from backend import league
+    from backend.achievements import achiever_facts
+    mc = pa._COLLECTOR_RULE
+    _, sm = open_db(tmp_path / "w.db", 0)
+    with sm() as db:
+        db.add_all([Player(user_id=u, name=u, first_seen_at="t", last_seen_at="t") for u in ("123456789012345678", "p2")])
+        db.commit()
+    league.store(sm, league.Rosters(league={"123456789012345678"}, on_team={"123456789012345678"}), now="2026-11-27T10:00:00")
+    with sm() as db:
+        items = pa.player_items(db, "123456789012345678")
+        extra = pa.league_progress(db)
+        pid1, pid2 = (db.scalar(select(Player.id).where(Player.user_id == u)) for u in ("123456789012345678", "p2"))
+    assert extra == {pid1: [1.0, 1.0, 0.0, 0.0, 0.0]}  # joined and on a team; p2 is not in the league
+
+    # the player's own answer: Medal Collector at 4 of its first 5 -> 6 with the two league cards
+    collector = {"id": mc.id, "group": mc.group, "counted": True, "progress": pa._collector(4), "count": 4, "tier": None}
+    result = {"total": len(RULES), "completed": 3, "overall": 0.5}
+    out, cards = pa.counted_answer(result, [collector] + items)
+    assert out["total"] == len(RULES) + len(pa.LEAGUE_RULES) and out["completed"] == 3 + 2
+    assert cards[0]["count"] == 6 and cards[0]["tier"] == "bronze" and cards[0]["progress"] == pa._collector(6)
+    expected = (0.5 * len(RULES) - pa._collector(4) + pa._collector(6) + 2) / (len(RULES) + 5)
+    assert out["overall"] == round(expected, 4) and result["total"] == len(RULES)  # the cached one is not changed
+
+    # the ranking: the same two cards appended, in the average and in Medal Collector
+    index = pa._COLLECTOR
+    base = [0.0] * len(RULES)
+    base[index] = pa._collector(4)
+    data = {"rows": [(pid1, 20, 0.1), (pid2, 20, 0.1)], "progress": {pid1: base, pid2: list(base)}, "recent": []}
+    ranked = pa.with_league(data, extra)
+    one, two = ranked["progress"][pid1], ranked["progress"][pid2]
+    assert one[-5:] == [1.0, 1.0, 0.0, 0.0, 0.0] and one[index] == pa._collector(6) and two[index] == pa._collector(4)
+    assert len(one) == len(two) == len(pa.COUNTED_RULES) and data["progress"][pid1] is base  # the cached ranking is not changed
+    rows = dict((p, o) for p, _, o in ranked["rows"])
+    assert rows[pid1] > rows[pid2] == round(0.1 * len(RULES) / (len(RULES) + 5), 4)
+    facts = achiever_facts(one, pa.COUNTED_RULES)
+    assert facts["completed"] == 2 and facts["total"] == len(pa.COUNTED_RULES)
+    assert all(pa._collector_count(pa._collector(n)) == n for n in range(0, 75))  # the count comes back from the progress

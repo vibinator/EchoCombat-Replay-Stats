@@ -372,6 +372,7 @@ function ruleSentence(tag: string): string {
     "Best 30 days": "Your best 30 days in a row count",
     "All-time total": "Every game in the challenge period adds up",
     "3+ players per team": "Only games with 3+ players on each team count",
+    "2+ players per team": "Only games with 2+ players on each team count", // Combat challenges (user, 2026-11-27)
   };
   if (fixed[tag]) return fixed[tag];
   let m = /^([\d.]+)\+ min games$/.exec(tag);
@@ -569,7 +570,8 @@ export function MegaPrizesProfile({ userId }: { userId: string }) {
 
 /** What counts for each Mega Prize: shared by the Mega Prizes section and a player's profile row. */
 const MEGA_NOTES = {
-  combat: ["Only counts games of 4+ minutes with at least 3v3. Matches from the replay files before the live count started are included, linked by Discord ID."],
+  // Combat: 2v2 and up (user, 2026-11-27: was 3v3); Arena keeps 3v3
+  combat: ["Only counts games of 4+ minutes with at least 2v2. Matches from the replay files before the live count started are included, linked by Discord ID."],
   arena: ["Only counts public matches of 4+ minutes with at least 3v3 (or 6+ players)."],
 };
 
@@ -584,10 +586,11 @@ function MegaPrizesProfileBody({ userId }: { userId: string }) {
     { key: "combat" as const, short: "Delta-13", photos: "d13", rule: `Play ${d.combat.target.toLocaleString()} Echo Combat matches`, ...d.combat, prize: d.combat.prize ?? "Delta-13 from Lone Echo 2" },
     { key: "arena" as const, short: "Jack Series 11", photos: "jack", rule: `Play ${d.arena.target.toLocaleString()} Public Arena matches`, ...d.arena },
   ];
-  const period = d.period.start ? `${dateTime(d.period.start)} → ${d.period.end ?? "open-ended"}${d.period.active ? " (recording)" : ""}` : "No period set yet";
   return (
     <section className="mega-profile mega-row" aria-label="Mega Prizes">
-      <strong className="mega-row-label" title={`Only matches inside the Mega Prize period count: ${period}${d.linked ? "" : ". No game account is linked to this player yet."}`}>
+      {/* no period / account line, nor as hover text (user, 2026-11-27: removed "Only matches inside the Mega Prize period
+          count: <start> → <end> (recording). No game account is linked to this player yet.") */}
+      <strong className="mega-row-label">
         Mega Prizes{d.period.active && <span className="live-dot" aria-label="recording" />}
       </strong>
       {/* on the left, after the label (user, 2026-11-27), like the Challenges row's View all */}
@@ -609,7 +612,6 @@ function MegaPrizesProfileBody({ userId }: { userId: string }) {
       })}
       {open && (
         <div className="mega-row-more" id={`mega-profile-more-${userId}`}>
-          <span className="muted">Only matches inside the Mega Prize period count: {period}.{d.linked ? "" : " No game account is linked to this player yet."}</span>
           <div className="mega-cards">
             {prizes.map((x) => {
               const won = x.matches >= x.target;
@@ -1376,25 +1378,9 @@ export function ChallengeBanner() {
         )}
       </p>
     );
-  if (!d.launched) return null;
-  return <RecordingWindow what="challenges" />;
-}
-
-/** A clear box with the set period in which matches are recorded; used for achievements and for Mega Prizes. */
-export function RecordingWindow({ what }: { what: "challenges" | "Mega Prizes" }) {
-  const d = useApi(getChallenges, "challenge").data;
-  if (!d || !d.start) return null;
-  return (
-    <div className={`rec-window${d.active ? "" : " ended"}`} role="note">
-      <span className="rec-dates">
-        {dateTime(d.start)} → {d.end ?? "open-ended"}
-      </span>
-      <span className="muted">
-        Only matches played inside this period count for {what}
-        {what === "challenges" ? "; the player stats pages count every match" : ""}.
-      </span>
-    </div>
-  );
+  // after the launch: no period box (user, 2026-11-27: removed "<start> → <end>, only matches played inside this period
+  // count for challenges; the player stats pages count every match")
+  return null;
 }
 
 /** The counting rules in plain words, on the overview and on every player's page. */
@@ -1423,7 +1409,7 @@ export function AchievementRules({ open = false }: { open?: boolean }) {
         </li>
         <li>
           <strong>Each challenge lists its own rules</strong> under its description: whether the best game, day or 7 days counts, whether games
-          under 4 minutes are ignored, whether it needs 3+ players per team and how "only" is judged. <strong>"3+ players per team"</strong> = both teams had at least 3 players for at least half of the match (3v3, 3v4, 4v4, 5v5 and so on all count); smaller games do not count towards it. Recordings that cover less than half a match are ignored
+          under 4 minutes are ignored, whether it needs 3+ players per team and how "only" is judged. <strong>"3+ players per team"</strong> = both teams had at least 3 players for at least half of the match (3v3, 3v4, 4v4, 5v5 and so on all count); smaller games do not count towards it. The Combat challenges say <strong>"2+ players per team"</strong>: 2v2 and up count there. Recordings that cover less than half a match are ignored
           everywhere.
         </li>
         <li>

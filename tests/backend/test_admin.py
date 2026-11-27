@@ -12,7 +12,7 @@ from sqlalchemy import select
 from backend import admin_actions as actions
 from backend.achievements import RULES
 from backend.combat_achievements import COMBAT_RULES
-from backend.profile_achievements import PROFILE_RULES
+from backend.profile_achievements import COUNTED_RULES, PROFILE_RULES
 from backend.api.achievements import REVEALED_IDS
 from backend.models import PlayerAlias
 
@@ -223,7 +223,7 @@ def test_challenge_period(client):
     # "previews": the preview role sees achievements before the launch (the same for everyone; whether this visitor has
     # the role is in /api/auth/me)
     assert info == {"start": None, "end": None, "updated_at": None, "launched": False, "active": False, "previews": True,
-                    "visibility": "everyone", "total": len(RULES), "mega_public": False}
+                    "visibility": "everyone", "total": len(COUNTED_RULES), "mega_public": False}  # + George League (user, 2026-11-27)
     # the sneak peek gives counts and pictures; only the revealed few have names and descriptions
     assert sum(peek["periods"].values()) == len(RULES) + len(COMBAT_RULES) and peek["icons"]
     assert [a["id"] for a in peek["revealed"]] == list(REVEALED_IDS)

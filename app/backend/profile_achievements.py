@@ -1,12 +1,13 @@
 """Challenges about the player's page rather than their games (user, 2026-11-26: "Edit your Bio", a special; removed and
 brought back the same day). Like the Combat challenges they are added to a player's answer apart from the replay ones, and
 stay out of every total, the ranking and Medal Collector (counted=False): the replay evaluation is cached per set of games,
-and a bio changes without any game."""
+and a bio changes without any game. The George League ones count as full challenges (user, 2026-11-27): they are put on
+top of the cached answers when looked at (counted_answer, with_league)."""
 
 from sqlalchemy import func, select
 
-from . import discord_links
-from .achievements import Rule
+from . import aliases, discord_links
+from .achievements import RULES, Rule, _levelled, clamp, level_tier
 from .models import DiscordProfile, LeagueMember, NakamaAccount, Player, PlayerProfile
 
 GROUP = "Profile"
@@ -18,7 +19,9 @@ LEAGUE_GROUP = "George League"
 
 
 def _league(rule_id: int, name: str, description: str) -> Rule:
-    return Rule(rule_id, name, description, "game", None, lambda games: 0.0, new=True, group=LEAGUE_GROUP, counted=False, binary=True)
+    # full challenges (user, 2026-11-27: "make it count as a full challenge"): in the bar, the totals, the ranking and
+    # Medal Collector. Added to the replay answer on every look (counted_answer, with_league), never cached with it.
+    return Rule(rule_id, name, description, "game", None, lambda games: 0.0, new=True, group=LEAGUE_GROUP, counted=True, binary=True)
 
 
 LEAGUE_RULE = _league(280, "Join Echo Combat George League", "Join the Rookie League of the Echo Combat George League (ecgleague.com): be on a Rookie team or its leaderboard")
@@ -89,3 +92,89 @@ def player_items(db, user_id: str) -> list[dict]:
     member = db.get(LeagueMember, linked[0]) if linked else None
     return [_done(_entry(BIO_RULE), profile.updated_at if has_bio else None)] + [
         _done(_entry(rule), getattr(member, column) if member else None) for rule, column in LEAGUE_RULES.items()]
+
+
+# --- the George League cards as full challenges (user, 2026-11-27) ---------------------------------------------------
+# The replay answer and the ranking are cached per set of games; the league is read every hour without any game. So
+# the league cards are put on top of them when they are looked at: they add to the total, the completed count and
+# the average, and a won card is one more challenge for Medal Collector.
+
+COUNTED_RULES = [*RULES, *LEAGUE_RULES]  # the rules behind a ranking row's progress list (with_league), in this order
+_COLLECTOR = next(i for i, r in enumerate(RULES) if r.meta)  # Medal Collector
+_COLLECTOR_RULE = RULES[_COLLECTOR]
+
+
+def _collector(n: float) -> float:
+    return round(clamp(_levelled(lambda _: n, _COLLECTOR_RULE.levels)([])), 4)
+
+
+def _collector_count(progress: float) -> float:
+    """Medal Collector's count back from its progress (the ranking keeps progress only): exact for whole counts below
+    the crown; at the crown more cannot change anything."""
+    levels = _COLLECTOR_RULE.levels
+    x = progress * len(levels)
+    i = int(x + 1e-6)
+    if i >= len(levels):
+        return levels[-1]
+    prev = levels[i - 1] if i else 0
+    return round(prev + max(0.0, x - i) * (levels[i] - prev))
+
+
+def counted_answer(result: dict, items: list[dict]) -> tuple[dict, list[dict]]:
+    """One player's answer with the league cards in its totals and Medal Collector (new dicts: `result` and its items
+    are the cached ones)."""
+    league = [i for i in items if i.get("group") == LEAGUE_GROUP and i.get("counted")]
+    won = sum(1 for i in league if i["progress"] >= 1)
+    old = new = 0.0
+    if won:
+        for k, item in enumerate(items):
+            if item["id"] == _COLLECTOR_RULE.id and "count" in item:
+                n = item["count"] + won
+                old, new = item["progress"], _collector(n)
+                items = items[:k] + [item | {"count": n, "progress": new, "tier": level_tier(n, _COLLECTOR_RULE.levels)}] + items[k + 1:]
+                break
+    total = result["total"] + len(league)
+    summed = result["overall"] * result["total"] - old + new + sum(i["progress"] for i in league)
+    return result | {"total": total, "completed": result["completed"] + won + (new >= 1 > old),
+                     "overall": round(summed / total, 4) if total else 0.0}, items
+
+
+def league_progress(db) -> dict[int, list[float]]:
+    """player row id -> progress of each league card (LEAGUE_RULES order), for the members who have a player page here:
+    the same Discord account their page shows (player_items). Merged ids all get it (the ranking is per row)."""
+    out: dict[int, list[float]] = {}
+    for member in db.scalars(select(LeagueMember)):
+        values = [1.0 if getattr(member, column) else 0.0 for column in LEAGUE_RULES.values()]
+        if not any(values):
+            continue
+        main = discord_links.player_of(db, member.discord_id)
+        if main is None:
+            continue
+        linked = discord_links.discord_of(db, main)
+        if not linked or linked[0] != member.discord_id:
+            continue
+        for pid in db.scalars(select(Player.id).where(Player.user_id.in_(aliases.ids_of(db, main)))):
+            out[pid] = values
+    return out
+
+
+def with_league(data: dict, extra: dict[int, list[float]]) -> dict:
+    """The ranking ({"rows": [(player row id, games, overall)], "progress": {id: [per RULES]}, ...}) with the league cards
+    appended to every progress list (COUNTED_RULES order) and in every average and Medal Collector."""
+    none = [0.0] * len(LEAGUE_RULES)
+    total = len(RULES)
+    progress, rows = {}, []
+    for pid, games, overall in data["rows"]:
+        values = data["progress"][pid]
+        league = extra.get(pid, none)
+        won = sum(1 for v in league if v >= 1)
+        if won:
+            values = list(values)
+            old = values[_COLLECTOR]
+            values[_COLLECTOR] = _collector(_collector_count(old) + won)
+            overall = overall * total - old + values[_COLLECTOR]
+        else:
+            overall = overall * total
+        progress[pid] = [*values, *league]
+        rows.append((pid, games, round((overall + sum(league)) / (total + len(league)), 4)))
+    return data | {"rows": rows, "progress": progress}

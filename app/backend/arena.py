@@ -25,6 +25,7 @@ from .models import ArenaCounted, ArenaPlayer, NakamaAccount, NakamaCombatCounte
 URL = "https://g.echovrce.com/status/matches"
 MIN_PRESENT_S = 240.0  # time spent in one match before it counts (user, 2026-11-04)
 MIN_TEAM = 3  # a match needs 3v3 or bigger, or at least MIN_SEEN players seen in it (not spectators), when it would count (user, 2026-11-04)
+COMBAT_MIN_TEAM = 2  # the Echo Combat Mega Prize: 2v2 or bigger (user, 2026-11-27: "for ONLY the combat mega prizes"); Arena keeps 3
 MIN_SEEN = 6
 TIMEOUT_S = 5
 MAX_BYTES = 5_000_000
@@ -57,7 +58,8 @@ class _Kind:
     """One game type counted from the same list (Arena, Combat): its own tables and in-memory state, same rules
     (user, 2026-11-05: the Echo Combat Mega Prize is counted from the Nakama match list too, no longer from the replays)."""
 
-    def __init__(self, name, is_match, player_model, counted_model):
+    def __init__(self, name, is_match, player_model, counted_model, min_team=MIN_TEAM):
+        self.min_team = min_team  # players per team a match needs (or MIN_SEEN seen)
         self.audited = counted_model is NakamaCombatCounted  # only Combat keeps the audit columns
         self.name, self.is_match, self.player_model, self.counted_model = name, is_match, player_model, counted_model
         self.seen: dict[tuple[str, str], list[float]] = {}  # (match id, user id) -> [last seen, seconds present]
@@ -75,7 +77,7 @@ class Tracker:
         self.sessionmaker, self.interval = sessionmaker, settings.arena_poll_s
         self.fetch = fetch or self._fetch
         self.arena = _Kind("arena", is_public_arena, ArenaPlayer, ArenaCounted)
-        self.combat = _Kind("combat", is_public_combat, NakamaCombatPlayer, NakamaCombatCounted)
+        self.combat = _Kind("combat", is_public_combat, NakamaCombatPlayer, NakamaCombatCounted, COMBAT_MIN_TEAM)
         self._kinds = (self.arena, self.combat)
         self._accounts: dict[str, tuple] = {}  # Nakama user id -> (discord id, username, display name, written at)
         self.accounts_seen = 0
@@ -179,14 +181,14 @@ class Tracker:
             k.trimmed = now
         present: dict[tuple[str, str], dict] = {}
         barred: set[str] = set()
-        small: set[tuple[str, str]] = set()  # in a match that is smaller than 3v3 right now: may not count yet
+        small: set[tuple[str, str]] = set()  # in a match smaller than k.min_team per team right now: may not count yet
         k.sizes = {}
         for label in data.get("labels") or []:
             if k.is_match(label):
                 teams = [p.get("team") for p in label.get("players") or []]
                 k.sizes[str(label.get("id"))] = (teams.count("blue"), teams.count("orange"), sum(1 for t in teams if t in NON_PLAYER_TEAMS))
                 seen = sum(1 for t in teams if t not in NON_PLAYER_TEAMS)
-                too_small = seen < MIN_SEEN and (teams.count("blue") < MIN_TEAM or teams.count("orange") < MIN_TEAM)
+                too_small = seen < MIN_SEEN and (teams.count("blue") < k.min_team or teams.count("orange") < k.min_team)
                 for p in label.get("players") or []:
                     if not (p.get("user_id") and label.get("id")):
                         continue
@@ -208,7 +210,7 @@ class Tracker:
             else:
                 secs = 0.0
             k.seen[key] = [now, secs]
-            if secs >= MIN_PRESENT_S and key not in k.counted and key not in small:  # needs 3+ per team (user, 2026-11-04)
+            if secs >= MIN_PRESENT_S and key not in k.counted and key not in small:  # needs 3+ per team (user, 2026-11-04); Combat 2+ (2026-11-27)
                 new.append((key, p))
         for key in [key for key, v in k.seen.items() if key not in present and now - v[0] > 2 * self.interval + 1]:
             del k.seen[key]  # gone from the list

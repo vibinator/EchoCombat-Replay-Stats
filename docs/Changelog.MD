@@ -18,6 +18,35 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.27.17 — 22:08
+
+- **The Echo Combat Mega Prize (Delta-13) counts 2v2 games** (user, 27 Nov: "for ONLY the combat mega prizes"). A
+  Combat match on the live match list now counts once both teams have 2+ players (or 6+ players are seen), and the
+  replay-file history before the live count counts matches with 2+ per team for half of the match. The Arena Mega Prize
+  (Jack Series 11) keeps 3v3. The prize card says "at least 2v2".
+- The replay-file history is recounted at once. Live matches that were too small before this update were never
+  recorded, so they cannot be added; 2v2 matches count from the update on.
+- Needs the update deployed.
+
+## 2026.11.27.16 — 22:00
+
+- **The five George League challenges now count as full challenges** (user, 27 Nov: "make it count as a full
+  challenge"). A won card adds to "X of Y challenges fully complete", the average progress, the Top players ranking and
+  the challenges leaderboard, and counts as one more challenge for Medal Collector. The total goes from 129 to 134 for
+  everyone. The cards reach the ranking within 5 minutes of the hourly league read. Edit your Bio and the Combat
+  challenges stay out of the totals as before, and the recent-medals feed still lists replay and Combat medals only.
+- **Combat challenges count 2v2 games** (user, 27 Nov: was 3v3 and up). A recorder report counts when both teams had 2+
+  players for at least half of the match (and the player was there 4+ minutes). Their cards say "2+ players per team".
+  The replay challenges keep 3+ per team (the Delta-13 Mega Prize too, until 2026.11.27.17).
+- **Two period notes removed** (user, 27 Nov): the challenge-period box ("<start> → <end>. Only matches played inside this
+  period count for challenges; the player stats pages count every match") is gone from the Challenges pages, and the
+  line "Only matches inside the Mega Prize period count: <start> → <end> (recording). No game account is linked to this
+  player yet." (and the same hover text) is gone from a player's Mega Prizes row. The period still applies; the
+  preview-only note before the launch and the period box in the Mega Prizes section stay.
+- Needs the update deployed. Nothing is re-read; the Combat challenges are rebuilt from the reports at the first look.
+  Because the challenge code changed, the challenge ranking is worked out once from scratch after the restart (a few
+  minutes on the NAS, the previous one is not reused).
+
 ## 2026.11.27.15 — 19:53
 
 - **Public player-stats API** (user, 27 Nov: "open up an API for player stats", with API keys and profile stats only).

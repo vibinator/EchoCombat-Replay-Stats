@@ -13,6 +13,7 @@ from ..errors import ApiError
 from ..gear import ORDNANCES, TACMODS, WEAPONS
 from ..models import Match, MatchPlayer, MatchPlayerLoadout, Player
 from ..achievements import achiever_facts
+from ..profile_achievements import COUNTED_RULES
 from ..admin_actions import achievements_launched, previews_can_see
 from .achievements import achievement_progress, achievement_ranking, require_launched
 from .derived import MAP_PATTERN, MODE_PATTERN, PERIODS, gear, period_start, ratio
@@ -332,7 +333,7 @@ def achievers(request: Request, limit: int = Query(10, ge=1, le=50), min_games: 
         people = {pid: (name, user_id) for pid, name, user_id in
                   db.execute(select(Player.id, Player.name, Player.user_id).where(Player.id.in_([pid for pid, _, _ in ranking])))}
     return [{"rank": i + 1, "user_id": people[pid][1], "name": people[pid][0], "games": games, "overall": overall,
-             **achiever_facts(progress[pid])} for i, (pid, games, overall) in enumerate(ranking)]
+             **achiever_facts(progress[pid], COUNTED_RULES)} for i, (pid, games, overall) in enumerate(ranking)]
 
 
 @router.get("/gear")

@@ -11,6 +11,7 @@ from sqlalchemy import func, select
 
 from .. import auth
 from ..achievements import FULL_GAME_S, MEGA_COMBAT, icon_file
+from ..arena import COMBAT_MIN_TEAM
 from ..admin_actions import mega_visible, mega_window, window_active
 from ..duplicates import counted
 from ..errors import ApiError
@@ -171,7 +172,7 @@ def _replay_history(db, start: str, end: str | None, accounts: dict[str, object]
     """Echo Combat matches from the replay files, per linked replay player (user, 2026-11-06: the Mega Prize now includes the
     replay history, linked by Discord id). Only matches that started BEFORE the Nakama match list began counting (the first
     NakamaCombatCounted row), so a match both sources saw is never counted twice. Same rules as the live count: 4+ minutes
-    played, public, 3+ players per team for at least half of the match, inside the Mega Prize period, duplicate recordings left out."""
+    played, public, 2+ players per team for at least half of the match (user, 2026-11-27: was 3+), inside the Mega Prize period, duplicate recordings left out."""
     if not accounts:
         return {}
     first = db.scalar(select(func.min(NakamaCombatCounted.counted_at)))
@@ -185,7 +186,7 @@ def _replay_history(db, start: str, end: str | None, accounts: dict[str, object]
         q = q.where(Match.started_at < datetime.fromtimestamp(first).isoformat(timespec="seconds"))
     rows = [(u, m) for u, m in db.execute(q)]
     match_ids = sorted({m for _, m in rows})
-    big: set[int] = set()  # matches with 3+ players per team for at least half of the match
+    big: set[int] = set()  # matches with COMBAT_MIN_TEAM+ players per team for at least half of the match
     for i in range(0, len(match_ids), 500):
         chunk = match_ids[i:i + 500]
         sizes = db.execute(select(MatchPlayer.match_id, MatchPlayer.team, func.count()).join(Match, Match.id == MatchPlayer.match_id)
@@ -194,7 +195,7 @@ def _replay_history(db, start: str, end: str | None, accounts: dict[str, object]
         per: dict[int, dict[str, int]] = {}
         for m, team, n in sizes:
             per.setdefault(m, {})[team] = n
-        big |= {m for m, t in per.items() if t.get("blue", 0) >= 3 and t.get("orange", 0) >= 3}
+        big |= {m for m, t in per.items() if t.get("blue", 0) >= COMBAT_MIN_TEAM and t.get("orange", 0) >= COMBAT_MIN_TEAM}
     out: dict[str, int] = {}
     for u, m in rows:
         if m in big:

@@ -83,7 +83,8 @@ def get_challenges(request: Request):
         previews = previews_can_see(db)
         # whether everybody may see the Mega Prizes: the page then asks nobody's own /api/arena/visible (2026-11-27 review)
         mega_public = mega_visible(db, False)
-    return info | {"previews": not info["launched"] and previews, "total": len(RULES), "peek": peek, "mega_public": mega_public}
+    total = len(profile_achievements.COUNTED_RULES)  # with the George League ones (user, 2026-11-27)
+    return info | {"previews": not info["launched"] and previews, "total": total, "peek": peek, "mega_public": mega_public}
 
 
 # Shown in full on the "Coming soon" page (user, 2026-10-31; refreshed 2026-11-03): original day, week and all-time
@@ -186,6 +187,8 @@ def player_achievements(request: Request, user_id: str):
     items = result["items"] + combat_achievements.player_items(request.app.state.sessionmaker, window, user_id)
     with request.app.state.sessionmaker() as db:
         items += profile_achievements.player_items(db, user_id)  # "Edit your Bio" (user, 2026-11-26): from the page, not games
+        # the George League cards count as full challenges (user, 2026-11-27): in the totals and Medal Collector
+        result, items = profile_achievements.counted_answer(result, items)
         from . import pins  # pins.py imports this module
         # a completed pin removes itself (user, 2026-11-27); the pins left are public, so they ride in this shared answer
         # (Cloudflare keeps it): only a logged-in visitor asks /api/profiles/{id}/pins, for whether they may change them
@@ -587,13 +590,33 @@ def _ready_or_start(request: Request) -> dict | None:
     return None
 
 
+LEAGUE_REFRESH_S = 300  # the league is read every hour: its cards reach the ranking within 5 minutes of a read
+_league_memo: dict[int, tuple[dict, float, dict]] = {}  # id(sessions) -> (the ranking, when, it with the league cards)
+
+
+def _counted(request: Request) -> dict:
+    """The ranking with the George League cards in it (user, 2026-11-27: full challenges). Put on top of the cached
+    ranking, not into it: the league changes without any game."""
+    sessions = request.app.state.sessionmaker
+    data = _everyone(request)
+    memo = _league_memo.get(id(sessions))
+    if memo is not None and memo[0] is data and time.monotonic() - memo[1] < LEAGUE_REFRESH_S:
+        return memo[2]
+    with sessions() as db:
+        extra = profile_achievements.league_progress(db)
+    out = profile_achievements.with_league(data, extra)
+    _league_memo[id(sessions)] = (data, time.monotonic(), out)
+    return out
+
+
 def achievement_ranking(request: Request) -> list[tuple[int, int, float]]:
-    return _everyone(request)["rows"]
+    return _counted(request)["rows"]
 
 
 def achievement_progress(request: Request) -> dict[int, list[float]]:
-    """player_id -> progress per rule (same order as RULES), from the same cached computation as the ranking."""
-    return _everyone(request)["progress"]
+    """player_id -> progress per rule (profile_achievements.COUNTED_RULES order: RULES, then the George League cards),
+    from the same cached computation as the ranking."""
+    return _counted(request)["progress"]
 
 
 @router.get("/api/achievements")
