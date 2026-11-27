@@ -63,8 +63,8 @@ function TopPlayers() {
   return (
     <div className="ach-pane">
       <div className="section-head">
+        {/* no "Full leaderboard" link (user, 2026-11-27) */}
         <h2>Top players <span className="muted hint">· most challenges fully complete</span></h2>
-        <Link to="/leaderboard?stat=challenges">Full leaderboard</Link>
       </div>
       <ol className="top-players" tabIndex={0} aria-label="Top players, scroll sideways">
         {/* shorter cards (user, 2026-11-27): the full-complete count and the tiers reached; the rest is hover text */}

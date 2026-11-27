@@ -18,6 +18,26 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.27.14 — 19:40
+
+- **Lobby Mime Troupe counts every game** (user, 27 Nov: "one is for playing a game, it shouldn't be tied to your
+  death"). It is now the emotes you use in one 4+ minute game, win or lose, whether you die or not (it was a game in
+  which you never die). Showbot stays the one for a game your team wins. Targets unchanged: 8 / 24 / 32 / 40.
+- **King/Queen of Pubs crown at 1,000 pubs** (user, 27 Nov): 50 / 250 / 500 / 1,000 (was 39 / 140 / 250 / 290).
+- **Rounder challenge targets** (user, 27 Nov: "more pleasing numbers"). Count targets moved to the nearest round number
+  (5s, 25s, 100s), with each tier close to where it was: e.g. King of the Hill / Feed the Flamingo 20 / 75 / 125 / 150
+  (was 20 / 75 / 130 / 150), the four map ladders 10 / 40 / 60 / 75 (was 12 / 40 / 60 / 74), 5th Loadout when?
+  5 / 25 / 50 / 75 (was 7 / 27 / 54 / 78), Lobby Regular 20 / 25 / 35 / 45 (was 18 / 26 / 35 / 46), Capture Point Clean
+  Sweep 2 / 20 / 25 / 30 (was 2 / 18 / 26 / 32), Payload Delivered 1 / 10 / 15 / 20 (was 1 / 11 / 18 / 21). 28
+  challenges and 19 Combat challenges in all; each one's old targets are in the code beside the new ones. Averages
+  (%, m/s) and small day / week counts kept their tuned values. In Combat, assists stay above kills (crown 3,500 assists
+  vs 3,000 kills; 425 vs 375 in 7 days; 120 vs 100 in a day).
+- **Mega Prize pictures go full screen**: a ⛶ button beside the zoom buttons. Zoom and drag work there too; Esc or ✕
+  leaves.
+- **Leaderboard**: the "new" mark beside players not ranked in the previous period is gone. **Challenges**: the "Full
+  leaderboard" link beside Top players is gone.
+- Restart needed (the challenge rules are read at start-up); no re-read of replays.
+
 ## 2026.11.27.13 — 15:40
 
 - **Arena Mega Prize counts the older Arena matches again** (user, 27 Nov: "Stoner should have way more between

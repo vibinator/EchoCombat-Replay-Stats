@@ -2179,7 +2179,7 @@ td.best {
 .lb-card-more { margin-top: auto; padding-top: 8px; font-size: 0.8rem; align-self: flex-end; }
 .rank-up { color: var(--ok); font-size: 0.75rem; }
 .rank-down { color: var(--bad); font-size: 0.75rem; }
-.rank-same, .rank-new { color: var(--muted); font-size: 0.75rem; }
+.rank-same { color: var(--muted); font-size: 0.75rem; }
 
 /* achievements */
 /* Top players: one line of cards with the number of challenges completed and a few facts (user, 2026-11-03) */
@@ -4689,6 +4689,12 @@ button.small {
 }
 .mega-photos .mega-img-placeholder { width: 9rem; aspect-ratio: 8 / 15; background: var(--panel-2, rgba(255, 255, 255, 0.06)); }
 .mega-zoom { position: absolute; right: 6px; bottom: 6px; display: flex; gap: 4px; }
+/* full screen (user, 2026-11-27): the browser's own (:fullscreen) or, where an element cannot (iPhone Safari), the page filled */
+.mega-photos-wrap:fullscreen,
+.mega-photos-wrap.pb3d-fake-full { margin: 0; width: 100vw; height: 100vh; background: var(--bg, #0e1117); }
+.mega-photos-wrap.pb3d-fake-full { position: fixed; inset: 0; z-index: 1000; }
+.mega-photos-wrap.is-full .mega-photos { height: 100%; border-radius: 0; }
+.mega-photos-wrap.is-full .mega-zoom { right: 12px; bottom: 12px; }
 .mega-zoom button { min-width: 28px; height: 28px; padding: 0 8px; opacity: 0.9; }
 
 /* Mega Prizes: the search sits inside each card now */

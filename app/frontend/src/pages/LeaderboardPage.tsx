@@ -500,7 +500,7 @@ function StatBoard({ stat, period, map, mode, minGames, stats, set, picked, setP
 }
 
 function RankChange({ r }: { r: LeaderboardRow }) {
-  if (r.previous_rank == null) return r.rank ? <span className="rank-new" title="Not ranked in the previous period">new</span> : null;
+  if (r.previous_rank == null) return null; // no "new" mark for players not ranked last period (user, 2026-11-27)
   const delta = r.previous_rank - r.rank;
   if (delta === 0) return <span className="rank-same" title="Same rank as the previous period">=</span>;
   return (

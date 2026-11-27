@@ -3,6 +3,7 @@ import { Link, useLocation, useSearchParams } from "react-router";
 import { LEVELS, getMegaPlayer, getMegaVisible, getAchievements, getArenaProgress, getChallenges, getMe, getRarity, getPins, loginUrl, savePin, type Achievement, type ChallengePins, type AchievementPeek, type AchievementRarity, type AchievementRule } from "../api";
 import { achievementsPath, dateTime, medalRuleText, pct, periodStarted, ruleText } from "../format";
 import { useApi } from "../useApi";
+import { useFullscreen } from "../useFullscreen";
 import { Status } from "./common";
 import { EmptyState } from "./ui";
 
@@ -260,7 +261,7 @@ const HINTS: Record<number, string> = {
   72: "Close to enemies, all games", 73: "Average speed, all games", 74: "Upside down, all games",
   86: "Least-used experimental weapon", 93: "Capture Point wins, 2-0", 112: "Games with Overcharge",
   123: "Least-used weapon", 124: "Least-used item", 141: "Capture Point win after losing round one",
-  143: "Far from teammates, one game", 147: "Time on a contested point, one game", 150: "Emotes in a game without dying",
+  143: "Far from teammates, one game", 147: "Time on a contested point, one game", 150: "Emotes in one game",
   151: "Emotes in a game you win", 170: "10+ kills without dying, one game", 176: "Most kills in the match",
   177: "Games with 5 kills, 5 assists, 5 objective eliminations", 178: "Games with 8+ assists, twice your kills",
   208: "Most kills in the match, in a day", 213: "Most kills in the match, in 7 days",
@@ -768,6 +769,10 @@ function PrizePhotos({ prefix, alt }: { prefix: string; alt: string }) {
   const drag = useRef<{ x: number; y: number; from: [number, number] } | null>(null);
   const [zoom, setZoom] = useState(1);
   const [pos, setPos] = useState<[number, number]>([0, 0]);
+  // full screen (user, 2026-11-27): the pictures, with their zoom buttons, fill the screen; Esc or ✕ leaves
+  const wrap = useRef<HTMLDivElement>(null);
+  const screen = useFullscreen(wrap);
+  useEffect(() => { setZoom(1); setPos([0, 0]); }, [screen.full]); // the window changes size, so start again fitted
 
   /** keep the pictures inside the window: at 1x they cannot move, zoomed they can travel half of the extra size */
   function clamp(p: [number, number], z: number): [number, number] {
@@ -785,7 +790,7 @@ function PrizePhotos({ prefix, alt }: { prefix: string; alt: string }) {
   const move = (dx: number, dy: number) => setPos((p) => clamp([p[0] + dx, p[1] + dy], zoom));
 
   return (
-    <div className="mega-photos-wrap">
+    <div className={`mega-photos-wrap${screen.full ? " is-full" : ""}${screen.fakeClass}`} ref={wrap}>
       <div ref={box} className={`mega-photos${zoom > 1 ? " zoomed" : ""}`} tabIndex={0} role="group"
         aria-label={`${alt}: front and back. Use the plus and minus buttons to zoom, drag to move`}
         onKeyDown={(e) => {
@@ -826,6 +831,10 @@ function PrizePhotos({ prefix, alt }: { prefix: string; alt: string }) {
         <button type="button" className="secondary" onClick={() => zoomTo(zoom * 1.5)} disabled={zoom >= PHOTO_MAX_ZOOM} aria-label="Zoom in">+</button>
         <button type="button" className="secondary" onClick={() => zoomTo(zoom / 1.5)} disabled={zoom <= 1} aria-label="Zoom out">−</button>
         <button type="button" className="secondary" onClick={() => zoomTo(1)} disabled={zoom === 1}>Reset</button>
+        <button type="button" className="secondary" onClick={screen.toggle} aria-pressed={screen.full}
+          aria-label={screen.full ? "Leave full screen" : "Full screen"} title={screen.full ? "Leave full screen (Esc)" : "Full screen"}>
+          {screen.full ? "✕" : "⛶"}
+        </button>
       </div>
     </div>
   );

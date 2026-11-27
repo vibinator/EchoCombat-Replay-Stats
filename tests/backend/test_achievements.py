@@ -258,17 +258,17 @@ def test_tiered_achievements():
         return [Game(**{**game(f"2026-10-{1 + i % 28:02d}").__dict__, "team": "blue", "winner": "blue", "rounds_lost": 0})
                 for i in range(n)]
 
-    expected = {0: (None, 0.0), 1: (None, 0.125), 2: ("bronze", 0.25), 10: ("bronze", 0.25 + 8 / 16 / 4), 18: ("silver", 0.5),
-                26: ("gold", 0.75), 29: ("gold", 0.75 + 3 / 6 / 4), 32: ("crown", 1.0), 40: ("crown", 1.0)}  # 2 / 18 / 26 / 32 (2026-11-26)
+    expected = {0: (None, 0.0), 1: (None, 0.125), 2: ("bronze", 0.25), 10: ("bronze", 0.25 + 8 / 18 / 4), 20: ("silver", 0.5),
+                25: ("gold", 0.75), 28: ("gold", 0.75 + 3 / 5 / 4), 30: ("crown", 1.0), 40: ("crown", 1.0)}  # 2 / 20 / 25 / 30 (2026-11-27)
     for n, (medal, progress) in expected.items():
         r = by_id(evaluate(sweeps(n)))[93]
-        assert (r["tier"], r["count"], r["levels"]) == (medal, n, [2, 18, 26, 32]), n
+        assert (r["tier"], r["count"], r["levels"]) == (medal, n, [2, 20, 25, 30]), n
         assert r["progress"] == pytest.approx(progress, abs=1e-4), n
     rule = next(r for r in RULES if r.id == 93)
-    assert "2 bronze, 18 silver, 26 gold, 32 crown" in rule.description
+    assert "2 bronze, 20 silver, 25 gold, 30 crown" in rule.description
     assert unlock_threshold(rule) == 0.25 and unlock_threshold(next(r for r in RULES if r.id == 69)) == 0.25
     delivery = next(r for r in RULES if r.id == 94)
-    assert "Deliver the payload to the end" in delivery.description and delivery.levels == (1, 11, 18, 21)
+    assert "Deliver the payload to the end" in delivery.description and delivery.levels == (1, 10, 15, 20)
 
 
 def test_ladders_with_units_and_periods():
@@ -415,7 +415,7 @@ def test_seven_day_teammate_share_needs_three_days_and_ten_minutes_in_bounds():
 def test_one_day_targets():
     levels = {rule.id: rule.levels for rule in RULES}
     assert levels[25] == levels[26] == levels[27] == levels[28] == (3, 5, 7, 9)  # the four maps stay equal
-    assert levels[19] == levels[20] == (5, 9, 12, 16) and levels[29] == (9, 18, 24, 30)
+    assert levels[19] == levels[20] == (5, 9, 12, 16) and levels[29] == (10, 20, 25, 30)
     r = by_id(evaluate([game("2026-10-01", map_="surge")] * 9))
     assert r[28]["tier"] == "crown" and "9 crown" in next(rule for rule in RULES if rule.id == 28).description
     assert by_id(evaluate([game("2026-10-01", map_="surge")] * 8))[28]["tier"] == "gold"
@@ -423,14 +423,14 @@ def test_one_day_targets():
 
 def test_impossible_top_medals_were_lowered():
     levels = {rule.id: rule.levels for rule in RULES}
-    assert levels[72] == (6, 9, 10, 11) and levels[73] == (2.6, 2.85, 3.1, 3.4) and levels[100] == (38, 120, 150, 230)
+    assert levels[72] == (6, 9, 10, 11) and levels[73] == (2.6, 2.85, 3.1, 3.4) and levels[100] == (40, 125, 150, 225)
     assert levels[150] == (8, 24, 32, 40) and levels[151] == (16, 24, 28, 32)  # doubled again (user, 2026-11-27)
 
 
 def test_seven_day_map_and_mode_targets():
     levels = {rule.id: rule.levels for rule in RULES}
     assert levels[50] == levels[51] == levels[52] == levels[53] == (4, 8, 12, 18)  # the four maps stay equal
-    assert levels[44] == levels[45] == (10, 25, 33, 40)  # the two modes stay equal
+    assert levels[44] == levels[45] == (10, 25, 35, 40)  # the two modes stay equal
     assert levels[54] == (15, 50, 65, 80)
     days = [game(f"2026-10-0{i + 1}", map_="surge") for i in range(6)]
     assert by_id(evaluate(days * 3))[53]["tier"] == "crown"  # 18 games over 6 days

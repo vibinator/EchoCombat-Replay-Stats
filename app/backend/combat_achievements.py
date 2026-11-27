@@ -82,16 +82,16 @@ COMBAT_RULES: list[Rule] = [
     _rule(168, "Point Denied (Combat)", "Get objective eliminations in one game", None, lambda g: g.objective_eliminations, (8, 12, 14, 16, 18), "game"),
     _rule(169, "Parked on the Point (Combat)", "Spend time on the objective yourself in one game, in seconds", None, lambda g: g.objective_time, (115, 165, 195, 210, 225), "game", " s"),
     Rule(170, "Flawless Chassis (Combat)", "Get 10 or more kills in one game without dying", "game", "deaths", _total(lambda g: g.kills >= 10 and g.deaths == 0), new=True, group=GROUP, counted=False),
-    _rule(171, "Kill Spree Bot (Combat)", "Get kills in one day", "deaths", lambda g: g.kills, (20, 35, 45, 65, 95), "day"),  # 2026-11-26, user: harder (combat review, 66 regulars, 4-25 Nov): crown 12 %, was 20 %
-    _rule(172, "Helping Hands of Kronos II (Combat)", "Get assists in one day", "team_proximity", lambda g: g.assists, (25, 42, 55, 80, 115), "day"),  # 2026-11-26, user: harder (combat review, 66 regulars, 4-25 Nov): crown 15 %, was 27 % (assists stay above kills)
-    _rule(173, "Ring Debris (Combat)", "Total kills", "deaths", lambda g: g.kills, (120, 400, 850, 1700, 2900), "all"),
-    _rule(174, "The Whole Echo Crew (Combat)", "Total assists", "team_proximity", lambda g: g.assists, (140, 450, 950, 1900, 3200), "all"),
-    _rule(175, "Kronos II Salvage (Combat)", "Total damage dealt", "enemy_proximity", lambda g: g.damage, (23000, 80000, 180000, 350000, 580000), "all"),
+    _rule(171, "Kill Spree Bot (Combat)", "Get kills in one day", "deaths", lambda g: g.kills, (20, 32, 45, 65, 100), "day"),  # 2026-11-26, user: harder (combat review, 66 regulars, 4-25 Nov): crown 12 %, was 20 %; rounder numbers (user, 2026-11-27), was (20, 35, 45, 65, 95)
+    _rule(172, "Helping Hands of Kronos II (Combat)", "Get assists in one day", "team_proximity", lambda g: g.assists, (25, 40, 55, 80, 120), "day"),  # 2026-11-26, user: harder (combat review, 66 regulars, 4-25 Nov): crown 15 %, was 27 % (assists stay above kills); rounder numbers (user, 2026-11-27), was (25, 42, 55, 80, 115)
+    _rule(173, "Ring Debris (Combat)", "Total kills", "deaths", lambda g: g.kills, (100, 475, 850, 1700, 3000), "all"),  # rounder numbers (user, 2026-11-27), was (120, 400, 850, 1700, 2900)
+    _rule(174, "The Whole Echo Crew (Combat)", "Total assists", "team_proximity", lambda g: g.assists, (150, 575, 1000, 2000, 3500), "all"),  # rounder numbers (user, 2026-11-27), was (140, 450, 950, 1900, 3200)
+    _rule(175, "Kronos II Salvage (Combat)", "Total damage dealt", "enemy_proximity", lambda g: g.damage, (25000, 100000, 175000, 350000, 600000), "all"),  # rounder numbers (user, 2026-11-27), was (23000, 80000, 180000, 350000, 580000)
     _rule(176, "Top Bot (Combat)", "Games where you got the most kills in the match (a tie counts)", None, lambda g: g.top_fragger, (3, 15, 35, 70, 120), "all"),
     _rule(177, "Saturn Trifecta (Combat)", "Games with at least 5 kills, 5 assists and 5 objective eliminations", None,
-          lambda g: min(g.kills, g.assists, g.objective_eliminations) >= 5, (7, 25, 60, 120, 210), "all"),
+          lambda g: min(g.kills, g.assists, g.objective_eliminations) >= 5, (5, 32, 60, 120, 200), "all"),  # rounder numbers (user, 2026-11-27), was (7, 25, 60, 120, 210)
     _rule(178, "Service Android (Combat)", "Games with at least 8 assists and at least twice as many assists as kills", "team_proximity",
-          lambda g: g.assists >= 8 and g.assists >= 2 * g.kills, (1, 8, 17, 35, 65), "all"),
+          lambda g: g.assists >= 8 and g.assists >= 2 * g.kills, (1, 8, 15, 35, 65), "all"),  # rounder numbers (user, 2026-11-27), was (1, 8, 17, 35, 65)
     _rule(198, "Siege Breaker Bot (Combat)", "Deal objective damage in one game", None, lambda g: g.objective_damage, (500, 900, 1300, 1700, 2000), "game"),
     _rule(199, "Repair Matrix Medic (Combat)", "Use heal bubbles in one game", "repair_matrix", lambda g: g.heal_bubbles, (2, 4, 6, 7, 9), "game"),
     _rule(200, "Stun Field Trooper (Combat)", "Stun enemies in one game", "stun_field", lambda g: g.stuns_given, (1, 2, 3, 4, 5), "game"),
@@ -112,18 +112,18 @@ COMBAT_RULES: list[Rule] = [
     _rule(204, "Wrath of Saturn", "Deal damage in one day", "enemy_proximity", lambda g: g.damage, (5000, 9000, 14000, 21000, 30000), "day"),  # 2026-11-26, user: harder (combat review, 66 regulars, 4-25 Nov): crown 3 %, was 12 %
     _rule(205, "Fission Reaction", "Get objective eliminations in one day", None, lambda g: g.objective_eliminations, (30, 50, 75, 120, 165), "day"),  # 2026-11-26, user: harder (combat review, 66 regulars, 4-25 Nov): crown 3 %, was 11 %
     _rule(206, "Camping Out on Dyson", "Spend time on the objective yourself in one day, in minutes", None, lambda g: g.objective_time / 60,
-          (4, 6, 10, 16, 24), "day", " min"),  # 2026-11-26, user: harder (combat review, 66 regulars, 4-25 Nov): crown 3 %, was 17 %
+          (5, 7, 10, 15, 25), "day", " min"),  # 2026-11-26, user: harder (combat review, 66 regulars, 4-25 Nov): crown 3 %, was 17 %; rounder numbers (user, 2026-11-27), was (4, 6, 10, 16, 24)
     _rule(207, "Keeping Liv Alive", "Use heal bubbles in one day", "repair_matrix", lambda g: g.heal_bubbles, (12, 22, 35, 55, 80), "day"),  # 2026-11-26, user: harder (combat review, 66 regulars, 4-25 Nov): crown 3 %, was 15 %
     _rule(208, "Spontaneous Combustion", "Games in one day where you got the most kills in the match (a tie counts)", None, lambda g: g.top_fragger,
           (2, 3, 4, 6, 8), "day"),  # 2026-11-26, user: harder with Most Valuable Jack (combat review, 66 regulars, 4-25 Nov): crown 2 %, was 11 %
     # In any 7 days (user, 2026-11-10: the 30-day set became the first Combat 7-day challenges, targets = the old ones x 7/30;
     # the month period stays supported in the code but no challenge uses it, so its page is hidden)
-    _rule(209, "Power Surge", "Get kills in any 7 days", "deaths", lambda g: g.kills, (30, 75, 150, 260, 370), "week"),
-    _rule(210, "Captain Rhodes' Right Hand", "Get assists in any 7 days", "team_proximity", lambda g: g.assists, (35, 85, 170, 300, 420), "week"),
+    _rule(209, "Power Surge", "Get kills in any 7 days", "deaths", lambda g: g.kills, (30, 90, 150, 250, 375), "week"),  # rounder numbers (user, 2026-11-27), was (30, 75, 150, 260, 370)
+    _rule(210, "Captain Rhodes' Right Hand", "Get assists in any 7 days", "team_proximity", lambda g: g.assists, (35, 105, 175, 300, 425), "week"),  # rounder numbers (user, 2026-11-27), was (35, 85, 170, 300, 420)
     _rule(213, "Lobby Billboard", "Games in any 7 days where you got the most kills in the match (a tie counts)", None, lambda g: g.top_fragger,
           (1, 3, 5, 8, 14), "week"),
-    _rule(214, "Above the Rings", "Games in any 7 days with more kills than deaths", "deaths", lambda g: g.kills > g.deaths, (2, 5, 10, 19, 30), "week"),
-    _rule(215, "Kronos II Medbay", "Use heal bubbles in any 7 days", "repair_matrix", lambda g: g.heal_bubbles, (8, 23, 47, 77, 115), "week"),
+    _rule(214, "Above the Rings", "Games in any 7 days with more kills than deaths", "deaths", lambda g: g.kills > g.deaths, (2, 6, 10, 20, 30), "week"),  # rounder numbers (user, 2026-11-27), was (2, 5, 10, 19, 30)
+    _rule(215, "Kronos II Medbay", "Use heal bubbles in any 7 days", "repair_matrix", lambda g: g.heal_bubbles, (10, 30, 50, 75, 120), "week"),  # rounder numbers (user, 2026-11-27), was (8, 23, 47, 77, 115)
     # Award cards (user, 2026-11-10): one set per card of the game's end-of-match cards. A player wins at most one card per game
     # (checked on 154 matches), so there is no "in one game" version. Targets: the top 10 % of the 31 players with 10+ games with
     # cards (4-9 Nov 2026): all time = their pace x 15 (~3 months), any 7 days = their 6 days x 7/6, one day = their best day.
@@ -135,11 +135,11 @@ COMBAT_RULES: list[Rule] = [
     _rule(234, "Jack of the Week (Award card)", "Win the MVP card in any 7 days", None, _awards("mvp"), (3, 6, 9, 12, 16), "week"),
     _rule(235, "Lone Echo MVP (Award card)", "Total MVP cards won (the highest score in a match)", None, _awards("mvp"), (4, 20, 40, 70, 120), "all"),
     _rule(236, "Guard Duty on Kronos II (Award card)", "Win the Guard card in any 7 days (the most time on the objective in a match)", None, _awards("guard"), (2, 2, 3, 5, 7), "week"),  # 2026-11-26, user: harder (combat review, 66 regulars, 4-25 Nov), with Medic on Call: crown 5 %, was 14 %
-    _rule(237, "Sentinel (Award card)", "Total Guard cards won (the most time on the objective in a match)", None, _awards("guard"), (3, 9, 16, 27, 41), "all"),
+    _rule(237, "Sentinel (Award card)", "Total Guard cards won (the most time on the objective in a match)", None, _awards("guard"), (3, 9, 15, 25, 40), "all"),  # rounder numbers (user, 2026-11-27), was (3, 9, 16, 27, 41)
     _rule(238, "Medic on Call (Award card)", "Win the Medic card in any 7 days (the most healing in a match)", "repair_matrix", _awards("medic"), (2, 2, 3, 5, 7), "week"),  # 2026-11-26, user: harder (combat review, 66 regulars, 4-25 Nov), with Guard Duty: crown 2 %, was 15 %
-    _rule(239, "Chief Medic (Award card)", "Total Medic cards won (the most healing in a match)", None, _awards("medic"), (3, 9, 16, 27, 41), "all"),
-    _rule(240, "Saturn Specialist (Award card)", "Total Specialist cards won (the most assists in a match)", None, _awards("specialist"), (2, 6, 10, 18, 28), "all"),
-    _rule(242, "Streak Master (Award card)", "Total Hot Shot cards won (the longest elimination streak in a match)", None, _awards("hot_shot"), (2, 6, 10, 18, 28), "all"),
+    _rule(239, "Chief Medic (Award card)", "Total Medic cards won (the most healing in a match)", None, _awards("medic"), (3, 9, 15, 25, 40), "all"),  # rounder numbers (user, 2026-11-27), was (3, 9, 16, 27, 41)
+    _rule(240, "Saturn Specialist (Award card)", "Total Specialist cards won (the most assists in a match)", None, _awards("specialist"), (2, 6, 10, 20, 30), "all"),  # rounder numbers (user, 2026-11-27), was (2, 6, 10, 18, 28)
+    _rule(242, "Streak Master (Award card)", "Total Hot Shot cards won (the longest elimination streak in a match)", None, _awards("hot_shot"), (2, 6, 10, 20, 30), "all"),  # rounder numbers (user, 2026-11-27), was (2, 6, 10, 18, 28)
     # One game: each card can be won once per game, so one medal each (user, 2026-11-10; like Flawless Chassis)
     Rule(249, "MVP of Echo Combat (Award card)", "Win the MVP card in one game (the highest score in the match)", "game", None, _total(lambda g: "mvp" in g.awards), new=True, group=GROUP, counted=False),
     Rule(250, "Standing Guard on Kronos II (Award card)", "Win the Guard card in one game (the most time on the objective)", "game", None, _total(lambda g: "guard" in g.awards), new=True, group=GROUP, counted=False),
@@ -158,10 +158,10 @@ COMBAT_RULES: list[Rule] = [
     Rule(263, "Capture Point Infiltrator (Award card)", "Win the Infiltrator card in one game (the most hill captures, Capture Point maps)", "game", None, _total(lambda g: "infiltrator" in g.awards), new=True, group=GROUP, counted=False),
     Rule(264, "Immovable Object (Award card)", "Win the Immovable Object card in one game (the most hill defends, Capture Point maps)", "game", None, _total(lambda g: "immovable_object" in g.awards), new=True, group=GROUP, counted=False),
     # All time
-    _rule(217, "The Anomaly Doesn't Move", "Total time on the objective yourself, in minutes", None, lambda g: g.objective_time / 60, (14, 60, 140, 290, 520), "all", " min"),
-    _rule(219, "Life Support Systems", "Total heal bubbles used", "repair_matrix", lambda g: g.heal_bubbles, (50, 180, 390, 780, 1300), "all"),
+    _rule(217, "The Anomaly Doesn't Move", "Total time on the objective yourself, in minutes", None, lambda g: g.objective_time / 60, (15, 82, 150, 300, 500), "all", " min"),  # rounder numbers (user, 2026-11-27), was (14, 60, 140, 290, 520)
+    _rule(219, "Life Support Systems", "Total heal bubbles used", "repair_matrix", lambda g: g.heal_bubbles, (50, 225, 400, 800, 1300), "all"),  # rounder numbers (user, 2026-11-27), was (50, 180, 390, 780, 1300)
     _rule(220, "Old Arena Habits", "Total enemies stunned", "stun_field", lambda g: g.stuns_given, (5, 18, 40, 75, 140), "all"),
-    _rule(221, "Ready At Dawn", "Games with more kills than deaths", "deaths", lambda g: g.kills > g.deaths, (9, 40, 85, 150, 250), "all"),
+    _rule(221, "Ready At Dawn", "Games with more kills than deaths", "deaths", lambda g: g.kills > g.deaths, (10, 42, 75, 150, 250), "all"),  # rounder numbers (user, 2026-11-27), was (9, 40, 85, 150, 250)
 ]
 # Specials trimmed (user, 2026-11-26, D64): the one-game Combat challenges that repeat a One Day / One Week / Cumulative one are
 # retired (kills, assists, damage, kills minus deaths, objective eliminations, time on the objective, heal bubbles, stuns) and

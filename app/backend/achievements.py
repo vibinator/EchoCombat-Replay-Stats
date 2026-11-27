@@ -279,16 +279,16 @@ TUNED_LEVELS: dict[int, tuple[float, ...]] = {
     147: (2, 3, 4, 5, 5.5),  # Contested Point (2026-11-11, user: crown for about 7.5 % of regulars after the death and bounds corrections; was the written targets)
     23: (19, 20, 24, 29, 35),  # Super Ultra Hyper Turbo (2026-11-26, user: "a tiny bit easier" at the top, 19 / 24 / 29 / 35 = 54 / 10 / 3 / 2 % of the 125 regulars; before that the same day 19 / 24 / 30 / 37, slightly harder for regrab speeds, 19 / 24 / 30 / 37 = 54 / 10 / 3 / 1 % of the 125 regulars in the 1,538 newest local replays read with the current top-speed code, 4+ min 3v3 games; 18 / 23 / 28 / 35 was 69 / 14 / 4 / 2 % there; record 37.9) (earlier that day, user: much harder, 18 / 23 / 28 / 35 = 51 / 12 / 3 / 1 % of the 348 regulars in the newest 4,000 public matches, was 84 / 32 / 12 / 3 %; record 38.5 m/s) (2026-11-25, stats version 18: top speed is the average over a second, about 10 % higher; 14 / 20 / 23 / 28 keeps 13 / 17 / 19 / 21 as hard: 100 / 54 / 22 / 11 % of the 90 regulars in the newest 1,600 matches, before 99 / 49 / 21 / 10 %; earlier that day, user: slightly easier on every medal, was 14/16/18/20/22, 88 / 34 / 13 / 7 %; 2026-11-11, user: crown for about 7.5 % of regulars after the death and bounds corrections; was the written targets)
     92: (6, 21, 36, 65, 80),  # Centurion Bot (Wins) (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was the written targets)
-    93: (2, 10, 18, 26, 32),  # halfway to November's pace (user, 2026-11-26);  # Capture Point Clean Sweep (Capture Point) (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was the written targets)
-    94: (1, 6, 11, 18, 21),  # Payload Delivered (Payload) (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was the written targets)
-    95: (2, 8.5, 15, 20, 27),  # halfway to November's pace (user, 2026-11-26);  # Payload Shutout (Payload) (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was the written targets)
+    93: (2, 11, 20, 25, 30),  # rounder numbers (user, 2026-11-27), was (2, 10, 18, 26, 32); halfway to November's pace (user, 2026-11-26);  # Capture Point Clean Sweep (Capture Point) (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was the written targets)
+    94: (1, 5, 10, 15, 20),  # rounder numbers (user, 2026-11-27), was (1, 6, 11, 18, 21); Payload Delivered (Payload) (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was the written targets)
+    95: (2, 8, 15, 20, 25),  # rounder numbers (user, 2026-11-27), was (2, 8.5, 15, 20, 27); halfway to November's pace (user, 2026-11-26);  # Payload Shutout (Payload) (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was the written targets)
     116: (4, 5, 6, 8, 10),  # Ready Every Dawn (Activity) (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was the written targets)
-    118: (9, 17.5, 26, 36, 43),  # halfway to November's pace (user, 2026-11-26);  # Overtime on Kronos II (Activity) (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was the written targets)
+    118: (10, 17, 25, 35, 45),  # rounder numbers (user, 2026-11-27), was (9, 17.5, 26, 36, 43); halfway to November's pace (user, 2026-11-26);  # Overtime on Kronos II (Activity) (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was the written targets)
     119: (3, 5.5, 8, 12, 15),  # Hot Day Bot (Wins) (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was the written targets)
-    120: (8, 18.5, 29, 40, 53),  # halfway to November's pace (user, 2026-11-26);  # Point Taker (Capture Point) (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was the written targets)
+    120: (10, 20, 30, 40, 50),  # rounder numbers (user, 2026-11-27), was (8, 18, 29, 40, 53); halfway to November's pace (user, 2026-11-26);  # Point Taker (Capture Point) (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was the written targets)
     121: (6, 14, 22, 30, 40),  # Payload Hauler (Payload) (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was the written targets)
     125: (4, 7.5, 11, 14, 17),  # halfway to November's pace (user, 2026-11-26);  # Nothing Leaves Kronos II (Payload) (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was the written targets)
-    141: (2, 7, 12, 17, 19),  # halfway to November's pace (user, 2026-11-26);  # Capture Point Comeback (Capture Point) (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was the written targets)
+    141: (2, 6, 10, 15, 20),  # rounder numbers (user, 2026-11-27), was (2, 7, 12, 17, 19); halfway to November's pace (user, 2026-11-26);  # Capture Point Comeback (Capture Point) (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was the written targets)
     # "Only <item>" (user, 2026-11-26: harder, the same for all gear): 2 / 6 / 8 / 10 games in one day and 5 / 10 / 15 / 20 in any
     # 7 days ("more even looking, with the top being 20"; first 3 / 10 / 14 / 18 that day; were 1 / 4 / 5 / 7 and 1 / 6 / 9 / 13). On 194 regulars: Repair Matrix / Detonator crown 13-16 % (22-28 %), the
     # typical item 4 % (7 %); a 3-4 month period gives more tries.
@@ -304,7 +304,7 @@ TUNED_LEVELS: dict[int, tuple[float, ...]] = {
     14: (2, 4, 6, 8, 10),  # Search and Destroy
     15: (2, 4, 6, 8, 10),  # n00b Protector 9000
     16: (2, 4, 6, 8, 10),  # Wraith
-    18: (7, 14.5, 22, 43, 64),  # halfway to November's pace (user, 2026-11-26);  # My Other Chassis Is a Toaster (2026-11-26, user: harder, crown 6 % of 194 regulars in the local stats-version-20 matches, was 9 % at 2 / 8 / 15 / 23)
+    18: (5, 12, 20, 40, 60),  # rounder numbers (user, 2026-11-27), was (7, 14.5, 22, 43, 64); halfway to November's pace (user, 2026-11-26);  # My Other Chassis Is a Toaster (2026-11-26, user: harder, crown 6 % of 194 regulars in the local stats-version-20 matches, was 9 % at 2 / 8 / 15 / 23)
     19: (5, 7, 9, 12, 16),  # Point Captured (user, 2026-11-05: 109 / 64 / 31 / 17 / 6 players since 1 Aug; was 5/7/9/16/22)
     20: (5, 7, 9, 12, 16),  # Checkpoint Reached (user, 2026-11-05: same as Point Captured; 94 / 61 / 35 / 18 / 5 players since 1 Aug; was 5/7/9/16/22)
     21: (40, 46.25, 52.5, 60, 67.5),  # Full Team Salvo (2026-11-11, user: the crown at 3 % of regulars was too low, about 7.5 % wanted: 40 / 55 / 60 / 67.5 %; crown for about 7.5 % of regulars (the 7th best of 91 reached 67.6))  # loosened 2026-11-11 (user): steps of at least 8 % of the crown, the lower medals eased; was 40/47/55/60/67.5
@@ -314,7 +314,7 @@ TUNED_LEVELS: dict[int, tuple[float, ...]] = {
     26: (3, 4, 5, 7, 9),  # Blast Furnace
     27: (3, 4, 5, 7, 9),  # Meltdown on Fission (renamed 2026-11-26, user; was "Techneium-99")
     28: (3, 4, 5, 7, 9),  # Bird of Prey
-    29: (9, 13, 18, 24, 30),  # Combat on Quest When? (user, 2026-11-05: 102 / 59 / 31 / 12 / 6 players since 1 Aug; was 9/13/18/31/42)
+    29: (10, 15, 20, 25, 30),  # rounder numbers (user, 2026-11-27), was (9, 13, 18, 24, 30); Combat on Quest When? (user, 2026-11-05: 102 / 59 / 31 / 12 / 6 players since 1 Aug; was 9/13/18/31/42)
     30: (5, 8, 10, 15, 20),  # Pulse Check
     31: (5, 8, 10, 15, 20),  # Eat My Nova!
     32: (5, 8, 10, 15, 20),  # Comet Commandments (was Silicon Assassin)
@@ -328,9 +328,9 @@ TUNED_LEVELS: dict[int, tuple[float, ...]] = {
     40: (5, 8, 10, 15, 20),  # Check Out My Cool Screensaver
     41: (5, 8, 10, 15, 20),  # Ghost in the Shell
     42: (5, 10, 15, 20, 25),  # Gearhead (user, 2026-11-05: 4+ min games with 3+ players per team; 41 / 19 / 11 / 7 / 5 % of the 843 regulars with 20+ such games reach these; was 4/8/15/39/65, platinum 0.5 %)
-    43: (4, 6, 10, 15, 25),  # Pew Pew Proof (user, 2026-11-05: games in a row averaging under 5 deaths, on 3+ days; 20 / 15 / 8.5 / 3.8 / 1.3 % of the same regulars reach these; 25 was the old single step)
-    44: (10, 18, 25, 33, 40),  # I'd Rather Be on Kronos II (user, 2026-11-05: 70 / 21 / 13 / 6 / 4 players since 1 Aug; was 10/18/25/52/65)
-    45: (10, 18, 25, 33, 40),  # Sakura's Dancing Flamingo (user, 2026-11-05: 69 / 22 / 13 / 6 / 4 players since 1 Aug; was 10/18/25/52/65)
+    43: (5, 7, 10, 15, 25),  # rounder numbers (user, 2026-11-27), was (4, 6, 10, 15, 25); Pew Pew Proof (user, 2026-11-05: games in a row averaging under 5 deaths, on 3+ days; 20 / 15 / 8.5 / 3.8 / 1.3 % of the same regulars reach these; 25 was the old single step)
+    44: (10, 17, 25, 35, 40),  # rounder numbers (user, 2026-11-27), was (10, 18, 25, 33, 40); I'd Rather Be on Kronos II (user, 2026-11-05: 70 / 21 / 13 / 6 / 4 players since 1 Aug; was 10/18/25/52/65)
+    45: (10, 17, 25, 35, 40),  # rounder numbers (user, 2026-11-27), was (10, 18, 25, 33, 40); Sakura's Dancing Flamingo (user, 2026-11-05: 69 / 22 / 13 / 6 / 4 players since 1 Aug; was 10/18/25/52/65)
     46: (18, 19.5, 21, 23, 25),  # Tech Support w/RAD_Natalie (2026-11-26, user: a bit harder with Hug Your Frenemy, crown 6 % of 194 regulars, was 9 % at 16 / 19 / 21 / 23) (2026-11-11, user: crown for about 7.5 % of regulars after the death and bounds corrections; was 16/20/24/26/28)
     47: (9, 10, 11, 13, 15),  # Hug Your Frenemy (2026-11-26, user: a bit harder with Tech Support, crown 5 % of 194 regulars, was 9 % at 8 / 9.5 / 11 / 13) (2026-11-11, user: crown for about 7.5 % of regulars after the death and bounds corrections; was 12/14/16/18/20)  # loosened 2026-11-11 (user): steps of at least 8 % of the crown, the lower medals eased; was 10/10.5/11/12/13
     49: (9, 10.5, 12, 20, 27),  # I’ɯ ꓭɐʇ ꓭoʇ (2026-11-11, user: crown for about 7.5 % of regulars after the death and bounds corrections; was 9.3/22/36/47/57)
@@ -354,25 +354,25 @@ TUNED_LEVELS: dict[int, tuple[float, ...]] = {
     # 4-month challenge period (user, 2026-11-26): the ladders nobody could finish in the last real 4 months (27 Jul-26 Nov,
     # 255 regulars) made reachable; the rest already land at a 2-6 % crown and stay.
     17: (1, 1.5, 2, 3, 4),  # Versatile Bot: days with all 12 items (best regular 2; was 1 / 5 / 13 / 23)
-    67: (7, 17, 27, 54, 78),  # halfway to November's pace (user, 2026-11-26);  # 5th Loadout when?: crown 4 % (was 7 / 29 / 62 / 87, 0 %)
-    123: (2, 3.5, 5, 9, 15),  # halfway to November's pace (user, 2026-11-26);  # No Gun Left Behind: least-used weapon (best 20; was 1 / 18 / 78 / 156)
-    86: (2, 3.5, 5, 9, 15),  # halfway to November's pace (user, 2026-11-26);  # Forbidden Arsenal: the same ladder as No Gun Left Behind (best 11)
-    124: (2, 3.5, 5, 9, 15),  # halfway to November's pace (user, 2026-11-26);  # Loadout Scholar Bot: least-used item (best 12)
-    68: (95, 247.5, 400, 800, 1400),  # halfway to November's pace (user, 2026-11-26);  # Pixel Party! (2026-11-26: crown 5 % over 4 months, was 0 % at 150 / 600 / 1,200 / 2,000) (2026-11-11, user: top end 2,000, the rest spread to match; 150 / 600 / 1,200 / 2,000 as four medals. Was 205/440/810/1460/2470 before the death rules were corrected, 150/330/500/900/1500 an hour earlier. Best player in 100 days: 990 deaths, about 10 a day)
-    69: (20, 47.5, 75, 130, 150),  # halfway to November's pace (user, 2026-11-26);  # King of the Hill (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 14/30/54/95/165)
-    70: (20, 47.5, 75, 130, 150),  # halfway to November's pace (user, 2026-11-26);  # Feed the Flamingo (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 14/29/51/90/155)
+    67: (5, 15, 25, 50, 75),  # rounder numbers (user, 2026-11-27), was (7, 17, 27, 54, 78); halfway to November's pace (user, 2026-11-26);  # 5th Loadout when?: crown 4 % (was 7 / 29 / 62 / 87, 0 %)
+    123: (2, 3, 5, 10, 15),  # rounder numbers (user, 2026-11-27), was (2, 3.5, 5, 9, 15); halfway to November's pace (user, 2026-11-26);  # No Gun Left Behind: least-used weapon (best 20; was 1 / 18 / 78 / 156)
+    86: (2, 3, 5, 10, 15),  # rounder numbers (user, 2026-11-27), was (2, 3.5, 5, 9, 15); halfway to November's pace (user, 2026-11-26);  # Forbidden Arsenal: the same ladder as No Gun Left Behind (best 11)
+    124: (2, 3, 5, 10, 15),  # rounder numbers (user, 2026-11-27), was (2, 3.5, 5, 9, 15); halfway to November's pace (user, 2026-11-26);  # Loadout Scholar Bot: least-used item (best 12)
+    68: (100, 250, 400, 800, 1400),  # rounder numbers (user, 2026-11-27), was (95, 247, 400, 800, 1400); halfway to November's pace (user, 2026-11-26);  # Pixel Party! (2026-11-26: crown 5 % over 4 months, was 0 % at 150 / 600 / 1,200 / 2,000) (2026-11-11, user: top end 2,000, the rest spread to match; 150 / 600 / 1,200 / 2,000 as four medals. Was 205/440/810/1460/2470 before the death rules were corrected, 150/330/500/900/1500 an hour earlier. Best player in 100 days: 990 deaths, about 10 a day)
+    69: (20, 47, 75, 125, 150),  # rounder numbers (user, 2026-11-27), was (20, 47.5, 75, 130, 150); halfway to November's pace (user, 2026-11-26);  # King of the Hill (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 14/30/54/95/165)
+    70: (20, 47, 75, 125, 150),  # rounder numbers (user, 2026-11-27), was (20, 47.5, 75, 130, 150); halfway to November's pace (user, 2026-11-26);  # Feed the Flamingo (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 14/29/51/90/155)
     72: (6, 7.5, 9, 10, 11),  # Roboticide (2026-11-11, user: crown for about 7.5 % of regulars after the death and bounds corrections; was 6/8/9/11/14)
     73: (2.6, 2.725, 2.85, 3.1, 3.4),  # Cyberkinetic Enhancements (2026-11-11, user: crown for about 7.5 % of regulars after the death and bounds corrections; was 2.6/2.8/3.0/3.2/3.5)  # loosened 2026-11-11 (user): steps of at least 8 % of the crown, the lower medals eased; was 2.6/2.8/3/3.2/3.4  # 2026-11-11 (user): bronze back at 2.6 (held by 68 % of regulars), steps of 0.25 / 0.25 / 0.3; was 2/2.25/2.5/3/3.4
-    75: (12, 26, 40, 60, 74),  # halfway to November's pace (user, 2026-11-26);  # Brute Force Attack (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 8/16/27/50/80)
-    76: (12, 26, 40, 60, 74),  # halfway to November's pace (user, 2026-11-26);  # Molten Mechanical Mayhem (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 7/15/26/49/80)
-    77: (12, 26, 40, 60, 74),  # halfway to November's pace (user, 2026-11-26);  # George and I Go Way Back (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 7/15/26/45/80)
-    78: (12, 26, 40, 60, 74),  # halfway to November's pace (user, 2026-11-26);  # Good ol' George (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 7/15/26/46/75)
-    79: (39, 89.5, 140, 250, 290),  # halfway to November's pace (user, 2026-11-26);  # King/Queen of Pubs (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 28/60/105/190/320)
+    75: (10, 25, 40, 60, 75),  # rounder numbers (user, 2026-11-27), was (12, 26, 40, 60, 74); halfway to November's pace (user, 2026-11-26);  # Brute Force Attack (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 8/16/27/50/80)
+    76: (10, 25, 40, 60, 75),  # rounder numbers (user, 2026-11-27), was (12, 26, 40, 60, 74); halfway to November's pace (user, 2026-11-26);  # Molten Mechanical Mayhem (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 7/15/26/49/80)
+    77: (10, 25, 40, 60, 75),  # rounder numbers (user, 2026-11-27), was (12, 26, 40, 60, 74); halfway to November's pace (user, 2026-11-26);  # George and I Go Way Back (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 7/15/26/45/80)
+    78: (10, 25, 40, 60, 75),  # rounder numbers (user, 2026-11-27), was (12, 26, 40, 60, 74); halfway to November's pace (user, 2026-11-26);  # Good ol' George (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 7/15/26/46/75)
+    79: (50, 150, 250, 500, 1000),  # rounder numbers (user, 2026-11-27), was (39, 89, 140, 250, 290); halfway to November's pace (user, 2026-11-26);  # King/Queen of Pubs (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 28/60/105/190/320)
     90: (3, 4, 5, 7, 9),  # On a Roll / Echo Streak (2026-11-26, user: harder at the top, crown 4 % of 194 regulars, was 9 % at 3 / 5 / 6 / 7)
     96: (100, 120, 140, 175, 205),  # Pedal to the Metal  # 2026-11-11 (user): crown unchanged at about 7.5 % of regulars, steps of 40 / 35 / 30 s; was 112/160/182/198/207
     97: (22, 34, 45, 60, 70),  # Payload Roadblock (2026-11-11, user: crown for about 7.5 % of regulars after the death and bounds corrections; was 22/44/60/73/84)
-    98: (5, 14, 23, 38, 53),  # halfway to November's pace (user, 2026-11-26);  # Payload Freight Train (Payload) (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 3.3/8.6/15/25/46)
-    100: (38, 79, 120, 150, 230),  # halfway to November's pace (user, 2026-11-26);  # Dance Floor Legend (user, 2026-11-05: nobody had reached 12480, 5th best since 1 Aug 116; was 48/240/960/3120/12480)
+    98: (5, 15, 25, 40, 50),  # rounder numbers (user, 2026-11-27), was (5, 14, 23, 38, 53); halfway to November's pace (user, 2026-11-26);  # Payload Freight Train (Payload) (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 3.3/8.6/15/25/46)
+    100: (40, 82, 125, 150, 225),  # rounder numbers (user, 2026-11-27), was (38, 79, 120, 150, 230); halfway to November's pace (user, 2026-11-26);  # Dance Floor Legend (user, 2026-11-05: nobody had reached 12480, 5th best since 1 Aug 116; was 48/240/960/3120/12480)
     101: (2, 4, 6, 8, 10),  # Starburst Stream
     102: (2, 4, 6, 8, 10),  # Protostar Power Trip
     103: (2, 4, 6, 8, 10),  # Quark Storm
@@ -382,9 +382,9 @@ TUNED_LEVELS: dict[int, tuple[float, ...]] = {
     107: (20, 35, 50, 80, 120),  # Quark Veteran
     108: (20, 35, 50, 80, 120),  # Translocator Veteran
     112: (20, 35, 50, 80, 120),  # Overcharged (renamed 2026-11-26, user; was "Overclocked")
-    114: (18, 22, 26, 35, 46),  # halfway to November's pace (user, 2026-11-26);  # Lobby Regular (Activity) (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 10/19/31/47/75)
+    114: (20, 22, 25, 35, 45),  # rounder numbers (user, 2026-11-27), was (18, 22, 26, 35, 46); halfway to November's pace (user, 2026-11-26);  # Lobby Regular (Activity) (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 10/19/31/47/75)
     115: (7, 8.5, 10, 12, 15),  # halfway to November's pace (user, 2026-11-26);  # Loyal Bot (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 6/11/16/23/32)
-    117: (5, 12, 19, 30, 36),  # halfway to November's pace (user, 2026-11-26);  # Time Well Wasted on Kronos II (Activity) (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 3.5/7.7/14/26/43)
+    117: (5, 12, 20, 30, 35),  # rounder numbers (user, 2026-11-27), was (5, 12, 19, 30, 36); halfway to November's pace (user, 2026-11-26);  # Time Well Wasted on Kronos II (Activity) (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 3.5/7.7/14/26/43)
     122: (1, 2, 3, 7, 12),  # Grand Tour
     127: (5, 8, 10, 15, 20),  # Star Power
     128: (5, 8, 10, 15, 20),  # Protostar Powerhouse
@@ -412,7 +412,7 @@ TUNED_LEVELS: dict[int, tuple[float, ...]] = {
     48: (2.25, 2.5, 2.75, 3.25, 3.65),  # The Wings of RAD_Wyvern (2026-11-11, user: crown for about 7.5 % of regulars after the death and bounds corrections; was 2.75/3/3.25/3.5/3.75)  # loosened 2026-11-11 (user): steps of at least 8 % of the crown, the lower medals eased; was 2.75/3/3.25/3.5/3.65
     145: (3.25, 3.5, 3.75, 4.25, 4.75),  # Speed Demon (2026-11-11, user: crown for about 7.5 % of regulars after the death and bounds corrections; was 3.5/3.75/4/4.5/5)  # loosened 2026-11-11 (user): steps of at least 8 % of the crown, the lower medals eased; was 3.5/3.75/4/4.5/4.75
     146: (2, 3, 3.5, 4, 4.5),  # Point Guard (user, 2026-11-05: nobody had reached 6.5, best since 1 Aug 5; was 2/3/3.5/5.5/6.5)
-    148: (3, 9.5, 16, 29, 50),  # halfway to November's pace (user, 2026-11-26);  # One-Trick Pony
+    148: (5, 10, 15, 30, 50),  # rounder numbers (user, 2026-11-27), was (3, 9, 16, 29, 50); halfway to November's pace (user, 2026-11-26);  # One-Trick Pony
     149: (2, 3, 4, 5, 6),  # Loadout Roulette (user, 2026-11-05: nobody had reached 10, best since 1 Aug 6; was 4/5/6/9/10)
     150: (8, 16, 24, 32, 40),  # Mime Troupe (2026-11-27, user: doubled again; an emote takes 2-4 s with no cooldown, so 40 is 80-160 s of a 4+ min game; was 4/8/12/16/20) (2026-11-26, user: doubled, "feasible, people just don't do it regularly"; the best regular in the 1,538 newest local replays had 5, the archive's best since 1 Aug was 11) (user, 2026-11-05: nobody had reached 26, best since 1 Aug 11; was 4/8/12/21/26)
     151: (16, 20, 24, 28, 32),  # Showbot (2026-11-27, user: doubled again; an emote takes 2-4 s with no cooldown; was 8/10/12/14/16) (2026-11-26, user: doubled; 10 / 4 / 2 / 1 % of the 125 regulars in the 1,538 newest local replays, was 28 / 15 / 10 / 10 %; record 18) (2026-11-11, user: crown for about 7.5 % of regulars after the death and bounds corrections; was 4/6/8/10/14)
@@ -955,9 +955,11 @@ def _build_rules() -> list[Rule]:
                 "loadout", lambda g: g.enough_players and g.won and g.main_loadout() is not None, (1, 10, 18, 36, 70), new=True, group="Gear mastery"),
         _ladder(149, "Quick-Change Chassis (Loadout)", "Use many different loadouts in one game (each must be used for at least 10 % of the game)",
                 "loadout", _v4(lambda gs: gs[0].loadouts_played()), (4, 5, 6, 7, 8), "game", new=True, group="Gear mastery"),
-        _ladder(150, "Lobby Mime Troupe (Emotes)", "Use emotes in a game in which you never die: the more emotes, the higher the tier", None,
-                _v4(lambda gs: gs[0].emotes if gs[0].play_time_s >= FULL_GAME_S and gs[0].deaths == 0 else 0), (4, 8, 12, 16, 20), "game",  # x4 (user, 2026-11-03)
-                estimated=True, new=True, group="Emotes"),
+        # any full game, win or lose, deaths or not (user, 2026-11-27: "one is for playing a game, it shouldn't be tied to your death";
+        # Showbot is the one for winning); was a game in which you never die
+        _ladder(150, "Lobby Mime Troupe (Emotes)", "Use emotes in one game: the more emotes, the higher the tier", None,
+                _v4(lambda gs: gs[0].emotes if gs[0].play_time_s >= FULL_GAME_S else 0), (4, 8, 12, 16, 20), "game",  # x4 (user, 2026-11-03)
+                new=True, group="Emotes"),
         _ladder(151, "Showbot (Emotes)", "Use as many emotes as you can in a game your team wins", None,
                 _v4(lambda gs: gs[0].emotes if gs[0].won else 0), (12, 24, 40, 60, 100), "game", new=True, group="Emotes"),
     ]
