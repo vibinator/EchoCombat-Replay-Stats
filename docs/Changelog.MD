@@ -35,6 +35,10 @@ Working record of what changed in each release, newest first.
   cards are about half as tall (minimum 8.5rem instead of 19rem).
 - **A player's Challenges page header has one link: "← Player profile"** (user, 27 Nov). "All challenges" is gone
   from there; the site menu still has Challenges.
+- **Mega Prizes load faster on the Challenges page** (user, 27 Nov: took a long time). `/api/arena/progress` counted
+  every player's Combat matches (live list plus replay history) four times per request; it now counts once for now
+  and once for a day ago, and the closest players and the winner count reuse that. Same numbers, nothing cached.
+  Needs the backend restarted (deploy).
 
 ## 2026.11.26.31 — 23:09
 

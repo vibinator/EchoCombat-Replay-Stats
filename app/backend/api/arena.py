@@ -58,11 +58,14 @@ def progress(request: Request, limit: int = Query(10, ge=1, le=100)):
         near_arena = db.scalars(select(ArenaPlayer).where(ArenaPlayer.matches < TARGET)
                                 .order_by(ArenaPlayer.matches.desc()).limit(CLOSEST)).all()
         combat_target = int(MEGA_COMBAT.levels[-1])
-        near_combat = _closest_combat(db, combat_target)
-        won_arena = db.scalar(select(func.count()).select_from(ArenaPlayer).where(ArenaPlayer.matches >= TARGET)) or 0
-        won_combat = _combat_winners(db, combat_target)
         period = mega_window(db)
-        moves = {"top_combat": top_combat(db), "top_arena": top_arena(db)}
+        # the Combat totals once, shared by the top 10, the closest and the winners (user, 2026-11-27: Mega Prizes slow to
+        # load; this was counted 4 times per request, each time re-reading the replay history)
+        totals = combat_totals(db, *period)
+        near_combat = _closest_combat(totals, combat_target)
+        won_arena = db.scalar(select(func.count()).select_from(ArenaPlayer).where(ArenaPlayer.matches >= TARGET)) or 0
+        won_combat = _combat_winners(totals, combat_target)
+        moves = {"top_combat": top_combat(db, totals), "top_arena": top_arena(db)}
     r = MEGA_COMBAT  # kept out of RULES, so no public list or ranking has it
     combat = [{"id": r.id, "name": r.name, "description": r.description, "period": r.period, "icon": icon_file(r), "estimated": False,
                "new": r.new, "group": r.group, "levels": list(r.levels), "unit": r.unit, "prize": r.prize}]
@@ -162,9 +165,11 @@ def _moves(now: list[dict], before: dict[str, int]) -> list[dict]:
     return out
 
 
-def top_combat(db) -> list[dict]:
+def top_combat(db, now: list[dict] | None = None) -> list[dict]:
+    """`now` = combat_totals for the current period when the caller already has it."""
     start, end = mega_window(db)
-    now = combat_totals(db, start, end)
+    if now is None:
+        now = combat_totals(db, start, end)
     day_ago = combat_totals(db, start, end, as_of=time.time() - 86400)
     return _moves(now, {w["user_id"]: w["count"] for w in day_ago})
 
@@ -179,17 +184,15 @@ def top_arena(db) -> list[dict]:
     return _moves(now, {u: m - recent.get(u, 0) for u, _, _, m in players})
 
 
-def _closest_combat(db, target: int) -> list[dict]:
-    """The CLOSEST players below the Combat target."""
-    start, end = mega_window(db)
-    below = [w for w in combat_totals(db, start, end) if w["count"] < target][:CLOSEST]
+def _closest_combat(totals: list[dict], target: int) -> list[dict]:
+    """The CLOSEST players below the Combat target (`totals` = combat_totals, most matches first)."""
+    below = [w for w in totals if w["count"] < target][:CLOSEST]
     return [{"user_id": w["user_id"], "name": w["name"], "matches": w["count"]} for w in below]
 
 
-def _combat_winners(db, target: int) -> int:
-    """How many players reached the Combat target inside the challenge period."""
-    start, end = mega_window(db)
-    return sum(1 for w in combat_totals(db, start, end) if w["count"] >= target)
+def _combat_winners(totals: list[dict], target: int) -> int:
+    """How many players reached the Combat target inside the challenge period (`totals` = combat_totals)."""
+    return sum(1 for w in totals if w["count"] >= target)
 
 
 def _period(db) -> dict:
