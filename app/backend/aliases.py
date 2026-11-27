@@ -42,6 +42,7 @@ def _requeue(db: Session, replay_ids: list[int]) -> None:
 class MergeResult:
     moved: list[int] = field(default_factory=list)  # replays updated in place (no re-read)
     requeued: list[int] = field(default_factory=list)  # replays re-processed from the file
+    main: str = ""  # the record kept: the one seen most recently (admin_actions.merge_players)
 
 
 def merge(db: Session, main_user_id: str, alias_user_ids: list[str]) -> MergeResult:

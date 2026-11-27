@@ -118,8 +118,10 @@ def test_in_place_merge_matches_a_full_reprocess(client):
     later = rf.START + timedelta(days=1)
     add(client, {"surge/4.echoreplay": match([rf.player(400, "Alt2")], [rf.player(300, "Mate", 1)], payload=True,
                                              start=later + timedelta(hours=1)),
-                 "dyson/5.echoreplay": match([rf.player(200, "Alt")], [rf.player(400, "Alt2", 1)], start=later)})
-    act(client, actions.merge_players, "200", ["400"])  # 400 played with 200: re-read
+                 "dyson/5.echoreplay": match([rf.player(200, "Alt")], [rf.player(400, "Alt2", 1)], start=later),
+                 # 100 seen last, so it is the record kept below (a merge keeps the one seen most recently)
+                 "dyson/6.echoreplay": match([rf.player(100, "Main")], [rf.player(300, "Mate", 1)], start=later + timedelta(hours=2))})
+    act(client, actions.merge_players, "200", ["400"])  # 400 played with 200: re-read; 400 seen later: 200 goes into it
     wait(client)
     result = act(client, actions.merge_players, "100", ["200"])  # 400 follows 200 into 100
     assert len(result.moved) == 2 and len(result.requeued) == 1  # dyson/5 has two of the ids: re-read
@@ -273,3 +275,22 @@ def test_rarity_and_recent(client):
     recent = client.get("/api/achievements/recent").json()
     assert isinstance(recent, list)
     assert all({"date", "name", "achievement"} <= set(e) for e in recent)
+
+
+def test_merge_keeps_the_record_seen_most_recently(client):
+    """User, 2026-11-27: "the master record should always be the most recent seen account", whichever is named as main.
+    Pinned challenges (D68) follow the merged record to the kept one."""
+    from backend.models import ChallengePin
+
+    later = rf.START + timedelta(days=30)
+    add(client, {"dyson/4.echoreplay": match([rf.player(700, "Newest")], [rf.player(300, "Mate", 1)], start=later)})
+    with client.app.state.sessionmaker() as db:
+        db.add(ChallengePin(user_id="100", achievement_id=RULES[0].id, pinned_at="2026-11-27T10:00:00"))
+        db.commit()
+    result = act(client, actions.merge_players, "100", ["700"])  # 100 named as main, 700 seen last
+    wait(client)
+    assert result.main == "700"
+    with client.app.state.sessionmaker() as db:
+        assert db.get(PlayerAlias, "100").main_user_id == "700" and db.get(PlayerAlias, "700") is None
+        assert [(p.user_id, p.achievement_id) for p in db.query(ChallengePin)] == [("700", RULES[0].id)]
+    assert client.get("/api/players/700").json()["stats"]["games"] == 3  # dyson/1, 2 and 4

@@ -85,6 +85,8 @@ def suggestions(db: Session) -> list[dict]:
                          "merged_ids": mains_with_aliases.get(uid, 0)})
         # keep: a player that already has merged ids, then the most games, then the earliest seen
         rows.sort(key=lambda r: (-r["merged_ids"], -r["games"], r["first_seen_at"]))
+        # the one seen most recently first (user, 2026-11-27: a merge always keeps it); the order above breaks ties
+        rows.sort(key=lambda r: r["last_seen_at"] or "", reverse=True)
         exact = len({r["name"] for r in rows}) == 1
         out.append({"name": rows[0]["name"], "exact": exact, "played_together": together[root],
                     "keep": rows[0]["user_id"], "players": rows})

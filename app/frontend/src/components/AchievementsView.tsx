@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { Link, useLocation, useSearchParams } from "react-router";
-import { LEVELS, getMegaPlayer, getMegaVisible, getAchievements, getArenaProgress, getChallenges, getMe, getRarity, loginUrl, type Achievement, type AchievementPeek, type AchievementRarity, type AchievementRule } from "../api";
+import { LEVELS, getMegaPlayer, getMegaVisible, getAchievements, getArenaProgress, getChallenges, getMe, getRarity, getPins, loginUrl, savePin, type Achievement, type ChallengePins, type AchievementPeek, type AchievementRarity, type AchievementRule } from "../api";
 import { achievementsPath, medalRuleText, pct, ruleText } from "../format";
 import { useApi } from "../useApi";
 import { Status } from "./common";
@@ -334,6 +334,7 @@ function ChallengeRow({ a, side }: { a: AnyBadge; side: "left" | "right" }) {
       <div className="ch-main">
         <div className="ch-line">
           <span className="ch-name">{a.name}</span>
+          {!catalogue && <PinButton id={a.id} done={done} />}
           <span className="ch-state" title={catalogue ? "Share of players who reached a tier" : "Overall progress, counting every tier"}>
             {catalogue ? share : done ? "Completed!" : pct(a.progress)}
           </span>
@@ -428,6 +429,7 @@ function ChallengeCard({ a, onClose }: { a: AnyBadge; onClose?: () => void }) {
               : a.levels && a.count != null ? levelText(a.count, a.levels, a.unit) : `${pct(a.progress)} of the way`}
           </span>
         )}
+        {!catalogue && <PinButton id={a.id} done={a.progress! >= 1} label />}
         {a.prize && <span className="tag mega-prize" title="Mega Prize for completing this challenge">Mega Prize: {a.prize}</span>}
         {!catalogue && a.try_next && a.try_next.length > 0 && a.progress! < 1 && (
           <span className="muted try-next">
@@ -1461,38 +1463,143 @@ function NextTiers({ items }: { items: Achievement[] }) {
     <section className="next-tiers" aria-label="Your next tiers">
       <h3>Your next tiers <span className="muted hint">· closest first</span></h3>
       <div className="next-tier-cards">
-        {next.map(({ a, next: n }) => {
-          const i = LEVELS.indexOf(n.medal as (typeof LEVELS)[number]);
-          const need = a.levels![i];
-          const unit = a.unit ?? "";
-          const s = share.get(a.id);
-          const how = nextTierHow(a, need);
-          return (
-            <article key={a.id} className={`next-tier-card t-${n.medal}`}>
+        {next.map(({ a, next: n }) => <TierCard key={a.id} a={a} n={n} share={share.get(a.id)} />)}
+      </div>
+    </section>
+  );
+}
+
+/** One "next tier" card: the tier ahead, how far along, where and how it counts, and the ladder (Your next tiers, Pinned). */
+function TierCard({ a, n, share: s, pin = false }: { a: Achievement; n: { fraction: number; medal: string }; share: number | null | undefined; pin?: boolean }) {
+  const i = LEVELS.indexOf(n.medal as (typeof LEVELS)[number]);
+  const need = a.levels![i];
+  const unit = a.unit ?? "";
+  const how = nextTierHow(a, need);
+  return (
+    <article className={`next-tier-card t-${n.medal}`}>
+      <div className="next-tier-top">
+        <ChallengeArt a={a} className="next-tier-icon" />
+        <div className="next-tier-title">
+          <strong>{a.name}</strong>
+          <span className="muted">{medalRuleText(a.description, n.medal)}</span>
+        </div>
+        {pin && <PinButton id={a.id} done={false} />}
+      </div>
+      <span className="next-tier-left">{levelText(a.count ?? 0, a.levels ?? [], unit)}</span>
+      <div className="next-tier-bar" role="progressbar" aria-label={`${a.name}: ${pct(n.fraction)} of the way to ${n.medal}`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(n.fraction * 100)}>
+        <div style={{ width: `${n.fraction * 100}%` }} />
+      </div>
+      <span className="next-tier-how">{how.where}</span>
+      {how.conditions && <span className="muted next-tier-req">{how.conditions}</span>}
+      <span className="next-tier-count">
+        <b>{(a.count ?? 0).toLocaleString()}{unit}</b> / {need.toLocaleString()}{unit} <span className="muted">· {pct(n.fraction)} of the way</span>
+      </span>
+      <div className="next-tier-ladder" aria-hidden="true">
+        {a.levels!.map((_, j) => (
+          <span key={j} className={j < i ? "done" : j === i ? "current" : "later"} title={`${LEVELS[j]}: ${a.levels![j].toLocaleString()}${unit}`}>
+            <img src={`${IMG}${LEVELS[j]}.png`} alt="" />
+          </span>
+        ))}
+        <span className="muted next-tier-share">{s == null ? "" : s === 0 ? "nobody has a tier yet" : `${pct(s)} of players reached a tier`}</span>
+      </div>
+    </article>
+  );
+}
+
+// --- Pinned challenges (user, 2026-11-27) ------------------------------------------------------------------------------
+// A player pins up to 3 challenges to work on; everyone sees them on the player page and their Challenges page, only their
+// own Discord account can change them (api/pins.py). A completed one is unpinned by itself (the server drops it when it
+// works out the player's challenges; the page leaves it out at once).
+
+interface PinState extends ChallengePins {
+  busy: boolean;
+  error: string | null;
+  toggle: (id: number) => void;
+}
+
+const PinsContext = createContext<PinState | null>(null);
+
+function usePinState(userId: string): PinState | null {
+  const { visible } = useAchievementsAccess();
+  const loaded = useApi(() => (visible ? getPins(userId) : Promise.resolve(null)), `pins|${userId}|${visible}`);
+  const [saved, setSaved] = useState<ChallengePins | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => setSaved(null), [loaded.data]);
+  const d = saved ?? loaded.data;
+  if (!d) return null;
+  const toggle = (id: number) => {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    savePin(userId, id, !d.pins.includes(id))
+      .then(setSaved)
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setBusy(false));
+  };
+  return { ...d, busy, error, toggle };
+}
+
+const PIN_ICON = (
+  <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+    <path d="M15 3l6 6-2.5.8-3.8 3.8.8 4.4-1.6 1.6-4-4-5.2 5.2-1.3-1.3 5.2-5.2-4-4L6.2 8.7l4.4.8 3.8-3.8z" fill="currentColor" />
+  </svg>
+);
+
+/** The pin toggle for the player's own Discord account; visitors see a mark on what is pinned. Hidden once completed. */
+function PinButton({ id, done, label = false }: { id: number; done: boolean; label?: boolean }) {
+  const p = useContext(PinsContext);
+  if (!p || done) return null;
+  const on = p.pins.includes(id);
+  if (!p.editable) return on ? <span className="pin-mark" title="Pinned: this player is working on it">{PIN_ICON}{label && " Pinned"}</span> : null;
+  const full = !on && p.pins.length >= p.max;
+  const title = on ? "Unpin" : full ? `You can pin ${p.max} challenges: unpin one first` : "Pin it to work on it (shown on your player page)";
+  return (
+    <button type="button" className={`pin-btn${on ? " on" : ""}${label ? " labelled" : ""}`} aria-pressed={on} disabled={p.busy || full}
+      title={title} aria-label={title}
+      onClick={(e) => { e.stopPropagation(); p.toggle(id); }} onKeyDown={(e) => e.stopPropagation()}>
+      {PIN_ICON}{label && (on ? " Unpin" : full ? ` ${p.max} pinned` : " Pin")}
+    </button>
+  );
+}
+
+/** Pinned and not completed yet, in the order they were pinned. */
+function pinnedItems(items: Achievement[], pins: number[]): Achievement[] {
+  const by = new Map(items.map((a) => [a.id, a]));
+  return pins.map((id) => by.get(id)).filter((a): a is Achievement => !!a && a.progress < 1);
+}
+
+/** The Challenges page: the pinned ones as full cards, above Your next tiers. */
+function PinnedChallenges({ items }: { items: Achievement[] }) {
+  const p = useContext(PinsContext);
+  const rarity = useApi(getRarity, "rarity").data;
+  if (!p) return null;
+  const list = pinnedItems(items, p.pins);
+  if (list.length === 0) {
+    return p.editable ? <p className="muted pinned-hint">{PIN_ICON} Pin up to {p.max} challenges to work on: open one and press Pin. They show here and on your player page.</p> : null;
+  }
+  const share = new Map((rarity ?? []).map((r) => [r.id, r.unlocked_share]));
+  return (
+    <section className="next-tiers pinned" aria-label="Pinned challenges">
+      <h3>Pinned <span className="muted hint">· {p.editable ? "what you are working on" : "what this player is working on"}</span></h3>
+      {p.error && <p className="error">{p.error}</p>}
+      <div className="next-tier-cards">
+        {list.map((a) => {
+          const n = a.levels && a.levels.length > 0 && a.count != null ? nextMedal(a) : null;
+          return n ? <TierCard key={a.id} a={a} n={n} share={share.get(a.id)} pin /> : (
+            <article key={a.id} className="next-tier-card">
               <div className="next-tier-top">
                 <ChallengeArt a={a} className="next-tier-icon" />
                 <div className="next-tier-title">
                   <strong>{a.name}</strong>
-                  <span className="muted">{medalRuleText(a.description, n.medal)}</span>
+                  <span className="muted">{ruleText(a.description)}</span>
                 </div>
+                <PinButton id={a.id} done={false} />
               </div>
-              <span className="next-tier-left">{levelText(a.count ?? 0, a.levels ?? [], unit)}</span>
-              <div className="next-tier-bar" role="progressbar" aria-label={`${a.name}: ${pct(n.fraction)} of the way to ${n.medal}`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(n.fraction * 100)}>
-                <div style={{ width: `${n.fraction * 100}%` }} />
+              <div className="next-tier-bar" role="progressbar" aria-label={`${a.name}: ${pct(a.progress)}`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(a.progress * 100)}>
+                <div style={{ width: `${a.progress * 100}%` }} />
               </div>
-              <span className="next-tier-how">{how.where}</span>
-              {how.conditions && <span className="muted next-tier-req">{how.conditions}</span>}
-              <span className="next-tier-count">
-                <b>{(a.count ?? 0).toLocaleString()}{unit}</b> / {need.toLocaleString()}{unit} <span className="muted">· {pct(n.fraction)} of the way</span>
-              </span>
-              <div className="next-tier-ladder" aria-hidden="true">
-                {a.levels!.map((_, j) => (
-                  <span key={j} className={j < i ? "done" : j === i ? "current" : "later"} title={`${LEVELS[j]}: ${a.levels![j].toLocaleString()}${unit}`}>
-                    <img src={`${IMG}${LEVELS[j]}.png`} alt="" />
-                  </span>
-                ))}
-                <span className="muted next-tier-share">{s == null ? "" : s === 0 ? "nobody has a tier yet" : `${pct(s)} of players reached a tier`}</span>
-              </div>
+              <span className="next-tier-count">{pct(a.progress)} of the way</span>
             </article>
           );
         })}
@@ -1501,12 +1608,49 @@ function NextTiers({ items }: { items: Achievement[] }) {
   );
 }
 
+/** The player page: one row (like the Challenges and Mega Prizes rows), each pin as its name, a slim bar and the count. */
+export function PinnedRow({ userId }: { userId: string }) {
+  const { visible } = useAchievementsAccess();
+  if (!visible) return null;
+  return <PinnedRowBody userId={userId} />;
+}
+
+function PinnedRowBody({ userId }: { userId: string }) {
+  const d = useApi(() => getAchievements(userId), userId).data;
+  const p = usePinState(userId);
+  if (!d || !p) return null;
+  const list = pinnedItems(d.items, p.pins);
+  if (list.length === 0) return null;
+  return (
+    <section className="pinned-row mega-row" aria-label="Pinned challenges">
+      <Link className="mega-row-label pinned-row-label" to={achievementsPath(d.user_id, d.name)} title="Pinned challenges: open the Challenges page">
+        {PIN_ICON} Pinned
+      </Link>
+      {list.map((a) => {
+        const n = a.levels && a.levels.length > 0 && a.count != null ? nextMedal(a) : null;
+        const fill = n ? n.fraction : a.progress;
+        const count = n && a.levels ? `${(a.count ?? 0).toLocaleString()} / ${a.levels[LEVELS.indexOf(n.medal as (typeof LEVELS)[number])].toLocaleString()}${a.unit ?? ""}` : pct(a.progress);
+        return (
+          <span key={a.id} className={`mega-row-prize pinned-row-item${n ? ` t-${n.medal}` : ""}`} title={`${a.name}: ${ruleText(a.description)}${n ? ` · next: ${n.medal}` : ""}`}>
+            <span className="mega-row-name">{a.name}</span>
+            <span className="mega-profile-bar" role="progressbar" aria-label={`${a.name}: ${pct(fill)}${n ? ` of the way to ${n.medal}` : ""}`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(fill * 100)}>
+              <span style={{ width: `${fill * 100}%` }} />
+            </span>
+            <span className="mega-row-count">{count}{n && <span className="muted"> {n.medal}</span>}</span>
+          </span>
+        );
+      })}
+    </section>
+  );
+}
+
 export function AchievementsView({ userId }: { userId: string }) {
   const result = useApi(() => getAchievements(userId), userId);
   const data = result.data;
+  const pins = usePinState(userId);
 
   return (
-    <>
+    <PinsContext.Provider value={pins}>
       <Status loading={result.loading} error={result.error} />
       {data && (
         <>
@@ -1515,6 +1659,7 @@ export function AchievementsView({ userId }: { userId: string }) {
           </div>
           {/* the player's own Mega Prize progress (user, 2026-11-26), as on their profile; only for who may see the prizes */}
           <MegaPrizesProfile userId={userId} />
+          <PinnedChallenges items={data.items} />
           <NextTiers items={data.items} />
           <ScrollToNew ready />
           {/* the "Sort by closest to the next medal" checkbox is gone (user, 2026-11-27): Your next tiers above covers it */}
@@ -1522,6 +1667,6 @@ export function AchievementsView({ userId }: { userId: string }) {
           <AchievementRules />
         </>
       )}
-    </>
+    </PinsContext.Provider>
   );
 }

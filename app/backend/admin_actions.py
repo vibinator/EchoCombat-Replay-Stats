@@ -12,7 +12,7 @@ from . import aliases
 from .cache import bump_generation
 from .config import Settings
 from .db import utcnow
-from .models import AggressiveRepair, AppSetting, ConsoleLog, HiddenReplay, Match, Player, PlayerAlias, PriorityReplay, RepairRequest, Replay
+from .models import AggressiveRepair, AppSetting, ChallengePin, ConsoleLog, HiddenReplay, Match, Player, PlayerAlias, PriorityReplay, RepairRequest, Replay
 
 REPAIRABLE = ("corrupt", "incomplete", "internal", "crashed")  # not: unsupported (not Combat), unreadable (I/O)
 # Aggressive repair (D36b) only for broken replay data, after repair mode failed: not "internal" (a bug in the app)
@@ -251,25 +251,57 @@ def unhide(db: Session, paths: list[str] | None) -> int:
 
 # --- players -------------------------------------------------------------------------------------
 
+def newest_seen(db: Session, user_ids: list[str]) -> str:
+    """The record seen most recently (Player.last_seen_at); a tie keeps the first one given. The record kept by a merge
+    (user, 2026-11-27: "the master record should always be the most recent seen account")."""
+    seen = dict(db.execute(select(Player.user_id, Player.last_seen_at).where(Player.user_id.in_(user_ids))).all())
+    return max(user_ids, key=lambda u: (seen.get(u) or "", -user_ids.index(u)))
+
+
+def group_main(db: Session, user_id: str) -> str:
+    """The main record of the merge this record is in (itself when it is not merged into another)."""
+    row = db.get(PlayerAlias, user_id)
+    return row.main_user_id if row is not None else user_id
+
+
 def merge_players(db: Session, main: str, others: list[str]) -> aliases.MergeResult:
-    """Merge `others` into `main` (D34: same person, several player ids). Most matches are updated at once; the
-    result also lists the replays re-queued (ones where several of the player's ids played together)."""
+    """Merge these records (D34: same person, several player ids). The one seen most recently is kept as the main
+    record, whichever was named as main (user, 2026-11-27); `result.main` says which. Most matches are updated at once;
+    the result also lists the replays re-queued (ones where several of the player's ids played together)."""
     others = [u for u in dict.fromkeys(others) if u and u != main]
     if not others:
         raise AdminError("Choose at least one other player")
     if db.scalar(select(Player).where(Player.user_id == main)) is None:
         raise AdminError(f"Player {main} not found")
-    if (row := db.get(PlayerAlias, main)) is not None:
-        raise AdminError(f"{main} is itself merged into {row.main_user_id}. Pick that player as the main one, "
-                         "or undo that merge first.")
     unknown = set(others) - set(db.scalars(select(Player.user_id).where(Player.user_id.in_(others))))
     if unknown:
         raise AdminError(f"Player(s) not found: {', '.join(sorted(unknown))}")
+    if (row := db.get(PlayerAlias, main)) is not None:
+        raise AdminError(f"{main} is itself merged into {row.main_user_id}. Pick that player as the main one, "
+                         "or undo that merge first.")
+    # a record already merged into another stands for that player's whole group: its main record takes part
+    group = list(dict.fromkeys([main, *(group_main(db, u) for u in others)]))
+    if len(group) < 2:
+        raise AdminError("These records are already merged together")
+    main = newest_seen(db, group)
+    others = [u for u in group if u != main]
     result = aliases.merge(db, main, others)
+    result.main = main
+    _move_pins(db, main, others)
     prioritise(db, result.requeued)
     db.commit()
     bump_generation()  # a server running this (Console page) recomputes cached pages at once
     return result
+
+
+def _move_pins(db: Session, main: str, others: list[str]) -> None:
+    """Pinned challenges (D68) are kept by main player id: those of a merged record go to the kept one, up to its 3."""
+    have = list(db.scalars(select(ChallengePin.achievement_id).where(ChallengePin.user_id == main)))
+    for pin in db.scalars(select(ChallengePin).where(ChallengePin.user_id.in_(others)).order_by(ChallengePin.pinned_at)).all():
+        if pin.achievement_id not in have and len(have) < 3:
+            db.add(ChallengePin(user_id=main, achievement_id=pin.achievement_id, pinned_at=pin.pinned_at))
+            have.append(pin.achievement_id)
+        db.delete(pin)
 
 
 def unmerge_player(db: Session, alias_user_id: str) -> list[int]:

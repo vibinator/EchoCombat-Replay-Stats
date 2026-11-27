@@ -5741,6 +5741,26 @@ tr.cloud-drop-on td {
 .mega-row-more { flex: 1 1 100%; } /* the opened prize cards take a line of their own under the row */
 .mega-row-more .mega-cards { margin-top: 0.5rem; }
 
+/* Pinned challenges (user, 2026-11-27): the pin toggle on a challenge row / card, the Pinned row on the player page and the
+   Pinned cards on the Challenges page */
+.pin-btn { flex: none; display: inline-flex; align-items: center; gap: 4px; padding: 2px 6px; border: 1px solid var(--line);
+  border-radius: 8px; background: none; color: var(--muted); cursor: pointer; line-height: 1; }
+.pin-btn:hover:not(:disabled), .pin-btn:focus-visible { color: var(--text); border-color: var(--blue); }
+.pin-btn.on { color: var(--blue); border-color: var(--blue); background: color-mix(in srgb, var(--blue) 14%, transparent); }
+.pin-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.pin-btn.labelled { align-self: flex-start; padding: 5px 12px; font: inherit; font-size: 0.9rem; }
+.pin-mark { flex: none; display: inline-flex; align-items: center; gap: 4px; color: var(--blue); }
+.next-tier-top .pin-btn, .next-tier-top .pin-mark { margin-left: auto; }
+.pinned-hint { display: flex; align-items: center; gap: 6px; }
+.pinned-row-label { color: var(--text); text-decoration: none; font-weight: 700; cursor: pointer; }
+.pinned-row-label svg { color: var(--blue); }
+.pinned-row-item { --prize: var(--blue); }
+.pinned-row-item.t-bronze { --prize: var(--tier-bronze); }
+.pinned-row-item.t-silver { --prize: var(--tier-silver); }
+.pinned-row-item.t-gold { --prize: var(--tier-gold); }
+.pinned-row-item.t-crown { --prize: var(--tier-crown, var(--tier-gold)); }
+.pinned-row-item .mega-row-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 0 1 auto; max-width: 14rem; }
+
 /* Row bars, one segment per tier (user, 2026-11-26: clearer separators, each section in its tier colour). The empty part of each
    segment is a faint wash of its colour, so every tier is visible before it is reached. */
 .ch-bar.segmented { display: flex; gap: 5px; height: 8px; background: none; border-radius: 0; overflow: visible; }

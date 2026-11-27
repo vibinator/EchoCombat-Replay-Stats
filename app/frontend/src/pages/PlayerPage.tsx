@@ -4,7 +4,7 @@ import {
   getCombatPlayer, getCompanions, getPlayer, getPlayerHeatmap3d, getPlayerHeatmapBy, getTrends,
   type CombatPlayerStats, type Companion, type CompanionWindow, type GearUse, type GearUseSet, type HeatmapLayerMode, type Period, type PlayerProfile, type PlayerStats, type TrendPoint,
 } from "../api";
-import { AchievementsStrip, AchievementsSummary, MegaPrizesProfile } from "../components/AchievementsView";
+import { AchievementsStrip, AchievementsSummary, MegaPrizesProfile, PinnedRow } from "../components/AchievementsView";
 import { CombatSection } from "../components/CombatView";
 import { ShareBar, Sparkline, SplitBar, VsAverage } from "../components/bars";
 import { LineChart } from "../components/charts";
@@ -549,6 +549,7 @@ export function PlayerPage() {
           <ProfileHeader p={p} combat={combatAll.data} onOpenCombat={() => setTab("combat")} onCompare={() => setTab("compare")} />
 
           {tab !== "challenges" && <AchievementsStrip userId={p.user_id} onOpen={() => setTab("challenges")} />}
+          <PinnedRow userId={p.user_id} />
           <MegaPrizesProfile userId={p.user_id} />
 
           <div className="filters">

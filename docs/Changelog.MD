@@ -18,6 +18,21 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.27.7 — 12:47
+
+- **Pin challenges to work on** (user, 27 Nov, D68). Logged in with Discord, a player pins up to 3 challenges with the new
+  pin button on a challenge row or in its opened card. Everyone sees them: a **Pinned** row on the player page (name, bar,
+  count toward the next tier) and **Pinned** cards above Your next tiers on their Challenges page. A completed pin removes
+  itself. Only the account that can edit the player's bio can change pins.
+- **Edit your Bio now counts a bio written on My profile** for players without a bot link (the bio is kept by Discord id;
+  the challenge only looked at bot-linked profiles, so it never completed for them). Its rarity counts those bios too.
+- **A merge always keeps the record seen most recently** (user, 27 Nov). Whichever record is named as the one to keep
+  (Console, admin.bat), the one with the latest "last seen" becomes the main record and the others are merged into it; a
+  record already merged into another counts as that player's whole group. The console says which record is kept, the
+  merge suggestions put that record first, and pinned challenges follow the merged records to the kept one. Existing merges
+  are not changed.
+- After the update: restart the server (new table `challenge_pins`, created by itself).
+
 ## 2026.11.27.6 — 12:38
 
 - **Mega Prizes "More" button on the left** (user, 27 Nov): on a player page the Mega Prizes row's More / Less button now

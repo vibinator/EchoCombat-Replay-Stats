@@ -174,7 +174,18 @@ def cmd_merge(sessions, main_term: str, other_terms: list[str], yes: bool, inter
                 others.append(p)
         if not others:
             raise ConsoleError("Choose at least one other player")
+        # the record seen most recently is always the one kept (user, 2026-11-27), whichever was named first; a record
+        # already merged into another stands for that player's whole group (as actions.merge_players decides)
+        ids = list(dict.fromkeys([main.user_id, *(actions.group_main(db, o.user_id) for o in others)]))
+        if len(ids) < 2:
+            raise ConsoleError("These records are already merged together")
+        keep = actions.newest_seen(db, ids)
+        swapped = keep != main.user_id
+        group = {p.user_id: p for p in db.scalars(select(Player).where(Player.user_id.in_(ids)))}
+        main = group[keep]
+        others = [group[u] for u in ids if u != keep]
         print(f"\nKeep:   {describe(db, main)}")
+        print("        (seen most recently: always kept as the main record)" if swapped else "        (seen most recently)")
         for o in others:
             print(f"Merge:  {describe(db, o)}")
             moved = db.scalars(select(PlayerAlias.alias_user_id).where(PlayerAlias.main_user_id == o.user_id)).all()
