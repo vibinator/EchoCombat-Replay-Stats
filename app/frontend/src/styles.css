@@ -2543,13 +2543,6 @@ td.best {
   background: var(--surface-2);
 }
 
-.jump-new {
-  display: inline-block;
-  margin: 4px 16px 4px 0;
-  color: var(--orange);
-  font-weight: 600;
-}
-
 /* Console page (D45, D58): tabs across the top; in a tab the status, then its actions, then the risky ones apart */
 .console-bar {
   display: flex;
@@ -5738,6 +5731,9 @@ tr.cloud-drop-on td {
 .mega-row-prize .mega-profile-bar { flex: 1; height: 8px; }
 .mega-row-prize .mega-profile-bar > span { display: block; height: 100%; border-radius: inherit; background: var(--prize); }
 .mega-row-count { flex: none; font-variant-numeric: tabular-nums; font-size: 0.9rem; }
+.mega-row-toggle { flex: none; padding: 2px 10px; }
+.mega-row-more { flex: 1 1 100%; } /* the opened prize cards take a line of their own under the row */
+.mega-row-more .mega-cards { margin-top: 0.5rem; }
 
 /* Row bars, one segment per tier (user, 2026-11-26: clearer separators, each section in its tier colour). The empty part of each
    segment is a faint wash of its colour, so every tier is visible before it is reached. */

@@ -18,6 +18,22 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.27.1 — 09:55
+
+- **Player challenges tab: "Sort by closest to the next medal" removed** (user, 27 Nov). "Your next tiers" at the top
+  already lists the closest ones; the grouped list is the only view now.
+- **"Jump to new challenges ↓" link removed** from the Challenges page and the player tab (user, 27 Nov). Links to
+  `…#new` from other cards still scroll to the new challenges.
+- **Mega Prizes on a player's profile open up** (user, 27 Nov): a **More ▾** button under the one-line progress row
+  shows both prize cards with the front/back pictures (zoomable), the prize, what counts and this player's count.
+  Closed by default.
+- **Player profile: the Challenges row's "View all →" button sits on the left** now, right after the "Challenges"
+  label, before the count and the tier bar (user, 27 Nov).
+- **Challenges page: shorter "Top players" cards** (user, 27 Nov). Each shows the rank, the player, the fully complete
+  count and the tiers reached in total; silver-or-better, best category and average progress moved to the card's hover text.
+- **A player's Challenges page header has one link: "← Player profile"** (user, 27 Nov). "All challenges" is gone
+  from there; the site menu still has Challenges.
+
 ## 2026.11.26.31 — 23:09
 
 - **"Overclocked" is now "Overcharged"** (user, 26 Nov): the Overcharge Veteran (games using Overcharge, Cumulative). Same id,

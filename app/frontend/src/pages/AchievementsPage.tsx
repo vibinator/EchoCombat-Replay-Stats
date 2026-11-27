@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, Navigate, useLocation, useParams, useSearchParams } from "react-router";
 import { getAchievements, getAchievers, getRarity, getRecentUnlocks, searchPlayers } from "../api";
-import { AchievementRules, AchievementsView, ChallengeBanner, ComingSoon, GroupedBadges, JumpToNew, keepsColours, MegaPrizesSection, useAchievementsAccess } from "../components/AchievementsView";
+import { AchievementRules, AchievementsView, ChallengeBanner, ComingSoon, GroupedBadges, keepsColours, MegaPrizesSection, ScrollToNew, useAchievementsAccess } from "../components/AchievementsView";
 import { Avatar, useAvatars } from "../components/Avatar";
 import { Status } from "../components/common";
 import { achievementsPath, dateTime, int, medalRuleText, nameSlug, pct, playerPath } from "../format";
@@ -67,17 +67,19 @@ function TopPlayers() {
         <Link to="/leaderboard?stat=challenges">Full leaderboard</Link>
       </div>
       <ol className="top-players" tabIndex={0} aria-label="Top players, scroll sideways">
+        {/* shorter cards (user, 2026-11-27): the full-complete count and the tiers reached; the rest is hover text */}
         {top.data.map((p) => (
-          <li key={p.user_id}>
+          <li key={p.user_id} title={[
+            `${int(p.gold_plus)} challenges at silver or better (silver, gold or crown tier)`,
+            p.best_section ? `Best category: ${p.best_section} (${pct(p.best_section_share)} done)` : null,
+            `Avg progress ${pct(p.overall)}`,
+          ].filter(Boolean).join("\n")}>
             <span className="rank">#{p.rank}</span>
             <span className="who"><Avatar name={p.name} url={avatars[p.user_id]} size={32} /><Link to={achievementsPath(p.user_id, p.name)} className="name">{p.name}</Link></span>
             <strong className="big">
               <img className="medal-crown" src="/achievements/crown.png" alt="" />{int(p.completed)} <span className="muted">/ {int(p.total)} fully complete</span>
             </strong>
-            <span className="muted" title="Silver or better = challenges where the player reached the silver, gold or crown tier">{int(p.gold_plus)} challenges at silver or better</span>
             <span className="muted" title="Every tier reached, added up across all challenges (a challenge can give up to 4)">{int(p.medals)} tiers reached in total</span>
-            {p.best_section && <span className="muted">Best category: {p.best_section} ({pct(p.best_section_share)} done)</span>}
-            <span className="muted">Avg progress {pct(p.overall)}</span>
           </li>
         ))}
       </ol>
@@ -121,7 +123,7 @@ function Catalogue() {
     <>
       <div className="section-head">
         <h2>All challenges</h2>
-        <JumpToNew ready={!!rules.data} />
+        <ScrollToNew ready={!!rules.data} />
       </div>
       <Status loading={rules.loading} error={rules.error} />
       {rules.data && <GroupedBadges items={rules.data} />}
@@ -165,10 +167,9 @@ function LaunchedAchievementsPage() {
     <section>
       <div className="section-head">
         <h1>Challenges{player && name.data && <span className="muted"> · {name.data.name}</span>}</h1>
+        {/* one link back (user, 2026-11-27): "All challenges" is already in the site menu */}
         {player && (
-          <span>
-            <Link to={d ? playerPath(d.user_id, d.name) : `/players/${encodeURIComponent(player)}`}>Player profile</Link> · <Link to="/challenges">All challenges</Link>
-          </span>
+          <Link to={d ? playerPath(d.user_id, d.name) : `/players/${encodeURIComponent(player)}`}>← Player profile</Link>
         )}
       </div>
       {player ? (

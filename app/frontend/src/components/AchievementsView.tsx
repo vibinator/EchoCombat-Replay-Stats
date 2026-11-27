@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
+import { Link, useLocation, useSearchParams } from "react-router";
 import { LEVELS, getMegaPlayer, getMegaVisible, getAchievements, getArenaProgress, getChallenges, getMe, getRarity, loginUrl, type Achievement, type AchievementPeek, type AchievementRarity, type AchievementRule } from "../api";
 import { achievementsPath, medalRuleText, pct, ruleText } from "../format";
 import { useApi } from "../useApi";
@@ -474,7 +474,7 @@ export function GroupedBadges<T extends AnyBadge>({ items: all }: { items: T[] }
   const sections: { id: string; label: string; items: T[] }[] = SECTION_LIST.map(([id, label]) => ({ id, label, items: [] as T[] }));
   for (const a of visible) sections.find((x) => x.id === sectionId(a))?.items.push(a);
   const shownSections = sections.filter((x) => x.items.length > 0);
-  // the page comes from the address (?section=), so a link can open one; "Jump to new challenges" (#new) picks the New chip
+  // the page comes from the address (?section=), so a link can open one; links to #new scroll to the tabs
   const wanted = params.get("section");
   const active = shownSections.find((x) => x.id === wanted) ?? shownSections[0];
   // the theme chips (All / New / Original / Gear / Modes & wins / Other new / Combat) under the tabs were removed
@@ -562,13 +562,21 @@ export function MegaPrizesProfile({ userId }: { userId: string }) {
   return visible ? <MegaPrizesProfileBody userId={userId} /> : null;
 }
 
+/** What counts for each Mega Prize: shared by the Mega Prizes section and a player's profile row. */
+const MEGA_NOTES = {
+  combat: ["Only counts games of 4+ minutes with at least 3v3. Matches from the replay files before the live count started are included, linked by Discord ID."],
+  arena: ["Only counts public matches of 4+ minutes with at least 3v3 (or 6+ players).", "Arena history only starts on 2026-11-04, so totals are lower than Combat."],
+};
+
 function MegaPrizesProfileBody({ userId }: { userId: string }) {
   const d = useApi(() => getMegaPlayer(userId), `mega-player|${userId}`).data;
+  // the row opens to the prize cards: pictures, the prize and what counts (user, 2026-11-27); closed by default
+  const [open, setOpen] = useState(false);
   if (!d) return null;
   // one row (user, 2026-11-26: "too much data"): each prize as a short name, a slim bar and the count; the rest is hover text
   const prizes = [
-    { key: "combat", short: "Delta-13", rule: `Play ${d.combat.target.toLocaleString()} Echo Combat matches`, ...d.combat, prize: d.combat.prize ?? "Delta-13 from Lone Echo 2" },
-    { key: "arena", short: "Jack Series 11", rule: `Play ${d.arena.target.toLocaleString()} Public Arena matches`, ...d.arena },
+    { key: "combat" as const, short: "Delta-13", photos: "d13", rule: `Play ${d.combat.target.toLocaleString()} Echo Combat matches`, ...d.combat, prize: d.combat.prize ?? "Delta-13 from Lone Echo 2" },
+    { key: "arena" as const, short: "Jack Series 11", photos: "jack", rule: `Play ${d.arena.target.toLocaleString()} Public Arena matches`, ...d.arena },
   ];
   const period = d.period.start ? `${d.period.start} → ${d.period.end ?? "open-ended"}${d.period.active ? " (recording)" : ""}` : "No period set yet";
   return (
@@ -589,6 +597,30 @@ function MegaPrizesProfileBody({ userId }: { userId: string }) {
           </span>
         );
       })}
+      <button type="button" className="secondary mega-row-toggle" onClick={() => setOpen(!open)} aria-expanded={open} aria-controls={`mega-profile-more-${userId}`}>
+        {open ? "Less ▴" : "More ▾"}
+      </button>
+      {open && (
+        <div className="mega-row-more" id={`mega-profile-more-${userId}`}>
+          <span className="muted">Only matches inside the Mega Prize period count: {period}.{d.linked ? "" : " No game account is linked to this player yet."}</span>
+          <div className="mega-cards">
+            {prizes.map((x) => {
+              const won = x.matches >= x.target;
+              return (
+                <article key={x.key} className="mega-card">
+                  <PrizePhotos prefix={x.photos} alt={x.prize} />
+                  <div className="mega-body">
+                    <strong>{x.rule}</strong>
+                    <span className="tag mega-prize">Mega Prize: {x.prize}</span>
+                    {MEGA_NOTES[x.key].map((n) => <span key={n} className="muted">{n}</span>)}
+                    <span>{won ? "Prize won!" : <><b>{x.matches.toLocaleString()}</b> / {x.target.toLocaleString()} · {(x.target - x.matches).toLocaleString()} to go</>}</span>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </section>
   );
 }
@@ -688,7 +720,7 @@ function MegaPrizes() {
             <strong>Play {combatTarget} Echo Combat Matches</strong>
             <span className="tag mega-prize">Mega Prize: {combat?.prize ?? "Delta-13 from Lone Echo 2"}</span>
             {arena.period.active && <span className="live-text" title="Matches are being recorded right now">Recording live data</span>}
-            <span className="muted">Only counts games of 4+ minutes with at least 3v3. Matches from the replay files before the live count started are included, linked by Discord ID.</span>
+            {MEGA_NOTES.combat.map((n) => <span key={n} className="muted">{n}</span>)}
             <span className="muted">{winnersText(arena.winners_combat, combatTarget)}</span>
             {arena.top_combat.length > 0 && (
               <>
@@ -704,8 +736,7 @@ function MegaPrizes() {
             <strong>Play {arena.target} Public Arena Matches</strong>
             <span className="tag mega-prize">Mega Prize: Jack Series 11 from Lone Echo 1/2</span>
             {arena.period.active && <span className="live-text" title="Matches are being recorded right now">Recording live data</span>}
-            <span className="muted">Only counts public matches of 4+ minutes with at least 3v3 (or 6+ players).</span>
-            <span className="muted">Arena history only starts on 2026-11-04, so totals are lower than Combat.</span>
+            {MEGA_NOTES.arena.map((n) => <span key={n} className="muted">{n}</span>)}
             <span className="muted">{winnersText(arena.winners_arena, arena.target)}</span>
             {arena.top_arena.length > 0 && (
               <>
@@ -816,22 +847,14 @@ function PrizeImage({ name, alt }: { name: string; alt: string }) {
   return src ? <img src={src} alt={alt} /> : <div className="mega-img-placeholder" role="img" aria-label={alt} />;
 }
 
-/** Link to the new-challenges tabs; also opens and scrolls there when the page is opened with #new (data loads late). */
-export function JumpToNew({ ready }: { ready: boolean }) {
+/** Scrolls to the new-challenges tabs when the page is opened with #new (data loads late). The visible
+ *  "Jump to new challenges ↓" link is gone (user, 2026-11-27); links to #new from other cards still land there. */
+export function ScrollToNew({ ready }: { ready: boolean }) {
   const { hash } = useLocation();
-  const navigate = useNavigate();
   useEffect(() => {
     if (ready && hash === "#new") document.getElementById("new")?.scrollIntoView();
   }, [ready, hash]);
-  return (
-    <a className="jump-new" href="#new" onClick={(e) => {
-      e.preventDefault();
-      navigate({ hash: "#new" }, { replace: true });
-      setTimeout(() => document.getElementById("new")?.scrollIntoView({ behavior: "smooth" }), 50);
-    }}>
-      Jump to new challenges ↓
-    </a>
-  );
+  return null;
 }
 
 /** Percentage-tiered rules: medals at 25 / 50 / 75 / 100 % of the way. */
@@ -1206,14 +1229,15 @@ function MedalBar({ items, overall, compact = false }: { items: Achievement[]; o
 function StripBody({ userId, onOpen }: { userId: string; onOpen: () => void }) {
   const d = useApi(() => getAchievements(userId), userId).data;
   if (!d) return null;
-  // one row (user, 2026-11-26: "too much data"): the label, the headline, the bar and a button to the full page
+  // one row (user, 2026-11-26: "too much data"): the label, a button to the full page (on the left, user 2026-11-27),
+  // then the headline and the bar
   return (
     <section className="ach-strip ach-row" aria-label="Challenges">
       <button className="ach-row-label" onClick={onOpen} title="Open the Challenges tab">Challenges</button>
-      <MedalBar items={d.items} overall={d.overall} compact />
       <Link className="ach-all-big compact" to={achievementsPath(d.user_id, d.name)} title={`All of ${d.name}'s challenges`}>
         View all <span aria-hidden="true">→</span>
       </Link>
+      <MedalBar items={d.items} overall={d.overall} compact />
     </section>
   );
 }
@@ -1476,7 +1500,6 @@ function NextTiers({ items }: { items: Achievement[] }) {
 
 export function AchievementsView({ userId }: { userId: string }) {
   const result = useApi(() => getAchievements(userId), userId);
-  const [sort, setSort] = useState<"group" | "closest">("group");
   const data = result.data;
 
   return (
@@ -1490,22 +1513,9 @@ export function AchievementsView({ userId }: { userId: string }) {
           {/* the player's own Mega Prize progress (user, 2026-11-26), as on their profile; only for who may see the prizes */}
           <MegaPrizesProfile userId={userId} />
           <NextTiers items={data.items} />
-          {sort === "group" && <JumpToNew ready />}
-          <label className="inline-check">
-            <input type="checkbox" checked={sort === "closest"} onChange={(e) => setSort(e.target.checked ? "closest" : "group")} /> Sort by closest
-            to the next medal
-          </label>
-          {sort === "closest" && (
-            <div className="badges">
-              {data.items
-                .filter((a) => a.progress < 1)
-                .sort((a, b) => (nextMedalFraction(b) ?? 0) - (nextMedalFraction(a) ?? 0))
-                .map((a) => <Badge key={a.id} a={a} />)}
-            </div>
-          )}
-          {sort === "group" && (
-            <GroupedBadges items={data.items} />
-          )}
+          <ScrollToNew ready />
+          {/* the "Sort by closest to the next medal" checkbox is gone (user, 2026-11-27): Your next tiers above covers it */}
+          <GroupedBadges items={data.items} />
           <AchievementRules />
         </>
       )}
