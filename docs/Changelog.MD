@@ -18,6 +18,14 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.27.9 — 14:35
+
+- **Challenges page: tighter spacing** (user, 27 Nov). Less space above "Top players" / "Recent tiers reached" and above
+  "All challenges" (1-1.25 rem instead of 2 rem), and "Full leaderboard" now lines up with its heading.
+- **Top players and Recent tiers reached cards fit their content.** The fixed 8.5 rem card height is gone: every card in
+  both panes is now as tall as the tallest card's text, so the two rows line up without an empty band under short cards.
+- Needs the update deployed (frontend only); nothing is re-read.
+
 ## 2026.11.27.8 — 13:06
 
 - **Busy profiles' challenges load at once** (user, 27 Nov: Vibinator's Challenges page, 7,700 games, took 25-60 s on the

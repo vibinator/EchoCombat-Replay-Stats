@@ -2290,18 +2290,25 @@ td.best {
 }
 /* Top players and Recent medals share the row 50:50 (user, 2026-11-06): each pane shows only as many cards as fit its half
    (extra grid rows are 0 high and clipped), so nothing scrolls sideways */
-.ach-duo { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
-.ach-pane { min-width: 0; }
-.ach-pane .section-head { min-height: 2rem; }
+/* both panes stretch to the taller one and their card row fills it, so every card in both panes is the height of the tallest
+   card's content: no fixed height, no empty band under short cards (user, 2026-11-27: fix the pane padding) */
+.ach-duo { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: stretch; }
+.ach-pane { min-width: 0; display: flex; flex-direction: column; }
+/* less space above "Top players" / "Recent tiers reached" and "All challenges" (user, 2026-11-27): the page-wide h2 has 2rem;
+   the margin sits on the row, not the h2, so "Full leaderboard" lines up with its heading */
+.ach-pane .section-head { min-height: 2rem; align-items: center; margin: 1rem 0 6px; }
+.ach-pane .section-head h2, .ach-duo + .section-head h2 { margin: 0; }
+.ach-duo + .section-head { margin: 1.25rem 0 10px; }
 .ach-duo .top-players, .ach-duo .recent-unlocks {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); grid-template-rows: auto; grid-auto-rows: 0; gap: 0 8px; overflow: hidden; padding: 0; margin-bottom: 8px;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); grid-template-rows: 1fr; grid-auto-rows: 0; gap: 0 8px; overflow: hidden; padding: 0; margin-bottom: 0;
+  flex: 1;
 }
 /* no bottom padding on the clipped grid: the top edges of the hidden rows' cards showed through it as a stripe under the cards */
 .ach-duo .top-players li, .ach-duo .recent-unlocks li { flex: none; min-width: 0; overflow: hidden; }
 /* every card in both panes the same height (user, 2026-11-09); the Recent medals text is centred in its card */
 /* 19rem left half of each card empty once the extra lines went to hover text (user, 2026-11-27: too much padding) */
-.ach-duo .top-players li, .ach-duo .recent-unlocks li { min-height: var(--ach-card-h, 8.5rem); box-sizing: border-box; }
-.ach-duo .top-players li, .ach-duo .recent-unlocks li { gap: 1px; padding: 8px 12px; }
+.ach-duo .top-players li, .ach-duo .recent-unlocks li { box-sizing: border-box; }
+.ach-duo .top-players li, .ach-duo .recent-unlocks li { gap: 2px; padding: 10px 12px; }
 @media (max-width: 700px) { .ach-duo { grid-template-columns: 1fr; } .ach-duo .top-players li, .ach-duo .recent-unlocks li { min-height: 0; } }
 @media (max-width: 900px) { .ach-duo { grid-template-columns: 1fr; } }
 .medal-chip {
