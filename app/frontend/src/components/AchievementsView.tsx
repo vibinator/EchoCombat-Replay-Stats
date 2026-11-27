@@ -1232,8 +1232,19 @@ function MedalBar({ items, overall, compact = false }: { items: Achievement[]; o
 }
 
 function StripBody({ userId, onOpen }: { userId: string; onOpen: () => void }) {
-  const d = useApi(() => getAchievements(userId), userId).data;
-  if (!d) return null;
+  const result = useApi(() => getAchievements(userId), userId);
+  const d = result.data;
+  if (!d) {
+    // while it is worked out the row says so (2026-11-27 review: a long history took 25-60 s and the row was simply
+    // missing, which looked like a bug); refused or failed (coming soon, unknown player): no row
+    if (!result.loading) return null;
+    return (
+      <section className="ach-strip ach-row" aria-label="Challenges" aria-busy="true">
+        <button className="ach-row-label" onClick={onOpen} title="Open the Challenges tab">Challenges</button>
+        <span className="muted">Working out this player's progress…</span>
+      </section>
+    );
+  }
   // one row (user, 2026-11-26: "too much data"): the label, a button to the full page (on the left, user 2026-11-27),
   // then the headline and the bar
   return (
@@ -1277,7 +1288,7 @@ export function AchievementsSummary({ userId }: { userId: string }) {
 function LaunchedSummary({ userId }: { userId: string }) {
   const result = useApi(() => getAchievements(userId), userId);
   const d = result.data;
-  if (!d) return null;
+  if (!d) return result.loading ? <p className="muted" aria-busy="true">Working out this player's challenges…</p> : null;
   const counted = d.items.filter((a) => a.counted); // the Combat section is left out of the totals for now
   const gold = counted.filter((a) => a.progress >= 1).length; // crown for ladders, 100 % for single-step ones
   const unlocked = counted.filter((a) => a.tier).length;
@@ -1518,15 +1529,18 @@ interface PinState extends ChallengePins {
 }
 
 const PinsContext = createContext<PinState | null>(null);
+const PIN_MAX = 3; // api/pins.py MAX_PINS
 
-function usePinState(userId: string): PinState | null {
-  const { visible } = useAchievementsAccess();
-  const loaded = useApi(() => (visible ? getPins(userId) : Promise.resolve(null)), `pins|${userId}|${visible}`);
+/** `shared`: the pins in the shared challenges answer (Cloudflare keeps it). Only a logged-in visitor asks the per-visitor
+ *  /pins call (fresh pins and whether they may change them), so anonymous views cost the NAS nothing extra. */
+function usePinState(userId: string, shared: number[] | undefined): PinState | null {
+  const loggedIn = !!useApi(getMe, "me").data?.user;
+  const loaded = useApi(() => (loggedIn ? getPins(userId) : Promise.resolve(null)), `pins|${userId}|${loggedIn}`);
   const [saved, setSaved] = useState<ChallengePins | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => setSaved(null), [loaded.data]);
-  const d = saved ?? loaded.data;
+  const d = saved ?? loaded.data ?? (shared ? { pins: shared, max: PIN_MAX, editable: false } : null);
   if (!d) return null;
   const toggle = (id: number) => {
     if (busy) return;
@@ -1617,7 +1631,7 @@ export function PinnedRow({ userId }: { userId: string }) {
 
 function PinnedRowBody({ userId }: { userId: string }) {
   const d = useApi(() => getAchievements(userId), userId).data;
-  const p = usePinState(userId);
+  const p = usePinState(userId, d?.pins);
   if (!d || !p) return null;
   const list = pinnedItems(d.items, p.pins);
   if (list.length === 0) return null;
@@ -1647,7 +1661,7 @@ function PinnedRowBody({ userId }: { userId: string }) {
 export function AchievementsView({ userId }: { userId: string }) {
   const result = useApi(() => getAchievements(userId), userId);
   const data = result.data;
-  const pins = usePinState(userId);
+  const pins = usePinState(userId, data?.pins);
 
   return (
     <PinsContext.Provider value={pins}>

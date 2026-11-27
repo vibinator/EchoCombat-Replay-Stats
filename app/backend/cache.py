@@ -359,6 +359,11 @@ def _lookup(request: Request, store: Store, name: str, params: tuple, build, sta
         if entry is None and (entry := disk.load(key)) is not None:
             store.put(key, entry)  # from before a restart, or written ahead by the idle pass
         build = _saving(disk, key, build)
+    if entry is not None and entry.stamp != stamp and disk is not None and disk.stamp(key) == stamp:
+        # out of date in memory, but the idle pass already saved a current one (prebuild): not built a second time
+        if (saved := disk.load(key)) is not None:
+            store.put(key, saved)
+            entry = saved
     if entry is not None:
         if entry.stamp == stamp:
             return _used(entry, stamp), "HIT"
@@ -372,16 +377,55 @@ def _lookup(request: Request, store: Store, name: str, params: tuple, build, sta
 
 def cached(request: Request, name: str, params: tuple, compute: Callable[[], object]):
     """compute() once per (name, params, data stamp, day); out of date: see the module docstring."""
+    return cached_status(request, name, params, compute)[0]
+
+
+def cached_status(request: Request, name: str, params: tuple, compute: Callable[[], object], stamp=None,
+                  daily: bool = True, persist: bool = False) -> tuple[object, str]:
+    """(value, "HIT" | "STALE" | "MISS"), cached like cached(). `stamp`, `daily`, `persist` as for cached_response (a
+    player's challenges, user 2026-11-27): a value kept on disk is saved as gzipped JSON (the same bytes prebuild writes),
+    so it must be plain JSON (it comes back with lists for tuples), and is read back on its first use after a restart. The
+    caller puts the status in STATUS_HEADER, so a STALE answer is never kept by Cloudflare and the page asks again."""
     store = _store(request.app.state, "value_cache", lambda: Store(MAX_VALUES))
-    return _lookup(request, store, name, params, lambda stamp: Entry(stamp, time.monotonic(), value=compute()))[0].value
+    disk = _disk(request.app.state) if persist else None
+
+    def build(s: tuple) -> Entry:
+        if disk is None:
+            return Entry(s, time.monotonic(), value=compute())
+        started, value = time.monotonic(), compute()
+        entry = _encoded(value, s, started)
+        entry.value = value
+        return entry
+
+    for attempt in (1, 2):
+        entry, status = _lookup(request, store, name, params, build, stamp, daily, disk)
+        if entry.value is not None or not entry.gz:
+            return entry.value, status
+        try:  # loaded from disk: Disk.load keeps only the bytes, and checks only the header
+            entry.value = orjson.loads(gzip.decompress(entry.gz))
+            return entry.value, status
+        except (OSError, EOFError, ValueError):  # a damaged body (power cut on the NAS before it reached the disk)
+            key = _key(name, params, daily)
+            log.warning("The saved answer for %s cannot be read; it is built again", name)
+            store.drop(key)
+            try:
+                disk.path(key).unlink(missing_ok=True)
+            except OSError:
+                pass
+    raise ApiError(503, "busy", "This answer could not be built; try again in a moment")
+
+
+def _encoded(value: object, stamp: tuple, started: float) -> Entry:
+    """A value as the gzipped JSON answer kept in memory and on disk (one encoding for every writer)."""
+    body = orjson.dumps(value, option=orjson.OPT_NON_STR_KEYS)
+    gz = gzip.compress(body, GZIP_LEVEL, mtime=0)
+    etag = f'W/"{hashlib.blake2b(body, digest_size=12).hexdigest()}"'
+    return Entry(stamp, started, gz=gz, etag=etag, size=len(gz) + 256)
 
 
 def _response_entry(compute: Callable[[], object], stamp: tuple) -> Entry:
     started = time.monotonic()
-    body = orjson.dumps(compute(), option=orjson.OPT_NON_STR_KEYS)
-    gz = gzip.compress(body, GZIP_LEVEL, mtime=0)
-    etag = f'W/"{hashlib.blake2b(body, digest_size=12).hexdigest()}"'
-    return Entry(stamp, started, gz=gz, etag=etag, size=len(gz) + 256)
+    return _encoded(compute(), stamp, started)
 
 
 def _response_bytes(state) -> int:

@@ -46,3 +46,22 @@ def test_the_owner_can_edit_the_bio_on_the_player_page(tmp_path, avatars):
         login(client, NO_ROLE)  # someone else: refused
         assert client.post(f"/api/profiles/{REPLAY_ID}", json={"bio": "hacked"}, headers=SITE).status_code == 403
         assert client.get(f"/api/profiles/{REPLAY_ID}").json()["bio"] == "Edited here"
+
+
+def test_the_shared_bio_is_kept_by_cloudflare_and_never_editable(tmp_path, avatars):
+    """2026-11-27 review: anonymous player page views read /api/players/{id}/bio, one copy for everybody (Cloudflare keeps
+    it); only a logged-in visitor asks the per-visitor /api/profiles/{id}, which says whether they may edit it."""
+    with app_client(settings(tmp_path, edge_cache_s=300)) as client:
+        setup(client)
+        login(client, MEMBER)
+        assert client.post("/api/profiles/me", json={"bio": "Shared bio", "show_avatar": True}, headers=SITE).status_code == 200
+        shared = client.get(f"/api/players/{REPLAY_ID}/bio", headers=SITE)  # even when logged in: never editable
+        assert shared.json()["bio"] == "Shared bio" and shared.json()["editable"] is False
+        assert shared.headers["Cloudflare-CDN-Cache-Control"].startswith("max-age=300")
+        own = client.get(f"/api/profiles/{REPLAY_ID}", headers=SITE)
+        assert own.json()["editable"] is True and own.headers["Cloudflare-CDN-Cache-Control"] == "no-store"
+
+
+def test_challenges_say_whether_the_mega_prizes_are_public(tmp_path):
+    with app_client(settings(tmp_path)) as client:
+        assert client.get("/api/challenges").json()["mega_public"] is False  # nothing set: not public

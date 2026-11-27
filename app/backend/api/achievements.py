@@ -23,13 +23,14 @@ from sqlalchemy import func, select
 from .. import auth, combat_achievements, icons, profile_achievements
 from ..achievements import RULES, Game, evaluate, icon_file, in_window, medal_times, overall, rule_notes, unlock_dates, unlock_threshold
 from ..admin_actions import (WINDOW_KEYS, achievements_counting, achievements_launched, achievements_visibility,
-                             challenge_window, previews_can_see)
+                             challenge_window, mega_visible, previews_can_see)
 from .. import achievements as engine, gear as gear_tables
-from ..cache import cached, current_stamp, json_reply
+from ..cache import STATUS_HEADER, cached, cached_status, current_stamp, json_reply
 from ..db import open_reader
 from ..duplicates import counted
 from ..errors import ApiError
-from ..models import AppSetting, Match, MatchPlayer, MatchPlayerLoadout, Player
+from ..aliases import ids_of
+from ..models import AppSetting, Match, MatchPlayer, MatchPlayerLoadout, Player, Replay
 
 router = APIRouter(tags=["achievements"])
 log = logging.getLogger(__name__)
@@ -81,7 +82,9 @@ def get_challenges(request: Request):
         # total and the sneak peek are public before the launch too: the menu and "Coming soon" page tease them
         peek = PEEK | {"revealed": icons.apply(db, PEEK["revealed"])}  # icons chosen on the Console page (D43)
         previews = previews_can_see(db)
-    return info | {"previews": not info["launched"] and previews, "total": len(RULES), "peek": peek}
+        # whether everybody may see the Mega Prizes: the page then asks nobody's own /api/arena/visible (2026-11-27 review)
+        mega_public = mega_visible(db, False)
+    return info | {"previews": not info["launched"] and previews, "total": len(RULES), "peek": peek, "mega_public": mega_public}
 
 
 # Shown in full on the "Coming soon" page (user, 2026-10-31; refreshed 2026-11-03): original day, week and all-time
@@ -179,14 +182,73 @@ def player_achievements(request: Request, user_id: str):
     require_launched(request)
     with request.app.state.sessionmaker() as db:
         window = counted_window(db)  # part of the cache key: an admin period change shows at once
-    result = cached(request, "achievements", (user_id, window), lambda: _player_achievements(request, user_id))
+    result, status = cached_status(request, **_player_job_spec(request, user_id, window), persist=True)
     # the Combat cards come from the recorder's reports, apart from the replay answer and its totals (D56)
     items = result["items"] + combat_achievements.player_items(request.app.state.sessionmaker, window, user_id)
     with request.app.state.sessionmaker() as db:
         items += profile_achievements.player_items(db, user_id)  # "Edit your Bio" (user, 2026-11-26): from the page, not games
         from . import pins  # pins.py imports this module
-        pins.drop_completed(db, user_id, items)  # a completed pin removes itself (user, 2026-11-27)
-        return json_reply(request, result | {"items": icons.apply(db, items)})  # icons chosen on the Console page (D43)
+        # a completed pin removes itself (user, 2026-11-27); the pins left are public, so they ride in this shared answer
+        # (Cloudflare keeps it): only a logged-in visitor asks /api/profiles/{id}/pins, for whether they may change them
+        left = pins.drop_completed(db, user_id, items)
+        reply = json_reply(request, result | {"items": icons.apply(db, items), "pins": left})  # icons chosen on the Console page (D43)
+    if status == "STALE" and reply.status_code == 200:  # a fresher one is being built: Cloudflare never keeps this one,
+        reply.headers[STATUS_HEADER] = status  # and the page asks again shortly (middleware, api.ts)
+    return reply
+
+
+_player_stamps: dict[tuple, tuple] = {}  # (user id, window) -> (archive stamp, player stamp)
+
+
+def player_stamp(app, user_id: str, window: tuple) -> tuple:
+    """What a player's challenges are built from, as a stamp for the cache (user, 2026-11-27: a profile with 7,700 games
+    took 25-60 s on the NAS after every restart, every midnight and whenever other pages pushed it out of memory): the
+    rules and the code that evaluates them, the player's ids, and the number, newest and last (re-)read of their matches.
+    It changes when one of the player's own matches is added, re-read or removed (a re-read also brings the team sizes
+    and loadouts the rules look at), not when anybody else's replay comes in. Looked up once per state of the archive."""
+    archive = current_stamp(app.state.sessionmaker)
+    key = (user_id, window)
+    memo = _player_stamps.get(key)
+    if memo is not None and memo[0] == archive:
+        return memo[1]
+    with app.state.sessionmaker() as db:
+        player = db.scalar(select(Player).where(Player.user_id == user_id))
+        if player is None:  # combat-report-only players: their (empty) replay cards follow the archive
+            stamp = (_signature(), None, archive)
+        else:
+            found = db.execute(
+                select(func.count(), func.max(Match.id), func.max(Replay.processed_at))
+                .select_from(MatchPlayer).join(Match, Match.id == MatchPlayer.match_id).join(Replay, Replay.id == Match.replay_id)
+                .where(MatchPlayer.player_id == player.id, counted(MatchPlayer.match_id))).one()  # the rows _games reads:
+            # which copy of a session counts (duplicates.py) changes the count, so the stamp too
+            stamp = (_signature(), player.id, sorted(ids_of(db, user_id)), found[0], found[1], str(found[2]))
+    if len(_player_stamps) >= 4096:
+        _player_stamps.clear()
+    _player_stamps[key] = (archive, stamp)
+    return stamp
+
+
+def _player_job_spec(request, user_id: str, window: tuple) -> dict:
+    """One player's replay challenges for cache.cached / cache.prebuild: kept on disk, no day in the key (nothing in it
+    moves at midnight: only matches inside the window count, and the window is in the key)."""
+    return {"name": "achievements", "params": (user_id, window), "compute": lambda: _player_achievements(request, user_id),
+            "stamp": lambda: player_stamp(request.app, user_id, window), "daily": False}
+
+
+class _NoRequest:
+    """What the builders read of a request, for building without one (prebuild_player)."""
+
+    def __init__(self, app):
+        self.app = app
+
+
+def prebuild_player(app, user_id: str) -> bool:
+    """A player's challenges onto disk ahead of time (heights_warm.py, user 2026-11-27): the first look at a busy profile is
+    instant after a restart too. False when the saved one is still current (or nothing is kept on disk)."""
+    from ..cache import prebuild
+    with app.state.sessionmaker() as db:
+        window = counted_window(db)
+    return prebuild(app, **_player_job_spec(_NoRequest(app), user_id, window))
 
 
 OFFLOAD_MIN_GAMES = 100  # a player with fewer games is evaluated at once (a few ms); more: in a helper process

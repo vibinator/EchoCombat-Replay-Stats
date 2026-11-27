@@ -135,7 +135,12 @@ def edit_my_profile(request: Request, edit: "ProfileEdit"):
 @router.get("/{user_id}")
 def get_profile(request: Request, user_id: str):
     """Bio and picture of a player, and whether the visitor may edit them (their own linked player)."""
-    viewer = auth.viewer(request)  # per visitor: never kept in a shared cache
+    return profile_answer(request, user_id, auth.viewer(request))  # per visitor: never kept in a shared cache
+
+
+def profile_answer(request: Request, user_id: str, viewer: dict | None) -> dict:
+    """The profile as `viewer` sees it; viewer None = what everybody who is not logged in sees, the same for all of them, so
+    Cloudflare may keep it (/api/players/{user_id}/bio, 2026-11-27 review: every anonymous player page view reached the NAS)."""
     with request.app.state.sessionmaker() as db:
         main = _main_id(db, user_id)
         profile = discord_links.profile_of(db, main)

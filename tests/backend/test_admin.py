@@ -223,7 +223,7 @@ def test_challenge_period(client):
     # "previews": the preview role sees achievements before the launch (the same for everyone; whether this visitor has
     # the role is in /api/auth/me)
     assert info == {"start": None, "end": None, "updated_at": None, "launched": False, "active": False, "previews": True,
-                    "visibility": "everyone", "total": len(RULES)}
+                    "visibility": "everyone", "total": len(RULES), "mega_public": False}
     # the sneak peek gives counts and pictures; only the revealed few have names and descriptions
     assert sum(peek["periods"].values()) == len(RULES) + len(COMBAT_RULES) and peek["icons"]
     assert [a["id"] for a in peek["revealed"]] == list(REVEALED_IDS)
@@ -294,3 +294,17 @@ def test_merge_keeps_the_record_seen_most_recently(client):
         assert db.get(PlayerAlias, "100").main_user_id == "700" and db.get(PlayerAlias, "700") is None
         assert [(p.user_id, p.achievement_id) for p in db.query(ChallengePin)] == [("700", RULES[0].id)]
     assert client.get("/api/players/700").json()["stats"]["games"] == 3  # dyson/1, 2 and 4
+
+
+def test_hidden_stats_survive_a_merge_and_its_undo(client):
+    """Review 2026-11-27: a player with their win-loss hidden stays hidden whichever record is kept, and after an undo."""
+    later = rf.START + timedelta(days=30)
+    add(client, {"dyson/4.echoreplay": match([rf.player(700, "Newest")], [rf.player(300, "Mate", 1)], start=later)})
+    with client.app.state.sessionmaker() as db:
+        actions.set_player_stats_hidden(db, "win_loss", "100", True)
+    act(client, actions.merge_players, "100", ["700"])  # 700 kept (seen last)
+    wait(client)
+    with client.app.state.sessionmaker() as db:
+        assert set(actions.hidden_players(db, "win_loss")) == {"100", "700"}
+        actions.unmerge_player(db, "100")
+        assert "100" in actions.hidden_players(db, "win_loss")  # the person who asked stays hidden

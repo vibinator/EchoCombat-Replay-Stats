@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import {
   BIO_MAX,
+  getMe,
   getPlayerBio,
+  getPublicBio,
   savePlayerBio,
   type PlayerBioProfile,
 } from "../api";
@@ -29,7 +31,13 @@ export function PlayerAvatar({
 
 /** Loads the Discord-linked profile of a player. `set` replaces it after a save. */
 export function usePlayerBio(userId: string) {
-  const loaded = useApi(() => getPlayerBio(userId), `bio|${userId}`);
+  // not logged in: the shared copy Cloudflare keeps (2026-11-27 review); logged in: the per-visitor one, which says whether
+  // this visitor may edit it. Asked once the login state is known, so a logged-in visitor does not ask twice.
+  const me = useApi(getMe, "me");
+  const known = me.data !== null || me.error !== null;
+  const loggedIn = !!me.data?.user;
+  const loaded = useApi(() => (!known ? Promise.resolve(null) : loggedIn ? getPlayerBio(userId) : getPublicBio(userId)),
+    `bio|${userId}|${known ? loggedIn : "?"}`);
   const [saved, setSaved] = useState<PlayerBioProfile | null>(null);
   useEffect(() => setSaved(null), [userId]);
   return { profile: saved ?? loaded.data, set: setSaved };

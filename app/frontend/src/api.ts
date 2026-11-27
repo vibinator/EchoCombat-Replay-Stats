@@ -96,6 +96,9 @@ const TIMEOUT_MS = 30_000; // a request still unanswered is given up (and a GET 
 // replays are imported. They rarely change (kept by the server once built), so waiting longer beats "Server busy";
 // kept under Cloudflare's own 100 s limit (user, 2026-11-02).
 const HEATMAP_TIMEOUT_MS = 90_000;
+// A player's challenges with a long history took 25-60 s to work out on the NAS: the 30 s limit gave up on them and the
+// Challenges row never showed (2026-11-27 review; now kept on disk and built ahead, but a first build can still be long).
+const SLOW_ANSWER = /\/heatmap|\/achievements(\?|$)/;
 const RETRY_MS = 2_000;
 const pause = (ms: number) => new Promise((done) => setTimeout(done, ms));
 
@@ -120,7 +123,7 @@ async function fetchReply<T>(path: string, init?: RequestInit): Promise<Reply<T>
   let url = path;
   for (let attempt = 0; ; attempt++) {
     const timeout = new AbortController();
-    const timer = setTimeout(() => timeout.abort(), path.includes("/heatmap") ? HEATMAP_TIMEOUT_MS : TIMEOUT_MS);
+    const timer = setTimeout(() => timeout.abort(), SLOW_ANSWER.test(path) ? HEATMAP_TIMEOUT_MS : TIMEOUT_MS);
     let res: Response;
     try {
       // X-EchoVR: the server answers /api only to this site's own pages (scraper protection, D48)
@@ -830,6 +833,7 @@ export interface PlayerAchievements {
   completed: number;
   total: number;
   items: Achievement[];
+  pins?: number[]; // the challenges this player pinned (D68), public: in this shared answer
 }
 
 export const getAchievements = (userId: string) =>
@@ -1452,6 +1456,8 @@ export interface PlayerBioProfile {
 }
 export const BIO_MAX = 500;
 export const getPlayerBio = (userId: string) => send<PlayerBioProfile>(`/api/profiles/${encodeURIComponent(userId)}`);
+/** The same profile as everybody who is not logged in sees it: one shared copy Cloudflare keeps (never editable). */
+export const getPublicBio = (userId: string) => request<PlayerBioProfile>(`/api/players/${encodeURIComponent(userId)}/bio`);
 export const savePlayerBio = (userId: string, edit: { bio: string | null; show_avatar: boolean }) =>
   send<PlayerBioProfile>(`/api/profiles/${encodeURIComponent(userId)}`, {
     method: "POST",
@@ -1514,7 +1520,16 @@ export interface ArenaProgress {
 // sessionStorage, never at Cloudflare); the server itself recounts them at most every 10 minutes (arena.py MEGA_CACHE_S).
 export const getArenaProgress = () => request<ArenaProgress>("/api/arena/progress");
 /** May this visitor see the Mega Prizes (Console: "Visible to" of the Mega Prize period)? Per visitor, so its own small answer. */
-export const getMegaVisible = () => request<{ visible: boolean }>("/api/arena/visible");
+/** Whether this visitor may see the Mega Prizes. The shared /api/challenges answer says whether they are public; only a
+ *  logged-in visitor (who may have the Preview role) asks the per-visitor /api/arena/visible (2026-11-27 review: every
+ *  anonymous player and challenges page view reached the NAS for it). */
+export const getMegaVisible = async (): Promise<{ visible: boolean }> => {
+  const w = await request<{ mega_public?: boolean }>("/api/challenges");
+  if (w.mega_public) return { visible: true };
+  const me = await getMe().catch(() => null);
+  if (!me?.user) return { visible: false };
+  return request<{ visible: boolean }>("/api/arena/visible");
+};
 
 /** Search a player by name: their progress toward each Mega Prize (from the challenge period on). */
 export interface MegaPrizeSearch {

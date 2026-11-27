@@ -18,6 +18,33 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.27.8 — 13:06
+
+- **Busy profiles' challenges load at once** (user, 27 Nov: Vibinator's Challenges page, 7,700 games, took 25-60 s on the
+  NAS). Working out a player's challenges takes ~6 s on the dev PC for such a history; the answer was kept only in memory
+  and rebuilt after every restart, every midnight, and whenever other pages pushed it out. Now, like the long heatmaps:
+  - kept on disk (`data/cache/answers`, 7 KB for that player; read back in under a millisecond), so a restart keeps it;
+  - built again only when that player has a new or re-read match, or the challenge rules change, never at midnight or
+    for other players' replays (and then the saved one is still shown while the new one is built);
+  - the idle pass builds the challenges of the 200 most active players ahead of time after a start (before their
+    heatmaps), so even their first look after an update is instant.
+  - The answer is still the same for every visitor, so Cloudflare keeps it once challenges are public (tested).
+- **Review fixes (27 Nov, end-to-end review + two cloud reviews):**
+  - **"Challenges not showing" on a player page, found:** the page gave up on any answer after 30 s, and a busy player's
+    challenges took longer on the NAS (measured live: both tries cut off at 30.0 s, the row never appeared). Challenge
+    answers now get the 90 s limit heatmaps have, and the Challenges row / tab say "Working out this player's progress…"
+    while it is built instead of being missing.
+  - The saved challenges are only built again when the matches that count change (duplicate copies included), a damaged
+    saved file is built again instead of failing every request, an out-of-date answer is marked STALE (Cloudflare does
+    not keep it, the page asks again), and an answer the idle pass already saved is not built a second time.
+  - **Cloudflare:** pins now ride in the shared challenges answer (only a logged-in visitor asks for their own); a
+    player's bio for visitors who are not logged in comes from a new shared `/api/players/{id}/bio` that Cloudflare keeps;
+    the shared `/api/challenges` says whether the Mega Prizes are public, so visitors who are not logged in no longer ask
+    the per-visitor `/api/arena/visible`. An anonymous player page view went from 2 requests that always reach the NAS
+    (bio, Mega Prize check) to none; only the login check every page makes is left.
+  - Pins: viewing a player no longer takes the database's write lock (it only writes when a pinned challenge is complete).
+  - Merges: a hidden win-loss stays hidden whichever record is kept, also for ids merged before, and after an undo.
+
 ## 2026.11.27.7 — 12:47
 
 - **Pin challenges to work on** (user, 27 Nov, D68). Logged in with Discord, a player pins up to 3 challenges with the new

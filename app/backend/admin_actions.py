@@ -288,6 +288,7 @@ def merge_players(db: Session, main: str, others: list[str]) -> aliases.MergeRes
     result = aliases.merge(db, main, others)
     result.main = main
     _move_pins(db, main, others)
+    _move_hidden(db, main, others)
     prioritise(db, result.requeued)
     db.commit()
     bump_generation()  # a server running this (Console page) recomputes cached pages at once
@@ -302,6 +303,19 @@ def _move_pins(db: Session, main: str, others: list[str]) -> None:
             db.add(ChallengePin(user_id=main, achievement_id=pin.achievement_id, pinned_at=pin.pinned_at))
             have.append(pin.achievement_id)
         db.delete(pin)
+
+
+def _move_hidden(db: Session, main: str, others: list[str]) -> None:
+    """Per-player hidden stats are kept by main id: when any id of the merged player is hidden (also one merged before
+    this existed), the kept record is hidden too, so a player who had their win-loss hidden stays hidden whichever record
+    the merge keeps (the most recently seen, 2026-11-27). The merged ids stay on the list: an undo leaves them hidden.
+    Called after aliases.merge, so ids_of(main) is the whole merged player."""
+    ids = aliases.ids_of(db, main)
+    for group in STAT_GROUPS:
+        players = hidden_players(db, group)
+        if main in players or not any(u in players for u in ids):
+            continue
+        db.merge(AppSetting(key=_players_key(group), value=",".join([*players, main]), updated_at=utcnow()))
 
 
 def unmerge_player(db: Session, alias_user_id: str) -> list[int]:

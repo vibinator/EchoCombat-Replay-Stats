@@ -7,7 +7,8 @@ rests as long as the match took, so it never uses more than half of one core. Ne
 are processed (worker.py); this is for the matches from before, and is done once they all have one (it looks again
 every RECHECK_S for players who entered the top since).
 
-Then (when `app` is given and answers are kept on disk, cache.py) it builds the two long heatmaps of each of these
+Then (when `app` is given and answers are kept on disk, cache.py) it builds the challenges of the
+TOP_CHALLENGE_PLAYERS most active players (user, 2026-11-27), and the two long heatmaps of each of these
 players on every map they played (all time, all matches, by team: flat and 3D) and saves them, so the first look at
 them is instant. A saved one is only built again when the player has a new match on that map."""
 
@@ -23,6 +24,7 @@ from .models import Match, MatchPlayer, Player
 log = logging.getLogger(__name__)
 
 TOP_PLAYERS = 100  # by matches played
+TOP_CHALLENGE_PLAYERS = 200  # their challenges are built ahead too (user, 2026-11-27): seconds each on the NAS, so worth it
 START_AFTER_S = 120  # after the server starts: the caches that people wait for are warmed first
 BUSY_WAIT_S = 20  # between looks while replays are being processed
 RECHECK_S = 6 * 3600
@@ -55,6 +57,13 @@ def players_and_maps(sessions, top: int = TOP_PLAYERS) -> list[tuple[str, str]]:
                               .group_by(Match.map).order_by(func.count().desc())).all()
             out += [(user_id, m) for m in maps]
         return out
+
+
+def top_players(sessions, top: int) -> list[str]:
+    """User ids of the `top` most active players (by matches stored), the most active first."""
+    with sessions() as db:
+        return list(db.scalars(select(Player.user_id).join(MatchPlayer, MatchPlayer.player_id == Player.id)
+                               .group_by(Player.id).order_by(func.count().desc()).limit(top)))
 
 
 def missing(processed_dir, ids: list[int]) -> list[int]:
@@ -118,23 +127,45 @@ class HeightsWarmer:
 
         if self.app is None:
             return 0
+        built = self._prebuild_pass(players_and_maps(self.sessions), lambda item: prebuild_heatmaps(self.app, *item),
+                                    "Heatmaps", rest)
+        if built:
+            log.info("Heatmaps of the %d most active players: %d built and saved", TOP_PLAYERS, built)
+        return built
+
+    def _prebuild_pass(self, items, build, what: str, rest: bool) -> int:
+        """build(item) -> how many it built, for each item: only while no replay is processed, resting as long as each
+        build took (at most half of one core), one item's failure logged and skipped; ends early on stop."""
         built = 0
-        for user_id, map_ in players_and_maps(self.sessions):
+        for item in items:
             while self.worker.busy and not self._stop.wait(BUSY_WAIT_S):
                 pass
             if self._stop.is_set():
                 break
             started = time.monotonic()
             try:
-                n = prebuild_heatmaps(self.app, user_id, map_)
+                n = int(build(item))
             except Exception as e:  # noqa: BLE001 - one player must not end the pass
-                log.warning("Heatmaps of %s on %s not built: %s: %s", user_id, map_, type(e).__name__, e)
+                log.warning("%s of %s not built: %s: %s", what, item, type(e).__name__, e)
                 continue
             built += n
             if n and rest and self._stop.wait(time.monotonic() - started):
                 break
+        return built
+
+    def build_challenges(self, rest: bool = True) -> int:
+        """The challenges of the most active players onto disk (api/achievements.prebuild_player, user 2026-11-27: a profile
+        with 7,700 games took 25-60 s on the NAS the first time after a restart); returns how many were built (those still
+        current are left: a saved one is only built again when the player has a new match or the rules change). Waits while
+        replays are processed; ends early on stop."""
+        from .api.achievements import prebuild_player  # here: the api package imports the app's modules
+
+        if self.app is None:
+            return 0
+        built = self._prebuild_pass(top_players(self.sessions, TOP_CHALLENGE_PLAYERS),
+                                    lambda user_id: prebuild_player(self.app, user_id), "Challenges", rest)
         if built:
-            log.info("Heatmaps of the %d most active players: %d built and saved", TOP_PLAYERS, built)
+            log.info("Challenges of the %d most active players: %d built and saved", TOP_CHALLENGE_PLAYERS, built)
         return built
 
     def _run(self) -> None:
@@ -142,6 +173,7 @@ class HeightsWarmer:
         while not self._stop.wait(wait):
             try:
                 self.run_once()
+                self.build_challenges()  # before the heatmaps: the challenges page is opened far more often
                 self.build_heatmaps()
             except Exception:  # noqa: BLE001 - try again at the next look
                 log.exception("Heights pass failed")

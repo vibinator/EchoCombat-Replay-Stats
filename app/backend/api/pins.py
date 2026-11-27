@@ -36,14 +36,18 @@ def pinned(db, main: str) -> list[int]:
                            .order_by(ChallengePin.pinned_at, ChallengePin.achievement_id)))
 
 
-def drop_completed(db, user_id: str, items: list[dict]) -> None:
-    """Unpins what this player has completed (user, 2026-11-27: "if a pin is completed, it will remove")."""
+def drop_completed(db, user_id: str, items: list[dict]) -> list[int]:
+    """Unpins what this player has completed (user, 2026-11-27: "if a pin is completed, it will remove"); returns the pins
+    left. Public data: it goes in the shared challenges answer, so anonymous visitors need no per-visitor request."""
+    # reads only, unless a pin is complete: a DELETE takes SQLite's write lock even when it removes nothing, and would
+    # wait for the worker saving a replay (a page view must never do that)
     main = discord_links.main_id(db, user_id)
-    done = [i["id"] for i in items if i.get("progress", 0) >= 1]
-    if not done or not db.scalar(select(ChallengePin.user_id).where(ChallengePin.user_id == main).limit(1)):
-        return
-    if db.execute(delete(ChallengePin).where(ChallengePin.user_id == main, ChallengePin.achievement_id.in_(done))).rowcount:
+    have = pinned(db, main)
+    done = [i["id"] for i in items if i["id"] in have and i.get("progress", 0) >= 1]
+    if done:
+        db.execute(delete(ChallengePin).where(ChallengePin.user_id == main, ChallengePin.achievement_id.in_(done)))
         db.commit()
+    return [p for p in have if p not in done]
 
 
 def _answer(db, main: str, viewer: dict | None) -> dict:

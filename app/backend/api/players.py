@@ -522,6 +522,17 @@ def _together(db, player_id: int, window: str = "all", other: int | None = None)
     return db.execute(query).all()
 
 
+@router.get("/{user_id}/bio")
+def player_bio(request: Request, user_id: str):
+    """The player's bio and picture as everybody who is not logged in sees them (never `editable`): the same for every
+    visitor, so Cloudflare keeps it (2026-11-27 review). A logged-in visitor asks /api/profiles/{user_id} instead, which
+    also says whether they may edit it."""
+    from .profiles import profile_answer  # here: profiles imports the app's modules
+    if len(user_id) > 64:
+        raise ApiError(404, "not_found", "Not found")
+    return profile_answer(request, user_id, None)
+
+
 @router.get("/{user_id}/companions")
 def get_companions(request: Request, user_id: str, limit: int = Query(10, ge=1, le=50),
                    window: str = Query("all", pattern="^(24h|7d|1m|3m|6m|12m|all)$")):
