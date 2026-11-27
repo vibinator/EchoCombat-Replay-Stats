@@ -7,7 +7,7 @@ from sqlalchemy import func, select
 
 from . import discord_links
 from .achievements import Rule
-from .models import LeagueMember, NakamaAccount, Player, PlayerProfile
+from .models import DiscordProfile, LeagueMember, NakamaAccount, Player, PlayerProfile
 
 GROUP = "Profile"
 BIO_RULE = Rule(277, "Edit your Bio", "Write a bio on your player page (log in with Discord, then edit it on your profile)", "game", None,
@@ -46,6 +46,9 @@ def catalogue(db) -> list[dict]:
     """The rule list with rarity: share of players with a bio, of the players who have a page."""
     players = db.scalar(select(func.count()).select_from(Player)) or 0
     with_bio = sum(1 for bio in db.scalars(select(PlayerProfile.bio)) if bio and bio.strip())
+    # a bio written on My profile by an account without a bot link is kept by Discord id (DiscordProfile)
+    own = {d for d, bio in db.execute(select(DiscordProfile.discord_id, DiscordProfile.bio)) if bio and bio.strip()}
+    with_bio += len(_with_page(db, own))
     share = round(with_bio / players, 4) if players else None
     # league shares: members who have a player page here, of all players (as for the bio)
     members = {m.discord_id: m for m in db.scalars(select(LeagueMember))}
@@ -78,8 +81,11 @@ def player_items(db, user_id: str) -> list[dict]:
     """This player's cards: the bio one is complete once their page has a bio (the date it was last edited); the league ones
     once their Discord account was seen doing it in the Rookie League (the date it was first seen, league.py)."""
     profile = db.get(PlayerProfile, user_id)
-    has_bio = bool(profile and profile.bio and profile.bio.strip())
     linked = discord_links.discord_of(db, discord_links.main_id(db, user_id))
+    if not (profile and profile.bio and profile.bio.strip()) and linked:
+        # no bot link: the bio written on My profile is kept by Discord id (2026-11-27: it never counted before)
+        profile = db.get(DiscordProfile, linked[0]) or profile
+    has_bio = bool(profile and profile.bio and profile.bio.strip())
     member = db.get(LeagueMember, linked[0]) if linked else None
     return [_done(_entry(BIO_RULE), profile.updated_at if has_bio else None)] + [
         _done(_entry(rule), getattr(member, column) if member else None) for rule, column in LEAGUE_RULES.items()]

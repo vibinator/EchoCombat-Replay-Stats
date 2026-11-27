@@ -1459,6 +1459,21 @@ export const savePlayerBio = (userId: string, edit: { bio: string | null; show_a
     body: JSON.stringify(edit),
   });
 
+/** Challenges a player pinned to work on (user, 2026-11-27): up to `max`, changed only by their own Discord account
+ *  (editable), seen by everyone. Per visitor, so never from the shared answer cache. */
+export interface ChallengePins {
+  pins: number[];
+  max: number;
+  editable: boolean;
+}
+export const getPins = (userId: string) => send<ChallengePins>(`/api/profiles/${encodeURIComponent(userId)}/pins`);
+export const savePin = (userId: string, id: number, pinned: boolean) =>
+  send<ChallengePins>(`/api/profiles/${encodeURIComponent(userId)}/pins`, {
+    method: "POST",
+    headers: { ...ADMIN_WRITE, "Content-Type": "application/json" },
+    body: JSON.stringify({ id, pinned }),
+  });
+
 /** The logged-in visitor's own profile; known = their Discord account has been seen playing. */
 export type MyProfile = PlayerBioProfile & { name: string; known: boolean; user_id: string | null };
 export const getMyProfile = () => send<MyProfile>("/api/profiles/me");
