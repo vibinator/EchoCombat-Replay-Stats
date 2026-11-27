@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, Navigate, useLocation, useParams, useSearchParams } from "react-router";
-import { getAchievements, getAchievers, getRarity, getRecentUnlocks, searchPlayers } from "../api";
+import { getAchievements, getAchievers, getChallenges, getRarity, getRecentUnlocks, searchPlayers } from "../api";
 import { AchievementRules, AchievementsView, ChallengeBanner, ComingSoon, GroupedBadges, keepsColours, MegaPrizesSection, ScrollToNew, useAchievementsAccess } from "../components/AchievementsView";
 import { Avatar, useAvatars } from "../components/Avatar";
 import { Status } from "../components/common";
@@ -120,10 +120,19 @@ function RecentUnlocks() {
 
 function Catalogue() {
   const rules = useApi(getRarity, "catalogue");
+  const w = useApi(getChallenges, "challenge").data;
   return (
     <>
       <div className="section-head">
-        <h2>All challenges</h2>
+        {/* the challenge period in small text by the heading (user, 2026-11-27) */}
+        <h2>
+          All challenges
+          {w?.start && (
+            <small className="muted period-note" title="Only matches played inside this period count for challenges">
+              {dateTime(w.start)} → {w.end ? dateTime(w.end) : "open-ended"}
+            </small>
+          )}
+        </h2>
         <ScrollToNew ready={!!rules.data} />
       </div>
       <Status loading={rules.loading} error={rules.error} />

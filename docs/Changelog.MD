@@ -18,6 +18,10 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.27.21 — 22:36
+
+- **The challenge period is back on /challenges, in small text next to "All challenges"** (user, 27 Nov): start → end (or "open-ended"), on the viewer's clock; hover text says only matches inside it count. Hidden until a start date is set.
+
 ## 2026.11.27.20 — 22:26
 
 - **"5th Loadout when? "Soon™"" is now "I Use All the Loadouts"** (user, 27 Nov: there are more than 5 loadouts now).

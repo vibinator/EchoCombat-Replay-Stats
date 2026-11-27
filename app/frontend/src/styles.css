@@ -2299,6 +2299,7 @@ td.best {
 .ach-pane .section-head { min-height: 2rem; align-items: center; margin: 1rem 0 6px; }
 .ach-pane .section-head h2, .ach-duo + .section-head h2 { margin: 0; }
 .ach-duo + .section-head { margin: 1.25rem 0 10px; }
+.period-note { margin-left: 10px; font-size: 0.8rem; font-weight: 400; letter-spacing: 0; white-space: nowrap; }
 .ach-duo .top-players, .ach-duo .recent-unlocks {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); grid-template-rows: 1fr; grid-auto-rows: 0; gap: 0 8px; overflow: hidden; padding: 0; margin-bottom: 0;
   flex: 1;
