@@ -1,5 +1,6 @@
 """Mega Prizes tab data (Preview role only; Arena counting is separate from Combat, see arena.py)."""
 
+import threading
 import time
 from datetime import date, datetime, timedelta
 from pathlib import Path
@@ -49,23 +50,60 @@ def image(request: Request, name: str):
     return FileResponse(IMAGE_DIR / name, media_type=IMAGES[name])
 
 
+# The Mega Prize counts are remembered for 10 minutes (user, 2026-11-27: "not super important to be real-time", fewer
+# live requests to the NAS the better): counting every player's Combat matches re-reads the replay history and took
+# seconds on the NAS. Kept per app (app.state) and keyed on the Mega Prize period, so a period changed in the Console
+# shows at once. The role check runs before the cache on every request, so who may see the prizes is never cached.
+MEGA_CACHE_S = 600
+_MEGA_LOCK = threading.RLock()  # re-entrant: the progress answer asks for the cached totals while counting
+
+
+def _remember(request: Request, key: tuple, compute):
+    """compute() once per MEGA_CACHE_S for this key; one request counts while the others wait for its answer."""
+    state = request.app.state
+    with _MEGA_LOCK:
+        memo = getattr(state, "mega_memo", None)
+        if memo is None:
+            memo = {}
+            state.mega_memo = memo
+        hit = memo.get(key)
+        if hit is not None and time.monotonic() - hit[0] < MEGA_CACHE_S:
+            return hit[1]
+        value = compute()
+        now = time.monotonic()
+        for k in [k for k, (at, _) in memo.items() if now - at >= MEGA_CACHE_S]:
+            del memo[k]  # old periods and expired answers: the store stays a few entries
+        memo[key] = (now, value)
+        return value
+
+
+def _cached_totals(request: Request, db, start: str | None, end: str | None) -> list[dict]:
+    """combat_totals for the period, from the 10-minute cache (shared by the progress, player and search answers)."""
+    return _remember(request, ("combat", start, end), lambda: combat_totals(db, start, end))
+
+
 @router.get("/progress")
 def progress(request: Request, limit: int = Query(10, ge=1, le=100)):
     _require_preview(request)
     with request.app.state.sessionmaker() as db:
-        rows = db.scalars(select(ArenaPlayer).where(ArenaPlayer.matches >= TARGET)
-                         .order_by(ArenaPlayer.matches.desc()).limit(limit)).all()  # only those who reached it (user, 2026-11-04)
-        near_arena = db.scalars(select(ArenaPlayer).where(ArenaPlayer.matches < TARGET)
-                                .order_by(ArenaPlayer.matches.desc()).limit(CLOSEST)).all()
-        combat_target = int(MEGA_COMBAT.levels[-1])
         period = mega_window(db)
-        # the Combat totals once, shared by the top 10, the closest and the winners (user, 2026-11-27: Mega Prizes slow to
-        # load; this was counted 4 times per request, each time re-reading the replay history)
-        totals = combat_totals(db, *period)
-        near_combat = _closest_combat(totals, combat_target)
-        won_arena = db.scalar(select(func.count()).select_from(ArenaPlayer).where(ArenaPlayer.matches >= TARGET)) or 0
-        won_combat = _combat_winners(totals, combat_target)
-        moves = {"top_combat": top_combat(db, totals), "top_arena": top_arena(db)}
+        return _remember(request, ("progress", limit, *period), lambda: _progress(request, db, limit, period))
+
+
+def _progress(request: Request, db, limit: int, period: tuple) -> dict:
+    """The body of /progress, counted at most every MEGA_CACHE_S."""
+    rows = db.scalars(select(ArenaPlayer).where(ArenaPlayer.matches >= TARGET)
+                     .order_by(ArenaPlayer.matches.desc()).limit(limit)).all()  # only those who reached it (user, 2026-11-04)
+    near_arena = db.scalars(select(ArenaPlayer).where(ArenaPlayer.matches < TARGET)
+                            .order_by(ArenaPlayer.matches.desc()).limit(CLOSEST)).all()
+    combat_target = int(MEGA_COMBAT.levels[-1])
+    # the Combat totals once, shared by the top 10, the closest and the winners (user, 2026-11-27: Mega Prizes slow to
+    # load; this was counted 4 times per request, each time re-reading the replay history)
+    totals = _cached_totals(request, db, *period)
+    near_combat = _closest_combat(totals, combat_target)
+    won_arena = db.scalar(select(func.count()).select_from(ArenaPlayer).where(ArenaPlayer.matches >= TARGET)) or 0
+    won_combat = _combat_winners(totals, combat_target)
+    moves = {"top_combat": top_combat(db, totals), "top_arena": top_arena(db)}
     r = MEGA_COMBAT  # kept out of RULES, so no public list or ranking has it
     combat = [{"id": r.id, "name": r.name, "description": r.description, "period": r.period, "icon": icon_file(r), "estimated": False,
                "new": r.new, "group": r.group, "levels": list(r.levels), "unit": r.unit, "prize": r.prize}]
@@ -215,7 +253,7 @@ def player(request: Request, user_id: str):
         accounts = db.scalars(select(NakamaAccount).where(NakamaAccount.replay_user_id == user_id)).all()
         ids = {a.user_id for a in accounts}
         discords = {a.discord_id for a in accounts if a.discord_id} | {user_id}
-        combat = sum(w["count"] for w in combat_totals(db, start, end) if w["user_id"] in ids) if ids else 0
+        combat = sum(w["count"] for w in _cached_totals(request, db, start, end) if w["user_id"] in ids) if ids else 0
         arena_rows = db.scalars(select(ArenaPlayer).where(ArenaPlayer.user_id.in_(ids) | ArenaPlayer.discord_id.in_(discords))).all()
         period = _period(db)
     combat_target = int(MEGA_COMBAT.levels[-1])
@@ -235,7 +273,7 @@ def search(request: Request, q: str = Query("", max_length=60)):
     like = f"%{term}%"
     with request.app.state.sessionmaker() as db:
         start, end = mega_window(db)
-        combat = [w for w in combat_totals(db, start, end) if term in (w["name"] or "").lower()][:SEARCH_LIMIT]
+        combat = [w for w in _cached_totals(request, db, start, end) if term in (w["name"] or "").lower()][:SEARCH_LIMIT]
         arena = db.scalars(select(ArenaPlayer).where(func.lower(ArenaPlayer.username).like(like)
                                                      | func.lower(func.coalesce(ArenaPlayer.display_name, "")).like(like))
                            .order_by(ArenaPlayer.matches.desc()).limit(SEARCH_LIMIT)).all()

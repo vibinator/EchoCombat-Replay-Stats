@@ -1494,9 +1494,12 @@ export interface ArenaProgress {
   /** the Mega Prize period (its own dates, or the challenge period); active = running today */
   period: { start: string | null; end: string | null; active: boolean };
 }
-export const getArenaProgress = () => send<ArenaProgress>("/api/arena/progress");
+// The Mega Prize answers go through request() (user, 2026-11-27: fewer requests to the NAS): reused in this tab and
+// refreshed in the background after FRESH_MS. The server marks them no-store, so they stay in memory only (never in
+// sessionStorage, never at Cloudflare); the server itself recounts them at most every 10 minutes (arena.py MEGA_CACHE_S).
+export const getArenaProgress = () => request<ArenaProgress>("/api/arena/progress");
 /** May this visitor see the Mega Prizes (Console: "Visible to" of the Mega Prize period)? Per visitor, so its own small answer. */
-export const getMegaVisible = () => send<{ visible: boolean }>("/api/arena/visible");
+export const getMegaVisible = () => request<{ visible: boolean }>("/api/arena/visible");
 
 /** Search a player by name: their progress toward each Mega Prize (from the challenge period on). */
 export interface MegaPrizeSearch {
@@ -1510,7 +1513,7 @@ export interface MegaPlayerProgress {
   combat: { matches: number; target: number; prize: string | null };
   arena: { matches: number; target: number; prize: string };
 }
-export const getMegaPlayer = (userId: string) => send<MegaPlayerProgress>(`/api/arena/player/${encodeURIComponent(userId)}`);
+export const getMegaPlayer = (userId: string) => request<MegaPlayerProgress>(`/api/arena/player/${encodeURIComponent(userId)}`);
 export const searchMegaPrizes = (q: string) => send<MegaPrizeSearch>(`/api/arena/search?q=${encodeURIComponent(q)}`);
 
 // ---- Combat stats (the recorder's match reports; separate from the replay-derived stats above) -----------------------

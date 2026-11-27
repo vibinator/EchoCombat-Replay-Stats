@@ -18,6 +18,18 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.27.2 — 10:20
+
+- **Mega Prizes are counted at most every 10 minutes** (user, 27 Nov: slow again; "not super important to be
+  real-time", fewer live requests to the NAS the better). The Challenges page's Mega Prizes, a profile's Mega Prize
+  row and the Mega Prize search share one count that the server keeps for 10 minutes, so most visits answer at once
+  instead of recounting every player's matches. Changing the Mega Prize period in the Console counts again straight
+  away; who may see the prizes is still checked on every request.
+- The pages also keep these answers while you browse (as the rest of the site does): going back to the Challenges page
+  shows them at once and asks the server again only after a minute, in the background. They stay out of Cloudflare and
+  the browser's storage, as before.
+- Needs the update deployed (Recreate in Container Station).
+
 ## 2026.11.27.1 — 09:55
 
 - **Player challenges tab: "Sort by closest to the next medal" removed** (user, 27 Nov). "Your next tiers" at the top

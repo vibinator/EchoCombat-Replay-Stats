@@ -300,3 +300,38 @@ def test_player_progress_adds_up_every_linked_account(tmp_path, monkeypatch):
     got = api.player(request, "p1")
     assert (got["combat"]["matches"], got["arena"]["matches"], got["linked"]) == (3, 7, True)
     assert api.player(request, "nobody")["linked"] is False and api.player(request, "nobody")["combat"]["matches"] == 0
+
+
+def test_mega_counts_are_cached_for_ten_minutes_per_period(tmp_path, monkeypatch):
+    """Mega Prize counts are remembered for MEGA_CACHE_S (user, 2026-11-27: not real-time, fewer NAS requests); a new
+    Mega Prize period counts again at once."""
+    from backend.api import arena as api
+    from backend.models import NakamaAccount, NakamaCombatCounted, NakamaCombatPlayer
+    _, sm = open_db(tmp_path / "c.db", 0)
+    with sm() as db:
+        actions.set_challenge_window(db, "2000-01-01", None)
+        db.add(NakamaAccount(user_id="n1", discord_id="d1", username="n1", display_name=None, first_seen_at="t", last_seen_at="t",
+                             replay_user_id="p1", link="profile"))
+        db.add(NakamaCombatPlayer(user_id="n1", username="n1", display_name=None, discord_id="d1", matches=1, last_match_at="t"))
+        db.add(NakamaCombatCounted(match_id="S1", user_id="n1", counted_at=2e9))
+        db.commit()
+    request = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(sessionmaker=sm)))
+    monkeypatch.setattr(api.auth, "has_preview", lambda r: True)
+    clock = [1000.0]
+    monkeypatch.setattr(api.time, "monotonic", lambda: clock[0])
+    assert api.player(request, "p1")["combat"]["matches"] == 1
+    assert api.progress(request, limit=10)["top_combat"][0]["matches"] == 1
+    with sm() as db:
+        db.add(NakamaCombatCounted(match_id="S2", user_id="n1", counted_at=2e9))
+        db.commit()
+    clock[0] += api.MEGA_CACHE_S - 1  # still inside the 10 minutes: the remembered counts
+    assert api.player(request, "p1")["combat"]["matches"] == 1
+    assert api.progress(request, limit=10)["top_combat"][0]["matches"] == 1
+    clock[0] += 2  # expired: counted again
+    assert api.player(request, "p1")["combat"]["matches"] == 2
+    assert api.progress(request, limit=10)["top_combat"][0]["matches"] == 2
+    with sm() as db:
+        db.add(NakamaCombatCounted(match_id="S3", user_id="n1", counted_at=2e9))
+        actions.set_challenge_window(db, "2000-01-02", None)  # a new period: no waiting for the cache
+        db.commit()
+    assert api.player(request, "p1")["combat"]["matches"] == 3
