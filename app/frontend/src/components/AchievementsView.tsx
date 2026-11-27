@@ -4,7 +4,7 @@ import { LEVELS, getMegaPlayer, getMegaVisible, getAchievements, getArenaProgres
 import { achievementsPath, dateTime, medalRuleText, pct, periodStarted, ruleText } from "../format";
 import { useApi } from "../useApi";
 import { useFullscreen } from "../useFullscreen";
-import { Status } from "./common";
+import { GearLabel, Status } from "./common";
 import { EmptyState } from "./ui";
 
 // Old ecranked.com badge art (app/images -> public/achievements). Tier frames = progress levels
@@ -422,6 +422,34 @@ function countingRules(a: AnyBadge): string[] {
   return out;
 }
 
+/** Every loadout this player has not used yet, for "I Use All the Loadouts" (67; user, 2026-11-27: "show the player which
+ *  combination hasn't been used yet"): folded away under its count, then per weapon each ordnance with the tac mods
+ *  still to use with it. */
+function UntriedLoadouts({ list }: { list: NonNullable<Achievement["untried"]> }) {
+  const left = list.reduce((n, x) => n + x.tacmods.length, 0);
+  const weapons = [...new Set(list.map((x) => x.weapon))];
+  return (
+    <details className="untried-loadouts" onClick={(e) => e.stopPropagation()}>
+      <summary>{left} loadout{left === 1 ? "" : "s"} not used yet</summary>
+      <ul>
+        {weapons.map((w) => {
+          const rows = list.filter((x) => x.weapon === w);
+          return (
+            <li key={w}>
+              <strong><GearLabel name={w} /></strong> <span className="muted">({rows.reduce((n, x) => n + x.tacmods.length, 0)} left)</span>
+              <ul>
+                {rows.map((x) => (
+                  <li key={x.ordnance}><GearLabel name={x.ordnance} />: {x.tacmods.join(" · ")}</li>
+                ))}
+              </ul>
+            </li>
+          );
+        })}
+      </ul>
+    </details>
+  );
+}
+
 /** The card a row opens: what to do, every medal step (ticked when reached), where the player stands, and the big picture. */
 function ChallengeCard({ a, onClose }: { a: AnyBadge; onClose?: () => void }) {
   const catalogue = a.progress === undefined;
@@ -464,6 +492,7 @@ function ChallengeCard({ a, onClose }: { a: AnyBadge; onClose?: () => void }) {
             ))}
           </span>
         )}
+        {!catalogue && a.untried && a.untried.length > 0 && a.progress! < 1 && <UntriedLoadouts list={a.untried} />}
         <div className="ch-rules">
           <span className="ch-rules-head">How it counts</span>
           <ul>{countingRules(a).map((r) => <li key={r}>{r}</li>)}</ul>
@@ -590,8 +619,9 @@ export function MegaPrizesProfile({ userId }: { userId: string }) {
 
 /** What counts for each Mega Prize: shared by the Mega Prizes section and a player's profile row. */
 const MEGA_NOTES = {
-  // Combat: 2v2 and up (user, 2026-11-27: was 3v3); Arena keeps 3v3
-  combat: ["Only counts games of 4+ minutes with at least 2v2. Matches from the replay files before the live count started are included, linked by Discord ID."],
+  // Combat: 2v2 and up (user, 2026-11-27: was 3v3); Arena keeps 3v3. The time period line (user, 2026-11-27: "include
+  // that there is a time period"), without the end date (removed the same day)
+  combat: ["Time-limited: only matches played inside the Mega Prize period count.", "Only counts games of 4+ minutes with at least 2v2.Matches from the replay files before the live count started are included, linked by Discord ID."],
   arena: ["Only counts public matches of 4+ minutes with at least 3v3 (or 6+ players)."],
 };
 
@@ -724,10 +754,12 @@ function MegaPrizes() {
           Mega Prizes <span className="tag">draft</span>
         </h2>
         <span className="muted mega-summary">
-          {arena.period.start && <>{dateTime(arena.period.start)} → {arena.period.end ?? "open-ended"} · </>}
+          {/* the start only, no end date (user, 2026-11-27) */}
+          {arena.period.start && <>From {dateTime(arena.period.start)} · </>}
           {combat?.prize ?? "Delta-13"} ({combatTarget} Combat matches) · Jack Series 11 ({arena.target} Arena matches)
           {leader && <> · top: {leader.name} {leader.matches}</>}
-          {arena.period.active && <span className="live-text"> · recording</span>}
+          {/* the separator outside the green span: its dot sat against the leader's count (user, 2026-11-27) */}
+          {arena.period.active && <> · <span className="live-text">recording</span></>}
         </span>
         <button type="button" className="secondary" onClick={toggle} aria-expanded={open} aria-controls="mega-prizes-body">
           {open ? "Hide ▴" : "Show ▾"}
@@ -1026,7 +1058,7 @@ function levelText(count: number, levels: number[], unit = ""): string {
   return `${shown.toLocaleString()}${unit} more to reach ${LEVELS[next]}`;
 }
 
-export function Badge({ a, compact = false }: { a: AchievementRule & Partial<Pick<Achievement, "progress" | "tier" | "unlocked_at" | "count" | "try_next">> & Partial<Pick<AchievementRarity, "unlocked_share" | "completed_share">>; compact?: boolean }) {
+export function Badge({ a, compact = false }: { a: AchievementRule & Partial<Pick<Achievement, "progress" | "tier" | "unlocked_at" | "count" | "try_next" | "untried">> & Partial<Pick<AchievementRarity, "unlocked_share" | "completed_share">>; compact?: boolean }) {
   const tier = a.tier ?? null;
   const catalogue = a.progress === undefined;
   const frame = tier ? `${tier}.png` : "lock_clear_no_square.png";
@@ -1104,6 +1136,7 @@ export function Badge({ a, compact = false }: { a: AchievementRule & Partial<Pic
             ))}
           </span>
         )}
+        {!catalogue && a.untried && a.untried.length > 0 && a.progress! < 1 && <UntriedLoadouts list={a.untried} />}
         {a.rules && a.rules.length > 0 && <span className="muted rule-notes">{a.rules.join(" · ")}</span>}
         {a.unlocked_share != null && (
           <details className="card-more">

@@ -822,6 +822,8 @@ export interface Achievement extends AchievementRule {
   unlocked_at: string | null;
   count?: number; // tiered achievements: games counted so far
   try_next?: { weapon: string; tacmod: string; ordnance: string; label: string }[]; // "Different loadouts": ones this player has not tried
+  /** "Different loadouts": every loadout not used yet, per weapon + ordnance pair with any left (user, 2026-11-27) */
+  untried?: { weapon: string; ordnance: string; tacmods: string[] }[];
 }
 
 export interface PlayerAchievements {

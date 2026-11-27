@@ -354,7 +354,7 @@ TUNED_LEVELS: dict[int, tuple[float, ...]] = {
     # 4-month challenge period (user, 2026-11-26): the ladders nobody could finish in the last real 4 months (27 Jul-26 Nov,
     # 255 regulars) made reachable; the rest already land at a 2-6 % crown and stay.
     17: (1, 1.5, 2, 3, 4),  # Versatile Bot: days with all 12 items (best regular 2; was 1 / 5 / 13 / 23)
-    67: (5, 15, 25, 50, 75),  # rounder numbers (user, 2026-11-27), was (7, 17, 27, 54, 78); halfway to November's pace (user, 2026-11-26);  # 5th Loadout when?: crown 4 % (was 7 / 29 / 62 / 87, 0 %)
+    67: (5, 15, 25, 50, 75),  # rounder numbers (user, 2026-11-27), was (7, 17, 27, 54, 78); halfway to November's pace (user, 2026-11-26);  # I Use All the Loadouts (was 5th Loadout when?): crown 4 % (was 7 / 29 / 62 / 87, 0 %)
     123: (2, 3, 5, 10, 15),  # rounder numbers (user, 2026-11-27), was (2, 3.5, 5, 9, 15); halfway to November's pace (user, 2026-11-26);  # No Gun Left Behind: least-used weapon (best 20; was 1 / 18 / 78 / 156)
     86: (2, 3, 5, 10, 15),  # rounder numbers (user, 2026-11-27), was (2, 3.5, 5, 9, 15); halfway to November's pace (user, 2026-11-26);  # Forbidden Arsenal: the same ladder as No Gun Left Behind (best 11)
     124: (2, 3, 5, 10, 15),  # rounder numbers (user, 2026-11-27), was (2, 3.5, 5, 9, 15); halfway to November's pace (user, 2026-11-26);  # Loadout Scholar Bot: least-used item (best 12)
@@ -571,9 +571,25 @@ def _loadouts_used(games):
     return len(_loadouts_tried(games))
 
 
-def loadouts_to_try(games, n: int = 3) -> list[dict]:
-    """The `n` loadouts this player has not tried yet, made of the most played gear (so they are easy to find a game with)."""
+def loadout_hints(games, n: int = 3) -> dict:
+    """For "I Use All the Loadouts" (67): `try_next`, the `n` easiest loadouts not tried yet (loadouts_to_try), and `untried`, every
+    loadout not tried yet (user, 2026-11-27: "show the player which combination hasn't been used yet"): per weapon and
+    ordnance pair that has any left, the tac mods not used with it, by display name, in the most played order."""
     tried = _loadouts_tried(games)
+    weapons, tacmods, ordnances = _released_gear()
+    name = lambda table, code: gear.lookup(table, code).display_name  # noqa: E731
+    untried = []
+    for w in weapons:
+        for o in ordnances:
+            left = [name(gear.TACMODS, t) for t in tacmods if (w, t, o) not in tried]
+            if left:
+                untried.append({"weapon": name(gear.WEAPONS, w), "ordnance": name(gear.ORDNANCES, o), "tacmods": left})
+    return {"try_next": loadouts_to_try(games, n, tried), "untried": untried}
+
+
+def loadouts_to_try(games, n: int = 3, tried: set | None = None) -> list[dict]:
+    """The `n` loadouts this player has not tried yet, made of the most played gear (so they are easy to find a game with)."""
+    tried = _loadouts_tried(games) if tried is None else tried
     weapons, tacmods, ordnances = _released_gear()
     todo = sorted(((wi + ti + oi, w, t, o) for wi, w in enumerate(weapons) for ti, t in enumerate(tacmods) for oi, o in enumerate(ordnances)
                    if (w, t, o) not in tried))
@@ -799,7 +815,7 @@ def _build_rules() -> list[Rule]:
             rules.append(_ladder(i, f"{label} Veteran", f"Play games using {label}", icon, _games_using(slot, code), GEAR_VETERAN))
             i += 1
     rules += [
-        _ladder(67, "5th Loadout when? \"Soon™\"", "Use different loadouts (weapon + ordnance + tac mod), at least 1 minute each; there are 240 in total", "loadout", _loadouts_used, (6, 12, 24, 40, 56)),
+        _ladder(67, "I Use All the Loadouts", "Use different loadouts (weapon + ordnance + tac mod), at least 1 minute each; there are 240 in total", "loadout", _loadouts_used, (6, 12, 24, 40, 56)),  # was "5th Loadout when? \"Soon™\"" (renamed by the user, 2026-11-27: there are more than 5 loadouts now)
         _ladder(68, "Pixel Party!", "Your total number of deaths, all your games added up", "deaths", lambda gs: sum(g.deaths for g in gs), (75, 225, 563, 1500, 3000), estimated=True),
         _tiered(69, "King of the Hill", "Play Capture Point games", "capture_point", _capture, (12, 29, 58, 115, 288)),
         _tiered(70, "Feed the Flamingo", "Play Payload games", "payload", _payload, (12, 29, 58, 115, 288)),
@@ -1177,7 +1193,8 @@ def evaluate(games: list, rules: list[Rule] = RULES) -> list[dict]:
         if n is not None:  # the website shows "12 / 25 for diamond"
             entry |= {"tier": level_tier(n, rule.levels), "count": round(n, 2), "levels": list(rule.levels), "unit": rule.unit}
         if rule.id == LOADOUT_RULE_ID:
-            entry["try_next"] = loadouts_to_try(games)  # "try these next": the website links each to its leaderboard
+            # "try these next" (the website links each to its leaderboard) and every loadout not used yet (user, 2026-11-27)
+            entry |= loadout_hints(games)
         entries[rule.id] = entry
     for rule in rules:
         if rule.meta:

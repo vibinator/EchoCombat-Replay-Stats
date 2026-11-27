@@ -541,3 +541,18 @@ def test_period_start_time():
     assert actions.has_started("2027-01-01T18:00", datetime(2027, 1, 1, 18, 0))
     assert actions.window_active(("2027-01-01T18:00", "2027-01-01"), datetime(2027, 1, 1, 23, 59))
     assert not actions.window_active(("2027-01-01T18:00", "2027-01-01"), datetime(2027, 1, 2, 0, 0))
+
+
+def test_loadouts_not_used_yet_are_listed():
+    """I Use All the Loadouts (67, renamed from "5th Loadout when?" by the user, 2026-11-27) lists every loadout not used
+    yet (user, same day): per weapon + ordnance pair, the tac mods still to use with it, by display name."""
+    from backend.achievements import LOADOUT_RULE_ID, loadout_hints
+    games = [game(loadout=("assault", "heal", "det")), game(loadout=("assault", "heal", "det"))]  # 2 x 50 s: used (1 min+)
+    games.append(game(loadout=("scout", "heal", "det")))  # 50 s only: not used yet
+    hints = loadout_hints(games)
+    assert sum(len(x["tacmods"]) for x in hints["untried"]) == 240 - 1
+    first = hints["untried"][0]
+    assert (first["weapon"], first["ordnance"]) == ("Pulsar", "Detonator") and "Repair Matrix" not in first["tacmods"]
+    assert len(first["tacmods"]) == 4 and len(hints["untried"]) == 48  # every pair still has something left
+    card = next(r for r in evaluate(games) if r["id"] == LOADOUT_RULE_ID)
+    assert card["name"] == "I Use All the Loadouts" and card["untried"] == hints["untried"] and len(card["try_next"]) == 3

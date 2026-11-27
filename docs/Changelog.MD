@@ -18,6 +18,30 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.27.20 — 22:26
+
+- **"5th Loadout when? "Soon™"" is now "I Use All the Loadouts"** (user, 27 Nov: there are more than 5 loadouts now).
+  Same challenge (id 67), same targets.
+- **It lists every loadout you have not used yet** (user, 27 Nov: "show the player which combination hasn't been used
+  yet"). Under "Try next" a folded line "N loadouts not used yet" opens a list per weapon: each ordnance with the tac
+  mods still to use with it (for example "Pulsar · Detonator: Threat Scanner · Energy Barrier · Overcharge"). A loadout
+  counts as used after 1 minute with it, as before. Shown on both the list and the grid view of the card until the
+  challenge is complete.
+- Needs the update deployed. Because the challenge code changed, the challenge ranking is worked out once from scratch
+  after the restart (a few minutes on the NAS).
+
+## 2026.11.27.19 — 22:20
+
+- **The Mega Prizes heading line shows only the start too** (user, 27 Nov): "From 2026-11-27 21:20 · Delta-13 ..."
+  instead of "2026-11-27 21:20 → 2027-12-27 · ...". 2026.11.27.18 changed only the box under it. The Console still
+  shows both dates.
+- **The green recording dot in that line sits beside "recording"** (user, 27 Nov): it was drawn before the " · ", right
+  against the top player's match count.
+- **The Echo Combat Mega Prize card says it is time-limited** (user, 27 Nov: "include that there is a time period"): a
+  first line "Time-limited: only matches played inside the Mega Prize period count." on the Delta-13 card and in a
+  player's Mega Prizes row. No end date is shown.
+- Needs the update deployed (frontend only).
+
 ## 2026.11.27.18 — 22:15
 
 - **Challenge cards on a phone** (user, 27 Nov: the cross sometimes did not show, and cards stacked up). Only one card
