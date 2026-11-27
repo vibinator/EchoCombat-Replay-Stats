@@ -63,6 +63,12 @@ def view(request, group: str = "win_loss") -> View:
     return ALL_SHOWN if auth.is_admin(request) else seen
 
 
+def public(sessions, group: str = "win_loss") -> View:
+    """The public answer's view whoever asks (the public API, api/public.py): hidden stats stay hidden, also for admins."""
+    groups, players = _settings(sessions)
+    return View(group in groups, players.get(group, frozenset()))
+
+
 def win_loss(request) -> bool:
     """Whether this visitor sees win-loss stats site-wide (team win rates, the leaderboard's win stats)."""
     return not view(request).everything

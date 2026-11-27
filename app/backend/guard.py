@@ -121,6 +121,9 @@ def check(request, limiter: RateLimiter | None, hourly: RateLimiter | None = Non
         return None
     worker = path.startswith("/api/worker/")  # the remote processing PC: a script too, with a secret; no rate limit (a PC sends a result per replay)
     bot = worker or path.startswith("/api/bot/")  # the Discord bot is a script: its endpoints check its secret instead
+    # the public API (api/public.py, user 2026-11-27) is for scripts: it checks an API key, with a limit per key, instead
+    # of the header and the user agent; the limit per address below still applies
+    bot = bot or path.startswith("/api/v1/")
     if not bot and (not agent or SCRIPT_AGENTS.search(agent)):
         return _refuse(403, "automated", "Automated access to this site's data is not allowed.")
     exempt = bot or path.startswith(HEADER_EXEMPT) or path.endswith(HEADER_EXEMPT_SUFFIXES)

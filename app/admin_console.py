@@ -34,6 +34,9 @@ rule and the affected replays are re-processed from the original files, so it ca
     admin.bat repair-aggressive-failed [--yes]
     admin.bat scan
     admin.bat reprocess-all [--yes]        rescan the folder, then read every replay again
+    admin.bat api-key-add <name>           a key for the public player-stats API (/api/v1, docs/API.MD), shown once
+    admin.bat api-keys                     the API keys (no secrets): who has one, when it was last used
+    admin.bat api-key-revoke <id>          the key stops working within 10 seconds
 """
 
 import argparse
@@ -864,6 +867,49 @@ def cmd_remote_mode(sessions, mode: str | None = None) -> str:
     return current
 
 
+def cmd_api_key_add(sessions, settings: Settings, name: str, by: str = "admin.bat") -> str:
+    """A key for the public player-stats API (backend/api_keys.py), printed once with ready-to-use URLs."""
+    from backend import api_keys
+    with sessions() as db:
+        try:
+            key_id, key = api_keys.create(db, name, by)
+        except ValueError as e:
+            raise ConsoleError(str(e)) from e
+    base = settings.public_url.rstrip("/") + "/api/v1"
+    print(f'API key for "{" ".join(name.split())}" (id {key_id}). Copy it now: it is not shown again.')
+    print()
+    print(f"Key:   {key}")
+    print(f"URL:   {base}/players/<player id>?key={key}")
+    print(f"Find:  {base}/players?q=<name>&key={key}")
+    print()
+    print("Scripts should send the key as the header \"Authorization: Bearer <key>\" rather than in the URL (URLs end up in "
+          f"histories and logs). Limit: {api_keys.PER_MIN} requests a minute and {api_keys.PER_HOUR} an hour per key. "
+          f"Docs: docs/API.MD. To stop it: api-key-revoke {key_id}")
+    return key
+
+
+def cmd_api_keys(sessions) -> None:
+    from backend import api_keys
+    with sessions() as db:
+        keys = api_keys.listing(db)
+    if not keys:
+        print("No API keys. Make one with api-key-add <name>.")
+        return
+    print(f"{len(keys)} API key(s), newest first:")
+    for k in keys:
+        print(f"  {k['id']}  {k['name']}  made {(k['created_at'] or '')[:16]} by {k['created_by'] or '?'}, "
+              f"last used {(k['last_used_at'] or 'never')[:16]}")
+
+
+def cmd_api_key_revoke(sessions, key_id: str) -> None:
+    from backend import api_keys
+    with sessions() as db:
+        gone = api_keys.revoke(db, key_id)
+    if gone is None:
+        raise ConsoleError(f"No API key with id {key_id.strip()[:20]} (api-keys lists them)")
+    print(f'API key {gone["id"]} ("{gone["name"]}") revoked: it stops working within 10 seconds.')
+
+
 def cmd_remote_processing(sessions, on: bool | None = None) -> bool:
     """Replays read on another PC (remote_worker.bat) instead of on this server: on = the server's own worker takes no
     replays, the PC does; off = the server reads them itself again. None only shows the setting."""
@@ -1048,7 +1094,7 @@ def interactive(sessions, settings: Settings) -> None:
 # subcommands that change something: written to the audit log (Console page) with the Windows / container user
 LOGGED = {"merge", "unmerge", "link-profile", "unlink-profile", "challenge", "mega-period", "preview-roles", "admin-roles", "admin-users", "cloud-admins", "hide-stats", "repair-failed",
           "cannot-repair", "hidden", "reprocess", "repair", "scan", "reprocess-all", "repair-aggressive",
-          "repair-aggressive-failed", "remote", "process-missing", "forget-missing"}
+          "repair-aggressive-failed", "remote", "process-missing", "forget-missing", "api-key-add", "api-key-revoke"}
 
 
 def _run_logged(sessions, settings: Settings, args) -> int:
@@ -1128,6 +1174,10 @@ def main_command(sessions, settings: Settings, args) -> None:
             cmd_process_missing(sessions, settings)
         case "reprocess-all":
             cmd_reprocess_all(sessions, settings, args.yes)
+        case "api-key-add":
+            cmd_api_key_add(sessions, settings, " ".join(args.name))
+        case "api-key-revoke":
+            cmd_api_key_revoke(sessions, args.key_id)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -1205,6 +1255,9 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("scan", help="look for new / changed files in the replay folder now")
     p = sub.add_parser("reprocess-all", help="rescan the folder, then read every replay again (hours)")
     p.add_argument("--yes", action="store_true")
+    sub.add_parser("api-key-add", help="a key for the public player-stats API, shown once").add_argument("name", nargs="+", help="who or what uses it")
+    sub.add_parser("api-keys", help="the public API keys (no secrets)")
+    sub.add_parser("api-key-revoke", help="stop an API key").add_argument("key_id", help="the id from api-keys")
     args = parser.parse_args(argv)
 
     try:
@@ -1225,6 +1278,8 @@ def main(argv: list[str] | None = None) -> int:
                 cmd_discord_check(sessions, settings, args.user_id)
             case "status":
                 cmd_status(sessions)
+            case "api-keys":
+                cmd_api_keys(sessions)
     except ConsoleError as e:
         print(f"! {e}", file=sys.stderr)
         return 1

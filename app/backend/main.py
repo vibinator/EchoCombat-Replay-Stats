@@ -21,7 +21,7 @@ from starlette.exceptions import HTTPException
 from parser import PARSER_VERSION
 
 from . import antivirus, arena, auth, cloud, combat, guard, heights_warm, icons, league, popular, tracks
-from .api import achievements, admin, avatars, arena as arena_api, auth as auth_api, cloud as cloud_api, combat as combat_api, console, imports, profiles, leaderboard, matches, overview, permissions, players, remote_worker, replays, pins as pins_api
+from .api import achievements, admin, avatars, arena as arena_api, auth as auth_api, cloud as cloud_api, combat as combat_api, console, imports, profiles, leaderboard, matches, overview, permissions, players, public, remote_worker, replays, pins as pins_api
 from .config import PROJECT_ROOT, Settings
 from .db import open_db, warm
 from fastapi.exceptions import RequestValidationError
@@ -229,6 +229,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.include_router(imports.router)
     app.include_router(matches.router)
     app.include_router(players.router)
+    app.include_router(public.router)  # /api/v1: the public player-stats API, with API keys
     app.include_router(leaderboard.router)
     app.include_router(achievements.router)
     app.include_router(overview.router)

@@ -25,7 +25,8 @@ from .popular import SCOPE_MARK
 from .cache import STATUS_HEADER
 from .version import VERSION
 
-PER_VISITOR = ("/api/auth", "/api/admin", "/api/arena", "/api/profiles", "/api/bot", "/api/worker", "/api/cloud")
+PER_VISITOR = ("/api/auth", "/api/admin", "/api/arena", "/api/profiles", "/api/bot", "/api/worker", "/api/cloud",
+               "/api/v1")  # the public API: answered per key, never kept by Cloudflare (a revoked key stops at once)
 WRITES = ("/api/admin/achievements/", "/api/admin/console/", "/api/admin/permissions", "/api/profiles/", "/api/cloud/")
 UPLOAD = "/api/cloud/upload"
 BOT = ("/api/bot/", "/api/worker/")  # the Discord bot and the remote processing PC: POST with their shared secret (checked by the endpoint), no X-EchoVR header

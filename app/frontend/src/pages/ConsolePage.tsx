@@ -347,6 +347,30 @@ const GROUPS: { title: string; commands: Command[] }[] = [
       },
     ],
   },
+  {
+    // the public player-stats API (user, 2026-11-27): admins make a key here and get its URL; docs/API.MD
+    title: "API",
+    commands: [
+      {
+        name: "api-key-add",
+        label: "New API key",
+        help:
+          "A key for the public player-stats API (profile stats only), for one person or bot. The key and a ready-to-use URL are " +
+          "shown once: copy them now. Admins only. The API is listed as JSON at /api/v1/openapi.json.",
+        fields: [{ key: "name", label: "Who or what uses it", hint: "e.g. “Stats bot for the league Discord”" }],
+        confirm: (v) => `Make an API key for “${v.name}”?`,
+      },
+      { name: "api-keys", label: "List API keys", help: "Every key (no secrets): its id, who it is for, when it was made and last used." },
+      {
+        name: "api-key-revoke",
+        label: "Revoke an API key",
+        help: "The key stops working within 10 seconds. Anyone using it needs a new one.",
+        fields: [{ key: "key_id", label: "Key id", hint: "From “List API keys”" }],
+        confirm: (v) => `Revoke API key ${v.key_id}? It stops working at once.`,
+        danger: true,
+      },
+    ],
+  },
 ];
 
 const ALL_COMMANDS = GROUPS.flatMap((g) => g.commands);
@@ -365,6 +389,7 @@ const TABS: { id: string; label: string; names: string[]; opens?: false }[] = [
   },
   // starts on the dates: the winners report reads the whole archive, which takes up to half a minute during a re-read
   { id: "challenges", label: "Challenges", names: ["challenge", "mega-period", "mega-prizes", "hidden-stats", "export-challenges"] },
+  { id: "api", label: "API", names: ["api-key-add", "api-keys", "api-key-revoke"] },
   { id: "log", label: "Audit log", names: ["log"] },
   // the Cloud's recycle bin, quarantine and audit log are on the Cloud page, for Cloud admins (user, 2026-11-16: the
   // Cloud is separate from the Console)

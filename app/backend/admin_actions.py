@@ -575,8 +575,11 @@ LOG_OUTPUT_MAX = 4000
 
 def log_command(db: Session, source: str, who_name: str, command: str, args: dict | None, ok: bool, output: str,
                 who_id: str | None = None) -> None:
-    """One line in the audit log (Console page: Audit log)."""
+    """One line in the audit log (Console page: Audit log). API keys in the output are blacked out (api_keys.py)."""
     import json
+
+    from .api_keys import redact
+    output = redact(output)
     db.add(ConsoleLog(at=utcnow(), source=source, who_id=who_id, who_name=who_name, command=command,
                       args=json.dumps(args, ensure_ascii=False) if args else None, ok=ok,
                       output=(output or "")[:LOG_OUTPUT_MAX] or None))

@@ -50,6 +50,8 @@ class Args(BaseModel):
     player: str = ""
     visible: str = ""  # challenge: "everyone", "preview" or "hidden"; empty = keep
     mode: str = ""  # remote: "server", "remote" or "both"; empty = only show the setting
+    name: str = ""  # api-key-add: who or what uses the key
+    key_id: str = ""  # api-key-revoke
 
 
 def _required(value: str, what: str) -> str:
@@ -89,7 +91,12 @@ COMMANDS = {  # name as in admin.bat -> (sessions, settings, args) -> None
     "remote-off": lambda s, st, a: console.cmd_remote_processing(s, False),
     "remote-status": lambda s, st, a: console.cmd_remote_processing(s, None),
     "discord-check": lambda s, st, a: console.cmd_discord_check(s, st, _required(a.user_id, "a Discord user id")),
+    # public API keys (user, 2026-11-27): admins only (see run); the key is shown once and blacked out in the audit log
+    "api-key-add": lambda s, st, a, by="Console": console.cmd_api_key_add(s, st, _required(a.name, "a name for the key"), by),
+    "api-keys": lambda s, st, a: console.cmd_api_keys(s),
+    "api-key-revoke": lambda s, st, a: console.cmd_api_key_revoke(s, _required(a.key_id, "the key's id")),
 }
+ADMIN_ONLY = ("api-key-add", "api-keys", "api-key-revoke")
 
 
 # The console names its own commands; on the page they are buttons (labels in ConsolePage.tsx). Each phrase must
@@ -258,13 +265,18 @@ def run(request: Request, command: str, args: Args):
     user = require_console(request, command)
     if command not in COMMANDS:
         raise ApiError(404, "unknown_command", f"No console command '{command}'")
+    if command in ADMIN_ONLY and not auth.is_admin(request):
+        raise ApiError(403, "admin_only", "Only admins can manage API keys")
     log.info("Console %s by %s (%s): %s", command, user["name"], user["id"], args.model_dump(exclude_defaults=True))
     out, ok = io.StringIO(), True
     running = console.server_running
     with _lock, contextlib.redirect_stdout(out):
         console.server_running = lambda: True  # this is the server: queued replays are picked up at once
         try:
-            COMMANDS[command](request.app.state.sessionmaker, request.app.state.settings, args)
+            if command == "api-key-add":  # who made the key, from the login (never from the page)
+                COMMANDS[command](request.app.state.sessionmaker, request.app.state.settings, args, by=user["name"])
+            else:
+                COMMANDS[command](request.app.state.sessionmaker, request.app.state.settings, args)
         except console.ConsoleError as e:
             print(e)
             ok = False

@@ -18,6 +18,21 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.27.15 — 19:53
+
+- **Public player-stats API** (user, 27 Nov: "open up an API for player stats", with API keys and profile stats only).
+  `GET /api/v1/players?q=<name>` finds players, `GET /api/v1/players/<id>?period=&map=` gives one player's profile
+  stats (games, wins / losses, deaths, speeds, time near teammates, payload, emotes, per map and period). No heatmaps,
+  bios, Discord ids, pings or match lists; stats hidden from players stay hidden. Each key may ask 30 times a minute and
+  1,000 times an hour. The answers are JSON, and the API itself is listed as JSON at `/api/v1/openapi.json` (OpenAPI,
+  no key needed). The rest of `/api/` still answers only the site's own pages. Details: docs/API.MD.
+- **API keys from the Console** (user, 27 Nov: "let an Admin get an API key / URL from the console"): a new API tab
+  with New API key (shows the key and a ready-to-use URL once), List API keys and Revoke an API key. Admins only.
+  Also `admin.bat api-key-add <name>`, `api-keys`, `api-key-revoke <id>`. Only a hash of each key is stored, and the
+  audit log blacks the key out.
+- After the update: make a key and try it from a script. Cloudflare's Bot Fight Mode may challenge scripts before they
+  reach the server; if a script gets a Cloudflare page instead of JSON, Bot Fight Mode needs turning off (docs/API.MD).
+
 ## 2026.11.27.14 — 19:40
 
 - **Lobby Mime Troupe counts every game** (user, 27 Nov: "one is for playing a game, it shouldn't be tied to your
