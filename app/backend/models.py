@@ -223,6 +223,20 @@ class NakamaAccount(Base):
     link: Mapped[str | None]  # how: "player_id" (replay id is the Discord id), "profile" (bot / admin link)
 
 
+class LeagueMember(Base):
+    """A Discord account seen on the Echo Combat George League roster (ecgleague.com, user 2026-11-27: two Specials, "Join
+    Echo Combat George League" and "Join a George League Team"). Only the Discord id and the dates are kept, no names. Once
+    seen it stays: leaving the league or a team later does not take a completed challenge away. Kept across rebuilds: the
+    league's past rosters cannot be read again."""
+
+    __tablename__ = "league_members"
+
+    discord_id: Mapped[str] = mapped_column(primary_key=True)
+    joined_at: Mapped[str]  # first seen on the league's player list (ISO date and time, UTC)
+    team_at: Mapped[str | None]  # first seen on a team's roster, current or former
+    last_seen_at: Mapped[str]  # last seen on the player list
+
+
 class PlayerAlias(Base):
     """Admin player merge (D34): `alias_user_id` is the same person as `main_user_id`. Kept across rebuilds."""
 

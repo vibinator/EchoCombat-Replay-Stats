@@ -25,9 +25,9 @@ Virus scanning of cloud uploads (user, 2026-11-10): ClamAV before a file can be 
 ### `tests/backend/test_api.py` (6 tests)
 - test_list_and_filter_matches, test_match_tags_and_summary, test_match_detail, test_match_events_and_404, test_player_search_and_profile, test_period_start
 
-### `tests/backend/test_arena.py` (21 tests)
+### `tests/backend/test_arena.py` (22 tests)
 Arena match counting (app/backend/arena.py): public Arena only, 4 minutes in the match, once per match.
-- test_status_for_the_console, test_overview_has_the_arena_status_for_console_users_only, test_status_outside_the_period, test_only_public_arena, test_counts_after_three_minutes_once, test_spectators_and_moderators_are_not_counted_and_lose_their_record, test_short_stays_and_other_modes_do_not_count, test_nothing_counts_before_the_challenge_period, test_progress_is_for_the_preview_role_only, test_winners_report_needs_console_and_lists_nobody_without_a_period, test_opens_a_database_made_before_discord_id_existed, test_search_is_for_the_preview_role_only, test_search_finds_arena_players_by_name, test_combat_prize_counts_only_games_of_four_minutes_inside_the_period, test_small_matches_do_not_count_until_big_enough, test_combat_counted_from_the_list_once_per_match_and_kept, test_combat_totals_from_nakama_only, test_combat_audit_columns, test_accounts_are_collected_and_linked_every_poll, test_top_list_shows_rank_change_and_matches_gained, test_player_progress_adds_up_every_linked_account
+- test_status_for_the_console, test_overview_has_the_arena_status_for_console_users_only, test_status_outside_the_period, test_only_public_arena, test_counts_after_three_minutes_once, test_spectators_and_moderators_are_not_counted_and_lose_their_record, test_short_stays_and_other_modes_do_not_count, test_nothing_counts_before_the_challenge_period, test_progress_is_for_the_preview_role_only, test_winners_report_needs_console_and_lists_nobody_without_a_period, test_opens_a_database_made_before_discord_id_existed, test_search_is_for_the_preview_role_only, test_search_finds_arena_players_by_name, test_combat_prize_counts_only_games_of_four_minutes_inside_the_period, test_small_matches_do_not_count_until_big_enough, test_combat_counted_from_the_list_once_per_match_and_kept, test_combat_totals_from_nakama_only, test_combat_audit_columns, test_accounts_are_collected_and_linked_every_poll, test_top_list_shows_rank_change_and_matches_gained, test_player_progress_adds_up_every_linked_account, test_mega_counts_are_cached_for_ten_minutes_per_period
 
 ### `tests/backend/test_avatars.py` (4 tests)
 Small Discord pictures for the name lists (user, 2026-11-06): GET /api/avatars and the extra Players-list fields.
@@ -116,9 +116,9 @@ Mega Prizes security (user, 2026-11-04): the prize data is Preview-only, the win
 ### `tests/backend/test_phase7.py` (16 tests)
 - test_tracks_round_trip, test_tracks_ram_cache, test_recorder_pads_gaps_and_absence, test_cells_follow_verified_orientation, test_rasterise_draws_lines_but_not_jumps, test_rasterise_matches_to_cell_on_every_map, test_build_layers_matches_per_sample_reference, test_match_heatmap, test_match_heatmap_per_player, test_timeline, test_capture_time_packet_loss_and_emotes, test_player_heatmap, test_player_heatmap_validation, test_player_heatmap_cache_refreshes_after_import, test_leaderboard, test_match_export
 
-### `tests/backend/test_profile_achievements.py` (3 tests)
+### `tests/backend/test_profile_achievements.py` (5 tests)
 Challenges about the player's page (profile_achievements.py): "Edit your Bio" (user, 2026-11-26).
-- test_edit_your_bio_is_a_special_out_of_every_total, test_complete_once_the_page_has_a_bio, test_edit_your_bio_is_won_or_not
+- test_edit_your_bio_is_a_special_out_of_every_total, test_complete_once_the_page_has_a_bio, test_edit_your_bio_is_won_or_not, test_george_league_specials_are_out_of_every_total, test_league_cards_follow_the_players_discord_account
 
 ### `tests/backend/test_profile_bio.py` (2 tests)
 A bio written on My profile shows on the player's own page (user, 2026-11-10: "it doesn't show up on their profile page").

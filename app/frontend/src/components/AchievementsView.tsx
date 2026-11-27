@@ -31,7 +31,9 @@ export const NEW_GROUPS: [name: string, hint: string, groups: string[]][] = [
 
 // Survival, Movement, Emotes and Activity are not themes any more (user, 2026-11-04): their challenges sit with the others of the same
 // period (mostly "In one game"; the all-time ones, Activity included, under "All time").
-const BY_PERIOD = new Set(["Survival", "Movement", "Emotes", "Activity", "Profile"]);
+const BY_PERIOD = new Set(["Survival", "Movement", "Emotes", "Activity", "Profile", "George League"]);
+/** Challenges that are not about games (Edit your Bio; the George League ones, user 2026-11-27): only their own rules shown. */
+const NOT_GAMES = new Set(["Profile", "George League"]);
 const GEAR_GROUPS = new Set(["Experimental gear", "Gear mastery"]);
 /** Shown under its period (in one game / day / any 7 days / all time) rather than a theme: the old rules, a few themes, and the
  *  "any 7 days" gear challenges (user, 2026-11-04). */
@@ -154,8 +156,8 @@ const ORDNANCES = ["detonator", "stun field", "arc mine", "instant repair", "att
 const TAC_MODS = ["repair matrix", "threat scanner", "energy barrier", "phase shift", "overcharge", "neutron", "umbral veil"];
 const MAPS = ["dyson", "combustion", "fission", "surge"];
 /** Topic boxes inside a tab, in this order (user, 2026-11-26: weapons, ordnances, tac mods, Payload, Capture Point ...). */
-const TOPICS = ["Profile", "Weapons", "Ordnances", "Tac mods", "Loadouts", "Payload", "Capture Point", "Maps", "Movement", "Positioning", "Survival", "Emotes", "Wins", "Activity", "Award cards", "Combat", "Other"];
-const GROUP_TOPIC: Record<string, string> = { Payload: "Payload", "Capture Point": "Capture Point", Emotes: "Emotes", Wins: "Wins", Activity: "Activity", Movement: "Movement", Survival: "Survival", Combat: "Combat", "Gear mastery": "Loadouts", Profile: "Profile" };
+const TOPICS = ["Profile", "George League", "Weapons", "Ordnances", "Tac mods", "Loadouts", "Payload", "Capture Point", "Maps", "Movement", "Positioning", "Survival", "Emotes", "Wins", "Activity", "Award cards", "Combat", "Other"];
+const GROUP_TOPIC: Record<string, string> = { Payload: "Payload", "Capture Point": "Capture Point", Emotes: "Emotes", Wins: "Wins", Activity: "Activity", Movement: "Movement", Survival: "Survival", Combat: "Combat", "Gear mastery": "Loadouts", Profile: "Profile", "George League": "George League" };
 const mentions = (text: string, words: string[]) => words.some((w) => text.includes(w));
 
 /** The topic box a challenge sits in: its theme, else the gear, mode or map its rule names, else its built-in art. Read from
@@ -389,7 +391,7 @@ function ruleSentence(tag: string): string {
  *  share. Profile challenges (Edit your Bio) are not about games, so only their own lines. */
 function countingRules(a: AnyBadge): string[] {
   const tags = a.rules ?? [];
-  if (a.group === "Profile") return tags;
+  if (NOT_GAMES.has(a.group ?? "")) return tags;
   const out = tags.map(ruleSentence);
   if (!tags.some((t) => / min games$/.test(t))) out.push("Any game length");
   if (!tags.some((t) => /players (per|on each) team/.test(t))) out.push("Any team size");

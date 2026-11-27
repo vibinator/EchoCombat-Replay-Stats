@@ -36,9 +36,9 @@ Achievements / Flamingo Challenges per player, rarity, recent unlocks, the achie
 Staff endpoints under /api/admin: the Status page (admins and console users) and achievement icons (D43, changed
 - require_icon_editor:16 / status:23 / icon_choices:32 / **class IconChoice**:38 / set_icon:43 / upload_icon:54
 
-### `app/backend/api/arena.py` (242 lines)
+### `app/backend/api/arena.py` (283 lines)
 Mega Prizes tab data (Preview role only; Arena counting is separate from Combat, see arena.py).
-- `TARGET`:20 / `SEARCH_LIMIT`:21 / `CLOSEST`:22 / `IMAGES`:23 / `IMAGE_DIR`:24 / _require_preview:27 / visible:36 / image:44 / progress:53 / _replay_history:82 / combat_totals:117 / `TOP`:149 / _moves:152 / top_combat:165 / top_arena:172 / _closest_combat:182 / _combat_winners:189 / _period:195 / player:202 / search:225
+- `TARGET`:21 / `SEARCH_LIMIT`:22 / `CLOSEST`:23 / `IMAGES`:24 / `IMAGE_DIR`:25 / _require_preview:28 / visible:37 / image:45 / `MEGA_CACHE_S`:57 / `_MEGA_LOCK`:58 / _remember:61 / _cached_totals:80 / progress:86 / _progress:93 / _replay_history:123 / combat_totals:158 / `TOP`:190 / _moves:193 / top_combat:206 / top_arena:215 / _closest_combat:225 / _combat_winners:231 / _period:236 / player:243 / search:266
 
 ### `app/backend/api/auth.py` (118 lines)
 Discord login for achievement previews (D41). Only GET requests: the website stays read-only (D38).
@@ -179,7 +179,11 @@ Prepares the heatmaps of the most active players while the server is idle. First
 Achievement icons chosen on the Console page (D43): an existing badge image or an uploaded PNG. The choice is
 - `KEY`:21 / `CUSTOM`:22 / `CUSTOM_NAME`:23 / `MAX_BYTES`:24 / `MAX_SIDE`:25 / `PNG`:26 / `BUILT_IN_DIRS`:28 / `NOT_ICONS`:29 / `ALL_RULES`:30 / `RULE_IDS`:31 / **class IconError**:34 / overrides:38 / apply:43 / custom_dir:49 / built_in:53 / available:58 / default:65 / set_icon:69 / save_upload:86
 
-### `app/backend/main.py` (263 lines)
+### `app/backend/league.py` (115 lines)
+Echo Combat George League roster (user, 2026-11-27): who is in the league and who is on a team, read from the league's
+- `BASE`:18 / `POLL_S`:19 / `FIRST_S`:20 / `PACE_S`:21 / `TIMEOUT_S`:22 / `MAX_BYTES`:23 / `MAX_TEAMS`:24 / `MAX_BACKOFF_S`:25 / _is_discord_id:28 / _get:32 / read_rosters:40 / store:61 / **class LeagueSync**:82 [start:92, stop:95, sync:98, _run:104]
+
+### `app/backend/main.py` (267 lines)
 - `FRONTEND_DIST`:37 / `KEPT_SUFFIXES`:49 / `KEPT_MAX_BYTES`:50 / `KEPT_CHECK_S`:51 / **class KeptFile**:55 / **class SinglePageApp**:65 [_keep:81, _kept_response:100, get_response:114] / create_app:137
 
 ### `app/backend/map_heat.py` (948 lines)
@@ -198,9 +202,9 @@ Merge suggestions for the Console (D34 merges): player records that used the sam
 Every request and answer of the site in one pure ASGI layer (it replaces four @app.middleware layers that cost
 - `PER_VISITOR`:28 / `WRITES`:29 / `UPLOAD`:30 / `BOT`:31 / `STATIC_MAX_AGE_S`:32 / `EDGE_STALE_IF_ERROR_S`:33 / _refusal:36 / _api_cache:53 / _versioned:65 / _static_cache:70 / **class SiteMiddleware**:84
 
-### `app/backend/models.py` (444 lines)
+### `app/backend/models.py` (458 lines)
 Tables as specified in docs/DataModel.MD.
-- **class Replay**:9 / **class Match**:33 / **class DuplicateMatch**:68 / **class Player**:78 / **class MatchPlayer**:88 / **class MatchPlayerLoadout**:125 / **class Event**:138 / **class AppSetting**:160 / **class PlayerProfile**:170 / **class DiscordProfile**:185 / **class DiscordLinkBlock**:198 / **class NakamaAccount**:209 / **class PlayerAlias**:226 / **class RepairRequest**:236 / **class AggressiveRepair**:245 / **class PriorityReplay**:255 / **class HiddenReplay**:263 / **class CloudLog**:273 / **class CloudRule**:291 / **class ConsoleLog**:305 / **class ArenaPlayer**:322 / **class ArenaCounted**:336 / **class NakamaCombatPlayer**:346 / **class NakamaCombatCounted**:360 / **class CombatFile**:376 / **class CombatMatch**:392 / **class CombatPlayer**:410
+- **class Replay**:9 / **class Match**:33 / **class DuplicateMatch**:68 / **class Player**:78 / **class MatchPlayer**:88 / **class MatchPlayerLoadout**:125 / **class Event**:138 / **class AppSetting**:160 / **class PlayerProfile**:170 / **class DiscordProfile**:185 / **class DiscordLinkBlock**:198 / **class NakamaAccount**:209 / **class LeagueMember**:226 / **class PlayerAlias**:240 / **class RepairRequest**:250 / **class AggressiveRepair**:259 / **class PriorityReplay**:269 / **class HiddenReplay**:277 / **class CloudLog**:287 / **class CloudRule**:305 / **class ConsoleLog**:319 / **class ArenaPlayer**:336 / **class ArenaCounted**:350 / **class NakamaCombatPlayer**:360 / **class NakamaCombatCounted**:374 / **class CombatFile**:390 / **class CombatMatch**:406 / **class CombatPlayer**:424
 
 ### `app/backend/persist.py` (101 lines)
 MatchStats -> database rows. Callers commit, so a match is stored completely or not at all.
@@ -210,9 +214,9 @@ MatchStats -> database rows. Callers commit, so a match is stored completely or 
 What people open, remembered across restarts, so a restarted server can build those answers again before they are
 - `FILE_VERSION`:30 / `HALF_LIFE_S`:31 / `MAX_PATHS`:32 / `SAVE_EVERY_S`:33 / `SKIP`:36 / `SCOPE_MARK`:37 / `UA`:38 / _wanted:41 / **class Popular**:52 [_load:62, count:74, top:86, save:90] / _ask:114 / rebuild:140
 
-### `app/backend/profile_achievements.py` (38 lines)
+### `app/backend/profile_achievements.py` (77 lines)
 Challenges about the player's page rather than their games (user, 2026-11-26: "Edit your Bio", a special; removed and
-- `GROUP`:11 / `BIO_RULE`:12 / `PROFILE_RULES`:14 / `NOTES`:15 / _entry:18 / catalogue:24 / player_items:32
+- `GROUP`:12 / `BIO_RULE`:13 / `LEAGUE_GROUP`:17 / `LEAGUE_RULE`:18 / `LEAGUE_TEAM_RULE`:20 / `PROFILE_RULES`:22 / `NOTES`:23 / `LEAGUE_NOTES`:24 / _entry:28 / catalogue:35 / _with_page:50 / _done:63 / player_items:67
 
 ### `app/backend/remote.py` (197 lines)
 Remote processing (user, 2026-11-02): reading replays is slow on the NAS, so another PC can do it.

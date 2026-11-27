@@ -183,6 +183,7 @@ No table: computed from `match_players` + loadouts + `matches` on request (`back
 | app_settings | key PK, value, updated_at | Admin settings: `challenge_start`, `challenge_end` (D33) |
 | player_aliases | alias_user_id PK, main_user_id (index), created_at | Player merges, applied in `save_match` (D34) |
 | discord_link_blocks | user_id + discord_id PK, created_at | Discord accounts an admin took off a player: never linked again automatically (`discord_links.py`) |
+| league_members | discord_id PK, joined_at, team_at, last_seen_at | Echo Combat George League roster read from ecgleague.com every hour (`league.py`): first seen on the player list / on a team roster, for the two George League Specials. Kept across rebuilds; no names stored |
 | repair_requests | source_path PK, requested_at | Replays processed in repair mode (D36) |
 | aggressive_repairs | source_path PK, requested_at | Replays processed in aggressive repair mode (D36b) |
 

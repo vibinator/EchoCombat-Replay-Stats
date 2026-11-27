@@ -7,7 +7,7 @@ path is in middleware.WRITES / BOT. Console routes need auth.has_console; profil
 
 | Method | Path | Handler | Where | Purpose |
 |---|---|---|---|---|
-| GET | `/achievements/custom/{name}` | custom_icon | app/backend/main.py:247 | Icons uploaded on the Console page (D43). Before the site mount, which serves the built-in ones. |
+| GET | `/achievements/custom/{name}` | custom_icon | app/backend/main.py:251 | Icons uploaded on the Console page (D43). Before the site mount, which serves the built-in ones. |
 | GET | `/api/achievements` | list_achievements | app/backend/api/achievements.py:536 | The rule catalogue with rarity: share of players (10+ games) who unlocked (25 %+, tiered: bronze) / completed  |
 | GET | `/api/achievements/recent` | recent_unlocks | app/backend/api/achievements.py:574 | Latest 100 % completions by players active in the last 30 days of the archive. |
 | POST | `/api/admin/achievements/{rule_id}/icon` | upload_icon | app/backend/api/admin.py:53 | Body = the PNG file itself (Content-Type: image/png). Stored, then used for this achievement. |
@@ -25,11 +25,11 @@ path is in middleware.WRITES / BOT. Console routes need auth.has_console; profil
 | GET | `/api/admin/permissions` | permissions | app/backend/api/permissions.py:58 |  |
 | POST | `/api/admin/permissions` | change | app/backend/api/permissions.py:97 |  |
 | GET | `/api/admin/status` | status | app/backend/api/admin.py:22 | Status page (admins and console users): live progress of replay processing and everything built from it |
-| GET | `/api/arena/image/{name}` | image | app/backend/api/arena.py:43 | The prize pictures. Not in the public folder: only the Preview role can load them. |
-| GET | `/api/arena/player/{user_id}` | player | app/backend/api/arena.py:201 | One player's own progress toward each Mega Prize, for their profile (user, 2026-11-26: personal progress only, |
-| GET | `/api/arena/progress` | progress | app/backend/api/arena.py:52 |  |
-| GET | `/api/arena/search` | search | app/backend/api/arena.py:224 | Players by name with their progress toward a prize, from the set challenge period on (no start date set = 0). |
-| GET | `/api/arena/visible` | visible | app/backend/api/arena.py:35 | May this visitor see the Mega Prizes? (Console "Visible to".) Its own small answer under /api/arena, which is  |
+| GET | `/api/arena/image/{name}` | image | app/backend/api/arena.py:44 | The prize pictures. Not in the public folder: only the Preview role can load them. |
+| GET | `/api/arena/player/{user_id}` | player | app/backend/api/arena.py:242 | One player's own progress toward each Mega Prize, for their profile (user, 2026-11-26: personal progress only, |
+| GET | `/api/arena/progress` | progress | app/backend/api/arena.py:85 |  |
+| GET | `/api/arena/search` | search | app/backend/api/arena.py:265 | Players by name with their progress toward a prize, from the set challenge period on (no start date set = 0). |
+| GET | `/api/arena/visible` | visible | app/backend/api/arena.py:36 | May this visitor see the Mega Prizes? (Console "Visible to".) Its own small answer under /api/arena, which is  |
 | GET | `/api/auth/callback` | callback | app/backend/api/auth.py:84 |  |
 | GET | `/api/auth/login` | login | app/backend/api/auth.py:52 |  |
 | GET | `/api/auth/logout` | logout | app/backend/api/auth.py:112 |  |
@@ -69,7 +69,7 @@ path is in middleware.WRITES / BOT. Console routes need auth.has_console; profil
 | GET | `/api/combat/players/{user_id}` | player | app/backend/api/combat.py:182 |  |
 | GET | `/api/combat/stats` | stat_options | app/backend/api/combat.py:171 |  |
 | GET | `/api/combat/summary` | summary | app/backend/api/combat.py:158 |  |
-| GET | `/api/health` | health | app/backend/main.py:243 |  |
+| GET | `/api/health` | health | app/backend/main.py:247 |  |
 | GET | `/api/import` | import_status | app/backend/api/imports.py:24 | Import progress, broken down by what each replay produces. |
 | GET | `/api/leaderboard` | leaderboard | app/backend/api/leaderboard.py:221 |  |
 | GET | `/api/leaderboard/achievers` | achievers | app/backend/api/leaderboard.py:322 | The top of the achievements ranking with facts about each player: challenges completed, medals, gold or better |

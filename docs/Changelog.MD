@@ -18,6 +18,20 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.27.3 — 11:56
+
+- **Two new Specials for the Echo Combat George League** (user, 27 Nov), in their own "George League" box on the
+  Specials tab:
+  - **Join Echo Combat George League**: sign up as a player at ecgleague.com.
+  - **Join a George League Team**: be on a league team's roster (a former member of a team counts too).
+  The server reads the league's public player list and each team's roster from ecgleague.com every hour (user: 6 hours
+  was too long; the first read a minute after it starts; one request a second, about 33 per read) and matches players by their Discord account
+  (a bot / admin link, a player whose id is the Discord id, or an Echo account seen on the match list). Only the Discord
+  ids and the date each was first seen are kept (new table `league_members`, kept across rebuilds). Once done they stay
+  done, even if the player leaves later. Like Edit your Bio they are won or not, and stay out of totals, the ranking and
+  Medal Collector. On 27 Nov the league had 203 players, 69 of them on a team now or before.
+- Needs the update deployed (Recreate); the table is made at the start, and the cards fill in after the first read.
+
 ## 2026.11.27.2 — 10:20
 
 - **Mega Prizes are counted at most every 10 minutes** (user, 27 Nov: slow again; "not super important to be

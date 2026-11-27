@@ -9,6 +9,7 @@ from app_helpers import act, add, app_client, make_settings
 from backend import achievement_sheet, admin_actions as actions, combat_achievements as ca, icons
 from backend.achievements import RULES, evaluate, medal_times, rule_notes
 from backend.models import CombatFile, CombatMatch, CombatPlayer, PlayerAlias
+from backend.profile_achievements import PROFILE_RULES
 
 RULES_HERE = ca.COMBAT_RULES
 STARTED = "2026-11-05T20:00:00"
@@ -159,7 +160,7 @@ def test_reports_alone_count_on_the_same_page(tmp_path):
             return answer, {r["id"]: r for r in answer["items"]}
 
         answer, one = page("1")  # a player the replays never saw has a page
-        assert answer["name"] == "name1" and answer["games"] == 0 and answer["total"] == len(RULES) and len(answer["items"]) == len(RULES) + len(RULES_HERE) + 1  # + "Edit your Bio" (profile_achievements)
+        assert answer["name"] == "name1" and answer["games"] == 0 and answer["total"] == len(RULES) and len(answer["items"]) == len(RULES) + len(RULES_HERE) + len(PROFILE_RULES)  # + Edit your Bio and the George League ones (profile_achievements)
         assert one[173]["count"] == 18  # 2 counted matches: the 3v2 and the 100 s one do not count
         _, two = page("2")
         assert two[173]["count"] == 14  # 3 + 3 + (3 + 5 from the merged id)

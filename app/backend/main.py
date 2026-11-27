@@ -20,7 +20,7 @@ from starlette.exceptions import HTTPException
 
 from parser import PARSER_VERSION
 
-from . import antivirus, arena, auth, cloud, combat, guard, heights_warm, icons, popular, tracks
+from . import antivirus, arena, auth, cloud, combat, guard, heights_warm, icons, league, popular, tracks
 from .api import achievements, admin, avatars, arena as arena_api, auth as auth_api, cloud as cloud_api, combat as combat_api, console, imports, profiles, leaderboard, matches, overview, permissions, players, remote_worker, replays
 from .config import PROJECT_ROOT, Settings
 from .db import open_db, warm
@@ -185,6 +185,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             threading.Thread(target=warm_caches, name="warm-caches", daemon=True).start()
             app.state.arena = arena.Tracker(app.state.sessionmaker, settings)
             app.state.arena.start()
+            # the Echo Combat George League rosters, for its two Specials (user, 2026-11-27): every hour
+            app.state.league = league.LeagueSync(app.state.sessionmaker)
+            app.state.league.start()
             # heights.bin of the most active players' older matches and their long heatmaps, while no replay is being processed
             app.state.heights = heights_warm.HeightsWarmer(app.state.sessionmaker, settings, app.state.worker, app)
             app.state.heights.start()
@@ -196,6 +199,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             app.state.scanner.stop()
             app.state.combat.stop()
             app.state.arena.stop()
+            app.state.league.stop()
             app.state.heights.stop()
         achievements.stop_offload(app.state.sessionmaker)
         app.state.worker.stop()
