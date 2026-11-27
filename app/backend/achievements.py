@@ -414,8 +414,8 @@ TUNED_LEVELS: dict[int, tuple[float, ...]] = {
     146: (2, 3, 3.5, 4, 4.5),  # Point Guard (user, 2026-11-05: nobody had reached 6.5, best since 1 Aug 5; was 2/3/3.5/5.5/6.5)
     148: (3, 9.5, 16, 29, 50),  # halfway to November's pace (user, 2026-11-26);  # One-Trick Pony
     149: (2, 3, 4, 5, 6),  # Loadout Roulette (user, 2026-11-05: nobody had reached 10, best since 1 Aug 6; was 4/5/6/9/10)
-    150: (4, 8, 12, 16, 20),  # Mime Troupe (2026-11-26, user: doubled, "feasible, people just don't do it regularly"; the best regular in the 1,538 newest local replays had 5, the archive's best since 1 Aug was 11) (user, 2026-11-05: nobody had reached 26, best since 1 Aug 11; was 4/8/12/21/26)
-    151: (8, 10, 12, 14, 16),  # Showbot (2026-11-26, user: doubled; 10 / 4 / 2 / 1 % of the 125 regulars in the 1,538 newest local replays, was 28 / 15 / 10 / 10 %; record 18) (2026-11-11, user: crown for about 7.5 % of regulars after the death and bounds corrections; was 4/6/8/10/14)
+    150: (8, 16, 24, 32, 40),  # Mime Troupe (2026-11-27, user: doubled again; an emote takes 2-4 s with no cooldown, so 40 is 80-160 s of a 4+ min game; was 4/8/12/16/20) (2026-11-26, user: doubled, "feasible, people just don't do it regularly"; the best regular in the 1,538 newest local replays had 5, the archive's best since 1 Aug was 11) (user, 2026-11-05: nobody had reached 26, best since 1 Aug 11; was 4/8/12/21/26)
+    151: (16, 20, 24, 28, 32),  # Showbot (2026-11-27, user: doubled again; an emote takes 2-4 s with no cooldown; was 8/10/12/14/16) (2026-11-26, user: doubled; 10 / 4 / 2 / 1 % of the 125 regulars in the 1,538 newest local replays, was 28 / 15 / 10 / 10 %; record 18) (2026-11-11, user: crown for about 7.5 % of regulars after the death and bounds corrections; was 4/6/8/10/14)
 }
 
 

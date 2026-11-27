@@ -12,16 +12,26 @@ from .models import LeagueMember, NakamaAccount, Player, PlayerProfile
 GROUP = "Profile"
 BIO_RULE = Rule(277, "Edit your Bio", "Write a bio on your player page (log in with Discord, then edit it on your profile)", "game", None,
                 lambda games: 0.0, new=True, group=GROUP, counted=False, binary=True)
-# Echo Combat George League (user, 2026-11-27: two Specials): from the league's own roster at ecgleague.com (league.py), matched
-# by Discord id. Ids 280-281 (272 / 276 / 278 are retired ids, never reused).
+# Echo Combat George League (user, 2026-11-27): Specials from the league's own site, ecgleague.com, Rookie League only
+# (Varsity ignored, user), matched by Discord id (league.py). Ids 280-284 (272 / 276 / 278 are retired ids, never reused).
 LEAGUE_GROUP = "George League"
-LEAGUE_RULE = Rule(280, "Join Echo Combat George League", "Sign up as a player of the Echo Combat George League at ecgleague.com",
-                   "game", None, lambda games: 0.0, new=True, group=LEAGUE_GROUP, counted=False, binary=True)
-LEAGUE_TEAM_RULE = Rule(281, "Join a George League Team", "Be on the roster of an Echo Combat George League team",
-                        "game", None, lambda games: 0.0, new=True, group=LEAGUE_GROUP, counted=False, binary=True)
-PROFILE_RULES = [BIO_RULE, LEAGUE_RULE, LEAGUE_TEAM_RULE]
+
+
+def _league(rule_id: int, name: str, description: str) -> Rule:
+    return Rule(rule_id, name, description, "game", None, lambda games: 0.0, new=True, group=LEAGUE_GROUP, counted=False, binary=True)
+
+
+LEAGUE_RULE = _league(280, "Join Echo Combat George League", "Join the Rookie League of the Echo Combat George League (ecgleague.com): be on a Rookie team or its leaderboard")
+LEAGUE_TEAM_RULE = _league(281, "Join a George League Team", "Be on the roster of a George League Rookie team")
+LEAGUE_PLAY_RULE = _league(282, "Play a George League Match", "Play a match in the George League's Rookie League")
+LEAGUE_WIN_RULE = _league(283, "Win a George League Match", "Win a match in the George League's Rookie League")
+LEAGUE_SUB_RULE = _league(284, "Join as a George League Sub", "Sign up as a League Sub who can play in the George League's Rookie League")
+# rule -> the LeagueMember column with the date it was first seen
+LEAGUE_RULES = {LEAGUE_RULE: "joined_at", LEAGUE_TEAM_RULE: "team_at", LEAGUE_PLAY_RULE: "played_at",
+                LEAGUE_WIN_RULE: "won_at", LEAGUE_SUB_RULE: "sub_at"}
+PROFILE_RULES = [BIO_RULE, *LEAGUE_RULES]
 NOTES = ["On your player page", "Discord login"]
-LEAGUE_NOTES = ["From the league's roster at ecgleague.com, read every hour", "Matched by your Discord account",
+LEAGUE_NOTES = ["Rookie League only, from ecgleague.com, read every hour", "Matched by your Discord account",
                 "Stays complete if you leave later"]
 
 
@@ -38,13 +48,13 @@ def catalogue(db) -> list[dict]:
     with_bio = sum(1 for bio in db.scalars(select(PlayerProfile.bio)) if bio and bio.strip())
     share = round(with_bio / players, 4) if players else None
     # league shares: members who have a player page here, of all players (as for the bio)
-    members = {m.discord_id: m.team_at for m in db.scalars(select(LeagueMember))}
+    members = {m.discord_id: m for m in db.scalars(select(LeagueMember))}
     here = _with_page(db, set(members))
-    league_share = round(len(here) / players, 4) if players else None
-    team_share = round(sum(1 for d in here if members[d]) / players, 4) if players else None
-    return [_entry(BIO_RULE) | {"unlocked_share": share, "completed_share": share},
-            _entry(LEAGUE_RULE) | {"unlocked_share": league_share, "completed_share": league_share},
-            _entry(LEAGUE_TEAM_RULE) | {"unlocked_share": team_share, "completed_share": team_share}]
+    out = [_entry(BIO_RULE) | {"unlocked_share": share, "completed_share": share}]
+    for rule, column in LEAGUE_RULES.items():
+        s = round(sum(1 for d in here if getattr(members[d], column)) / players, 4) if players else None
+        out.append(_entry(rule) | {"unlocked_share": s, "completed_share": s})
+    return out
 
 
 def _with_page(db, discord_ids: set[str]) -> set[str]:
@@ -66,11 +76,10 @@ def _done(entry: dict, at: str | None) -> dict:
 
 def player_items(db, user_id: str) -> list[dict]:
     """This player's cards: the bio one is complete once their page has a bio (the date it was last edited); the league ones
-    once their Discord account is on the league's roster / a team's roster (the date it was first seen there)."""
+    once their Discord account was seen doing it in the Rookie League (the date it was first seen, league.py)."""
     profile = db.get(PlayerProfile, user_id)
     has_bio = bool(profile and profile.bio and profile.bio.strip())
     linked = discord_links.discord_of(db, discord_links.main_id(db, user_id))
     member = db.get(LeagueMember, linked[0]) if linked else None
-    return [_done(_entry(BIO_RULE), profile.updated_at if has_bio else None),
-            _done(_entry(LEAGUE_RULE), member.joined_at if member else None),
-            _done(_entry(LEAGUE_TEAM_RULE), member.team_at if member else None)]
+    return [_done(_entry(BIO_RULE), profile.updated_at if has_bio else None)] + [
+        _done(_entry(rule), getattr(member, column) if member else None) for rule, column in LEAGUE_RULES.items()]

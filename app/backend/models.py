@@ -224,17 +224,23 @@ class NakamaAccount(Base):
 
 
 class LeagueMember(Base):
-    """A Discord account seen on the Echo Combat George League roster (ecgleague.com, user 2026-11-27: two Specials, "Join
-    Echo Combat George League" and "Join a George League Team"). Only the Discord id and the dates are kept, no names. Once
+    """A Discord account seen in the Echo Combat George League's Rookie League (ecgleague.com, user 2026-11-27: Rookie only,
+    Varsity ignored), for its Specials (profile_achievements.py). Only the Discord id and the dates are kept, no names. Once
     seen it stays: leaving the league or a team later does not take a completed challenge away. Kept across rebuilds: the
-    league's past rosters cannot be read again."""
+    league's past rosters cannot be read again. Dates are ISO date and time, UTC, of the read that first saw it."""
 
     __tablename__ = "league_members"
 
     discord_id: Mapped[str] = mapped_column(primary_key=True)
-    joined_at: Mapped[str]  # first seen on the league's player list (ISO date and time, UTC)
-    team_at: Mapped[str | None]  # first seen on a team's roster, current or former
-    last_seen_at: Mapped[str]  # last seen on the player list
+    joined_at: Mapped[str | None]  # first seen in the Rookie League: on a Rookie team (now or before) or its leaderboard
+    team_at: Mapped[str | None]  # first seen on a Rookie team's roster, current or former
+    last_seen_at: Mapped[str]  # last seen in any of the reads
+    # (user, 2026-11-27: three more Specials) first seen with a Rookie match played / won (any season), and as a League Sub
+    # allowed in Rookie (not a veteran, or given an override)
+    played_at: Mapped[str | None]
+    won_at: Mapped[str | None]
+    sub_at: Mapped[str | None]
+    archive_checked: Mapped[bool | None]  # earlier Rookie seasons read once from the player's own page (/api/player/<id>)
 
 
 class PlayerAlias(Base):

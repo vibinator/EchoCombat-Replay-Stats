@@ -179,9 +179,9 @@ Prepares the heatmaps of the most active players while the server is idle. First
 Achievement icons chosen on the Console page (D43): an existing badge image or an uploaded PNG. The choice is
 - `KEY`:21 / `CUSTOM`:22 / `CUSTOM_NAME`:23 / `MAX_BYTES`:24 / `MAX_SIDE`:25 / `PNG`:26 / `BUILT_IN_DIRS`:28 / `NOT_ICONS`:29 / `ALL_RULES`:30 / `RULE_IDS`:31 / **class IconError**:34 / overrides:38 / apply:43 / custom_dir:49 / built_in:53 / available:58 / default:65 / set_icon:69 / save_upload:86
 
-### `app/backend/league.py` (115 lines)
-Echo Combat George League roster (user, 2026-11-27): who is in the league and who is on a team, read from the league's
-- `BASE`:18 / `POLL_S`:19 / `FIRST_S`:20 / `PACE_S`:21 / `TIMEOUT_S`:22 / `MAX_BYTES`:23 / `MAX_TEAMS`:24 / `MAX_BACKOFF_S`:25 / _is_discord_id:28 / _get:32 / read_rosters:40 / store:61 / **class LeagueSync**:82 [start:92, stop:95, sync:98, _run:104]
+### `app/backend/league.py` (200 lines)
+Echo Combat George League, Rookie League only (user, 2026-11-27: "focus only on the rookie league, ignore the varsity
+- `BASE`:30 / `POLL_S`:31 / `FIRST_S`:32 / `PACE_S`:33 / `TIMEOUT_S`:34 / `MAX_BYTES`:35 / `MAX_TEAMS`:36 / `MAX_ARCHIVES`:37 / `MAX_BACKOFF_S`:38 / `LEAGUE`:39 / `SUB_ROLE`:40 / **class Rosters**:44 / _is_discord_id:53 / _count:57 / _get:61 / _people:70 / read_rosters:76 / read_archive:105 / _now:113 / store:117 / store_archives:139 / **class LeagueSync**:162 [start:172, stop:175, sync:178, _run:189]
 
 ### `app/backend/main.py` (267 lines)
 - `FRONTEND_DIST`:37 / `KEPT_SUFFIXES`:49 / `KEPT_MAX_BYTES`:50 / `KEPT_CHECK_S`:51 / **class KeptFile**:55 / **class SinglePageApp**:65 [_keep:81, _kept_response:100, get_response:114] / create_app:137
@@ -202,9 +202,9 @@ Merge suggestions for the Console (D34 merges): player records that used the sam
 Every request and answer of the site in one pure ASGI layer (it replaces four @app.middleware layers that cost
 - `PER_VISITOR`:28 / `WRITES`:29 / `UPLOAD`:30 / `BOT`:31 / `STATIC_MAX_AGE_S`:32 / `EDGE_STALE_IF_ERROR_S`:33 / _refusal:36 / _api_cache:53 / _versioned:65 / _static_cache:70 / **class SiteMiddleware**:84
 
-### `app/backend/models.py` (458 lines)
+### `app/backend/models.py` (464 lines)
 Tables as specified in docs/DataModel.MD.
-- **class Replay**:9 / **class Match**:33 / **class DuplicateMatch**:68 / **class Player**:78 / **class MatchPlayer**:88 / **class MatchPlayerLoadout**:125 / **class Event**:138 / **class AppSetting**:160 / **class PlayerProfile**:170 / **class DiscordProfile**:185 / **class DiscordLinkBlock**:198 / **class NakamaAccount**:209 / **class LeagueMember**:226 / **class PlayerAlias**:240 / **class RepairRequest**:250 / **class AggressiveRepair**:259 / **class PriorityReplay**:269 / **class HiddenReplay**:277 / **class CloudLog**:287 / **class CloudRule**:305 / **class ConsoleLog**:319 / **class ArenaPlayer**:336 / **class ArenaCounted**:350 / **class NakamaCombatPlayer**:360 / **class NakamaCombatCounted**:374 / **class CombatFile**:390 / **class CombatMatch**:406 / **class CombatPlayer**:424
+- **class Replay**:9 / **class Match**:33 / **class DuplicateMatch**:68 / **class Player**:78 / **class MatchPlayer**:88 / **class MatchPlayerLoadout**:125 / **class Event**:138 / **class AppSetting**:160 / **class PlayerProfile**:170 / **class DiscordProfile**:185 / **class DiscordLinkBlock**:198 / **class NakamaAccount**:209 / **class LeagueMember**:226 / **class PlayerAlias**:246 / **class RepairRequest**:256 / **class AggressiveRepair**:265 / **class PriorityReplay**:275 / **class HiddenReplay**:283 / **class CloudLog**:293 / **class CloudRule**:311 / **class ConsoleLog**:325 / **class ArenaPlayer**:342 / **class ArenaCounted**:356 / **class NakamaCombatPlayer**:366 / **class NakamaCombatCounted**:380 / **class CombatFile**:396 / **class CombatMatch**:412 / **class CombatPlayer**:430
 
 ### `app/backend/persist.py` (101 lines)
 MatchStats -> database rows. Callers commit, so a match is stored completely or not at all.
@@ -214,9 +214,9 @@ MatchStats -> database rows. Callers commit, so a match is stored completely or 
 What people open, remembered across restarts, so a restarted server can build those answers again before they are
 - `FILE_VERSION`:30 / `HALF_LIFE_S`:31 / `MAX_PATHS`:32 / `SAVE_EVERY_S`:33 / `SKIP`:36 / `SCOPE_MARK`:37 / `UA`:38 / _wanted:41 / **class Popular**:52 [_load:62, count:74, top:86, save:90] / _ask:114 / rebuild:140
 
-### `app/backend/profile_achievements.py` (77 lines)
+### `app/backend/profile_achievements.py` (86 lines)
 Challenges about the player's page rather than their games (user, 2026-11-26: "Edit your Bio", a special; removed and
-- `GROUP`:12 / `BIO_RULE`:13 / `LEAGUE_GROUP`:17 / `LEAGUE_RULE`:18 / `LEAGUE_TEAM_RULE`:20 / `PROFILE_RULES`:22 / `NOTES`:23 / `LEAGUE_NOTES`:24 / _entry:28 / catalogue:35 / _with_page:50 / _done:63 / player_items:67
+- `GROUP`:12 / `BIO_RULE`:13 / `LEAGUE_GROUP`:17 / _league:20 / `LEAGUE_RULE`:24 / `LEAGUE_TEAM_RULE`:25 / `LEAGUE_PLAY_RULE`:26 / `LEAGUE_WIN_RULE`:27 / `LEAGUE_SUB_RULE`:28 / `LEAGUE_RULES`:30 / `PROFILE_RULES`:32 / `NOTES`:33 / `LEAGUE_NOTES`:34 / _entry:38 / catalogue:45 / _with_page:60 / _done:73 / player_items:77
 
 ### `app/backend/remote.py` (197 lines)
 Remote processing (user, 2026-11-02): reading replays is slow on the NAS, so another PC can do it.

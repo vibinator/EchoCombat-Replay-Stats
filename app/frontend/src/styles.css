@@ -5013,6 +5013,11 @@ tr.cloud-drop-on td {
   margin: 10px 0 6px;
   font-size: 1rem;
 }
+/* home: a one-line rule under a group's cards (Top 5 fastest players); below them, so card rows stay level */
+.cards-note {
+  margin: 4px 0 0;
+  font-size: 0.8rem;
+}
 /* home: the most used full loadout, three gear names stacked */
 .loadout-set {
   display: flex;

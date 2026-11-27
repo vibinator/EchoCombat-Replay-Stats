@@ -5,7 +5,7 @@ import { BarChart, StackedBarChart } from "../components/charts";
 import { Sparkline } from "../components/bars";
 import { MapHeatCards } from "../components/MapHeatCards";
 import { MatchCards } from "../components/MatchCards";
-import { EmptyState, FitText, Skeleton } from "../components/ui";
+import { EmptyState, FitText, InfoTip, Skeleton } from "../components/ui";
 import { GearLabel, LocalTime, Status } from "../components/common";
 import { MAPS, dateTime, duration, instant, int, modeLabel, num, pct, periodLabel, playerPath, scoreText, title } from "../format";
 import { useApi, useWhileVisible } from "../useApi";
@@ -139,14 +139,26 @@ function ThisWeek({ top }: { top: { user_id: string; name: string; games: number
  * every card of a row is the same width; a card also asks for a tenth of the row, so a very wide window gets two full
  * rows (9 + 8 cards) instead of 15 cards and two stretched ones left over below; and the cards of a row are one
  * height across the groups (styles.css, .stat-group). */
-function StatGroup({ title, n, children }: { title: string; n: number; children: React.ReactNode }) {
+function StatGroup({ title, n, info, note, children }: {
+  title: string; n: number; info?: string; note?: React.ReactNode; children: React.ReactNode;
+}) {
   return (
     <div className="stat-group" style={{ flexBasis: `max(${n * 150}px, ${n * 10}%)`, flexGrow: n, maxWidth: n * 360 }}>
-      <h3 className="cards-head">{title}</h3>
+      <h3 className="cards-head">{title} <InfoTip text={info} /></h3>
       <div className="cards">{children}</div>
+      {note && <p className="cards-note muted">{note}</p>}
     </div>
   );
 }
+
+// The rules of "Top 5 fastest players" (user, 2026-11-27: make them clear). Counted games as stats/quality.py, the speed
+// rules as stats/player.py; regrab practice against an empty or one-player team is left out like everywhere else.
+const FASTEST_RULES =
+  "Top speed = the fastest average speed over one second, by the distance really travelled. " +
+  "Regrab flights and shooting backwards count; instant solo launches, readings over 100 m/s, frozen or lagging players " +
+  "and jumps in the recorder's clock do not. Each player once, with their best game. Only games of 2+ minutes with 2+ " +
+  "players on each team for at least half the game count (as on the leaderboard and Records), so practice against an " +
+  "empty or one-player team is left out.";
 
 const RANGES: [PlayersSeen["range"], string][] = [
   ["24h", "24 hours"],
@@ -524,9 +536,10 @@ export function HomePage() {
                 </StatGroup>
               )}
               {(g.fastest_players ?? []).length > 0 && (
-                <StatGroup title="Top 5 fastest players" n={5}>
+                <StatGroup title="Top 5 fastest players" n={5} info={FASTEST_RULES}
+                  note="Each player's best game · only games of 2+ minutes with 2+ players on each team">
                   {g.fastest_players.map((p, i) => (
-                    <div className="card" key={p.user_id} title="Fastest average speed over one second, by the distance travelled">
+                    <div className="card" key={p.user_id} title={FASTEST_RULES}>
                       <span className="label">#{i + 1}</span>
                       <strong><FitText title={p.name}><Link to={playerPath(p.user_id, p.name)}>{p.name}</Link></FitText></strong>
                       <span className="muted">{num(p.top_speed)} m/s</span>

@@ -43,10 +43,12 @@ def test_edit_your_bio_is_won_or_not(tmp_path):
 
 
 def test_george_league_specials_are_out_of_every_total():
-    """Join Echo Combat George League / Join a George League Team (user, 2026-11-27): Specials from the league's roster."""
-    for r in (pa.LEAGUE_RULE, pa.LEAGUE_TEAM_RULE):
+    """The George League Specials (user, 2026-11-27): Rookie League only, from the league's own site."""
+    assert [r.id for r in pa.LEAGUE_RULES] == [280, 281, 282, 283, 284]
+    for r in pa.LEAGUE_RULES:
         assert (r.period, r.counted, r.binary, r.group) == ("game", False, True, "George League")
         assert r.id not in {x.id for x in RULES + COMBAT_RULES} and r.id in RULE_IDS
+        assert "Rookie" in r.description
     assert pa.LEAGUE_RULE.name == "Join Echo Combat George League"
 
 
@@ -59,8 +61,9 @@ def test_league_cards_follow_the_players_discord_account(tmp_path):
         db.add(NakamaAccount(user_id="n2", discord_id="223456789012345678", username="n2", display_name=None, first_seen_at="t",
                              last_seen_at="t", replay_user_id="p2", link="player_id"))  # p2: linked by the Echo match list
         db.commit()
-    # p1 is on the league and a team, p2 on the league only, p3 nowhere; one member has no page here
-    league.store(sm, {"123456789012345678", "223456789012345678", "999999999999999999"}, {"123456789012345678"}, now="2026-11-27T10:00:00")
+    # p1 is in the league and on a team, p2 in the league only, p3 nowhere; one member has no page here
+    league.store(sm, league.Rosters(league={"123456789012345678", "223456789012345678", "999999999999999999"},
+                                    on_team={"123456789012345678"}), now="2026-11-27T10:00:00")
     with sm() as db:
         one = {i["id"]: i for i in pa.player_items(db, "123456789012345678")}
         two = {i["id"]: i for i in pa.player_items(db, "p2")}

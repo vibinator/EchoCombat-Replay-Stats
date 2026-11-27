@@ -18,18 +18,46 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.27.5 — 12:27
+
+- **Showbot and Lobby Mime Troupe twice as hard again** (user, 27 Nov: an emote takes 2-4 s and has no cooldown, so a
+  4+ minute game has room for 60-120). Lobby Mime Troupe 8 / 24 / 32 / 40 emotes in a game without dying (was 4 / 12 / 16 /
+  20), Showbot 16 / 24 / 28 / 32 emotes in a win (was 8 / 12 / 14 / 16). Past play stays far below that (Showbot's record
+  18, Lobby Mime Troupe's best since 1 August 11), but both need only deliberate play, so every tier stays reachable.
+- Needs the update deployed (restart); nothing is re-read, medals are worked out from the saved emote counts.
+
+## 2026.11.27.4 — 12:24
+
+- **Home: the rules of "Top 5 fastest players" are on the page** (user, 27 Nov: why DinkatorBoi and JavaBava are not
+  higher). Under the cards: "Each player's best game · only games of 2+ minutes with 2+ players on each team"; the ⓘ by
+  the heading (and each card's hover) gives the full speed rules: fastest average over one second by the distance
+  travelled, regrabs and shooting backwards count, instant solo launches, readings over 100 m/s, frozen players and clock
+  jumps do not.
+- Why they stay at 37.89 / 37.71 m/s (user chose to keep the rule): their 47-49 m/s regrab flights (Dyson, 26 Nov, live
+  matches 326076 and 326078) were practice games of 0 v 2 and 1 v 2, which do not count; the leaderboard and Records
+  leave them out the same way. The 2026.11.26.13 note below gave a top 5 worked out without that rule; corrected there.
+- Needs the update deployed (frontend only); nothing is re-read.
+
 ## 2026.11.27.3 — 11:56
 
-- **Two new Specials for the Echo Combat George League** (user, 27 Nov), in their own "George League" box on the
-  Specials tab:
-  - **Join Echo Combat George League**: sign up as a player at ecgleague.com.
-  - **Join a George League Team**: be on a league team's roster (a former member of a team counts too).
-  The server reads the league's public player list and each team's roster from ecgleague.com every hour (user: 6 hours
-  was too long; the first read a minute after it starts; one request a second, about 33 per read) and matches players by their Discord account
-  (a bot / admin link, a player whose id is the Discord id, or an Echo account seen on the match list). Only the Discord
-  ids and the date each was first seen are kept (new table `league_members`, kept across rebuilds). Once done they stay
-  done, even if the player leaves later. Like Edit your Bio they are won or not, and stay out of totals, the ranking and
-  Medal Collector. On 27 Nov the league had 203 players, 69 of them on a team now or before.
+- **Five new Specials for the Echo Combat George League, Rookie League only** (user, 27 Nov: the Varsity League is
+  ignored), in their own "George League" box on the Specials tab:
+  - **Join Echo Combat George League**: be on a Rookie team (now or before) or the Rookie leaderboard.
+  - **Join a George League Team**: be on a Rookie team's roster (a former member counts too).
+  - **Play a George League Match** / **Win a George League Match**: one Rookie match played / won, this season or an
+    earlier one.
+  - **Join as a George League Sub**: the League Sub role, and allowed to play in Rookie (not a veteran, or given an
+    override; the role itself is shared by both leagues).
+- The server reads the Rookie League from ecgleague.com every hour (user: 6 hours was too long; the first read a minute
+  after it starts): the player list, the player leaderboard, the team list and each team's roster, about 10 requests,
+  one a second. The site serves both leagues at the same addresses; the `X-ECGL-League: rookie` header picks Rookie.
+  Earlier Rookie seasons are read once per leaderboard player from their own page. Players are matched by their Discord
+  account (a bot / admin link, a player whose id is the Discord id, or an Echo account seen on the match list). Only the
+  Discord ids and the date each thing was first seen are kept (new table `league_members`, kept across rebuilds). Once
+  done they stay done, even if the player leaves later. Like Edit your Bio they are won or not, and stay out of totals,
+  the ranking and Medal Collector.
+- On 27 Nov the Rookie League had 6 teams, 18 players (17 on a team), 12 League Subs allowed in Rookie, and no matches
+  played yet: Play and Win fill in once its season starts.
 - Needs the update deployed (Recreate); the table is made at the start, and the cards fill in after the first read.
 
 ## 2026.11.27.2 — 10:20
@@ -262,8 +290,10 @@ Working record of what changed in each release, newest first.
   steps). DinkatorBoi 28.9 → 47.3 and JavaBava 26.4 → 45.5 (match 312237), 30.9 → 49.3 and 29.1 → 48.2 (match 315101).
   Average speed still uses the readings as they are.
 - In the 1,555 newest local replays 226 of 9,441 player-matches go up (median +2.5 m/s), 1 goes down 0.7. Players reaching
-  the speed challenge's 23 m/s: +2 of 882 (14: +5, 17: +9, 20: +10); the targets stay. New top 5: DinkatorBoi 49.3, JavaBava
-  48.2, DinkatorBoi 47.3, JavaBava 45.5, DinkatorBoi 37.9 (their 2026-11-02 regrab, unchanged).
+  the speed challenge's 23 m/s: +2 of 882 (14: +5, 17: +9, 20: +10); the targets stay. Fastest player-matches, counted or
+  not: DinkatorBoi 49.3, JavaBava 48.2, DinkatorBoi 47.3, JavaBava 45.5, DinkatorBoi 37.9 (their 2026-11-02 regrab,
+  unchanged). (Corrected 2026.11.27.4: the four fastest are 0 v 2 / 1 v 2 practice games, which do not count, so the
+  home-page top 5 keeps DinkatorBoi 37.9 and JavaBava 37.7.)
 - **After the update** every replay is read again (stats version 21, hours on the NAS); it replaces the version 20 re-read.
   Until it is done, old and new top speeds are mixed in the lists and challenges.
 

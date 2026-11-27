@@ -424,7 +424,7 @@ def test_one_day_targets():
 def test_impossible_top_medals_were_lowered():
     levels = {rule.id: rule.levels for rule in RULES}
     assert levels[72] == (6, 9, 10, 11) and levels[73] == (2.6, 2.85, 3.1, 3.4) and levels[100] == (38, 120, 150, 230)
-    assert levels[150] == (4, 12, 16, 20) and levels[151] == (8, 12, 14, 16)  # doubled (user, 2026-11-26)
+    assert levels[150] == (8, 24, 32, 40) and levels[151] == (16, 24, 28, 32)  # doubled again (user, 2026-11-27)
 
 
 def test_seven_day_map_and_mode_targets():
