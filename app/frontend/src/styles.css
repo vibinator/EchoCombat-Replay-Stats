@@ -2299,7 +2299,8 @@ td.best {
 /* no bottom padding on the clipped grid: the top edges of the hidden rows' cards showed through it as a stripe under the cards */
 .ach-duo .top-players li, .ach-duo .recent-unlocks li { flex: none; min-width: 0; overflow: hidden; }
 /* every card in both panes the same height (user, 2026-11-09); the Recent medals text is centred in its card */
-.ach-duo .top-players li, .ach-duo .recent-unlocks li { min-height: var(--ach-card-h, 19rem); box-sizing: border-box; }
+/* 19rem left half of each card empty once the extra lines went to hover text (user, 2026-11-27: too much padding) */
+.ach-duo .top-players li, .ach-duo .recent-unlocks li { min-height: var(--ach-card-h, 8.5rem); box-sizing: border-box; }
 .ach-duo .top-players li, .ach-duo .recent-unlocks li { gap: 1px; padding: 8px 12px; }
 @media (max-width: 700px) { .ach-duo { grid-template-columns: 1fr; } .ach-duo .top-players li, .ach-duo .recent-unlocks li { min-height: 0; } }
 @media (max-width: 900px) { .ach-duo { grid-template-columns: 1fr; } }

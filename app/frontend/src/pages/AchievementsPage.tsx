@@ -76,10 +76,11 @@ function TopPlayers() {
           ].filter(Boolean).join("\n")}>
             <span className="rank">#{p.rank}</span>
             <span className="who"><Avatar name={p.name} url={avatars[p.user_id]} size={32} /><Link to={achievementsPath(p.user_id, p.name)} className="name">{p.name}</Link></span>
-            <strong className="big">
-              <img className="medal-crown" src="/achievements/crown.png" alt="" />{int(p.completed)} <span className="muted">/ {int(p.total)} fully complete</span>
+            {/* fewer words (user, 2026-11-27): the heading already says "most challenges fully complete" */}
+            <strong className="big" title={`${int(p.completed)} of ${int(p.total)} challenges fully complete`}>
+              <img className="medal-crown" src="/achievements/crown.png" alt="" />{int(p.completed)} <span className="muted">/ {int(p.total)}</span>
             </strong>
-            <span className="muted" title="Every tier reached, added up across all challenges (a challenge can give up to 4)">{int(p.medals)} tiers reached in total</span>
+            <span className="muted" title="Every tier reached, added up across all challenges (a challenge can give up to 4)">{int(p.medals)} tiers</span>
           </li>
         ))}
       </ol>
@@ -104,12 +105,12 @@ function RecentUnlocks() {
       <div className="section-head"><h2>Recent tiers reached</h2></div>
       <ul className="recent-unlocks" tabIndex={0} aria-label="Recent tiers reached, scroll sideways">
         {recent.data.map((e, i) => (
-          <li key={`${e.user_id}-${e.id}-${i}`}>
+          // fewer words (user, 2026-11-27): the tier chip alone, the rule is hover text
+          <li key={`${e.user_id}-${e.id}-${i}`} title={medalRuleText(e.description, e.medal)}>
             <span className="rank">{dateTime(e.at)}</span>
             <span className="who"><Avatar name={e.name} url={avatars[e.user_id]} size={32} /><Link to={achievementsPath(e.user_id, e.name)} className="name">{e.name}</Link></span>
             <strong className="big"><RecentIcon icon={e.icon} medal={e.medal} />{e.achievement}</strong>
-            <span className="muted">reached <span className={`medal-chip ${e.medal ?? "gold"}`}>{e.medal ?? "completed"}</span></span>
-            <span className="muted">{medalRuleText(e.description, e.medal)}</span>
+            <span><span className={`medal-chip ${e.medal ?? "gold"}`}>{e.medal ?? "completed"}</span></span>
           </li>
         ))}
       </ul>

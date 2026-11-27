@@ -29,8 +29,10 @@ Working record of what changed in each release, newest first.
   Closed by default.
 - **Player profile: the Challenges row's "View all →" button sits on the left** now, right after the "Challenges"
   label, before the count and the tier bar (user, 27 Nov).
-- **Challenges page: shorter "Top players" cards** (user, 27 Nov). Each shows the rank, the player, the fully complete
-  count and the tiers reached in total; silver-or-better, best category and average progress moved to the card's hover text.
+- **Challenges page: smaller "Top players" and "Recent tiers reached" cards** (user, 27 Nov: too much padding and
+  words). Top players: rank, player, "51 / 129" (fully complete) and "255 tiers"; silver-or-better, best category and
+  average progress are hover text. Recent tiers: date, player, challenge and the tier chip; the rule is hover text. The
+  cards are about half as tall (minimum 8.5rem instead of 19rem).
 - **A player's Challenges page header has one link: "← Player profile"** (user, 27 Nov). "All challenges" is gone
   from there; the site menu still has Challenges.
 
