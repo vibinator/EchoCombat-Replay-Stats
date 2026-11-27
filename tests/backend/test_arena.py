@@ -133,6 +133,31 @@ def test_matches_are_recorded_outside_the_period_and_the_period_filters_them(tmp
     assert t.status(now=t1)["state"] in ("off", "outside_period")  # the Console says it is outside the period
 
 
+def test_undated_old_matches_count_when_the_period_covers_them(tmp_path):
+    """Arena matches counted before 2026-11-27 lost their rows after 2 days; only the per-player total is left. That
+    remainder counts only for a period starting on or before ARENA_FIRST_DAY (user, 2026-11-27), not ending before the
+    first kept row."""
+    from datetime import datetime
+    from backend.api.arena import ARENA_FIRST_DAY, arena_totals
+    _, sm = open_db(tmp_path / "t.db", 0)
+    kept = datetime(2026, 11, 25, 12).timestamp()
+    with sm() as db:
+        db.add_all([ArenaPlayer(user_id="old", username="old", display_name="Stoner", matches=50, last_match_at="2026-11-26T12:00:00"),
+                    ArenaPlayer(user_id="new", username="new", matches=3, last_match_at="2026-11-26T12:00:00")])
+        arena_rows(db, "old", 10, at=kept)  # 40 undated (pruned) + 10 kept
+        arena_rows(db, "new", 3, at=kept)
+        db.commit()
+        totals = lambda *w: {x["user_id"]: x["count"] for x in arena_totals(db, *w)}
+        assert totals("2026-10-31", None) == {"old": 50, "new": 3}
+        assert totals(ARENA_FIRST_DAY, "2026-12-27") == {"old": 50, "new": 3}
+        assert totals(ARENA_FIRST_DAY + "T18:00", None) == {"old": 10, "new": 3}  # starts after counting began: only dated rows
+        assert totals("2026-11-10", None) == {"old": 10, "new": 3}
+        assert totals("2026-10-31", "2026-11-20") == {}  # ends before the first kept row: the lump may be after the end
+        assert next(x for x in arena_totals(db, "2026-10-31", None) if x["user_id"] == "old")["name"] == "Stoner"
+        assert totals("2026-10-31", None, kept + 1) == {"old": 50, "new": 3}  # the change over a day: only what was known then
+        assert totals("2026-10-31", None, kept - 1) == {}  # before the first kept row: how much of the lump was known is unknown
+
+
 @pytest.fixture
 def client(tmp_path):
     with app_client(make_settings(tmp_path)) as c:
@@ -151,11 +176,11 @@ def test_winners_report_needs_console_and_lists_nobody_without_a_period(client):
         db.add(ArenaPlayer(user_id="u", username="u", display_name="U", discord_id=None, matches=1000, last_match_at="x"))
         arena_rows(db, "u", 1000)
         db.add(ArenaPlayer(user_id="v", username="v", display_name="V", discord_id=None, matches=5000, last_match_at="x"))
-        arena_rows(db, "v", 999)  # its all-time total is not what counts: only the matches inside the period
+        arena_rows(db, "v", 999)  # its all-time total is not what counts for a period starting after Arena counting began
         db.commit()
         none = mega_prizes.report(db)
         assert [len(p["winners"]) for p in none["prizes"]] == [0, 0]  # no start date set: nobody has won yet
-        actions.set_challenge_window(db, "2020-01-01", None)
+        actions.set_challenge_window(db, "2026-11-10", None)
         db.commit()
         data = mega_prizes.report(db)
     assert [len(p["winners"]) for p in data["prizes"]] == [0, 1] and data["prizes"][1]["winners"][0]["name"] == "U"

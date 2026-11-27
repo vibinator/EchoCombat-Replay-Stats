@@ -18,6 +18,16 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.27.13 — 15:40
+
+- **Arena Mega Prize counts the older Arena matches again** (user, 27 Nov: "Stoner should have way more between
+  2026-10-31 → 2027-12-27"). Arena matches counted before today's update lost their dates (they were deleted after
+  2 days), so a period moved earlier found only the last few days. Each player's undated matches (their running total
+  minus the dated ones, played from 4 Nov, when Arena counting began, to about 25 Nov) are now added when the Mega
+  Prize period starts on or before 4 Nov and does not end before the dated history begins. A later start still counts
+  only dated matches, because which of the undated ones fall inside it cannot be known. Applies to the cards, top 10,
+  closest players, search, profile row and the Console winners report.
+
 ## 2026.11.27.12 — 15:18
 
 - **Start time for the challenge and Mega Prize periods** (user, 27 Nov: "let me set a starting time … a time and

@@ -19,6 +19,9 @@ from ..models import (ArenaCounted, ArenaPlayer, Match, MatchPlayer, NakamaAccou
 
 router = APIRouter(prefix="/api/arena", tags=["arena"])
 TARGET = 1000  # Mega Prize: Jack Series 11 from Lone Echo 1/2
+# the day Arena counting began (first release with arena.py, 2026.11.04.1): matches counted before 2026-11-25 or so lost
+# their dates (pruned after 2 days) and only count for a period that starts on or before this day (arena_totals)
+ARENA_FIRST_DAY = "2026-11-04"
 SEARCH_LIMIT = 10
 CLOSEST = 2  # players shown as "closest to the prize"
 IMAGES = {name: "image/png" for name in ("d13_front.png", "d13_back.png", "jack_front.png", "jack_back.png")}  # exact names only: nothing from the visitor reaches a path (user, 2026-11-06: front and back of each prize)
@@ -100,18 +103,32 @@ def arena_totals(db, start: str | None, end: str | None, as_of: float | None = N
     """Public Arena matches per player inside the Mega Prize period, most matches first (user, 2026-11-27: "the number should
     reflect FROM the data picked from the mega prize period"). Counted from the kept (match, player) rows by the time each
     was counted, so changing the period recounts. Arena matches counted before 2026-11-27 had their rows pruned after 2 days,
-    so only their per-player total (ArenaPlayer.matches) is left and it cannot be placed in a period: it is not used.
+    so only their per-player total (ArenaPlayer.matches) is left: those undated matches (the total minus the dated rows,
+    played from ARENA_FIRST_DAY until the first kept row) are added only when the period covers all of that stretch, i.e. it
+    starts on or before ARENA_FIRST_DAY and does not end before the first kept row (user, 2026-11-27).
     `as_of` (epoch s) = only what was known by then (the change over the last day)."""
     if not start:
         return []
     lo, hi = _bounds(start, end, as_of)
-    q = (select(ArenaCounted.user_id, ArenaPlayer.display_name, ArenaPlayer.username, ArenaPlayer.discord_id, func.count())
-         .join(ArenaPlayer, ArenaPlayer.user_id == ArenaCounted.user_id)
-         .where(ArenaCounted.counted_at >= lo).group_by(ArenaCounted.user_id))
+    q = select(ArenaCounted.user_id, func.count()).where(ArenaCounted.counted_at >= lo).group_by(ArenaCounted.user_id)
     if hi:
         q = q.where(ArenaCounted.counted_at < hi)
-    rows = [{"name": display or username, "username": username, "user_id": user_id, "discord_id": discord_id, "count": count}
-            for user_id, display, username, discord_id, count in db.execute(q)]
+    counts: dict[str, int] = dict(db.execute(q).all())
+    first_kept = db.scalar(select(func.min(ArenaCounted.counted_at)))
+    if start <= ARENA_FIRST_DAY + "T00:00" and (hi is None or first_kept is None or hi >= first_kept):
+        dated = select(ArenaCounted.user_id, func.count().label("n")).group_by(ArenaCounted.user_id).subquery()
+        old = db.execute(select(ArenaPlayer.user_id, ArenaPlayer.matches - func.coalesce(dated.c.n, 0))
+                         .outerjoin(dated, dated.c.user_id == ArenaPlayer.user_id)
+                         .where(ArenaPlayer.matches > func.coalesce(dated.c.n, 0)))
+        for user_id, n in old:
+            counts[user_id] = counts.get(user_id, 0) + n
+    if not counts:
+        return []
+    info = {u: (display, username, discord_id) for u, display, username, discord_id in db.execute(
+        select(ArenaPlayer.user_id, ArenaPlayer.display_name, ArenaPlayer.username, ArenaPlayer.discord_id)
+        .where(ArenaPlayer.user_id.in_(list(counts))))}
+    rows = [{"name": info[u][0] or info[u][1], "username": info[u][1], "user_id": u, "discord_id": info[u][2], "count": n}
+            for u, n in counts.items() if u in info]
     return sorted(rows, key=lambda w: -w["count"])
 
 
