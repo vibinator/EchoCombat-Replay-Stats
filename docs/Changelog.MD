@@ -18,6 +18,29 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.27.23 — 23:46
+
+- **The Combat challenges count** (user, 27 Nov: "Make Combat count"). They were provisional since 5 Nov (out of every
+  total). Now they count like the rest:
+  - in "X of Y challenges fully complete" and the average progress;
+  - in Top players and the challenges leaderboard;
+  - in Medal Collector (a ladder from silver on, an award card when won).
+
+  JavaBava went from 2 / 134 to 7 / 182. They still come only from the recorder's match reports and are cached apart
+  from the replay ones, only added together when shown (profile_achievements.counted_answer / with_league, like the
+  George League cards). A player with Combat reports but no replay game in the period joins the ranking, merged ids
+  once. New reports reach the ranking within 5 minutes. Changing a Combat target from now on moves people's tiers and
+  totals. The page texts that said Combat does not count are updated.
+- **Echo Streak (Wins): crown an even 10** wins in a row (user, 27 Nov), was 9. Bronze 3, silver 5, gold 7 unchanged.
+- **I Use All the Loadouts: crown 100** loadouts (user, 27 Nov), was 75. Bronze 5, silver 25, gold 50 unchanged.
+- **Kill Spree Bot and Spontaneous Combustion stay as they are** (user, 27 Nov). On the local reports (4-27 Nov, 92
+  players with 10+ games) Spontaneous Combustion's crown (8 top-kill games in one day) is reached by 7 %, on the 7.5 %
+  policy.
+- **Mega Prizes on a merged player's page** (user, 27 Nov: echofox's page, /challenges/echofox/341, showed 0 Combat
+  matches while the Mega Prize list had them at 9). Their match-list account is linked to the Discord-id player merged
+  into 341, and the page only looked for accounts linked to 341 itself. It now looks at every merged id (api/arena.py
+  player). The Echo account line on the profile had the same gap (api/profiles.py _account). Needs the update deployed.
+
 ## 2026.11.27.22 — 23:34
 
 - **Top players on /challenges has no minimum of games** (user, 27 Nov: "shouldn't have a min, just the top players
