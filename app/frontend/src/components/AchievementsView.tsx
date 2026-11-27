@@ -285,12 +285,32 @@ export function shortHint(a: { id: number; description: string; period: string }
   return `${cut.slice(0, cut.lastIndexOf(" "))}…`;
 }
 
+/** The one challenge card open at a time (user, 2026-11-27: on a phone open cards stacked up): opening one closes the last. */
+let closeOpenCard: (() => void) | null = null;
+
 /** A row of the classic list: icon, name and a slim bar in the colour of the medal reached. Pointing at it (mouse or a VR
  *  controller) peeks the card with the medal steps; a click or tap pins it open, another click or the cross closes it. */
 function ChallengeRow({ a, side }: { a: AnyBadge; side: "left" | "right" }) {
   const [open, setOpen] = useState(false);
   const [dismissed, setDismissed] = useState(false); // closed with the cross while still pointed at: stays shut until the pointer leaves
   const [up, setUp] = useState(false);
+  const row = useRef<HTMLDivElement>(null);
+  // while open: the card opened before closes, and a tap or click anywhere outside this row closes this one (user,
+  // 2026-11-27: on a phone the cross is small and cards stacked up)
+  useEffect(() => {
+    if (!open) return;
+    const mine = () => setOpen(false);
+    closeOpenCard?.();
+    closeOpenCard = mine;
+    const outside = (e: PointerEvent) => {
+      if (row.current && !row.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("pointerdown", outside);
+    return () => {
+      document.removeEventListener("pointerdown", outside);
+      if (closeOpenCard === mine) closeOpenCard = null;
+    };
+  }, [open]);
   const catalogue = a.progress === undefined;
   const tier = a.tier ?? null;
   const done = !catalogue && a.progress! >= 1;
@@ -307,7 +327,7 @@ function ChallengeRow({ a, side }: { a: AnyBadge; side: "left" | "right" }) {
   }
   const share = a.unlocked_share == null ? "" : a.unlocked_share === 0 ? "nobody yet" : a.unlocked_share < 0.01 ? "under 1% of players" : `${pct(a.unlocked_share)} of players`;
   return (
-    <div className={`ch-row ${side}${open ? " open" : ""}${dismissed ? " dismissed" : ""}${done ? " done" : ""}${tier ? ` t-${tier}` : ""}${catalogue ? " catalogue" : started ? " started" : " not-started"}`}
+    <div ref={row} className={`ch-row ${side}${open ? " open" : ""}${dismissed ? " dismissed" : ""}${done ? " done" : ""}${tier ? ` t-${tier}` : ""}${catalogue ? " catalogue" : started ? " started" : " not-started"}`}
       tabIndex={0} role="button" aria-expanded={open}
       onMouseEnter={(e) => { place(e.currentTarget); }} onFocus={(e) => place(e.currentTarget)}
       onMouseLeave={() => setDismissed(false)}
@@ -714,12 +734,11 @@ function MegaPrizes() {
         </button>
       </div>
       {open && <div id="mega-prizes-body">
+      {/* the start only, no end date (user, 2026-11-27) */}
       {arena.period.start && (
         <div className={`rec-window${arena.period.active ? "" : " ended"}`} role="note">
-          <span className="rec-dates">
-            {dateTime(arena.period.start)} → {arena.period.end ?? "open-ended"}
-          </span>
-          <span className="muted">Only matches played inside this period count for Mega Prizes.</span>
+          <span className="rec-dates">From {dateTime(arena.period.start)}</span>
+          <span className="muted">Only matches played from then on count for Mega Prizes.</span>
         </div>
       )}
       <div className="mega-cards">

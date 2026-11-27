@@ -18,6 +18,17 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.27.18 — 22:15
+
+- **Challenge cards on a phone** (user, 27 Nov: the cross sometimes did not show, and cards stacked up). Only one card
+  is open at a time: opening another closes the last, and a tap anywhere outside the card closes it (with a mouse too).
+  On touch screens a card shows only when tapped open, so it always has its cross; a hover or focus left over from an
+  earlier tap no longer shows a second card without one.
+- **The Mega Prizes box on the Challenges page shows only the start** (user, 27 Nov: "only mention the starting time,
+  not the end time"): "From 2026-11-27 21:20 · Only matches played from then on count for Mega Prizes." The end date
+  still applies.
+- Needs the update deployed (frontend only).
+
 ## 2026.11.27.17 — 22:08
 
 - **The Echo Combat Mega Prize (Delta-13) counts 2v2 games** (user, 27 Nov: "for ONLY the combat mega prizes"). A

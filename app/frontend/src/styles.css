@@ -5590,6 +5590,11 @@ tr.cloud-drop-on td {
 .ch-card.up { top: auto; bottom: 100%; padding-top: 0; padding-bottom: 6px; }
 .ch-row:hover .ch-card, .ch-row:focus-within .ch-card, .ch-row.open .ch-card { display: block; animation: ch-pop 0.12s ease-out; }
 .ch-row.dismissed .ch-card { display: none !important; }
+/* touch screens (user, 2026-11-27): a card shows only when tapped open, so it always has its cross; a sticky hover or
+   focus left over from an earlier tap no longer peeks a second card without one */
+@media (hover: none), (pointer: coarse) {
+  .ch-row:hover:not(.open) .ch-card, .ch-row:focus-within:not(.open) .ch-card { display: none; }
+}
 @keyframes ch-pop { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
 .ch-card-inner:not([class*=" t-"]) { --tier: var(--text); }
 .ch-card-inner {
