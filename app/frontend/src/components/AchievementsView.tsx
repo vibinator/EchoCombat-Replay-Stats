@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { Link, useLocation, useSearchParams } from "react-router";
 import { LEVELS, getMegaPlayer, getMegaVisible, getAchievements, getArenaProgress, getChallenges, getMe, getRarity, getPins, loginUrl, savePin, type Achievement, type ChallengePins, type AchievementPeek, type AchievementRarity, type AchievementRule } from "../api";
-import { achievementsPath, medalRuleText, pct, ruleText } from "../format";
+import { achievementsPath, dateTime, medalRuleText, pct, periodStarted, ruleText } from "../format";
 import { useApi } from "../useApi";
 import { Status } from "./common";
 import { EmptyState } from "./ui";
@@ -569,7 +569,7 @@ export function MegaPrizesProfile({ userId }: { userId: string }) {
 /** What counts for each Mega Prize: shared by the Mega Prizes section and a player's profile row. */
 const MEGA_NOTES = {
   combat: ["Only counts games of 4+ minutes with at least 3v3. Matches from the replay files before the live count started are included, linked by Discord ID."],
-  arena: ["Only counts public matches of 4+ minutes with at least 3v3 (or 6+ players).", "Arena history only starts on 2026-11-04, so totals are lower than Combat."],
+  arena: ["Only counts public matches of 4+ minutes with at least 3v3 (or 6+ players)."],
 };
 
 function MegaPrizesProfileBody({ userId }: { userId: string }) {
@@ -583,7 +583,7 @@ function MegaPrizesProfileBody({ userId }: { userId: string }) {
     { key: "combat" as const, short: "Delta-13", photos: "d13", rule: `Play ${d.combat.target.toLocaleString()} Echo Combat matches`, ...d.combat, prize: d.combat.prize ?? "Delta-13 from Lone Echo 2" },
     { key: "arena" as const, short: "Jack Series 11", photos: "jack", rule: `Play ${d.arena.target.toLocaleString()} Public Arena matches`, ...d.arena },
   ];
-  const period = d.period.start ? `${d.period.start} → ${d.period.end ?? "open-ended"}${d.period.active ? " (recording)" : ""}` : "No period set yet";
+  const period = d.period.start ? `${dateTime(d.period.start)} → ${d.period.end ?? "open-ended"}${d.period.active ? " (recording)" : ""}` : "No period set yet";
   return (
     <section className="mega-profile mega-row" aria-label="Mega Prizes">
       <strong className="mega-row-label" title={`Only matches inside the Mega Prize period count: ${period}${d.linked ? "" : ". No game account is linked to this player yet."}`}>
@@ -701,7 +701,7 @@ function MegaPrizes() {
           Mega Prizes <span className="tag">draft</span>
         </h2>
         <span className="muted mega-summary">
-          {arena.period.start && <>{arena.period.start} → {arena.period.end ?? "open-ended"} · </>}
+          {arena.period.start && <>{dateTime(arena.period.start)} → {arena.period.end ?? "open-ended"} · </>}
           {combat?.prize ?? "Delta-13"} ({combatTarget} Combat matches) · Jack Series 11 ({arena.target} Arena matches)
           {leader && <> · top: {leader.name} {leader.matches}</>}
           {arena.period.active && <span className="live-text"> · recording</span>}
@@ -714,7 +714,7 @@ function MegaPrizes() {
       {arena.period.start && (
         <div className={`rec-window${arena.period.active ? "" : " ended"}`} role="note">
           <span className="rec-dates">
-            {arena.period.start} → {arena.period.end ?? "open-ended"}
+            {dateTime(arena.period.start)} → {arena.period.end ?? "open-ended"}
           </span>
           <span className="muted">Only matches played inside this period count for Mega Prizes.</span>
         </div>
@@ -1177,10 +1177,10 @@ export function ComingSoon({ start, total, peek }: { start: string | null; total
     <>
       <EmptyState title="Coming soon">
         {total ? <><strong>{total}</strong> Flamingo Challenges</> : "Flamingo Challenges"} are on their way
-        {start && start > new Date().toISOString().slice(0, 10) ? (
+        {start && !periodStarted(start) ? (
           <>
             {" "}
-            — they start on <strong>{start}</strong>. Only matches from that day on count.
+            — they start on <strong>{dateTime(start)}</strong>. Only matches from then on count.
           </>
         ) : (
           ". Only matches played after they start will count."
@@ -1276,7 +1276,7 @@ export function AchievementsSummary({ userId }: { userId: string }) {
         {total ? `${total} Flamingo Challenges` : "Flamingo Challenges"}.{" "}
         {start ? (
           <>
-            This player's progress shows from <strong>{start}</strong>, counting matches from that day on.
+            This player's progress shows from <strong>{dateTime(start)}</strong>, counting matches from then on.
           </>
         ) : (
           "This player's progress shows once the challenges start."
@@ -1355,12 +1355,12 @@ export function ChallengeBanner() {
     return (
       <p className="note">
         <strong>Preview</strong> — only people with the Discord preview role see this.
-        {d.visibility === "preview" && d.start && d.start <= new Date().toISOString().slice(0, 10) ? (
-          <> It counts matches from <strong>{d.start}</strong>; it is not public yet.</>
+        {d.visibility === "preview" && d.start && periodStarted(d.start) ? (
+          <> It counts matches from <strong>{dateTime(d.start)}</strong>; it is not public yet.</>
         ) : d.start ? (
           <>
             {" "}
-            It counts every match in the archive; from the launch on <strong>{d.start}</strong> only matches from that day count.
+            It counts every match in the archive; from the launch on <strong>{dateTime(d.start)}</strong> only matches from then on count.
           </>
         ) : (
           " It counts every match in the archive; after the launch only matches from its start date count."
@@ -1378,7 +1378,7 @@ export function RecordingWindow({ what }: { what: "challenges" | "Mega Prizes" }
   return (
     <div className={`rec-window${d.active ? "" : " ended"}`} role="note">
       <span className="rec-dates">
-        {d.start} → {d.end ?? "open-ended"}
+        {dateTime(d.start)} → {d.end ?? "open-ended"}
       </span>
       <span className="muted">
         Only matches played inside this period count for {what}

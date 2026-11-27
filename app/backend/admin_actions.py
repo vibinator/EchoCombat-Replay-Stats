@@ -3,7 +3,7 @@
 a message for the person. Replays they queue go to the front of the worker's queue (priority_replays) and are
 picked up by a running server within seconds, otherwise on its next start."""
 
-from datetime import date
+from datetime import date, datetime
 
 from sqlalchemy import and_, delete, or_, select, update
 from sqlalchemy.orm import Session, sessionmaker
@@ -341,6 +341,37 @@ def mega_window_own(db: Session) -> tuple[str | None, str | None]:
     return values.get("mega_start"), values.get("mega_end")
 
 
+def parse_start(value: str) -> str:
+    """A period start as saved: "YYYY-MM-DD" (from 00:00) or "YYYY-MM-DDTHH:MM" for a start time (user, 2026-11-27). UK time,
+    the same clock as the match times (D59), so a plain text comparison with a match's started_at puts it in or out."""
+    text = value.strip().replace(" ", "T", 1)
+    try:
+        moment = datetime.fromisoformat(text)
+    except ValueError:
+        raise AdminError(f"'{value}' is not a date (YYYY-MM-DD) or date and time (YYYY-MM-DD HH:MM)") from None
+    if moment.tzinfo is not None:
+        raise AdminError(f"'{value}': leave the timezone out, the time is UK time")
+    return moment.date().isoformat() if "T" not in text else moment.isoformat(timespec="minutes")
+
+
+def parse_end(value: str) -> str:
+    try:
+        return date.fromisoformat(value.strip()).isoformat()
+    except ValueError:
+        raise AdminError(f"'{value}' is not a date (YYYY-MM-DD); the end date counts to the end of that day") from None
+
+
+def has_started(start: str | None, now: datetime | None = None) -> bool:
+    """The start date (and time, when set) has come. A date alone sorts before every time on that day."""
+    return bool(start) and start <= (now or datetime.now()).isoformat(timespec="seconds")
+
+
+def window_active(window: tuple[str | None, str | None], now: datetime | None = None) -> bool:
+    """Started and not past the end day."""
+    now = now or datetime.now()
+    return has_started(window[0], now) and (not window[1] or now.date().isoformat() <= window[1])
+
+
 def mega_window(db: Session) -> tuple[str | None, str | None]:
     """The period that counts for the Mega Prizes (user, 2026-11-05): their own start / end, set apart from the achievements'.
     With no start date of their own they follow the achievement period, so nothing changes until the dates are set."""
@@ -429,19 +460,17 @@ def mega_visible(db: Session, previewer: bool) -> bool:
         return False
     if mode == "preview":
         return previewer
-    start = mega_window(db)[0]
-    return previewer or (bool(start) and start <= date.today().isoformat())
+    return previewer or has_started(mega_window(db)[0])
 
 
 def achievements_started(db: Session) -> bool:
-    """The start date is set and has come."""
-    start = challenge_window(db)[0]
-    return bool(start) and start <= date.today().isoformat()
+    """The start date (and time) is set and has come."""
+    return has_started(challenge_window(db)[0])
 
 
 def achievements_started_for(window: tuple[str | None, str | None]) -> bool:
-    """A window (start, end) whose start date has come."""
-    return bool(window[0]) and window[0] <= date.today().isoformat()
+    """A window (start, end) whose start date (and time) has come."""
+    return has_started(window[0])
 
 
 def achievements_launched(db: Session) -> bool:
@@ -464,13 +493,8 @@ def achievements_counting(db: Session) -> bool:
 def set_challenge_window(db: Session, start: str | None, end: str | None) -> tuple[str | None, str | None]:
     """The Flamingo Challenge period (D33): only matches inside it count. start = launch date (achievements are
     "Coming soon" on the website until then, see achievements_launched); end None = open-ended."""
-    for value in (start, end):
-        if value:
-            try:
-                date.fromisoformat(value)
-            except ValueError:
-                raise AdminError(f"'{value}' is not a date (YYYY-MM-DD)") from None
-    if start and end and start > end:
+    start, end = parse_start(start) if start else None, parse_end(end) if end else None
+    if start and end and start[:10] > end:
         raise AdminError("Start date must be on or before the end date")
     for key, value in zip(WINDOW_KEYS, (start or None, end or None)):
         db.merge(AppSetting(key=key, value=value, updated_at=utcnow()))
@@ -480,13 +504,8 @@ def set_challenge_window(db: Session, start: str | None, end: str | None) -> tup
 
 def set_mega_window(db: Session, start: str | None, end: str | None) -> tuple[str | None, str | None]:
     """The Mega Prize period: only matches inside it count towards the prizes. No start date = follow the achievement period."""
-    for value in (start, end):
-        if value:
-            try:
-                date.fromisoformat(value)
-            except ValueError:
-                raise AdminError(f"'{value}' is not a date (YYYY-MM-DD)") from None
-    if start and end and start > end:
+    start, end = parse_start(start) if start else None, parse_end(end) if end else None
+    if start and end and start[:10] > end:
         raise AdminError("Start date must be on or before the end date")
     if end and not start:
         raise AdminError("Set a start date for the Mega Prizes too, or clear the end date")

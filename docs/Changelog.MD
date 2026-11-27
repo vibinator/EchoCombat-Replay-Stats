@@ -18,6 +18,16 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.27.12 — 15:18
+
+- **Start time for the challenge and Mega Prize periods** (user, 27 Nov: "let me set a starting time … a time and
+  date"). The Console's "Launch date and challenge period" and "Mega Prize period" have a new optional **Start time**
+  box (UK time, the clock match times use); `admin.bat challenge --start "2027-01-01 18:00"` and `mega-period` take it
+  too. Without a time the period starts at 00:00 as before. The launch ("Coming soon" ends), which matches count for
+  challenges and Mega Prizes, the Arena/Combat Mega Prize totals, the "recording" dot and the Console's status all
+  follow that minute. The end date stays a whole day. The website shows the start in the viewer's own timezone.
+- **Mega Prizes:** removed the note "Arena history only starts on 2026-11-04, so totals are lower than Combat."
+
 ## 2026.11.27.11 — 15:08
 
 - **Arena Mega Prize follows the Mega Prize Period** (user, 27 Nov: "the number should reflect FROM the data picked from

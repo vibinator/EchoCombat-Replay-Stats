@@ -93,6 +93,12 @@ export function ukDateTime(iso: string): string {
   return `${p.year}-${p.month.padStart(2, "0")}-${p.day.padStart(2, "0")} ${p.hour.padStart(2, "0")}:${p.minute.padStart(2, "0")}`;
 }
 
+/** Has a challenge / Mega Prize period start come? "YYYY-MM-DD" (UK midnight) or "YYYY-MM-DDTHH:MM" (a UK start time,
+ * user 2026-11-27), like match times. */
+export function periodStarted(start: string): boolean {
+  return instant(start.length === 10 ? `${start}T00:00` : start).getTime() <= Date.now();
+}
+
 /** The viewer's timezone name, e.g. "America/New_York". */
 export function viewerZone(): string {
   return Intl.DateTimeFormat().resolvedOptions().timeZone || "your timezone";

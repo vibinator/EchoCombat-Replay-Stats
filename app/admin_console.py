@@ -14,8 +14,8 @@ rule and the affected replays are re-processed from the original files, so it ca
     admin.bat unlink-profile <player or discord id> [<discord id>] [--yes]   the two stay apart until linked by hand again
     admin.bat profile-links          how many players are linked to a Discord account, and how
     admin.bat unmerge <merged id> [--yes]
-    admin.bat challenge [--start YYYY-MM-DD] [--end YYYY-MM-DD] [--clear]
-    admin.bat mega-period [--start YYYY-MM-DD] [--end YYYY-MM-DD] [--clear]   the Mega Prizes' own dates
+    admin.bat challenge [--start "YYYY-MM-DD[ HH:MM]"] [--end YYYY-MM-DD] [--clear]   start time optional, UK time
+    admin.bat mega-period [--start "YYYY-MM-DD[ HH:MM]"] [--end YYYY-MM-DD] [--clear]   the Mega Prizes' own dates
     admin.bat preview-roles [--server] [--add <role id>] [--remove <role id>]   Discord roles: achievements early
     admin.bat admin-roles [--server] [--add <role id>] [--remove <role id>]     Discord roles: admins (Status page)
     admin.bat admin-users [--add <user id>] [--remove <user id>]   Discord users that are admins (no role needed)
@@ -937,8 +937,9 @@ def interactive(sessions, settings: Settings) -> None:
                         cmd_unmerge(sessions, alias, yes=False)
             elif choice == "5":
                 cmd_challenge(sessions, None, None, False)
-                print("New dates: YYYY-MM-DD, '-' to clear, Enter to keep. Start = launch date: achievements and")
-                print("challenges are \"Coming soon\" on the website until then and only count matches from it.")
+                print("New dates: YYYY-MM-DD, '-' to clear, Enter to keep. Start = launch: achievements and challenges")
+                print("are \"Coming soon\" on the website until then and only count matches from it. Add a UK time")
+                print("to the start for a launch at that minute, e.g. 2027-01-01 18:00 (without one it is 00:00).")
                 print("This affects achievements only: the general player stats keep counting every match.")
                 start, end = ask("Start: "), ask("End: ")
                 if start or end:
@@ -1152,11 +1153,11 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("profile-links", help="how many players are linked to a Discord account")
     p = sub.add_parser("challenge", help="show or set the Flamingo Challenge period and who can see achievements")
     p.add_argument("--visible", choices=("everyone", "preview", "hidden"), help="who sees achievements: everyone (from the start date), only people with the Preview role, or nobody")
-    p.add_argument("--start", help="YYYY-MM-DD, or '' for no limit")
+    p.add_argument("--start", help="YYYY-MM-DD or \"YYYY-MM-DD HH:MM\" (UK time), or '' for no limit")
     p.add_argument("--end", help="YYYY-MM-DD, or '' for no limit")
     p.add_argument("--clear", action="store_true", help="remove both dates")
     p = sub.add_parser("mega-period", help="show or set the Mega Prize Start-End dates (apart from the achievements' dates)")
-    p.add_argument("--start", help="YYYY-MM-DD, or '' to follow the challenge period")
+    p.add_argument("--start", help="YYYY-MM-DD or \"YYYY-MM-DD HH:MM\" (UK time), or '' to follow the challenge period")
     p.add_argument("--end", help="YYYY-MM-DD, or '' for no limit")
     p.add_argument("--clear", action="store_true", help="remove both dates: the prizes follow the challenge period again")
     for kind, help_ in (("preview", "Discord roles that see achievements before the launch date"),

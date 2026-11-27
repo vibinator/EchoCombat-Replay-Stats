@@ -19,7 +19,7 @@ import { usePageTitle } from "../usePageTitle";
 type Field = {
   key: string;
   label: string;
-  kind?: "text" | "date" | "check" | "list" | "select" | "player" | "players"; // player(s): suggests players while typing (one / one per line)
+  kind?: "text" | "date" | "time" | "check" | "list" | "select" | "player" | "players"; // player(s): suggests players while typing (one / one per line)
   hint?: string;
   options?: [value: string, label: string][]; // select
 };
@@ -256,11 +256,13 @@ const GROUPS: { title: string; commands: Command[] }[] = [
         label: "Mega Prize period",
         help:
           "The Start and End dates for the Mega Prizes, apart from the challenges' dates above. Only Echo Combat matches and Public Arena matches inside them count towards a prize. " +
+          "A start time (UK time) is optional; without one the period starts at 00:00. " +
           "With no start date of its own the Mega Prize period follows the launch date and challenge period, so nothing changes until you set one. " +
           "“Visible to” decides who sees the Mega Prizes: only people with the Preview role (how it started), everyone once the start date has come, or nobody. " +
           "Leave everything empty to see the current setting; an empty date is kept as it is.",
         fields: [
           { key: "start", label: "Start", kind: "date" },
+          { key: "start_time", label: "Start time (optional, UK time; empty = 00:00)", kind: "time" },
           { key: "start_today", label: "Start today", kind: "check" },
           { key: "end", label: "End (optional)", kind: "date" },
           { key: "end_today", label: "End today", kind: "check" },
@@ -287,9 +289,9 @@ const GROUPS: { title: string; commands: Command[] }[] = [
                 : v.clear
             ? "Remove the Mega Prize dates? The prizes follow the challenge period again."
             : v.start_today
-              ? `Start the Mega Prize period today (${todayIso()})? Matches before today stop counting for the prizes.`
+              ? `Start the Mega Prize period today (${startText(todayIso(), v.start_time)})? Matches before it stop counting for the prizes.`
               : v.start
-                ? `Set the Mega Prize start date to ${v.start}? Matches before it stop counting for the prizes.`
+                ? `Set the Mega Prize start to ${startText(v.start, v.start_time)}? Matches before it stop counting for the prizes.`
                 : v.end_today
                   ? `End the Mega Prize period today (${todayIso()})?`
                   : v.end
@@ -300,13 +302,15 @@ const GROUPS: { title: string; commands: Command[] }[] = [
         name: "challenge",
         label: "Launch date and challenge period",
         help:
-          "The start date is the launch: until then the challenges show “Coming soon”, and only matches from that day count. " +
+          "The start is the launch: until then the challenges show “Coming soon”, and only matches from then on count. " +
+          "Add a start time (UK time) to launch at that minute; without one it starts at 00:00. " +
           "“Visible to” decides who sees them: everyone once the start date has come, only people with the Preview role (the date still counts), or nobody. " +
           "These dates only affect challenges and Mega Prizes: the games, wins and other numbers on the general player stats pages always count every match. " +
           "Leave everything empty to see the current setting; an empty date is kept as it is.",
         fields: [
           { key: "start", label: "Start", kind: "date" },
-          { key: "start_today", label: "Start today (launches now)", kind: "check" },
+          { key: "start_time", label: "Start time (optional, UK time; empty = 00:00)", kind: "time" },
+          { key: "start_today", label: "Start today (launches now, or at the start time)", kind: "check" },
           { key: "end", label: "End (optional)", kind: "date" },
           { key: "end_today", label: "End today", kind: "check" },
           { key: "clear", label: "Remove both dates", kind: "check" },
@@ -332,9 +336,11 @@ const GROUPS: { title: string; commands: Command[] }[] = [
                 : v.clear
                   ? "Remove both dates? Challenges go back to “Coming soon”."
             : v.start_today
-              ? `Launch now: set the start date to today (${todayIso()})? Challenges become public.`
+              ? v.start_time
+                ? `Set the launch to today at ${v.start_time} UK time? Challenges become public then.`
+                : `Launch now: set the start date to today (${todayIso()})? Challenges become public.`
               : v.start
-                ? `Set the launch date to ${v.start}?`
+                ? `Set the launch to ${startText(v.start, v.start_time)}?`
                 : v.end_today
                   ? `End the challenge period today (${todayIso()})?`
                   : null,
@@ -384,18 +390,31 @@ function todayIso(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+/** A saved period start as the admin typed it: "2027-01-01" or "2027-01-01 18:00 UK". */
+function ukStart(start: string): string {
+  return start.length > 10 ? `${start.replace("T", " ")} UK` : start;
+}
+
+/** A start for the confirm question: the date, with " at HH:MM UK time" when a start time is set. */
+function startText(date: string, time: string | undefined): string {
+  return time ? `${date} at ${time} UK time` : date;
+}
+
 /** What the server expects: text, true / false, and `others` as a list. An empty date is left out (= keep). The
  *  "… today" checks fill the start / end date; the server still checks the person's permission for the command. */
 function toArgs(fields: Field[], values: Record<string, string>): Record<string, unknown> {
   const args: Record<string, unknown> = {};
   for (const f of fields) {
-    if (f.key === "start_today" || f.key === "end_today") continue;
+    if (f.key === "start_today" || f.key === "end_today" || f.key === "start_time") continue;
     const v = values[f.key] ?? "";
     if (f.kind === "check") args[f.key] = v === "1";
     else if (f.kind === "list" || f.kind === "players") args[f.key] = lines(v);
     else if (f.kind !== "date" || v) args[f.key] = v.trim();
   }
   if (values.start_today === "1") args.start = todayIso();
+  // a start time goes with the start date as "YYYY-MM-DDTHH:MM" (UK time, user 2026-11-27); a time alone is sent as it is,
+  // so the server says a date is missing rather than the time being dropped
+  if (values.start_time) args.start = args.start ? `${args.start}T${values.start_time}` : values.start_time;
   if (values.end_today === "1") args.end = todayIso();
   return args;
 }
@@ -520,9 +539,11 @@ function Console() {
     let live = true;
     getConsoleOverview().then((o) => {
       if (!live) return;
-      const saved: Record<string, string> = mega
-        ? { start: o.mega_period.start ?? "", end: o.mega_period.end ?? "", visible: o.mega_period.visibility }
-        : { start: o.challenge.start ?? "", end: o.challenge.end ?? "", visible: o.challenge.visibility };
+      const period = mega ? o.mega_period : o.challenge;
+      // a saved start time ("YYYY-MM-DDTHH:MM") goes back into its own box: the date box only takes a date
+      const saved: Record<string, string> = {
+        start: (period.start ?? "").slice(0, 10), start_time: (period.start ?? "").slice(11, 16), end: period.end ?? "", visible: period.visibility,
+      };
       setValues((v) => {
         const mine = Object.fromEntries(Object.entries(v).filter(([k]) => touched.current.has(k)));
         return { ...saved, ...mine };
@@ -651,7 +672,7 @@ function Console() {
                       <textarea rows={3} placeholder={f.hint} value={values[f.key] ?? ""} onChange={(e) => set(f.key, e.target.value)} />
                     ) : (
                       <input
-                        type={f.kind === "date" ? "date" : "text"}
+                        type={f.kind === "date" || f.kind === "time" ? f.kind : "text"}
                         placeholder={f.hint}
                         value={values[f.key] ?? ""}
                         onChange={(e) => set(f.key, e.target.value)}
@@ -851,14 +872,14 @@ function Dashboard({ api }: { api: ConsoleApi }) {
           label="Challenges"
           value={overview.challenge.launched ? "Live" : overview.challenge.visibility === "hidden" ? "Hidden" : overview.challenge.visibility === "preview" ? "Preview only" : "Coming soon"}
         >
-          {overview.challenge.start ? `From ${overview.challenge.start}${overview.challenge.end ? ` to ${overview.challenge.end}` : ""}` : "No launch date set"}
+          {overview.challenge.start ? `From ${ukStart(overview.challenge.start)}${overview.challenge.end ? ` to ${overview.challenge.end}` : ""}` : "No launch date set"}
           <button type="button" className="secondary small" onClick={() => api.open("challenge")}>Change</button>
         </DashCard>
         <DashCard label="Mega Prizes" value={overview.mega_period.start ? "Own dates" : "Follows challenge"}>
           {overview.mega_period.start
-            ? `From ${overview.mega_period.start}${overview.mega_period.end ? ` to ${overview.mega_period.end}` : ""}`
+            ? `From ${ukStart(overview.mega_period.start)}${overview.mega_period.end ? ` to ${overview.mega_period.end}` : ""}`
             : overview.challenge.start
-              ? `From ${overview.challenge.start}${overview.challenge.end ? ` to ${overview.challenge.end}` : ""}`
+              ? `From ${ukStart(overview.challenge.start)}${overview.challenge.end ? ` to ${overview.challenge.end}` : ""}`
               : "No start date set"}
           <button type="button" className="secondary small" onClick={() => api.open("mega-period")}>Change</button>
         </DashCard>
@@ -1361,7 +1382,7 @@ function MegaPrizeReport() {
       <h2>Mega Prize winners</h2>
       <p className="muted">
         Everyone who has reached a Mega Prize target inside the Mega Prize period
-        {d ? ` (${d.period.start ?? "no start date set"} to ${d.period.end ?? "open-ended"})` : ""}. Combat counts the replay files; Public Arena counts
+        {d ? ` (${d.period.start ? ukStart(d.period.start) : "no start date set"} to ${d.period.end ?? "open-ended"})` : ""}. Combat counts the replay files; Public Arena counts
         matches of 4+ minutes from the live match list.
       </p>
       <div className="filters">

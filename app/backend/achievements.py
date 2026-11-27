@@ -1232,9 +1232,10 @@ def mega_combat_games(games: list[Game], start: str | None, end: str | None) -> 
 
 
 def in_window(games: list[Game], start: str | None, end: str | None) -> list[Game]:
-    """Challenge period (admin-set, D33): only games started on/after `start` and on/before `end` (dates)."""
+    """Challenge period (admin-set, D33): only games started on/after `start` (a date, or date and time "YYYY-MM-DDTHH:MM")
+    and on/before the `end` day. Both UK time like started_at, so text order is time order."""
     return [g for g in games
-            if (not start or g.started_at[:10] >= start) and (not end or g.started_at[:10] <= end)]
+            if (not start or g.started_at >= start) and (not end or g.started_at[:10] <= end)]
 
 
 def unlock_dates(games: list, rules: list[Rule] = RULES) -> dict[int, str]:

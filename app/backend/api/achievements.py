@@ -23,7 +23,7 @@ from sqlalchemy import func, select
 from .. import auth, combat_achievements, icons, profile_achievements
 from ..achievements import RULES, Game, evaluate, icon_file, in_window, medal_times, overall, rule_notes, unlock_dates, unlock_threshold
 from ..admin_actions import (WINDOW_KEYS, achievements_counting, achievements_launched, achievements_visibility,
-                             challenge_window, mega_visible, previews_can_see)
+                             challenge_window, mega_visible, previews_can_see, window_active)
 from .. import achievements as engine, gear as gear_tables
 from ..cache import STATUS_HEADER, cached, cached_status, current_stamp, json_reply
 from ..db import open_reader
@@ -44,10 +44,9 @@ RECENT_DAYS = 30
 def _window_info(db) -> dict:
     start, end = challenge_window(db)
     updated = db.scalar(select(func.max(AppSetting.updated_at)).where(AppSetting.key.in_(WINDOW_KEYS)))
-    today = date.today().isoformat()
     launched = achievements_launched(db)
     return {"start": start, "end": end, "updated_at": updated, "launched": launched,
-            "visibility": achievements_visibility(db), "active": launched and (not end or today <= end)}
+            "visibility": achievements_visibility(db), "active": launched and window_active((start, end))}
 
 
 def visible(request: Request) -> bool:

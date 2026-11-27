@@ -11,7 +11,7 @@ from sqlalchemy import func, select
 
 from .. import auth
 from ..achievements import FULL_GAME_S, MEGA_COMBAT, icon_file
-from ..admin_actions import mega_visible, mega_window
+from ..admin_actions import mega_visible, mega_window, window_active
 from ..duplicates import counted
 from ..errors import ApiError
 from ..models import (ArenaCounted, ArenaPlayer, Match, MatchPlayer, NakamaAccount, NakamaCombatCounted,
@@ -88,7 +88,7 @@ def _cached_arena(request: Request, db, start: str | None, end: str | None) -> l
 
 
 def _bounds(start: str, end: str | None, as_of: float | None) -> tuple[float, float | None]:
-    """The Mega Prize period as epoch seconds: from its start day 00:00 to the end of its end day (server time)."""
+    """The Mega Prize period as epoch seconds: from its start (day 00:00, or its start time) to the end of its end day (server time)."""
     lo = datetime.fromisoformat(start).timestamp()
     hi = datetime.fromisoformat(end).timestamp() + 86400 if end else None
     if as_of is not None:
@@ -139,10 +139,9 @@ def _progress(request: Request, db, limit: int, period: tuple) -> dict:
     r = MEGA_COMBAT  # kept out of RULES, so no public list or ranking has it
     combat = [{"id": r.id, "name": r.name, "description": r.description, "period": r.period, "icon": icon_file(r), "estimated": False,
                "new": r.new, "group": r.group, "levels": list(r.levels), "unit": r.unit, "prize": r.prize}]
-    today = date.today().isoformat()
     return {"target": TARGET, "min_minutes": 4, "combat": combat,
             # the Mega Prize period (its own dates, or the challenge period): the cards show a live dot while it is running
-            "period": {"start": period[0], "end": period[1], "active": bool(period[0]) and period[0] <= today and (not period[1] or today <= period[1])},
+            "period": {"start": period[0], "end": period[1], "active": window_active(period)},
             "players": [{"user_id": w["user_id"], "name": w["name"], "matches": w["count"], "completed": True} for w in rows],
             # the two players nearest to the prize who have not reached it yet (user, 2026-11-04)
             "winners_combat": won_combat, "winners_arena": won_arena,
@@ -262,8 +261,7 @@ def _combat_winners(totals: list[dict], target: int) -> int:
 
 def _period(db) -> dict:
     start, end = mega_window(db)
-    today = date.today().isoformat()
-    return {"start": start, "end": end, "active": bool(start) and start <= today and (not end or today <= end)}
+    return {"start": start, "end": end, "active": window_active((start, end))}
 
 
 @router.get("/player/{user_id}")

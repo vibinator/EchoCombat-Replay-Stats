@@ -19,7 +19,7 @@ import httpx
 from sqlalchemy import delete, select
 
 from . import discord_links
-from .admin_actions import mega_window
+from .admin_actions import mega_window, window_active
 from .models import ArenaCounted, ArenaPlayer, NakamaAccount, NakamaCombatCounted, NakamaCombatPlayer
 
 URL = "https://g.echovrce.com/status/matches"
@@ -119,8 +119,7 @@ class Tracker:
         if now - self._window[0] >= WINDOW_CHECK_S or self._window[0] == 0.0:
             with self.sessionmaker() as db:
                 start, end = mega_window(db)
-            today = datetime.fromtimestamp(now).date().isoformat()
-            self._window = (now, bool(start) and start <= today and (not end or today <= end))
+            self._window = (now, window_active((start, end), datetime.fromtimestamp(now)))
         return self._window[1]
 
     def poll(self, now: float | None = None) -> int:

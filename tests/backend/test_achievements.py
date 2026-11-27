@@ -517,3 +517,27 @@ def test_names_carry_no_category_tag():
     names = [r.name for r in RULES + COMBAT_RULES]
     assert not [n for n in names if n.endswith(")")] and len(set(names)) == len(names)
     assert sum(r.award for r in COMBAT_RULES) == 25 and not any(r.award for r in RULES)
+
+
+def test_period_start_time():
+    """A challenge / Mega Prize start can carry a UK time (user, 2026-11-27): games before that minute on the start day
+    do not count; a date alone still starts at 00:00, and the end day stays a whole day."""
+    from datetime import datetime
+    from backend.achievements import in_window
+    assert actions.parse_start("2027-01-01") == "2027-01-01"
+    assert actions.parse_start(" 2027-01-01 18:00 ") == actions.parse_start("2027-01-01T18:00") == "2027-01-01T18:00"
+    for bad in ("18:00", "2027-13-01", "2027-01-01 25:00", "2027-01-01T18:00+01:00"):
+        with pytest.raises(actions.AdminError):
+            actions.parse_start(bad)
+    with pytest.raises(actions.AdminError):
+        actions.parse_end("2027-01-01 18:00")  # the end is a whole day
+    games = [game("2026-10-28"), game("2026-10-29")]  # both 20:00
+    assert len(in_window(games, "2026-10-28", None)) == 2
+    assert len(in_window(games, "2026-10-28T19:59", None)) == 2
+    assert len(in_window(games, "2026-10-28T20:01", None)) == 1
+    assert len(in_window(games, "2026-10-28T20:01", "2026-10-28")) == 0
+    at = datetime(2027, 1, 1, 17, 59, 30)
+    assert not actions.has_started("2027-01-01T18:00", at) and actions.has_started("2027-01-01", at)
+    assert actions.has_started("2027-01-01T18:00", datetime(2027, 1, 1, 18, 0))
+    assert actions.window_active(("2027-01-01T18:00", "2027-01-01"), datetime(2027, 1, 1, 23, 59))
+    assert not actions.window_active(("2027-01-01T18:00", "2027-01-01"), datetime(2027, 1, 2, 0, 0))
