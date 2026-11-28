@@ -20,11 +20,12 @@ Working record of what changed in each release, newest first.
 
 ## 2026.11.28.22 — 17:27
 
-- **Challenges page: no more filter button** (user, 28 Nov: "remove the filter icon, its somewhat pointless"). Category, status and sort are now tap chips in plain view under the tabs, so nothing is hidden and nothing needs typing in VR:
+- **Challenges page: no more filter button** (user, 28 Nov: "remove the filter icon, its somewhat pointless"). Category and status are now tap chips in plain view under the tabs, so nothing is hidden and nothing needs typing in VR:
   - **Category** (user: "basically a way to filter it on category"): All plus the topic boxes of the open tab (Weapons, Ordnances,
-    Tac mods, Maps, Movement ...), each with its count. A category the next tab does not have falls back to All.
+    Tac mods, Maps, Movement ...) as a quiet row of words, the picked one underlined in blue; one line that scrolls
+    sideways, the count on hover (user: "less cluttered"). A category the next tab does not have falls back to All.
   - **Show:** All / In progress / Not started / Completed (only when your progress is shown, as before).
-  - **Sort:** Original / Next tier / Fully done / Rarest / A–Z (hover a chip for the long name).
+  - **No sort** any more (user: "looking a bit cluttered"): always the original order.
   - A small search box sits at the end of the row for keyboards; **Clear** appears while any of them is in use.
 - **Mega Prize cards, smaller** (user, 28 Nov: "too many words, need to reduce the pane size"):
   - What counts is one short line: Combat "Prize period only · 4+ min · 2v2 or bigger" (no replay wording, user: "its just a counter"), Arena

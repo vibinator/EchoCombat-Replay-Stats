@@ -543,7 +543,7 @@ export function GroupedBadges<T extends AnyBadge>({ items: all }: { items: T[] }
   const [q, setQ] = useState("");
   const [only, setOnly] = useState<Filter | "">("");
   // the theme chips and the "New only" box are gone (user, 2026-11-07): the search box and the status / sort selects remain
-  const [sort, setSort] = useState<SortBy>("default");
+  const sort: SortBy = "default"; // no sort chips (user, 2026-11-28: "looking a bit cluttered"): the original order only
   const [topic, setTopic] = useState(""); // category chip (user, 2026-11-28: "a way to filter it on category"), "" = all
   const [tabInfo, setTabInfo] = useState<string | null>(null); // the tab whose ⓘ text is open
   const [params, setParams] = useSearchParams();
@@ -572,13 +572,7 @@ export function GroupedBadges<T extends AnyBadge>({ items: all }: { items: T[] }
   }
   // status and sort are tap chips in plain view (user, 2026-11-28: the filter button that hid them was pointless; 2026-11-26:
   // nobody should have to type in VR), the search box is a small extra at the end of the row for keyboards
-  const filtering = term !== "" || only !== "" || sort !== "default" || topic !== "";
-  const sorts: [SortBy, string, string][] = [
-    ["default", "Original", "Original order"],
-    ...(tracked ? [["closest", "Next tier", "Closest to next tier"], ["complete", "Fully done", "Closest to fully completed (all tiers)"]] as [SortBy, string, string][] : []),
-    ["rarest", "Rarest", "Rarest first"],
-    ["name", "A–Z", "A to Z"],
-  ];
+  const filtering = term !== "" || only !== "" || topic !== "";
   return (
     <>
       <div className="ch-tabs-row">
@@ -619,11 +613,11 @@ export function GroupedBadges<T extends AnyBadge>({ items: all }: { items: T[] }
       )}
       <div className="ach-toolbar ch-tools">
         {topics.length > 1 && (
-          <div className="ch-pills ch-pills-wide" role="group" aria-label="Category">
-            <span className="ch-pills-label">Category</span>
+          // a quiet text row, one line that scrolls sideways; the count is hover text (user, 2026-11-28: "less cluttered")
+          <div className="ch-cats" role="group" aria-label="Category">
             {([["", tabItems.length], ...topics] as [string, number][]).map(([t, n]) => (
-              <button key={t || "all"} type="button" className={`ch-pill${shownTopic === t ? " on" : ""}`} aria-pressed={shownTopic === t}
-                onClick={() => setTopic(t)}>{t || "All"} <span className="ch-pill-n">{n}</span></button>
+              <button key={t || "all"} type="button" className={`ch-cat${shownTopic === t ? " on" : ""}`} aria-pressed={shownTopic === t}
+                title={`${n} challenge${n === 1 ? "" : "s"}`} onClick={() => setTopic(t)}>{t || "All"}</button>
             ))}
           </div>
         )}
@@ -635,14 +629,8 @@ export function GroupedBadges<T extends AnyBadge>({ items: all }: { items: T[] }
             ))}
           </div>
         )}
-        <div className="ch-pills" role="group" aria-label="Sort">
-          <span className="ch-pills-label">Sort</span>
-          {sorts.map(([v, text, long]) => (
-            <button key={v} type="button" className={`ch-pill${sort === v ? " on" : ""}`} aria-pressed={sort === v} title={long} onClick={() => setSort(v)}>{text}</button>
-          ))}
-        </div>
         <input type="search" className="ch-search" placeholder="Search" aria-label="Search challenges" value={q} onChange={(e) => setQ(e.target.value)} />
-        {filtering && <button type="button" className="ch-pill" onClick={() => { setQ(""); setOnly(""); setSort("default"); setTopic(""); }}>Clear</button>}
+        {filtering && <button type="button" className="ch-pill" onClick={() => { setQ(""); setOnly(""); setTopic(""); }}>Clear</button>}
       </div>
       {shownSections.length === 0 && <p className="muted">No challenge matches.</p>}
       {active && (

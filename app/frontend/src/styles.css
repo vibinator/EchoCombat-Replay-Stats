@@ -5553,8 +5553,17 @@ tr.cloud-drop-on td {
   color: var(--muted); font: inherit; font-size: 0.85rem; cursor: pointer;
 }
 .ch-pill:hover { color: var(--text); border-color: var(--muted); }
-.ch-pills-wide { flex-basis: 100%; }
-.ch-pill-n { font-size: 0.75rem; opacity: 0.65; font-variant-numeric: tabular-nums; }
+/* category row: plain words, the picked one in blue with an underline, one line scrolling sideways (user, 2026-11-28) */
+.ch-cats {
+  flex-basis: 100%; display: flex; gap: 2px; overflow-x: auto; scrollbar-width: thin;
+  border-bottom: 1px solid var(--line);
+}
+.ch-cat {
+  flex: none; padding: 8px 10px; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px; background: none;
+  color: var(--muted); font: inherit; font-size: 0.85rem; white-space: nowrap; cursor: pointer;
+}
+.ch-cat:hover { color: var(--text); }
+.ch-cat.on { color: var(--blue); border-bottom-color: var(--blue); }
 .ch-pill.on { color: var(--text); border-color: var(--blue); background: color-mix(in srgb, var(--blue) 14%, var(--panel)); }
 .ach-toolbar input.ch-search { flex: 0 1 11rem; min-height: 34px; margin-left: auto; }
 
