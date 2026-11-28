@@ -373,6 +373,13 @@ TUNED_LEVELS: dict[int, tuple[float, ...]] = {
     90: (3, 4, 5, 7, 10),  # crown an even 10 (user, 2026-11-27), was 9; On a Roll / Echo Streak (2026-11-26, user: harder at the top, crown 4 % of 194 regulars, was 9 % at 3 / 5 / 6 / 7)
     96: (100, 200, 210, 225, 240),  # Pedal to the Metal: harder (user, 2026-11-28, after the 2v2 rule made it 88 / 65 / 47 / 24 %): 100 / 210 / 225 / 240 s = 88 / 20 / 13 / 6 % of the 95 regulars (25+ games since 1 Aug); was 100/140/175/205  # 2026-11-11 (user): crown unchanged at about 7.5 % of regulars, steps of 40 / 35 / 30 s; was 112/160/182/198/207
     97: (22, 45, 60, 70, 90),  # harder (user, 2026-11-28, crown was 15.8 %; "around 10 %"): 60 / 70 / 90 s = 21 / 16 / 9.5 % of the 95 regulars (25+ games since 1 Aug, 2v2 rule); was 22/45/60/70; Payload Roadblock (2026-11-11, user: crown for about 7.5 % of regulars after the death and bounds corrections; was 22/44/60/73/84)
+    # New periods for push / block time and wins (user, 2026-11-28): ~70 / 40 / 20 / 7.5 % of the 95 regulars (25+ games since
+    # 1 Aug, 2v2 rule, local copy to 27 Nov); the crown was ~5 % until the user said "5 % crown is too low, make it 7.5 %"
+    288: (4, 5, 7, 10, 13.5),  # crown 8.4 % (14 = 6.3 %); Payload Rush Hour: push, any 24 hours (best 19.7 min)
+    289: (6, 9, 12, 20, 30),  # crown 7.4 %; Payload Long Haul: push, any 7 days (best 41.4 min)
+    290: (0.5, 0.75, 1, 2, 3),  # crown 9.5 % (3.5 = 5.3 %); Payload Gridlock: block, any 24 hours (best 5.0 min)
+    291: (1, 1.5, 2, 3.5, 6),  # crown 7.4 %; Payload Blockade: block, any 7 days (best 11.2 min)
+    292: (10, 15, 20, 30, 38),  # crown 7.4 %; Conquest of Kronos II: wins, any 7 days (best 123)
     98: (5, 15, 25, 40, 50),  # rounder numbers (user, 2026-11-27), was (5, 14, 23, 38, 53); halfway to November's pace (user, 2026-11-26);  # Payload Freight Train (Payload) (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 3.3/8.6/15/25/46)
     100: (40, 82, 125, 150, 225),  # rounder numbers (user, 2026-11-27), was (38, 79, 120, 150, 230); halfway to November's pace (user, 2026-11-26);  # Dance Floor Legend (user, 2026-11-05: nobody had reached 12480, 5th best since 1 Aug 116; was 48/240/960/3120/12480)
     101: (2, 4, 6, 8, 10),  # Starburst Stream
@@ -866,6 +873,17 @@ def _build_rules() -> list[Rule]:
                 _v4(lambda gs: gs[0].block_s), (15, 30, 45, 48, 62), "game", " s", estimated=True, new=True, group="Payload"),  # seconds, eased 2026-11-04 (user): 15/30/45/62/81 s; was 0.5-3.9 min
         _ladder(98, "Payload Freight Train (Payload)", "Total time spent pushing the payload, in minutes", "payload",
                 _v4(lambda gs: sum(g.push_s for g in gs) / 60), (5, 12, 25, 35, 54), "all", " min", raise_all_time=False, estimated=True, new=True, group="Payload"),  # eased 2026-11-04 (user): 5/12/25/46/70 min; was 12/36/72/234/468, platinum 0.3 % of players
+        # Push and block time in any 24 hours / any 7 days (user, 2026-11-28: the periods between the one-game 96 / 97 and the
+        # all-time 98 / 125). Crown for about 7.5 % of the 95 regulars (25+ games since 1 Aug, 2v2 rule), gold ~20 %,
+        # silver ~40 %, bronze ~70 %; measured on the local copy to 27 Nov. Ids 288-291 (280-287 are taken).
+        _ladder(288, "Payload Rush Hour (Payload)", "Time your team pushes the payload in any 24 hours, in minutes", "payload",
+                _v4(lambda gs: sum(g.push_s for g in gs) / 60), (4, 5, 7, 10, 15), "day", " min", estimated=True, new=True, group="Payload"),  # targets: TUNED_LEVELS
+        _ladder(289, "Payload Long Haul (Payload)", "Time your team pushes the payload in any 7 days, in minutes", "payload",
+                _v4(lambda gs: sum(g.push_s for g in gs) / 60), (6, 9, 12, 20, 35), "week", " min", estimated=True, new=True, group="Payload"),  # best 41.4 min
+        _ladder(290, "Payload Gridlock (Payload)", "Time you block the payload in any 24 hours, in minutes", "payload",
+                _v4(lambda gs: sum(g.block_s for g in gs) / 60), (0.5, 0.75, 1, 2, 3.5), "day", " min", estimated=True, new=True, group="Payload"),  # best 5.0 min
+        _ladder(291, "Payload Blockade (Payload)", "Time you block the payload in any 7 days, in minutes", "payload",
+                _v4(lambda gs: sum(g.block_s for g in gs) / 60), (1, 1.5, 2, 3.5, 6), "week", " min", estimated=True, new=True, group="Payload"),  # best 11.2 min
         # id 99 (the first Showboat, emotes in any game) was removed on 2026-11-05: id 151, emotes in a won game, took its name (user)
         _ladder(100, "Lobby Dance Floor Legend (Emotes)", "Use emotes (total across all games)", None, lambda gs: sum(g.emotes for g in gs), (40, 200, 800, 2000, 8000),  # x4 (user, 2026-11-03)
                 new=True, group="Emotes"),
@@ -903,6 +921,9 @@ def _build_rules() -> list[Rule]:
                 new=True, group="Activity"),
         _tiered(118, "Overtime on Kronos II (Activity)", "Games of 10 minutes or longer", "colour_sweaty", lambda g: g.play_time_s >= 600, (5, 20, 50, 100, 250), new=True, group="Activity"),
         _tiered(119, "Hot Day Bot (Wins)", "Win games in any 24 hours", None, lambda g: g.enough_players and g.won, (3, 5, 8, 12, 18), "day", new=True, group="Wins"),
+        # Wins in any 7 days (user, 2026-11-28: Hot Day Bot had no week). 10 / 20 / 30 / 38 = ~76 / 35 / 13 / 7.4 % of the 95 regulars
+        # (best 123). No all-time total: it would be the Capture Point + Payload wins added up (Centurion Bot, retired).
+        _tiered(292, "Conquest of Kronos II (Wins)", "Win games in any 7 days", None, lambda g: g.enough_players and g.won, (10, 15, 20, 30, 50), "week", new=True, group="Wins"),
         _tiered(120, "Point Taker (Capture Point)", "Win Capture Point games", "capture_point", lambda g: g.enough_players and _capture(g) and g.won, (5, 10, 30, 80, 150), new=True, group="Capture Point"),
         _tiered(121, "Payload Hauler (Payload)", "Win Payload games", "payload", lambda g: g.enough_players and _payload(g) and g.won, (5, 10, 30, 80, 150), new=True, group="Payload"),
         _ladder(122, "Four-Map Tour (Map)", "Win games on all 4 maps (your weakest map sets the count)", None, _v4(_fewest_wins), (1, 3, 6, 12, 20),

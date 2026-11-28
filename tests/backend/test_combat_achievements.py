@@ -15,8 +15,8 @@ RULES_HERE = ca.COMBAT_RULES
 STARTED = "2026-11-05T20:00:00"
 
 
-def game(kills=0, assists=0, deaths=5, damage=0.0, objective=0, time_s=0.0, top=False, started=STARTED, awards=()):
-    return ca.CombatGame(started, kills, assists, deaths, damage, objective, time_s, top, awards=tuple(awards))
+def game(kills=0, assists=0, deaths=5, damage=0.0, objective=0, time_s=0.0, top=False, started=STARTED, awards=(), map_="dyson"):
+    return ca.CombatGame(started, kills, assists, deaths, damage, objective, time_s, top, awards=tuple(awards), map=map_)
 
 
 def results(games):
@@ -26,7 +26,7 @@ def results(games):
 def test_kept_apart_from_the_replay_rules():
     ids = {r.id for r in RULES_HERE}
     retired = {164, 165, 166, 167, 168, 169, 198, 199, 200, 202, 203}  # one-game repeats, retired 2026-11-26 (D64)
-    assert ids == (set(range(164, 179)) | set(range(198, 201)) | (set(range(202, 222)) - {211, 212, 216, 218}) | (set(range(233, 244)) - {241, 243}) | set(range(249, 265))) - retired and not ids & {r.id for r in RULES}
+    assert ids == (set(range(164, 179)) | set(range(198, 201)) | (set(range(202, 222)) - {211, 212, 216, 218}) | (set(range(233, 244)) - {241, 243}) | set(range(249, 265)) | {293, 294, 295}) - retired and not ids & {r.id for r in RULES}
     assert all(r.group == "Combat" and r.new and r.counted for r in RULES_HERE)  # full challenges since 2026-11-27 (user: "Make Combat count")
     # the module cannot read a replay table: it imports only the combat ones
     tree = ast.parse(Path(ca.__file__).read_text(encoding="utf-8"))
@@ -58,6 +58,22 @@ def test_assists_are_above_kills_at_every_medal():
 def test_second_set_one_game_and_one_day():
     r = results([game(kills=9, assists=7, deaths=3, objective=8, top=True), game(kills=12, deaths=4, damage=5000.0, time_s=300.0, top=True)])
     assert r[204]["count"] == 5000 and r[206]["count"] == 5 and r[208]["count"] == 2  # one day: 300 s = 5 min, two top-fragger games
+
+
+def test_time_on_the_objective_counts_on_capture_point_maps_only():
+    """Hold the Hill, Anomaly Watch and The Anomaly Doesn't Move: Dyson and Combustion only (user, 2026-11-28)."""
+    r = results([game(time_s=600.0), game(time_s=240.0, map_="combustion"), game(time_s=120.0, map_="fission"),
+                 game(time_s=60.0, map_="surge"), game(time_s=900.0, map_="")])
+    assert r[206]["count"] == r[294]["count"] == r[217]["count"] == 14  # 600 + 240 s
+    assert r[206]["name"] == "Hold the Hill" and not {285, 286, 287} & set(r)
+
+
+def test_ids_are_unique_across_every_rule_set():
+    """Replay, Combat, profile and league challenges share one id space (285-287 once collided with the league's 280-282)."""
+    from backend.profile_achievements import EXTRA_RULES
+    names = {}  # the same rule may sit in two of the lists (EXTRA_RULES holds the Combat ones): one name per id
+    for r in RULES + RULES_HERE + PROFILE_RULES + EXTRA_RULES:
+        assert names.setdefault(r.id, r.name) == r.name, f"id {r.id}: {names[r.id]} / {r.name}"
     assert rule_notes(next(x for x in RULES_HERE if x.id == 209))[0] == "Best 7 days"
 
 

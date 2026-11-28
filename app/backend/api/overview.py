@@ -161,8 +161,11 @@ def latest_matches(request: Request):
 
 
 @router.get("/api/overview/processing")
-def processing(request: Request):
-    """Replays still waiting to be read, for the "processing" spinner in the top bar. Not cached: it is the live queue."""
+def processing(request: Request, response: Response):
+    """Replays still waiting to be read, for the "processing" spinner in the top bar. Not cached: it is the live queue.
+    No Cloudflare copy either (2026-11-28: the edge kept "Processing 9 replays" for minutes after the queue was empty);
+    one indexed count per visitor a minute (PROCESSING_POLL_MS)."""
+    response.headers.update(LIVE_HEADERS)
     with request.app.state.sessionmaker() as db:
         pending = db.scalar(select(func.count()).select_from(Replay).where(Replay.status.in_(("queued", "processing"))))
     return {"pending": pending or 0}

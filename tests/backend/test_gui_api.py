@@ -65,7 +65,10 @@ def test_overview_and_global_stats(client):
 
 
 def test_processing_is_zero_once_everything_is_read(client):
-    assert client.get("/api/overview/processing").json() == {"pending": 0}
+    r = client.get("/api/overview/processing")
+    assert r.json() == {"pending": 0}
+    # the live queue: no Cloudflare copy (it kept showing a finished queue for minutes)
+    assert r.headers["cloudflare-cdn-cache-control"] == "no-store" and r.headers["cache-control"] == "no-store"
 
 
 def test_latest_matches_are_the_overviews(client):

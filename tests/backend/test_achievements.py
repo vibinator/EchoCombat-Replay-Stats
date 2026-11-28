@@ -32,9 +32,10 @@ def test_catalogue():
     # 268, 272, 276) were retired on 2026-11-26 (D63); Combat has its own list (combat_achievements); the Mega Prize is not in RULES
     retired = {21, 22, 24, 87, 88, 89, 92, 109, 110, 111, 121, 139, 140, 142, 144, 145, 146, 149}  # Specials trimmed (2026-11-26, D64); 96, 97 back 2026-11-28
     expected = [i for i in range(5, 152) if i not in removed | retired] + [201, 279] + [i for i in range(265, 277) if (i - 265) % 4 != 3]
-    assert ids == expected and len(set(ids)) == 131  # + Full Lobby on Kronos II (279, 2026-11-26); + 96, 97 (2026-11-28)
+    expected += [288, 289, 290, 291, 292]  # push / block time in a day and a week, wins in a week (2026-11-28); listed beside their kin
+    assert sorted(ids) == sorted(expected) and len(set(ids)) == 136  # + Full Lobby on Kronos II (279, 2026-11-26); + 96, 97 (2026-11-28)
     assert next(r for r in RULES if r.id == 151).name == "Showbot" and sum(r.name == "Showbot" for r in RULES) == 1  # no "(Emotes)" tag (2026-11-26)
-    assert [r.id for r in RULES if r.new] == [i for i in expected if i >= 80]
+    assert sorted(r.id for r in RULES if r.new) == sorted(i for i in expected if i >= 80)
     assert all(r.counted for r in RULES)
     assert icon_file(next(r for r in RULES if r.id == 7)) == "comet_daily.png"
     assert icon_file(next(r for r in RULES if r.id == 32)) == "comet_weekly.png"

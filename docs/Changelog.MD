@@ -18,6 +18,38 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.28.16 — 13:28
+
+- **"Close to a teammate / enemy" now means within 5 m** (user, 28 Nov: 2.65 m was "too close"): Full Team Salvo,
+  Can We Talk About This?, Tech Support w/RAD_Natalie, Hug Your Frenemy, Robot Wrecking Squad and Roboticide, plus the
+  "Near a teammate / enemy" stats on leaderboards, profiles and match pages. On 400 recent replays the typical share of
+  a game roughly doubles (teammate 8 → 18 %, enemy 7 → 18 %). Tier numbers are unchanged for now. Lone Echo keeps
+  10 m. Stats version 23: every replay is read again; until it finishes, older matches still show the 2.65 m numbers.
+- **Objective time counts on the Capture Point maps only** (user, 28 Nov): what the Combat reports count as objective
+  time on Fission and Surge is unknown. Camping Out on Dyson is now **Hold the Hill**: time on the objective on Dyson and
+  Combustion in any 24 hours, 5 / 9 / 14 / 18 min (crown 7.6 % of the 92 Combat regulars, 4-27 Nov; was 5 / 10 / 15 /
+  25 on every map). The Anomaly Doesn't Move (all time) counts the same two maps with its targets unchanged: 51 % of
+  regulars have bronze (was 69 %), 1.1 % silver (was 2.2 %). The all-time total (The
+  Anomaly Doesn't Move) still counts every map. Update the container; nothing to re-read.
+- **Eight new challenges fill the missing periods** (user, 28 Nov, after a review of Special / One Day / Any 7 Days /
+  All Time). Crown for about 7.5 % of regulars (95 with 25+ games since 1 Aug; Combat: 92 with 10+ games, 4-27 Nov):
+  - Payload Rush Hour: push the payload in any 24 hours, 4 / 7 / 10 / 13.5 min
+  - Payload Long Haul: push the payload in any 7 days, 6 / 12 / 20 / 30 min
+  - Payload Gridlock: block the payload in any 24 hours, 0.5 / 1 / 2 / 3 min
+  - Payload Blockade: block the payload in any 7 days, 1 / 2 / 3.5 / 6 min
+  - Conquest of Kronos II: win games in any 7 days, 10 / 20 / 30 / 38
+  - Siege of Saturn (Combat): deal damage in any 7 days, 12,000 / 20,000 / 35,000 / 50,000
+  - Anomaly Watch (Combat): time on the objective in any 7 days, Capture Point maps, 10 / 15 / 30 / 40 min
+  - Kronos II Day Shift (Combat): games with more kills than deaths in any 24 hours, 3 / 5 / 7 / 14
+  Update the container; nothing to re-read.
+
+## 2026.11.28.15 — 12:43
+
+- **"Processing N replays" no longer sticks after the queue is done** (user, 28 Nov): Cloudflare kept
+  `/api/overview/processing` for up to 5 minutes (edge cache), so the top bar showed "Processing 9 replays" while the
+  server's queue was already empty. That answer is now `no-store` for Cloudflare and browsers, like `/api/overview/live`
+  (one indexed count per visitor a minute). Update the container; nothing to re-read.
+
 ## 2026.11.28.14 — 12:31
 
 - **Two top speeds removed by hand** (user, 28 Nov): Caprison- 42.1 m/s and Chroined 39.9 m/s, both Dyson 2023-07-17 01:32,

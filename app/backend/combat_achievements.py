@@ -49,6 +49,7 @@ class CombatGame:
     heal_bubbles: int = 0  # 0 when the match has no complete event log
     stuns_given: int = 0  # same
     awards: tuple[str, ...] = ()  # the end-of-match award cards this player won ("mvp", "guard" ...); () when unknown or none
+    map: str = ""  # the report's map ("dyson", "combustion", "fission", "surge"); "" when unknown
 
     @cached_property
     def day(self) -> date:
@@ -71,6 +72,14 @@ def _total(value):
 def _awards(*cards: str):
     """Number of award cards won in a game (any card, or only the named ones)."""
     return lambda g: sum(1 for a in g.awards if not cards or a in cards)
+
+
+CAPTURE_POINT_MAPS = ("dyson", "combustion")
+
+
+def _on_the_hill(g: "CombatGame") -> float:
+    """Minutes on the objective, Capture Point maps only (user, 2026-11-28): on Payload maps the reports' objective time is undocumented."""
+    return g.objective_time / 60 if g.map in CAPTURE_POINT_MAPS else 0.0
 
 
 def _rule(id_: int, name: str, what: str, icon: str | None, value, levels: tuple[float, ...], period: str, unit: str = "") -> Rule:
@@ -116,8 +125,17 @@ COMBAT_RULES: list[Rule] = [
     # In one day
     _rule(204, "Wrath of Saturn", "Deal damage in any 24 hours", "enemy_proximity", lambda g: g.damage, (5000, 9000, 14000, 21000, 30000), "day"),  # 2026-11-26, user: harder (combat review, 66 regulars, 4-25 Nov): crown 3 %, was 12 %
     _rule(205, "Fission Reaction", "Get objective eliminations in any 24 hours", None, lambda g: g.objective_eliminations, (30, 50, 75, 120, 165), "day"),  # 2026-11-26, user: harder (combat review, 66 regulars, 4-25 Nov): crown 3 %, was 11 %
-    _rule(206, "Camping Out on Dyson", "Spend time on the objective yourself in any 24 hours, in minutes", None, lambda g: g.objective_time / 60,
-          (5, 7, 10, 15, 25), "day", " min"),  # 2026-11-26, user: harder (combat review, 66 regulars, 4-25 Nov): crown 3 %, was 17 %; rounder numbers (user, 2026-11-27), was (4, 6, 10, 16, 24)
+    # Time on the objective counts on the Capture Point maps only (user, 2026-11-28), in every period: what the reports count
+    # as objective time on Payload maps is undocumented (CombatStats.MD). Hold the Hill was Camping Out on Dyson (every map,
+    # 5 / 10 / 15 / 25 min; crown 7.6 % of 92 regulars, 4-27 Nov); per-map versions for Dyson, Combustion (285), Fission (286)
+    # and Surge (287) were made the same day and merged before release (user: "combine ... give it a better name"). Earlier:
+    # 2026-11-26, user: harder (combat review, 66 regulars, 4-25 Nov): crown 3 %, was 17 %; rounder numbers (2026-11-27), was
+    # (4, 6, 10, 16, 24). Now 5 / 9 / 14 / 18 min = 75 / 37 / 20 / 7.6 % of the 92 regulars (best 70 min; 20 min would be 6.5 %).
+    _rule(206, "Hold the Hill", "Spend time on the objective yourself on the Capture Point maps (Dyson, Combustion) in any 24 hours, in minutes",
+          "capture_point", _on_the_hill, (5, 7, 9, 14, 18), "day", " min"),
+    # Games with more kills than deaths in any 24 hours (user, 2026-11-28: the day between Above the Rings and Ready At Dawn);
+    # crown for about 7.5 % of the 92 regulars (10+ Combat games, 4-27 Nov), best 29. Ids 293-295: 280-287 are taken.
+    _rule(295, "Kronos II Day Shift", "Games in any 24 hours with more kills than deaths", "deaths", lambda g: g.kills > g.deaths, (3, 4, 5, 7, 14), "day"),
     _rule(207, "Keeping Liv Alive", "Use heal bubbles in any 24 hours", "repair_matrix", lambda g: g.heal_bubbles, (12, 22, 35, 55, 80), "day"),  # 2026-11-26, user: harder (combat review, 66 regulars, 4-25 Nov): crown 3 %, was 15 %
     _rule(208, "Spontaneous Combustion", "Games in any 24 hours where you got the most kills in the match (a tie counts)", None, lambda g: g.top_fragger,
           (2, 3, 4, 6, 8), "day"),  # 2026-11-26, user: harder with Most Valuable Jack (combat review, 66 regulars, 4-25 Nov): crown 2 %, was 11 %
@@ -125,6 +143,11 @@ COMBAT_RULES: list[Rule] = [
     # the month period stays supported in the code but no challenge uses it, so its page is hidden)
     _rule(209, "Power Surge", "Get kills in any 7 days", "deaths", lambda g: g.kills, (30, 90, 150, 250, 375), "week"),  # rounder numbers (user, 2026-11-27), was (30, 75, 150, 260, 370)
     _rule(210, "Captain Rhodes' Right Hand", "Get assists in any 7 days", "team_proximity", lambda g: g.assists, (35, 105, 175, 300, 425), "week"),  # rounder numbers (user, 2026-11-27), was (35, 85, 170, 300, 420)
+    # Damage and time on the objective in any 7 days (user, 2026-11-28: the week between the day and all-time ones). Crown
+    # for about 7.5 % of the 92 regulars, 4-27 Nov (best 153,200 damage / 129 min on the Capture Point maps).
+    _rule(293, "Siege of Saturn", "Deal damage in any 7 days", "enemy_proximity", lambda g: g.damage, (12000, 16000, 20000, 35000, 50000), "week"),  # crown 7.6 %
+    _rule(294, "Anomaly Watch", "Spend time on the objective yourself on the Capture Point maps (Dyson, Combustion) in any 7 days, in minutes",
+          None, _on_the_hill, (10, 12, 15, 30, 40), "week", " min"),  # 67 / 39 / 15 / 6.5 % (38 min = 8.7 %)
     _rule(213, "Lobby Billboard", "Games in any 7 days where you got the most kills in the match (a tie counts)", None, lambda g: g.top_fragger,
           (1, 3, 5, 8, 14), "week"),
     _rule(214, "Above the Rings", "Games in any 7 days with more kills than deaths", "deaths", lambda g: g.kills > g.deaths, (2, 6, 10, 20, 30), "week"),  # rounder numbers (user, 2026-11-27), was (2, 5, 10, 19, 30)
@@ -163,7 +186,8 @@ COMBAT_RULES: list[Rule] = [
     Rule(263, "Capture Point Infiltrator (Award card)", "Win the Infiltrator card in one game (the most hill captures, Capture Point maps)", "game", None, _total(lambda g: "infiltrator" in g.awards), new=True, group=GROUP, counted=False),
     Rule(264, "Immovable Object (Award card)", "Win the Immovable Object card in one game (the most hill defends, Capture Point maps)", "game", None, _total(lambda g: "immovable_object" in g.awards), new=True, group=GROUP, counted=False),
     # All time
-    _rule(217, "The Anomaly Doesn't Move", "Total time on the objective yourself, in minutes", None, lambda g: g.objective_time / 60, (15, 82, 150, 300, 500), "all", " min"),  # rounder numbers (user, 2026-11-27), was (14, 60, 140, 290, 520)
+    _rule(217, "The Anomaly Doesn't Move", "Total time on the objective yourself on the Capture Point maps (Dyson, Combustion), in minutes", None, _on_the_hill,
+          (15, 82, 150, 300, 500), "all", " min"),  # Capture Point maps only since 2026-11-28 (user; 72 % of all objective time was there), targets kept: 15 min 69 -> 51 %, 150 min 2.2 -> 1.1 % of 92 regulars;  # rounder numbers (user, 2026-11-27), was (14, 60, 140, 290, 520)
     _rule(219, "Life Support Systems", "Total heal bubbles used", "repair_matrix", lambda g: g.heal_bubbles, (50, 225, 400, 800, 1300), "all"),  # rounder numbers (user, 2026-11-27), was (50, 180, 390, 780, 1300)
     _rule(220, "Old Arena Habits", "Total enemies stunned", "stun_field", lambda g: g.stuns_given, (5, 18, 40, 75, 140), "all"),
     _rule(221, "Ready At Dawn", "Games with more kills than deaths", "deaths", lambda g: g.kills > g.deaths, (10, 42, 75, 150, 250), "all"),  # rounder numbers (user, 2026-11-27), was (9, 40, 85, 150, 250)
@@ -203,7 +227,7 @@ def load_games(db, aliases: dict[str, str]) -> tuple[dict[str, list[CombatGame]]
                CombatPlayer.user_id, CombatPlayer.name, CombatPlayer.team,
                CombatPlayer.present_s, CombatPlayer.kills, CombatPlayer.assists, CombatPlayer.deaths, CombatPlayer.damage,
                CombatPlayer.objective_eliminations, CombatPlayer.objective_time, CombatPlayer.objective_damage,
-               CombatPlayer.heal_bubbles, CombatPlayer.stuns_given, CombatPlayer.awards)
+               CombatPlayer.heal_bubbles, CombatPlayer.stuns_given, CombatPlayer.awards, CombatMatch.map)
         .join(CombatMatch, CombatMatch.id == CombatPlayer.match_id)
         .order_by(CombatMatch.started_at, CombatMatch.id))
     games: dict[str, list[CombatGame]] = defaultdict(list)
@@ -212,7 +236,7 @@ def load_games(db, aliases: dict[str, str]) -> tuple[dict[str, list[CombatGame]]
         # main id -> [team, present, kills, assists, deaths, damage, objective eliminations, objective time, objective damage, heal bubbles, stuns]
         merged: dict[str, list] = {}
         won: dict[str, list[str]] = {}
-        for _, started, duration, has_events, complete, user_id, name, team, present, *numbers, heals, stuns, awards in match:
+        for _, started, duration, has_events, complete, user_id, name, team, present, *numbers, heals, stuns, awards, map_ in match:
             logged = has_events and complete is True  # an incomplete log counts too little: left out, as FORMATS.md advises
             numbers = [*numbers, (heals or 0) if logged else 0, (stuns or 0) if logged else 0]
             main = aliases.get(user_id, user_id)
@@ -227,7 +251,8 @@ def load_games(db, aliases: dict[str, str]) -> tuple[dict[str, list[CombatGame]]
         for main, m in merged.items():
             if m[1] >= FULL_GAME_S:
                 games[main].append(CombatGame(started, *m[2:8], top_fragger=m[2] > 0 and m[2] == most,
-                                              objective_damage=m[8], heal_bubbles=m[9], stuns_given=m[10], awards=tuple(won[main])))
+                                              objective_damage=m[8], heal_bubbles=m[9], stuns_given=m[10], awards=tuple(won[main]),
+                                              map=(map_ or "").lower()))
     return games, names
 
 
