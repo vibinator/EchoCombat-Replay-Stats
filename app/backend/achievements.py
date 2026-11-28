@@ -1219,10 +1219,11 @@ RULES = [replace(r, name=plain_name(r.name)) for r in (_tuned(r) for r in _build
 # Any 7 days is time-limited, all time is game-based (user, 2026-11-28): every 7-day challenge needs games on WEEK_MIN_DAYS
 # different days of the 7 for silver and up, like the gear ones; bronze can be won in one session. The averages already need
 # the days for every medal. Left out: the streaks, where a run of games in a row is the point (Gearhead, Pew Pew Proof,
-# Two-Handed Bot), and the Combat award cards in 7 days (Jack of the Week, Guard Duty on Kronos II, Medic on Call; user,
-# 2026-11-28): cards are rare, and 3 days took Guard Duty's silver from 27 to 16 % of regulars and Medic on Call's from 20 to
-# 12 %. On the others it moves silver by 0-6 points and nothing above: the players who reach gold already play on 3+ days.
-WEEK_SPREAD_EXEMPT = frozenset({42, 43, 201, 234, 236, 238})
+# Two-Handed Bot). On the others it moves silver by 0-6 points and nothing above: the players who reach gold already play on
+# 3+ days. The Combat award cards in 7 days (Jack of the Week, Guard Duty on Kronos II, Medic on Call) were left out earlier
+# that day (cards are rare: 3 days took Guard Duty's silver from 27 to 16 % of regulars, Medic on Call's from 20 to 12 %);
+# they follow the rule too since 2026-11-28 (user: "in any 3 days of a 7 day rolling week"), targets unchanged.
+WEEK_SPREAD_EXEMPT = frozenset({42, 43, 201})
 
 
 def _days_adding(count, games) -> set:

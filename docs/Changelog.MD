@@ -18,6 +18,16 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.28.20 — 17:07
+
+- **The 7-day award cards follow the 3-day rule** (user, 28 Nov: "in any 3 days of a 7 day rolling week"). Jack of the
+  Week, Guard Duty on Kronos II and Medic on Call now need cards on 3 different days of the 7 for silver and up, like every
+  other 7-day challenge; bronze can still be won in one session. They were left out earlier today. Targets unchanged.
+  - Medal shares of the 92 Combat players with 10+ games (4-27 Nov), bronze / silver / gold / crown:
+    Jack of the Week 34 / 12 / 9 / 5 % (no change), Guard Duty 49 / 27 -> 16 / 4 / 3 %, Medic on Call 34 / 20 -> 12 /
+    14 -> 10 / 4 -> 3 %.
+  - The cards show "Silver+: 3+ different days". No re-read; the challenge answers rebuild after the update.
+
 ## 2026.11.28.19 — 16:54
 
 - **200 challenges: capture and contested time in every period** (user, 28 Nov). Seven more in the Capture Point box,

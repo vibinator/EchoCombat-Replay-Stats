@@ -97,6 +97,11 @@ def test_award_cards():
     assert r[233]["count"] == 2 and r[234]["count"] == 2 and r[235]["count"] == 2  # MVP: day, 7 days, all time
     assert r[236]["count"] == 1 and r[237]["count"] == 1 and r[238]["count"] == 1 and r[239]["count"] == 1
     assert r[240]["count"] == 0 and r[242]["count"] == 0
+    # the 7-day cards follow the 3-day rule too (user, 2026-11-28): 3 Guard cards on 2 days stop at bronze (2), on 3 days silver (3)
+    two_days = [game(awards=["guard"], started=s) for s in ("2026-11-05T20:00:00", "2026-11-05T21:00:00", "2026-11-06T20:00:00")]
+    assert results(two_days)[236]["count"] == 2
+    three_days = two_days[:1] + [game(awards=["guard"], started=s) for s in ("2026-11-06T20:00:00", "2026-11-07T20:00:00")]
+    assert results(three_days)[236]["count"] == 3 and results(three_days)[236]["tier"] == "silver"
     one = results([game(awards=["mvp"]), game(awards=["medic"])])
     assert one[249]["progress"] == 1 and one[252]["progress"] == 1 and one[254]["progress"] == 0 and one[263]["progress"] == 0  # one medal each
     assert results([game(awards=["hot_shot", "x"])])[242]["count"] == 1  # an unknown card is just not counted for a rule
