@@ -430,7 +430,16 @@ TUNED_LEVELS: dict[int, tuple[float, ...]] = {
     143: (70, 72, 75, 80, 87.5),  # crown 87.5 (user, 2026-11-28), was 85 (evenly spaced, 17 %); slightly easier (user, 2026-11-28): 70 / 75 / 80 / 88 = 68 / 48 / 27 / 10 %, was 75 / 80 / 85 / 90; Lone Echo at 10 m (user, 2026-11-28: 3.5 m was too close, "10 meters, but a lower percentage"): 75 / 80 / 85 / 90 = 48 / 27 / 17 / 8 % of the 130 regulars in the 1,657 local recent replays, 4+ min 3v3 games (the same pass at 3.5 m gave 51 / 21 / 11 / 8 % on the old targets); was (95, 96, 98, 99, 99.5) at 3.5 m (2026-11-26, user: harder, 95 / 98 / 99 / 99.5 = 53 / 24 / 13 / 9 % of the 219 regulars in the local stats-version-20 matches, 4+ min 3v3 games; 93 / 97 / 98 / 99 was 72 / 35 / 24 / 13 %) (2026-11-11, user: eased and rounded after the play-area bounds, spawn points and death rules were corrected (stats version 16), which made it harder; was 94.6/96.4/98.2/99.1/100)
     48: (2.6, 2.8, 3.0, 3.3, 3.65),  # above Cyberkinetic Enhancements at every medal (user, 2026-11-28: 7 days harder than all time): 75 / 50 / 22 / 5.3 % of the 95 regulars, was 2.25 / 2.75 / 3.25 / 3.65 = 90 / 65 / 27 / 5.3 %; The Wings of RAD_Wyvern (2026-11-11, user: crown for about 7.5 % of regulars after the death and bounds corrections; was 2.75/3/3.25/3.5/3.75)  # loosened 2026-11-11 (user): steps of at least 8 % of the crown, the lower medals eased; was 2.75/3/3.25/3.5/3.65
     145: (3.25, 3.5, 3.75, 4.25, 4.75),  # Speed Demon (2026-11-11, user: crown for about 7.5 % of regulars after the death and bounds corrections; was 3.5/3.75/4/4.5/5)  # loosened 2026-11-11 (user): steps of at least 8 % of the crown, the lower medals eased; was 3.5/3.75/4/4.5/4.75
-    146: (2, 3, 3.5, 4, 4.5),  # Point Guard (user, 2026-11-05: nobody had reached 6.5, best since 1 Aug 5; was 2/3/3.5/5.5/6.5)
+    146: (3.5, 3.75, 4, 4.5, 5),  # Point Guard, back 2026-11-28 (user): 89 / 42 / 16 / 6.3 % of the 95 regulars (best 5.5 min); 2 / 3.5 / 4 / 4.5 gave everyone bronze and 16 % the crown. Was 2/3/3.5/4/4.5 (user, 2026-11-05: nobody had reached 6.5, best since 1 Aug 5; was 2/3/3.5/5.5/6.5)
+    # Capture and contested time in any 24 hours / any 7 days / all time (user, 2026-11-28: the periods around the one-game
+    # Point Guard / Contested Point). ~70 / 40 / 20 / 7.5 % of the 95 regulars (25+ games since 1 Aug, 2v2 rule, local copy to
+    # 27 Nov; the 7-day shares with the 3-day rule); all time on November's pace over 4 months (best since 1 Aug: 483 / 225 min).
+    296: (12, 16, 20, 28, 35),  # Capture Point Marathon: capture, any 24 hours, 77 / 35 / 20 / 7.4 % (best 56 min)
+    297: (25, 32, 40, 55, 90),  # Capture Point Landlord: capture, any 7 days, 69 / 40 / 22 / 7.4 % (best 213 min)
+    298: (90, 135, 180, 340, 600),  # Capture Point Real Estate: capture, all time, 68 / 40 / 20 / 6.3 % projected
+    299: (6, 8, 10, 15, 20),  # Capture Point Standoff: contested, any 24 hours, 73 / 38 / 19 / 7.4 % (best 44 min)
+    300: (12, 16, 20, 30, 50),  # Capture Point Stalemate: contested, any 7 days, 69 / 37 / 18 / 7.4 % (best 93 min)
+    301: (40, 60, 80, 160, 325),  # Capture Point Gridlock: contested, all time, 72 / 42 / 20 / 7.4 % projected
     148: (5, 10, 15, 30, 50),  # rounder numbers (user, 2026-11-27), was (3, 9, 16, 29, 50); halfway to November's pace (user, 2026-11-26);  # One-Trick Pony
     149: (2, 3, 4, 5, 6),  # Loadout Roulette (user, 2026-11-05: nobody had reached 10, best since 1 Aug 6; was 4/5/6/9/10)
     150: (8, 16, 24, 32, 40),  # Mime Troupe (2026-11-27, user: doubled again; an emote takes 2-4 s with no cooldown, so 40 is 80-160 s of a 4+ min game; was 4/8/12/16/20) (2026-11-26, user: doubled, "feasible, people just don't do it regularly"; the best regular in the 1,538 newest local replays had 5, the archive's best since 1 Aug was 11) (user, 2026-11-05: nobody had reached 26, best since 1 Aug 11; was 4/8/12/21/26)
@@ -803,6 +812,16 @@ def _capture(g):
     return g.mode == "capture_point"
 
 
+def _capture_minutes(games):
+    """Minutes the player's team's capture progress was rising, Capture Point games only."""
+    return sum(g.capture_s for g in games if _capture(g)) / 60
+
+
+def _contested_minutes(games):
+    """Minutes the point was contested (both teams on it), Capture Point games only."""
+    return sum(g.contested_s for g in games if _capture(g)) / 60
+
+
 def _payload(g):
     return g.mode == "payload"
 
@@ -1058,6 +1077,19 @@ def _build_rules() -> list[Rule]:
         _ladder(147, "Contested Point (Capture Point)", "Spend time in one Capture Point game with both teams on the point (contested)",
                 "capture_point", _v4(lambda gs: gs[0].contested_s / 60 if _capture(gs[0]) else 0.0), (2, 3.5, 5, 6.5, 8), "game", " min",
                 new=True, group="Capture Point"),
+        # Capture / contested time in any 24 hours, any 7 days and all time (user, 2026-11-28; targets: TUNED_LEVELS 296-301)
+        _ladder(296, "Capture Point Marathon (Capture Point)", "Time your team's capture progress is rising in any 24 hours, in minutes",
+                "capture_point", _v4(_capture_minutes), (12, 16, 20, 28, 35), "day", " min", new=True, group="Capture Point"),
+        _ladder(297, "Capture Point Landlord (Capture Point)", "Time your team's capture progress is rising in any 7 days, in minutes",
+                "capture_point", _v4(_capture_minutes), (25, 32, 40, 55, 90), "week", " min", new=True, group="Capture Point"),
+        _ladder(298, "Capture Point Real Estate (Capture Point)", "Total time your team's capture progress is rising, in minutes",
+                "capture_point", _v4(_capture_minutes), (90, 135, 180, 340, 600), "all", " min", new=True, group="Capture Point"),
+        _ladder(299, "Capture Point Standoff (Capture Point)", "Time with both teams on the point (contested) in any 24 hours, in minutes",
+                "capture_point", _v4(_contested_minutes), (6, 8, 10, 15, 20), "day", " min", new=True, group="Capture Point"),
+        _ladder(300, "Capture Point Stalemate (Capture Point)", "Time with both teams on the point (contested) in any 7 days, in minutes",
+                "capture_point", _v4(_contested_minutes), (12, 16, 20, 30, 50), "week", " min", new=True, group="Capture Point"),
+        _ladder(301, "Capture Point Gridlock (Capture Point)", "Total time with both teams on the point (contested), in minutes",
+                "capture_point", _v4(_contested_minutes), (40, 60, 80, 160, 325), "all", " min", new=True, group="Capture Point"),
         _tiered(148, "One-Trick Pony (Loadout)", "Win a game using just one loadout (one weapon, one tac mod and one ordnance)",
                 "loadout", lambda g: g.enough_players and g.won and g.main_loadout() is not None, (1, 10, 18, 36, 70), new=True, group="Gear mastery"),
         _ladder(149, "Quick-Change Chassis (Loadout)", "Use many different loadouts in one game (each must be used for at least 10 % of the game)",
@@ -1169,8 +1201,9 @@ def _tuned(rule: Rule, levels: tuple[float, ...] | None = None) -> Rule:
 # and Payload Hauler (121, attacking + defending wins); Space Statue (142, user: it rewards standing still, "it seems like
 # throwing"). Their functions stay, unused, so an id can come back by taking it out.
 # Payload Pedal to the Metal (96) and Roadblock (97) are back (user, 2026-11-28: Capture Point has Contested Point, Payload had no
-# one-game challenge; one game is not the all-time total, so not a duplicate).
-RETIRED_IDS = frozenset({21, 22, 24, 87, 88, 89, 92, 109, 110, 111, 121, 139, 140, 142, 144, 145, 146, 149})
+# one-game challenge; one game is not the all-time total, so not a duplicate). Point Guard (146) is back the same day (user), with
+# capture / contested time in any 24 hours, any 7 days and all time (296-301): the 200th challenge.
+RETIRED_IDS = frozenset({21, 22, 24, 87, 88, 89, 92, 109, 110, 111, 121, 139, 140, 142, 144, 145, 149})
 # No category tag in the names (user, 2026-11-26: "now that the challenges are organised, you don't need to put (weapon) etc in
 # the title"): the site's tabs and topic boxes say it. The names themselves stay.
 _TAG = re.compile(r"\s*\((?:Weapon|Ordnance|Tac Mod|Payload|Capture Point|Emotes|Movement|Activity|Wins|Loadout|Map|Combat|Award card)\)$")

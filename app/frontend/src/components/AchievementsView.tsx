@@ -268,6 +268,8 @@ const HINTS: Record<number, string> = {
   86: "Least-used experimental weapon", 93: "Capture Point wins, 2-0", 112: "Games with Overcharge",
   123: "Least-used weapon", 124: "Least-used item", 141: "Capture Point win after losing round one", 96: "Longest payload push, one game", 97: "Longest payload block, one game",
   143: "Far from teammates, one game", 147: "Time on a contested point, one game", 150: "Emotes in one game",
+  146: "Capture time, one game", 296: "Capture time, in 24 hours", 297: "Capture time, in 7 days", 298: "Capture time, all games",
+  299: "Contested time, in 24 hours", 300: "Contested time, in 7 days", 301: "Contested time, all games",
   151: "Emotes in a game you win", 170: "Kills without dying, one game", 176: "Most kills in the match",
   177: "Games with 5 kills, 5 assists, 5 objective eliminations", 178: "Games with 8+ assists, twice your kills",
   208: "Most kills in the match, in 24 hours", 213: "Most kills in the match, in 7 days",

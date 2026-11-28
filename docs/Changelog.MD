@@ -18,6 +18,23 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.28.19 — 16:54
+
+- **200 challenges: capture and contested time in every period** (user, 28 Nov). Seven more in the Capture Point box,
+  Capture Point games only, 2+ players per team as everywhere. Challenge total 193 -> 200.
+  - **Point Guard is back** (Specials, one game, retired 26 Nov): 3.5 / 4 / 4.5 / 5 min of capture time (was 2 / 3.5 / 4 /
+    4.5, which gave every regular bronze and 16 % the crown; best ever 5.5 min).
+  - Capture time (your team's capture progress rising): **Capture Point Marathon** (any 24 hours) 12 / 20 / 28 / 35 min,
+    **Capture Point Landlord** (any 7 days) 25 / 40 / 55 / 90 min, **Capture Point Real Estate** (all time) 90 / 180 / 340 /
+    600 min.
+  - Contested time (both teams on the point): **Capture Point Standoff** (any 24 hours) 6 / 10 / 15 / 20 min, **Capture Point
+    Stalemate** (any 7 days) 12 / 20 / 30 / 50 min, **Capture Point Gridlock** (all time) 40 / 80 / 160 / 325 min. Contested
+    Point (one game) unchanged.
+  - Targets: about 70 / 40 / 20 / 7.5 % of the 95 regulars (25+ games since 1 Aug, local copy to 27 Nov); crowns at 6.3-7.4 %.
+    The 7-day ones have the 3-day rule for silver and up; all time is set on November's pace over a 4-month period (best
+    total since 1 Aug: 483 min capture, 225 min contested). Replay data only, ids 296-301.
+  - No re-read needed; the challenge answers rebuild after the update.
+
 ## 2026.11.28.18 — 15:58
 
 - **All Time averages need 100 games** (user, 28 Nov: 50 was low for a 3-4 month period), each with 2+ minutes in
