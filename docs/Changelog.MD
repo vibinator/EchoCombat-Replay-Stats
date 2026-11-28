@@ -27,7 +27,7 @@ Working record of what changed in each release, newest first.
   (Cyberkinetic 17 / 11 / 8 / 3 %, toB taB m'I 14 / 5 / 3 / 2 %) and rise as the period goes on.
 - **Cyberkinetic Enhancements slightly easier** (user, 28 Nov): 2.5 / 2.75 / 3.0 / 3.3 m/s, 0.1 off every medal (was 2.6 /
   2.85 / 3.1 / 3.4). With 100 games in a row: 17 / 15 / 8.4 / 5.3 % of the 95 regulars (was 17 / 11 / 8.4 / 3.2 %).
-- **toB taB m'I is for players who really play upside down** (user, 28 Nov): 5 / 15 / 25 / 35 % of each game upside down
+- **toB taB m'I is for players who really play upside down** (user, 28 Nov): 5 / 15 / 25 / 40 % of each game upside down
   over 100+ games, was 2 / 8 / 11 / 17. The players who play that way average 43-57 % (rev2600, gfunkadelic, Alpha-Phoenix,
   monkeybanana since 1 Aug), so the old crown was no goal for them, and others could reach it by chance.
 - **Robot Wrecking Squad and Roboticide set for the 4-month period** (user, 28 Nov: "use projection"): at November's pace
@@ -36,9 +36,13 @@ Working record of what changed in each release, newest first.
   69 / 51 / 39 / 23 %), Roboticide 12 / 14.5 / 17 / 19.5 % close to an enemy (was 10 / 14 / 15 / 16: 78 / 50 / 39 / 30 %).
   Now about 70 / 40 / 20 / 7.5 % at that pace, from the 3.5 m replay sample; to check again on the full data after the
   re-read.
+- **Tech Support w/RAD_Natalie evenly spaced** (user, 28 Nov): 24 / 27 / 30 / 33 % of the week close to a teammate, 3
+  points apart (was 24 / 27.5 / 28 / 30.5, silver and gold half a point apart). 45 / 28 / 19 / 9.5 % of the regulars in
+  the 3.5 m replay sample (was 45 / 27 / 24 / 12 %).
 - **The 7-day averages need more than the All Time ones at every medal** (user, 28 Nov: "the 7 day ones should be harder,
-  as it's over a shorter period"). Two were not: I'm Bat Bot is now 10 / 20 / 35 / 50 % upside down (was 9 / 12 / 20 /
-  27; its crown is now exactly the five players who really play upside down, 59-71 % in their best week) and The Wings
+  as it's over a shorter period"). Two were not: I'm Bat Bot is now 15 / 35 / 55 / 70 % upside down (was 9 / 12 / 20 /
+  27; upside down only counts in bounds, so it can go near 100 %: the old full-time players averaged 90-97 %; today
+  gfunkadelic and Alpha-Phoenix have the crown, 70-71 % in their best week, three more are at gold) and The Wings
   of RAD_Wyvern 2.6 / 3.0 / 3.3 / 3.65 m/s (was 2.25 / 2.75 / 3.25 / 3.65; 75 / 50 / 22 / 5.3 % of the 95 regulars, was 90 /
   65 / 27 / 5.3 %).
 - **Versatile Bot counts days with any 12 different items** (user, 28 Nov: "this should be any 12 items"), from all 22

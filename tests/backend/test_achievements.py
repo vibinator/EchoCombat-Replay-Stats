@@ -244,14 +244,14 @@ def test_average_unlock_date_is_when_first_reached():
 
 
 def test_teammate_proximity_targets():
-    """Tech Support: 24 / 27.5 / 28 / 30.5 % over a week on 3+ days with 10+ minutes in bounds (these games have 50 s each);
+    """Tech Support: 24 / 27 / 30 / 33 % over a week on 3+ days with 10+ minutes in bounds (these games have 50 s each);
     Robot Wrecking Squad all-time over 50+ games (3.5 m targets since 2026-11-28)."""
     def over_days(mate, *per_day):
         return [g for i, n in enumerate(per_day) for g in [game(f"2026-10-0{i + 1}", mate=mate)] * n]
     r = by_id(evaluate(over_days(240, 4, 4, 4)))
     assert (r[46]["tier"], r[46]["count"]) == ("bronze", 24) and r[71]["count"] == 0  # 12 games: the all-time one needs 100
     assert by_id(evaluate(over_days(240, 4, 4, 3)))[46]["tier"] is None  # under 10 minutes in bounds
-    assert by_id(evaluate(over_days(230, 4, 4, 4)))[46]["tier"] is None
+    assert by_id(evaluate(over_days(235, 4, 4, 4)))[46]["tier"] is None
     assert by_id(evaluate(over_days(240, 6, 6)))[46]["tier"] is None  # two days only
     long = lambda share: Game(**{**game().__dict__, "in_bounds": 2400, "near_mate": int(24 * share)})  # 2 min in bounds each
     assert by_id(evaluate([long(16)] * 100))[71]["tier"] == "bronze"  # 16 / 20 / 24 / 27 % (3.5 m, projected, 2026-11-28)
@@ -425,9 +425,9 @@ def test_lone_wolf_has_no_value_before_the_replay_is_read_again():
 
 
 def test_seven_day_upside_down_needs_three_days_and_ten_minutes_in_bounds():
-    assert next(rule for rule in RULES if rule.id == 49).levels == (10, 20, 35, 50)  # 2026-11-28
+    assert next(rule for rule in RULES if rule.id == 49).levels == (15, 35, 55, 70)  # 2026-11-28
     def flipped(day, frames=4000):
-        return Game(**{**game(day).__dict__, "upside": frames * 3 // 5, "in_bounds": frames})
+        return Game(**{**game(day).__dict__, "upside": frames * 3 // 4, "in_bounds": frames})  # 75 % upside down
     assert by_id(evaluate([flipped("2026-10-01"), flipped("2026-10-02"), flipped("2026-10-03")]))[49]["tier"] == "crown"
     assert by_id(evaluate([flipped("2026-10-01"), flipped("2026-10-02"), flipped("2026-10-03", 3995)]))[49]["count"] == 0
     assert by_id(evaluate([flipped("2026-10-01", 12000), flipped("2026-10-02", 12000)]))[49]["count"] == 0  # two days
@@ -458,10 +458,10 @@ def test_seven_day_enemy_share_needs_three_days_and_ten_minutes_in_bounds():
 
 
 def test_seven_day_teammate_share_needs_three_days_and_ten_minutes_in_bounds():
-    assert next(rule for rule in RULES if rule.id == 46).levels == (24, 27.5, 28, 30.5)  # 3.5 m (2026-11-28)
+    assert next(rule for rule in RULES if rule.id == 46).levels == (24, 27, 30, 33)  # 3.5 m, 3-point steps (2026-11-28)
     def close(day, frames=4000):
-        return Game(**{**game(day).__dict__, "near_mate": frames * 31 // 100, "in_bounds": frames})
-    assert by_id(evaluate([close("2026-10-01"), close("2026-10-02"), close("2026-10-03")]))[46]["tier"] == "crown"  # 31 % for exactly 10 minutes at 20 Hz
+        return Game(**{**game(day).__dict__, "near_mate": frames * 34 // 100, "in_bounds": frames})
+    assert by_id(evaluate([close("2026-10-01"), close("2026-10-02"), close("2026-10-03")]))[46]["tier"] == "crown"  # 34 % for exactly 10 minutes at 20 Hz
     assert by_id(evaluate([close("2026-10-01"), close("2026-10-02"), close("2026-10-03", 3975)]))[46]["count"] == 0
     assert by_id(evaluate([close("2026-10-01", 12000), close("2026-10-02", 12000)]))[46]["count"] == 0  # two days
 
