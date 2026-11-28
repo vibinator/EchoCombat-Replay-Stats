@@ -347,6 +347,9 @@ TUNED_LEVELS: dict[int, tuple[float, ...]] = {
     52: (4, 6, 8, 12, 18),  # Phoeniconaias minor
     53: (4, 6, 8, 12, 18),  # Phoenicopterus ruber
     54: (15, 30, 50, 65, 80),  # Who Do I Have to Pew Pew Pew to Get a Combat Update Around Here? (user, 2026-11-05: 99 / 27 / 11 / 6 / 5 players since 1 Aug; was 15/30/60/130/195, which nobody ever reached)
+    # Every gear Veteran: 20 / 60 / 100 / 180 games (user, 2026-11-28: "base it on projected data in the last 1 month"), November's
+    # pace over 4 months: the typical standard item 25 / 17 / 7.4 % silver / gold / crown of the 95 regulars (Detonator crown
+    # 20 %, Arc Mine 0 %; Aug-Nov as played 0-3 % crown). Was 20 / 50 / 80 / 120 (2026-11-26, "let's say November activity holds").
     55: (20, 40, 60, 100, 180),  # Pulsar Veteran
     56: (20, 40, 60, 100, 180),  # Nova Veteran
     57: (20, 40, 60, 100, 180),  # Comet Veteran

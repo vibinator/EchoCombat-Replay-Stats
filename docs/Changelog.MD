@@ -34,6 +34,14 @@ Working record of what changed in each release, newest first.
   bounds · 4 to go".
 - **Flawless Chassis slightly easier** (user, 28 Nov): 4 / 7 / 9 / 11 kills without dying, was 5 / 8 / 10 / 12; 32 / 11 /
   7.6 / 6.5 % of the 92 Combat regulars (was 25 / 10 / 6.5 / 3.3 %).
+- **All Time gear and map challenges set for November's pace over 4 months** (user, 28 Nov: "base it on projected data in
+  the last 1 month"; they were set for half of it). Harder:
+  - every gear Veteran (all weapons, ordnances and tac mods, the experimental ones too): 20 / 60 / 100 / 180 games, was
+    20 / 50 / 80 / 120. At November's pace the typical standard item ends 25 / 17 / 7.4 % silver / gold / crown of the
+    95 regulars (was 37 / 21 / 12 %); Detonator and Repair Matrix crowns about 20 % (were 30 %), Arc Mine and the
+    experimental gear stay out of reach for most.
+  - the four maps (Brute Force Attack, Molten Mechanical Mayhem, George and I Go Way Back, Good ol' George): 10 / 45 / 85 /
+    150 games, was 10 / 40 / 60 / 75. At November's pace crowns 4-9 % (were 19-23 %).
 - **Payload Gridlock a bit harder** (user, 28 Nov): 0.75 / 1 / 2 / 3.25 min, was 0.5 / 1 / 2 / 3; 61 / 44 / 16 / 6.3 % of
   the 95 regulars (was 79 / 44 / 16 / 9.5 %).
 - **Hold the Hill: crown 20 min**, 4 / 8 / 12 / 20 (user, 28 Nov; was 5 / 9 / 14 / 18 in 2026.11.28.16): 83 / 48 / 24 /
