@@ -18,6 +18,11 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.28.13 — 12:21
+
+- **Flamingo Challenges panel is smaller** (player page and My profile): about 115 px tall instead of 185, with a smaller
+  button, headline and bar, and each tab's count on one line.
+
 ## 2026.11.28.12 — 12:04
 
 - **Flamingo Challenges panel: "View all Flamingo Challenges" is on the left** (player page and My profile); on phones
