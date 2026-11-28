@@ -824,6 +824,8 @@ export interface Achievement extends AchievementRule {
   /** What the challenge needs besides its target and how much the player has (user, 2026-11-28): games for the all-time
    *  averages; days / minutes in the player's latest 7 days (to `window`, their latest game) for the 7-day ones. */
   needs?: { what: string; have: number; need: number; window?: string }[];
+  /** "Least-used" challenges (No Gun Left Behind, Loadout Scholar Bot, Forbidden Arsenal): games with each item, least first */
+  per_item?: { name: string; games: number }[];
   try_next?: { weapon: string; tacmod: string; ordnance: string; label: string }[]; // "Different loadouts": ones this player has not tried
   /** "Different loadouts": every loadout not used yet, per weapon + ordnance pair with any left (user, 2026-11-27) */
   untried?: { weapon: string; ordnance: string; tacmods: string[] }[];

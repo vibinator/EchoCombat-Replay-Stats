@@ -99,30 +99,40 @@ def test_per_game_rules_ignore_short_appearances():
     assert (r[18]["tier"], r[18]["count"]) == (None, 1) and r[18]["estimated"]
 
 
-def test_average_speed_is_the_best_50_games_in_a_row():
-    """Cyberkinetic Enhancements (73): the best average over any 50 games in a row, however long they took (user,
-    2026-11-28; was the average over every game, 25+ games)."""
+def test_average_speed_is_the_best_100_games_in_a_row():
+    """Cyberkinetic Enhancements (73): the best average over any 100 games in a row, however long they took (user,
+    2026-11-28: 50 the same day; was the average over every game, 25+ games)."""
     from datetime import timedelta
     rule = [r for r in RULES if r.id == 73]
     on = lambda n, first=0, speed=3000.0: [Game(**{**game((date(2026, 10, 1) + timedelta(days=first + i // 10)).isoformat()).__dict__,
                                                    "started_at": f"{(date(2026, 10, 1) + timedelta(days=first + i // 10)).isoformat()}T{10 + i % 10:02d}:00:00.000",
                                                    "speed_sum": speed * 2.4, "in_bounds": 2400}) for i in range(n)]  # 2 min in bounds each
     count = lambda gs: evaluate(gs, rule)[0]["count"]
-    assert count(on(49)) == 0 and count(on(50)) == 3.0  # 7,200 m over 2,400 frames at 20 Hz = 3 m/s
+    assert count(on(99)) == 0 and count(on(100)) == 3.0  # 7,200 m over 2,400 frames at 20 Hz = 3 m/s
     short = [Game(**{**g.__dict__, "in_bounds": 2399}) for g in on(10, first=1)]  # under 2 min in bounds: skipped
-    assert count(on(45) + short) == 0 and count(on(45) + short + on(5, first=2)) == 3.0
-    fast, slow = on(50, speed=3500.0), on(80, first=20)  # a slower stretch later does not lower the best one
-    assert count(fast + slow) == 3.5 and rule_notes(rule[0])[0] == "Best 50 games in a row"
-    assert count(on(30, speed=3500.0) + on(30, first=40)) == 3.3  # 30 fast + 20 slow: (30 x 3.5 + 20 x 3) / 50
-    assert medal_times(fast + slow, rule)[73]["crown"].startswith("2026-10-05T19")  # the 50th fast game
+    assert count(on(95) + short) == 0 and count(on(95) + short + on(5, first=2)) == 3.0
+    fast, slow = on(100, speed=3500.0), on(160, first=20)  # a slower stretch later does not lower the best one
+    assert count(fast + slow) == 3.5 and rule_notes(rule[0])[0] == "Best 100 games in a row"
+    assert count(on(60, speed=3500.0) + on(60, first=40)) == 3.3  # 60 fast + 40 slow: (60 x 3.5 + 40 x 3) / 100
+    assert medal_times(fast + slow, rule)[73]["crown"].startswith("2026-10-10T19")  # the 100th fast game
+
+
+def test_least_used_challenges_list_every_item():
+    """No Gun Left Behind / Loadout Scholar Bot / Forbidden Arsenal: the popup lists the games with each item, least first."""
+    games = [game(loadout=("assault", "heal", "det"))] * 3 + [game(loadout=("rocket", "heal", "det"))]
+    r = by_id(evaluate(games))
+    assert r[123]["count"] == 0 and [x["name"] for x in r[123]["per_item"][:2]] == ["Nova", "Comet"]
+    assert r[123]["per_item"][-2:] == [{"name": "Meteor", "games": 1}, {"name": "Pulsar", "games": 3}]
+    assert len(r[124]["per_item"]) == 12 and r[124]["per_item"][-1] == {"name": "Repair Matrix", "games": 4}
+    assert len(r[86]["per_item"]) == 4 and "played least" in r[123]["description"]
 
 
 def test_the_popup_says_what_is_left():
     """Games / days / minutes a challenge still needs (user, 2026-11-28: the popup tells players how many are left)."""
     long = [Game(**{**game(f"2026-10-0{1 + i % 2}").__dict__, "in_bounds": 2400}) for i in range(30)]
     r = by_id(evaluate(long + [game("2026-10-02")]))  # one more game, but under 2 min in bounds
-    assert r[73]["needs"] == [{"what": "games with 2+ min in bounds (in a row)", "have": 30, "need": 50}]
-    assert r[71]["needs"] == [{"what": "games with 2+ min in bounds", "have": 30, "need": 50}]
+    assert r[73]["needs"] == [{"what": "games with 2+ min in bounds (in a row)", "have": 30, "need": 100}]
+    assert r[71]["needs"] == [{"what": "games with 2+ min in bounds", "have": 30, "need": 100}]
     assert r[48]["needs"] == [{"what": "different days", "have": 2, "need": 3, "window": "2026-10-02"},
                               {"what": "minutes in bounds", "have": 60.8, "need": 10.0, "window": "2026-10-02"}]
     assert r[50]["needs"] == [{"what": "different days (for silver and up)", "have": 2, "need": 3, "window": "2026-10-02"}]
@@ -180,7 +190,7 @@ def test_coming_soon_until_the_start_date(tmp_path):
 def test_logic_follows_the_text():
     """Every condition is in the description (user, 2026-10-30)."""
     text = {r.id: r.description for r in RULES}
-    assert "50 games in a row" in text[73] and "dying fewer than 5 times a game" in text[43]
+    assert "100 games in a row" in text[73] and "dying fewer than 5 times a game" in text[43]
     # the counting rules are listed per achievement, not repeated in the description
     notes = {r.id: rule_notes(r) for r in RULES}
     assert "4+ min games" in notes[18] and "4+ min games" in notes[43] and "4+ min games" in notes[42]
@@ -219,9 +229,9 @@ def test_gearhead_counts_long_full_games_only():
 def test_average_unlock_date_is_when_first_reached():
     from backend.achievements import unlock_dates
 
-    # Inverted 40%+ (gold) over 50+ games: reached on day 2 (games 1-50 are 90 % inverted), then diluted, still above 40%
+    # Inverted 40%+ (gold) over 100+ games: reached on day 2 (games 1-100 are 90 % inverted), then diluted, still above 40%
     long = lambda day, upside=0: Game(**{**game(day).__dict__, "in_bounds": 2400, "upside": upside})  # 2 min in bounds (2026-11-28)
-    games = [long("2026-10-01", 2160)] * 25 + [long("2026-10-02", 2160)] * 25 + [long("2026-10-20")] * 20
+    games = [long("2026-10-01", 2160)] * 50 + [long("2026-10-02", 2160)] * 50 + [long("2026-10-20")] * 40
     assert by_id(evaluate(games))[74]["progress"] == 1.0
     assert unlock_dates(games)[74] == "2026-10-02"
 
@@ -232,15 +242,16 @@ def test_teammate_proximity_targets():
     def over_days(mate, *per_day):
         return [g for i, n in enumerate(per_day) for g in [game(f"2026-10-0{i + 1}", mate=mate)] * n]
     r = by_id(evaluate(over_days(240, 4, 4, 4)))
-    assert (r[46]["tier"], r[46]["count"]) == ("bronze", 24) and r[71]["count"] == 0  # 12 games: the all-time one needs 50
+    assert (r[46]["tier"], r[46]["count"]) == ("bronze", 24) and r[71]["count"] == 0  # 12 games: the all-time one needs 100
     assert by_id(evaluate(over_days(240, 4, 4, 3)))[46]["tier"] is None  # under 10 minutes in bounds
     assert by_id(evaluate(over_days(230, 4, 4, 4)))[46]["tier"] is None
     assert by_id(evaluate(over_days(240, 6, 6)))[46]["tier"] is None  # two days only
     long = lambda share: Game(**{**game().__dict__, "in_bounds": 2400, "near_mate": int(24 * share)})  # 2 min in bounds each
-    assert by_id(evaluate([long(17)] * 50))[71]["tier"] == "bronze"  # 17 / 19.5 / 21.5 / 24.5 % (3.5 m, 2026-11-28)
-    assert by_id(evaluate([long(19.5)] * 50))[71]["tier"] == "silver"
-    assert by_id(evaluate([long(16.5)] * 50))[71]["tier"] is None
-    assert by_id(evaluate([game(mate=500)] * 50))[71]["tier"] is None  # 50 % but 50 s in bounds each: under 2 min, not counted
+    assert by_id(evaluate([long(16)] * 100))[71]["tier"] == "bronze"  # 16 / 18.5 / 20.5 / 23.5 % (3.5 m, 2026-11-28)
+    assert by_id(evaluate([long(18.5)] * 100))[71]["tier"] == "silver"
+    assert by_id(evaluate([long(18.5)] * 99))[71]["tier"] is None  # 100 games needed (2026-11-28)
+    assert by_id(evaluate([long(15.5)] * 100))[71]["tier"] is None
+    assert by_id(evaluate([game(mate=500)] * 100))[71]["tier"] is None  # 50 % but 50 s in bounds each: under 2 min, not counted
 
 
 def test_new_gear_challenges():
@@ -459,7 +470,7 @@ def test_one_day_targets():
 
 def test_impossible_top_medals_were_lowered():
     levels = {rule.id: rule.levels for rule in RULES}
-    assert levels[72] == (10, 14, 15, 16) and levels[73] == (2.6, 2.85, 3.1, 3.4) and levels[100] == (40, 125, 150, 225)
+    assert levels[72] == (10, 14, 15, 16) and levels[73] == (2.5, 2.75, 3.0, 3.3) and levels[100] == (40, 125, 150, 225)
     assert levels[150] == (8, 24, 32, 40) and levels[151] == (16, 24, 28, 32)  # doubled again (user, 2026-11-27)
 
 

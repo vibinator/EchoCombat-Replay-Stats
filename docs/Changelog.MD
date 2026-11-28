@@ -18,6 +18,33 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.28.18 — 15:58
+
+- **All Time averages need 100 games** (user, 28 Nov: 50 was low for a 3-4 month period), each with 2+ minutes in
+  bounds: Robot Wrecking Squad, Roboticide and toB taB m'I average over all your games once you have 100, and Cyberkinetic
+  Enhancements is now your best 100 games in a row (was 50). At November's pace 61 of the 95 regulars reach 100 games in
+  4 months (77 reached 50). Targets unchanged; for now only 18 regulars have 100 such games, so the shares start low
+  (Cyberkinetic 17 / 11 / 8 / 3 %, toB taB m'I 14 / 5 / 3 / 2 %) and rise as the period goes on.
+- **Cyberkinetic Enhancements slightly easier** (user, 28 Nov): 2.5 / 2.75 / 3.0 / 3.3 m/s, 0.1 off every medal (was 2.6 /
+  2.85 / 3.1 / 3.4). With 100 games in a row: 17 / 15 / 8.4 / 5.3 % of the 95 regulars (was 17 / 11 / 8.4 / 3.2 %).
+- **toB taB m'I slightly easier** (user, 28 Nov): 1.5 / 6 / 9 / 14 % of each game upside down, about a fifth off every medal
+  (was 2 / 8 / 11 / 17). With 100 games: 15 / 8.4 / 5.3 / 2.1 % of the 95 regulars (was 14 / 5.3 / 3.2 / 2.1 %).
+- **Robot Wrecking Squad slightly easier** (user, 28 Nov): 16 / 18.5 / 20.5 / 23.5 % of each game close to a teammate, a
+  point off every medal (was 17 / 19.5 / 21.5 / 24.5). With 100 games: 15 / 12 / 9 / 7 % of the regulars in the replay
+  sample (was 15 / 11 / 8 / 4 %).
+- **Versatile Bot counts days with any 12 different items** (user, 28 Nov: "this should be any 12 items"), from all 22
+  weapons, ordnances and tac mods, experimental ones too; it was all 12 standard ones. Easier, so the targets are new:
+  1 / 5 / 10 / 20 days, was 1 / 2 / 3 / 4. At November's pace over 4 months 31 / 24 / 18 / 9 % of regulars; best so far
+  30 days.
+- **No Gun Left Behind, Loadout Scholar Bot and Forbidden Arsenal explained** (user, 28 Nov: "confusing"): the text says
+  "Play games with all four weapons ...: your count is the weapon you have played least", and the popup lists your games
+  with each item, least first ("Meteor: 3 · play this next"), and how many more of each the next medal needs.
+- **Time Well Wasted on Kronos II: 5 / 20 / 40 / 70 hours** (user, 28 Nov; was 5 / 20 / 30 / 35). At November's pace over 4
+  months 82 / 44 / 21 / 9.5 % of the 95 regulars (the crown was 22 %); as played Aug-Nov the best player has 46 hours.
+- **Overtime on Kronos II reworded** (user, 28 Nov): "Play games where you stay in the match for 10 minutes or more"
+  (was "Games of 10 minutes or longer", which read as the match length; it has always counted your own time in it).
+- Update the container; nothing to re-read.
+
 ## 2026.11.28.17 — 15:02
 
 - **Any 7 Days challenges need games on 3 different days for silver and up** (user, 28 Nov: "One week should be time

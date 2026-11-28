@@ -514,6 +514,7 @@ function ChallengeCard({ a, onClose }: { a: AnyBadge; onClose?: () => void }) {
         )}
         {!catalogue && a.untried && a.untried.length > 0 && a.progress! < 1 && <UntriedLoadouts list={a.untried} />}
         {!catalogue && a.needs && a.needs.length > 0 && a.progress! < 1 && <NeedsLeft needs={a.needs} />}
+        {!catalogue && a.per_item && a.per_item.length > 0 && <LeastUsed items={a.per_item} levels={a.levels ?? undefined} />}
         <div className="ch-rules">
           <span className="ch-rules-head">How it counts</span>
           <ul>{countingRules(a).map((r) => <li key={r}>{r}</li>)}</ul>
@@ -1098,7 +1099,7 @@ function levelText(count: number, levels: number[], unit = ""): string {
   return `${shown.toLocaleString()}${unit} more to reach ${LEVELS[next]}`;
 }
 
-export function Badge({ a, compact = false }: { a: AchievementRule & Partial<Pick<Achievement, "progress" | "tier" | "unlocked_at" | "count" | "try_next" | "untried" | "needs">> & Partial<Pick<AchievementRarity, "unlocked_share" | "completed_share">>; compact?: boolean }) {
+export function Badge({ a, compact = false }: { a: AchievementRule & Partial<Pick<Achievement, "progress" | "tier" | "unlocked_at" | "count" | "try_next" | "untried" | "needs" | "per_item">> & Partial<Pick<AchievementRarity, "unlocked_share" | "completed_share">>; compact?: boolean }) {
   const tier = a.tier ?? null;
   const catalogue = a.progress === undefined;
   const frame = tier ? `${tier}.png` : "lock_clear_no_square.png";
@@ -1565,6 +1566,32 @@ function NeedsLeft({ needs }: { needs: NonNullable<Achievement["needs"]> }) {
           );
         })}
       </ul>
+    </div>
+  );
+}
+
+/** "Least-used" challenges (user, 2026-11-28: "confusing, help the user understand it"): your games with each item, the
+ *  lowest one being your count, and how many more games each needs for the next medal. */
+function LeastUsed({ items, levels }: { items: NonNullable<Achievement["per_item"]>; levels?: number[] }) {
+  const lowest = items[0]?.games ?? 0;
+  const next = (levels ?? []).find((n) => n > lowest);
+  const medal = next != null ? LEVELS[(levels ?? []).indexOf(next)] : null;
+  const short = next != null ? items.filter((i) => i.games < next) : [];
+  return (
+    <div className="ch-needs">
+      <span className="ch-rules-head">Your games with each (the lowest is your count)</span>
+      <ul className="ch-items">
+        {items.map((i) => (
+          <li key={i.name} className={i.games === lowest ? "todo" : "done"}>
+            {i.name}: {i.games.toLocaleString()}{i.games === lowest && <b> · play this next</b>}
+          </li>
+        ))}
+      </ul>
+      {next != null && short.length > 0 && (
+        <span className="ch-items-next">
+          For {medal} ({next.toLocaleString()} each): {short.map((i) => `${(next - i.games).toLocaleString()} more ${i.name}`).join(", ")}.
+        </span>
+      )}
     </div>
   );
 }

@@ -44,11 +44,12 @@ WEEK_MIN_IN_BOUNDS_S = 600.0  # 7-day averages (user, 2026-11-05): all 16 Wings 
 WEEK_MIN_DAYS = 3  # 7-day averages (user, 2026-11-05): "any 3 days within 7 days"
 MIN_IN_BOUNDS_S = 60.0  # Lone Wolf, Untouchable, Speed Demon, Can We Talk About This?, Statue, Full Team Salvo (user, 2026-11-05): 25 of 39 Lone Wolf platinum games since 1 Aug had less; 122 of 134 Untouchable wins had none at all
 LOADOUT_USED_S = 60.0  # "different loadouts": at least 1 min each (was 3 min; user, 2026-11-04: more achievable)
-SEASON_MIN_GAMES = 50  # all-time averages need 50 games (A)
+SEASON_MIN_GAMES = 100  # all-time averages need 100 games of 2+ min in bounds (user, 2026-11-28: 50 was low for a 3-4 month
+# period; at November's pace 61 of the 95 regulars reach 100 in 4 months, 77 reached 50); was 50 (A)
 # Cyberkinetic Enhancements (user, 2026-11-28: "within 50 games, no time period"): the best average speed over any
 # SPEED_MIN_GAMES games in a row, however long they took. Was the average over every game, 25+ games. The same day a 30-day
 # window with 5+ days and 50 games / 3 days were tried; on the 95 regulars since 1 Aug the crown stretches took 4-12 days.
-SPEED_MIN_GAMES = 50
+SPEED_MIN_GAMES = SEASON_MIN_GAMES  # 100 games in a row (user, 2026-11-28; 50 earlier that day)
 GAME_MIN_IN_BOUNDS_S = 120.0  # all-time averages (73 speed, 71 / 72 close to a teammate / enemy, 74 upside down): a game counts
 # only with 2+ minutes in bounds (user, 2026-11-28: "min of 2 mins in bounds"); shorter ones are skipped, so a short
 # appearance cannot skew the average. The 7-day averages keep WEEK_MIN_IN_BOUNDS_S in total.
@@ -281,8 +282,8 @@ def _scaled(levels: tuple[float, ...], factor: float) -> tuple[float, ...]:
 # has the same ladder per kind of challenge (Veteran, "only X" in a day, "only X" in 7 days). Replaces the written targets of the
 # ladders below: those whose platinum was over 2 % before, and all the gear ladders together. The others keep their written targets.
 TUNED_LEVELS: dict[int, tuple[float, ...]] = {
-    71: (17, 18, 19.5, 21.5, 24.5),  # 3.5 m (user, 2026-11-28, was 2.65 m): each target moved to the 3.5 m value the same share of players reaches (1,582 recent replays, 74 regulars), was 12/13/14/16/18; Robot Wrecking Squad (2026-11-11, user: crown for about 7.5 % of regulars after the death and bounds corrections; was the written targets)
-    74: (2, 5, 8, 11, 17),  # toB taB m'I (2026-11-11, user: crown for about 7.5 % of regulars after the death and bounds corrections; was the written targets)
+    71: (16, 17.5, 18.5, 20.5, 23.5),  # slightly easier (user, 2026-11-28, with 100 games): 1 point off every medal, 15 / 12 / 9 / 7 % of the 74 regulars in the replay sample (was 15 / 11 / 8 / 4 %); 3.5 m (user, 2026-11-28, was 2.65 m): each target moved to the 3.5 m value the same share of players reaches (1,582 recent replays, 74 regulars), was 12/13/14/16/18; Robot Wrecking Squad (2026-11-11, user: crown for about 7.5 % of regulars after the death and bounds corrections; was the written targets)
+    74: (1.5, 4, 6, 9, 14),  # slightly easier (user, 2026-11-28, with 100 games): 15 / 8.4 / 5.3 / 2.1 % of the 95 regulars (18 have 100 games), was 2 / 8 / 11 / 17 = 14 / 5.3 / 3.2 / 2.1 %; toB taB m'I (2026-11-11, user: crown for about 7.5 % of regulars after the death and bounds corrections; was the written targets)
     140: (12, 13, 14, 15.5, 17),  # Marathon Bot (2026-11-11, user: crown for about 7.5 % of regulars after the death and bounds corrections; was the written targets)  # loosened 2026-11-11 (user): steps of at least 8 % of the crown, the lower medals eased; was 12/13/14/16/17
     147: (2, 3, 4, 5, 5.5),  # Contested Point (2026-11-11, user: crown for about 7.5 % of regulars after the death and bounds corrections; was the written targets)
     23: (19, 20, 24, 29, 35),  # Super Ultra Hyper Turbo (2026-11-26, user: "a tiny bit easier" at the top, 19 / 24 / 29 / 35 = 54 / 10 / 3 / 2 % of the 125 regulars; before that the same day 19 / 24 / 30 / 37, slightly harder for regrab speeds, 19 / 24 / 30 / 37 = 54 / 10 / 3 / 1 % of the 125 regulars in the 1,538 newest local replays read with the current top-speed code, 4+ min 3v3 games; 18 / 23 / 28 / 35 was 69 / 14 / 4 / 2 % there; record 37.9) (earlier that day, user: much harder, 18 / 23 / 28 / 35 = 51 / 12 / 3 / 1 % of the 348 regulars in the newest 4,000 public matches, was 84 / 32 / 12 / 3 %; record 38.5 m/s) (2026-11-25, stats version 18: top speed is the average over a second, about 10 % higher; 14 / 20 / 23 / 28 keeps 13 / 17 / 19 / 21 as hard: 100 / 54 / 22 / 11 % of the 90 regulars in the newest 1,600 matches, before 99 / 49 / 21 / 10 %; earlier that day, user: slightly easier on every medal, was 14/16/18/20/22, 88 / 34 / 13 / 7 %; 2026-11-11, user: crown for about 7.5 % of regulars after the death and bounds corrections; was the written targets)
@@ -364,7 +365,7 @@ TUNED_LEVELS: dict[int, tuple[float, ...]] = {
     66: (20, 40, 60, 100, 180),  # Phase Shift Veteran
     # 4-month challenge period (user, 2026-11-26): the ladders nobody could finish in the last real 4 months (27 Jul-26 Nov,
     # 255 regulars) made reachable; the rest already land at a 2-6 % crown and stay.
-    17: (1, 1.5, 2, 3, 4),  # Versatile Bot: days with all 12 items (best regular 2; was 1 / 5 / 13 / 23)
+    17: (1, 3, 5, 10, 20),  # Versatile Bot: days with any 12 different items (user, 2026-11-28), November's pace over 4 months 31 / 24 / 18 / 9 % of the 95 regulars, best 30 days; was 1 / 2 / 3 / 4 with all 12 standard items (best regular 2)
     67: (5, 15, 25, 50, 100),  # crown 100 (user, 2026-11-27), was 75; rounder numbers (user, 2026-11-27), was (7, 17, 27, 54, 78); halfway to November's pace (user, 2026-11-26);  # I Use All the Loadouts (was 5th Loadout when?): crown 4 % (was 7 / 29 / 62 / 87, 0 %)
     123: (2, 3, 5, 10, 15),  # rounder numbers (user, 2026-11-27), was (2, 3.5, 5, 9, 15); halfway to November's pace (user, 2026-11-26);  # No Gun Left Behind: least-used weapon (best 20; was 1 / 18 / 78 / 156)
     86: (2, 3, 5, 10, 15),  # rounder numbers (user, 2026-11-27), was (2, 3.5, 5, 9, 15); halfway to November's pace (user, 2026-11-26);  # Forbidden Arsenal: the same ladder as No Gun Left Behind (best 11)
@@ -373,7 +374,7 @@ TUNED_LEVELS: dict[int, tuple[float, ...]] = {
     69: (20, 47, 75, 125, 150),  # rounder numbers (user, 2026-11-27), was (20, 47.5, 75, 130, 150); halfway to November's pace (user, 2026-11-26);  # King of the Hill (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 14/30/54/95/165)
     70: (20, 47, 75, 125, 150),  # rounder numbers (user, 2026-11-27), was (20, 47.5, 75, 130, 150); halfway to November's pace (user, 2026-11-26);  # Feed the Flamingo (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 14/29/51/90/155)
     72: (10, 12, 14, 15, 16),  # 3.5 m (user, 2026-11-28, was 2.65 m): each target moved to the 3.5 m value the same share of players reaches (1,582 recent replays, 74 regulars), was 6/7.5/9/10/11; Roboticide (2026-11-11, user: crown for about 7.5 % of regulars after the death and bounds corrections; was 6/8/9/11/14)
-    73: (2.6, 2.725, 2.85, 3.1, 3.4),  # Cyberkinetic Enhancements (2026-11-11, user: crown for about 7.5 % of regulars after the death and bounds corrections; was 2.6/2.8/3.0/3.2/3.5)  # loosened 2026-11-11 (user): steps of at least 8 % of the crown, the lower medals eased; was 2.6/2.8/3/3.2/3.4  # 2026-11-11 (user): bronze back at 2.6 (held by 68 % of regulars), steps of 0.25 / 0.25 / 0.3; was 2/2.25/2.5/3/3.4
+    73: (2.5, 2.625, 2.75, 3.0, 3.3),  # slightly easier (user, 2026-11-28, with 100 games in a row): 17 / 15 / 8.4 / 5.3 % of the 95 regulars (18 have 100 games), was 2.6 / 2.85 / 3.1 / 3.4 = 17 / 11 / 8.4 / 3.2 %; Cyberkinetic Enhancements (2026-11-11, user: crown for about 7.5 % of regulars after the death and bounds corrections; was 2.6/2.8/3.0/3.2/3.5)  # loosened 2026-11-11 (user): steps of at least 8 % of the crown, the lower medals eased; was 2.6/2.8/3/3.2/3.4  # 2026-11-11 (user): bronze back at 2.6 (held by 68 % of regulars), steps of 0.25 / 0.25 / 0.3; was 2/2.25/2.5/3/3.4
     75: (10, 25, 45, 85, 150),  # November's pace over 4 months (user, 2026-11-28: "base it on projected data in the last 1 month"): 85-78 / 51-37 / 21-17 / 9-4 % of the 95 regulars, was 10 / 40 / 60 / 75; rounder numbers (user, 2026-11-27), was (12, 26, 40, 60, 74); halfway to November's pace (user, 2026-11-26);  # Brute Force Attack (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 8/16/27/50/80)
     76: (10, 25, 45, 85, 150),  # November's pace over 4 months (user, 2026-11-28: "base it on projected data in the last 1 month"): 85-78 / 51-37 / 21-17 / 9-4 % of the 95 regulars, was 10 / 40 / 60 / 75; rounder numbers (user, 2026-11-27), was (12, 26, 40, 60, 74); halfway to November's pace (user, 2026-11-26);  # Molten Mechanical Mayhem (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 7/15/26/49/80)
     77: (10, 25, 45, 85, 150),  # November's pace over 4 months (user, 2026-11-28: "base it on projected data in the last 1 month"): 85-78 / 51-37 / 21-17 / 9-4 % of the 95 regulars, was 10 / 40 / 60 / 75; rounder numbers (user, 2026-11-27), was (12, 26, 40, 60, 74); halfway to November's pace (user, 2026-11-26);  # George and I Go Way Back (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 7/15/26/45/80)
@@ -402,7 +403,7 @@ TUNED_LEVELS: dict[int, tuple[float, ...]] = {
     112: (20, 40, 60, 100, 180),  # Overcharged (renamed 2026-11-26, user; was "Overclocked")
     114: (20, 22, 25, 35, 45),  # rounder numbers (user, 2026-11-27), was (18, 22, 26, 35, 46); halfway to November's pace (user, 2026-11-26);  # Lobby Regular (Activity) (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 10/19/31/47/75)
     115: (7, 8.5, 10, 12, 15),  # halfway to November's pace (user, 2026-11-26);  # Loyal Bot (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 6/11/16/23/32)
-    117: (5, 12, 20, 30, 35),  # rounder numbers (user, 2026-11-27), was (5, 12, 19, 30, 36); halfway to November's pace (user, 2026-11-26);  # Time Well Wasted on Kronos II (Activity) (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 3.5/7.7/14/26/43)
+    117: (5, 12, 20, 40, 70),  # November's pace over 4 months (user, 2026-11-28): 82 / 44 / 21 / 9.5 % of the 95 regulars, was 5 / 20 / 30 / 35 (crown 22 % at that pace); rounder numbers (user, 2026-11-27), was (5, 12, 19, 30, 36); halfway to November's pace (user, 2026-11-26);  # Time Well Wasted on Kronos II (Activity) (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 3.5/7.7/14/26/43)
     122: (1, 5, 8, 13, 18),  # harder (user, 2026-11-28, crown was 15.8 %; "around 10 %"): 8 / 13 / 18 = 26 / 15 / 9.5 % of the 95 regulars (25+ games since 1 Aug, 2v2 rule); was 1/3/7/12;  # Grand Tour
     127: (5, 8, 10, 15, 20),  # Star Power
     128: (5, 8, 10, 15, 20),  # Protostar Powerhouse
@@ -673,9 +674,20 @@ def _equipables_used(games):
     return len(used & RELEASED)
 
 
+ALL_GEAR = set(gear.WEAPONS) | set(gear.ORDNANCES) | set(gear.TACMODS)  # the 22 items in the game, experimental ones too
+VERSATILE_ITEMS = 12
+
+
 def _days_all_equipables(games):
-    """Days (recorder-local calendar days) on which all 12 released equipables were used."""
-    return sum(1 for day in _groups(games, "day") if _equipables_used(day) == 12)
+    """Days (recorder-local calendar days) on which VERSATILE_ITEMS different items were used: any 12 of the 22 (user,
+    2026-11-28: "this should be any 12 items"; was all 12 standard ones). Unknown codes (the medigun) do not count."""
+    def items(day):
+        used = set()
+        for g in day:
+            for slot in SLOTS:
+                used |= g.used(slot)
+        return len(used & ALL_GEAR)
+    return sum(1 for day in _groups(games, "day") if items(day) >= VERSATILE_ITEMS)
 
 
 def _games_using(slot: str, code: str):
@@ -822,7 +834,7 @@ def _build_rules() -> list[Rule]:
                                  _only_games(slot, code), GEAR_DAY, "day"))
             i += 1
     rules += [
-        _ladder(17, "Versatile Bot", "Days on which you used all 12 items (4 weapons, 4 ordnances, 4 tac mods)", None, _days_all_equipables, (1, 2, 4, 8, 15)),
+        _ladder(17, "Versatile Bot", "Days on which you used any 12 different items (weapons, ordnances and tac mods, experimental ones too)", None, _days_all_equipables, (1, 2, 4, 8, 15)),
         _tiered(18, "My Other Chassis Is a Toaster", "Play games in which you die no more than 3 times", "deaths",
                 lambda g: g.play_time_s >= FULL_GAME_S and g.deaths <= 3, (1, 4, 7, 16, 24), estimated=True),
         _tiered(19, "Point Captured", "Play Capture Point games in any 24 hours", "capture_point", _capture, (5, 7, 9, 12, 17), "day"),
@@ -883,13 +895,13 @@ def _build_rules() -> list[Rule]:
         _ladder(68, "Pixel Party!", "Your total number of deaths, all your games added up", "deaths", lambda gs: sum(g.deaths for g in gs), (75, 225, 563, 1500, 3000), estimated=True),
         _tiered(69, "King of the Hill", "Play Capture Point games", "capture_point", _capture, (12, 29, 58, 115, 288)),
         _tiered(70, "Feed the Flamingo", "Play Payload games", "payload", _payload, (12, 29, 58, 115, 288)),
-        _ladder(71, "Robot Wrecking Squad", "Average share of each game spent close to a teammate (needs 50+ games)", "team_proximity",
+        _ladder(71, "Robot Wrecking Squad", "Average share of each game spent close to a teammate (needs 100+ games)", "team_proximity",
                 _AvgValue("near_mate", 100.0, SEASON_MIN_GAMES, game_min_s=GAME_MIN_IN_BOUNDS_S), (14, 15.5, 17, 19.5, 22.5), "all", "%"),
-        _ladder(72, "Roboticide", "Average share of each game spent close to an enemy (needs 50+ games)", "enemy_proximity",
+        _ladder(72, "Roboticide", "Average share of each game spent close to an enemy (needs 100+ games)", "enemy_proximity",
                 _AvgValue("near_enemy", 100.0, SEASON_MIN_GAMES, game_min_s=GAME_MIN_IN_BOUNDS_S), (6, 8, 10, 12.5, 15), "all", "%"),
-        _ladder(73, "Cyberkinetic Enhancements", "Your best average speed over 50 games in a row", "launch",
+        _ladder(73, "Cyberkinetic Enhancements", "Your best average speed over 100 games in a row", "launch",
                 _BestRunAvg("speed_sum", 1.0, SPEED_MIN_GAMES, GAME_MIN_IN_BOUNDS_S), (2.6, 2.8, 3.0, 3.2, 3.5), "all", " m/s"),  # 33 / 25 / 16 / 7.4 % of the 95 regulars
-        _ladder(74, "toB taB m'I", "Average share of each game spent upside down (needs 50+ games)", "inverted",
+        _ladder(74, "toB taB m'I", "Average share of each game spent upside down (needs 100+ games)", "inverted",
                 _AvgValue("upside", 100.0, SEASON_MIN_GAMES, game_min_s=GAME_MIN_IN_BOUNDS_S), (2, 4, 8, 20, 40), "all", "%"),
     ]
     for rid, name, m in ((75, "Brute Force Attack", "dyson"), (76, "Molten Mechanical Mayhem", "combustion"),
@@ -902,7 +914,7 @@ def _build_rules() -> list[Rule]:
     rules += [
         # The same ladder as No Gun Left Behind (123) does for the 4 standard weapons (user, 2026-11-26: "should be the same ladder as
         # the normal weapons"); was "use all 4 experimental weapons", once
-        _ladder(86, "Forbidden Arsenal (Weapon)", "Play games with your least-used experimental weapon (of Starburst, Protostar, Quark and Blazar)", "loadout",
+        _ladder(86, "Forbidden Arsenal (Weapon)", "Play games with all four experimental weapons (Starburst, Protostar, Quark, Blazar): your count is the one you have played least", "loadout",
                 lambda games: min(sum(1 for g in games if code in g.used("weapon")) for code, _ in UNRELEASED_WEAPONS),
                 (1, 5, 15, 50, 100), new=True, group="Experimental gear"),
         Rule(87, "Jack of All Trades", "Use all 4 weapons (Pulsar, Nova, Comet and Meteor) in one game", "game", "loadout",
@@ -973,7 +985,8 @@ def _build_rules() -> list[Rule]:
         _ladder(116, "Ready Every Dawn (Activity)", "Days in a row with at least one game played", None, _day_streak, (3, 5, 7, 14, 30), new=True, group="Activity"),
         _ladder(117, "Time Well Wasted on Kronos II (Activity)", "Total hours played", "colour_sweaty", lambda gs: sum(g.play_time_s for g in gs) / 3600, (1, 5, 20, 50, 80), "all", " h",
                 new=True, group="Activity"),
-        _tiered(118, "Overtime on Kronos II (Activity)", "Games of 10 minutes or longer", "colour_sweaty", lambda g: g.play_time_s >= 600, (5, 20, 50, 100, 250), new=True, group="Activity"),
+        _tiered(118, "Overtime on Kronos II (Activity)", "Play games where you stay in the match for 10 minutes or more", "colour_sweaty", lambda g: g.play_time_s >= 600,  # reworded (user, 2026-11-28): was "Games of 10 minutes or longer", which read as the match length
+                (5, 20, 50, 100, 250), new=True, group="Activity"),
         _tiered(119, "Hot Day Bot (Wins)", "Win games in any 24 hours", None, lambda g: g.enough_players and g.won, (3, 5, 8, 12, 18), "day", new=True, group="Wins"),
         # Wins in any 7 days (user, 2026-11-28: Hot Day Bot had no week). 10 / 20 / 30 / 38 = ~76 / 35 / 13 / 7.4 % of the 95 regulars
         # (best 123). No all-time total: it would be the Capture Point + Payload wins added up (Centurion Bot, retired).
@@ -982,9 +995,9 @@ def _build_rules() -> list[Rule]:
         _tiered(121, "Payload Hauler (Payload)", "Win Payload games", "payload", lambda g: g.enough_players and _payload(g) and g.won, (5, 10, 30, 80, 150), new=True, group="Payload"),
         _ladder(122, "Four-Map Tour (Map)", "Win games on all 4 maps (your weakest map sets the count)", None, _v4(_fewest_wins), (1, 3, 6, 12, 20),
                 raise_all_time=False, new=True, group="Wins"),  # eased 2026-11-04 (user): 1/3/6/16/26; was 1/4/10/39/117, platinum reached by ~10 players
-        _ladder(123, "No Gun Left Behind (Weapon)", "Play games with your least-used weapon (of Pulsar, Nova, Comet and Meteor)", "loadout", _least_used("weapon", WEAPONS),
+        _ladder(123, "No Gun Left Behind (Weapon)", "Play games with all four weapons (Pulsar, Nova, Comet, Meteor): your count is the weapon you have played least", "loadout", _least_used("weapon", WEAPONS),
                 (1, 5, 15, 50, 100), new=True, group="Gear mastery"),
-        _ladder(124, "Loadout Scholar Bot (Loadout)", "Play games with your least-used item (of all 12 weapons, ordnances and tac mods)", None, _least_used_equipable,
+        _ladder(124, "Loadout Scholar Bot (Loadout)", "Play games with all 12 items (4 weapons, 4 ordnances, 4 tac mods): your count is the item you have played least", None, _least_used_equipable,
                 (1, 5, 15, 50, 100), new=True, group="Gear mastery"),
         _ladder(125, "Nothing Leaves Kronos II (Payload)", "Total time spent blocking the payload", "payload", lambda gs: sum(g.block_s for g in gs) / 60, (2, 10, 30, 60, 120),
                 "all", " min", estimated=True, new=True, group="Payload"),
@@ -1303,6 +1316,23 @@ def _reached_gold(entry: dict, rule: Rule) -> bool:
     return entry["count"] >= rule.levels[1] if rule.levels else entry["progress"] >= 1
 
 
+# "Least-used" challenges (user, 2026-11-28: "confusing, help the user understand it"): the popup lists the player's games
+# with each item, least first, so they can see which one to play next. Rule id -> the (slot, code, name) items it takes the
+# minimum of.
+LEAST_USED_ITEMS = {
+    86: [("weapon", code, name) for code, name in UNRELEASED_WEAPONS],
+    123: [("weapon", code, name) for code, name, _ in WEAPONS],
+    124: [(slot, code, name) for slot, items in (("weapon", WEAPONS), ("ordnance", ORDNANCES), ("tacmod", TACMODS))
+          for code, name, _ in items],
+}
+
+
+def per_item(rule_id: int, games: list) -> list[dict]:
+    """Games with each item of a least-used challenge, least first (ties in the game's own order)."""
+    rows = [{"name": name, "games": sum(1 for g in games if code in g.used(slot))} for slot, code, name in LEAST_USED_ITEMS[rule_id]]
+    return sorted(rows, key=lambda r: r["games"])
+
+
 def requirements(rule: Rule, games: list) -> list[dict]:
     """What a challenge needs besides its target and how much of it the player has (user, 2026-11-28: the challenge popup
     says how many games / days / minutes are left). All-time averages: games that count; 7-day rules with a day or time
@@ -1355,6 +1385,8 @@ def evaluate(games: list, rules: list[Rule] = RULES) -> list[dict]:
         needs = requirements(rule, games)
         if needs:
             entry["needs"] = needs
+        if rule.id in LEAST_USED_ITEMS:
+            entry["per_item"] = per_item(rule.id, games)
         if rule.id == LOADOUT_RULE_ID:
             # "try these next" (the website links each to its leaderboard) and every loadout not used yet (user, 2026-11-27)
             entry |= loadout_hints(games)
