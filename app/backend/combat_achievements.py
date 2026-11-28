@@ -132,7 +132,7 @@ COMBAT_RULES: list[Rule] = [
     # 2026-11-26, user: harder (combat review, 66 regulars, 4-25 Nov): crown 3 %, was 17 %; rounder numbers (2026-11-27), was
     # (4, 6, 10, 16, 24). Now 5 / 9 / 14 / 18 min = 75 / 37 / 20 / 7.6 % of the 92 regulars (best 70 min; 20 min would be 6.5 %).
     _rule(206, "Hold the Hill", "Spend time on the objective yourself on the Capture Point maps (Dyson, Combustion) in any 24 hours, in minutes",
-          "capture_point", _on_the_hill, (6, 8, 10, 15, 20), "day", " min"),  # slightly harder (user, 2026-11-28): 65 / 30 / 16 / 6.5 %, was 5 / 9 / 14 / 18 = 75 / 37 / 20 / 7.6 %
+          "capture_point", _on_the_hill, (4, 6, 8, 12, 20), "day", " min"),  # a bit back (user, 2026-11-28): 83 / 48 / 24 / 6.5 % of the 92 regulars; 6 / 10 / 15 / 20 (65 / 30 / 16 / 6.5 %) was too hard after the Capture Point-only rule; before that 5 / 9 / 14 / 18
     # Games with more kills than deaths in any 24 hours (user, 2026-11-28: the day between Above the Rings and Ready At Dawn);
     # crown for about 7.5 % of the 92 regulars (10+ Combat games, 4-27 Nov), best 29. Ids 293-295: 280-287 are taken.
     _rule(295, "Kronos II Day Shift", "Games in any 24 hours with more kills than deaths", "deaths", lambda g: g.kills > g.deaths, (3, 4, 5, 7, 14), "day"),
@@ -187,7 +187,7 @@ COMBAT_RULES: list[Rule] = [
     Rule(264, "Immovable Object (Award card)", "Win the Immovable Object card in one game (the most hill defends, Capture Point maps)", "game", None, _total(lambda g: "immovable_object" in g.awards), new=True, group=GROUP, counted=False),
     # All time
     _rule(217, "The Anomaly Doesn't Move", "Total time on the objective yourself on the Capture Point maps (Dyson, Combustion), in minutes", None, _on_the_hill,
-          (15, 82, 150, 300, 500), "all", " min"),  # Capture Point maps only since 2026-11-28 (user; 72 % of all objective time was there), targets kept: 15 min 69 -> 51 %, 150 min 2.2 -> 1.1 % of 92 regulars;  # rounder numbers (user, 2026-11-27), was (14, 60, 140, 290, 520)
+          (11, 60, 110, 215, 360), "all", " min"),  # Capture Point maps only since 2026-11-28 (user; 72 % of all objective time was there): targets x 0.72 to match (user), 71 / 2.2 / 1.1 / 0 % of the 92 regulars as before; were 15 / 150 / 300 / 500;  # rounder numbers (user, 2026-11-27), was (14, 60, 140, 290, 520)
     _rule(219, "Life Support Systems", "Total heal bubbles used", "repair_matrix", lambda g: g.heal_bubbles, (50, 225, 400, 800, 1300), "all"),  # rounder numbers (user, 2026-11-27), was (50, 180, 390, 780, 1300)
     _rule(220, "Old Arena Habits", "Total enemies stunned", "stun_field", lambda g: g.stuns_given, (5, 18, 40, 75, 140), "all"),
     _rule(221, "Ready At Dawn", "Games with more kills than deaths", "deaths", lambda g: g.kills > g.deaths, (10, 42, 75, 150, 250), "all"),  # rounder numbers (user, 2026-11-27), was (9, 40, 85, 150, 250)

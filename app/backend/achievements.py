@@ -383,7 +383,7 @@ TUNED_LEVELS: dict[int, tuple[float, ...]] = {
     # 1 Aug, 2v2 rule, local copy to 27 Nov); the crown was ~5 % until the user said "5 % crown is too low, make it 7.5 %"
     288: (4, 5, 7, 10, 13.5),  # crown 8.4 % (14 = 6.3 %); Payload Rush Hour: push, any 24 hours (best 19.7 min)
     289: (6, 9, 12, 20, 30),  # crown 7.4 %; Payload Long Haul: push, any 7 days (best 41.4 min)
-    290: (0.5, 0.75, 1, 2, 3),  # crown 9.5 % (3.5 = 5.3 %); Payload Gridlock: block, any 24 hours (best 5.0 min)
+    290: (0.75, 0.9, 1, 2, 3.25),  # a bit harder (user, 2026-11-28): 61 / 44 / 16 / 6.3 %, was 0.5 / 1 / 2 / 3 = 79 / 44 / 16 / 9.5 %; Payload Gridlock: block, any 24 hours (best 5.0 min)
     291: (1, 1.5, 2, 3.5, 6),  # crown 7.4 %; Payload Blockade: block, any 7 days (best 11.2 min)
     292: (10, 15, 20, 30, 38),  # crown 7.4 %; Conquest of Kronos II: wins, any 7 days (best 123)
     98: (5, 15, 25, 40, 50),  # rounder numbers (user, 2026-11-27), was (5, 14, 23, 38, 53); halfway to November's pace (user, 2026-11-26);  # Payload Freight Train (Payload) (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 3.3/8.6/15/25/46)
@@ -1170,9 +1170,10 @@ RULES = [replace(r, name=plain_name(r.name)) for r in (_tuned(r) for r in _build
 # Any 7 days is time-limited, all time is game-based (user, 2026-11-28): every 7-day challenge needs games on WEEK_MIN_DAYS
 # different days of the 7 for silver and up, like the gear ones; bronze can be won in one session. The averages already need
 # the days for every medal. Left out: the streaks, where a run of games in a row is the point (Gearhead, Pew Pew Proof,
-# Two-Handed Bot). Measured on the 95 replay / 92 Combat regulars it moves silver and up by 2 points at most: the players who
-# reach them already play on 3+ days.
-WEEK_SPREAD_EXEMPT = frozenset({42, 43, 201})
+# Two-Handed Bot), and the Combat award cards in 7 days (Jack of the Week, Guard Duty on Kronos II, Medic on Call; user,
+# 2026-11-28): cards are rare, and 3 days took Guard Duty's silver from 27 to 16 % of regulars and Medic on Call's from 20 to
+# 12 %. On the others it moves silver by 0-6 points and nothing above: the players who reach gold already play on 3+ days.
+WEEK_SPREAD_EXEMPT = frozenset({42, 43, 201, 234, 236, 238})
 
 
 def _days_adding(count, games) -> set:

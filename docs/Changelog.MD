@@ -23,9 +23,10 @@ Working record of what changed in each release, newest first.
 - **Any 7 Days challenges need games on 3 different days for silver and up** (user, 28 Nov: "One week should be time
   limited"), any 3 days of the 7, not in a row, and days the challenge was actually played (Dyson days for a Dyson one).
   Bronze can still be won in one session. It was already the rule for the gear ones; now every 7-day challenge has it:
-  maps, modes, pubs, Payload push / block time, wins and all the Combat ones. Left out: the streaks (Gearhead, Pew Pew
-  Proof, Two-Handed Bot). Slightly harder in principle; on the regulars silver and up move by 2 points at most, because
-  players who reach them already play on 3+ days (Medic on Call crown 4.3 → 3.3 %).
+  maps, modes, pubs, Payload push / block time, wins and the Combat ones. Left out: the streaks (Gearhead, Pew Pew
+  Proof, Two-Handed Bot) and the Combat award cards in 7 days (Jack of the Week, Guard Duty, Medic on Call: cards are
+  rare, and 3 days cut Guard Duty's silver from 27 to 16 % of regulars). Slightly harder: on the regulars silver drops by
+  0-6 points (Frame-Drop Hell 65 → 59 %, Lobby Billboard 31 → 27 %), gold and crown do not move.
 - **All Time averages only count games with 2+ minutes in bounds** (user, 28 Nov): Cyberkinetic Enhancements, Robot
   Wrecking Squad, Roboticide and toB taB m'I. Shorter games are skipped, so a short appearance can't skew an average.
 - **The challenge popup says what is left** (user, 28 Nov): "38 of 50 games with 2+ min in bounds · 12 to go" on the All
@@ -33,8 +34,13 @@ Working record of what changed in each release, newest first.
   bounds · 4 to go".
 - **Flawless Chassis slightly easier** (user, 28 Nov): 4 / 7 / 9 / 11 kills without dying, was 5 / 8 / 10 / 12; 32 / 11 /
   7.6 / 6.5 % of the 92 Combat regulars (was 25 / 10 / 6.5 / 3.3 %).
-- **Hold the Hill slightly harder** (user, 28 Nov): 6 / 10 / 15 / 20 min, was 5 / 9 / 14 / 18; 65 / 30 / 16 / 6.5 % of the
-  92 Combat regulars (was 75 / 37 / 20 / 7.6 %).
+- **Payload Gridlock a bit harder** (user, 28 Nov): 0.75 / 1 / 2 / 3.25 min, was 0.5 / 1 / 2 / 3; 61 / 44 / 16 / 6.3 % of
+  the 95 regulars (was 79 / 44 / 16 / 9.5 %).
+- **Hold the Hill: crown 20 min**, 4 / 8 / 12 / 20 (user, 28 Nov; was 5 / 9 / 14 / 18 in 2026.11.28.16): 83 / 48 / 24 /
+  6.5 % of the 92 Combat regulars. As Camping Out on Dyson (every map, 5 / 10 / 15 / 25) it was 88 / 49 / 34 / 7.6 %.
+- **The Anomaly Doesn't Move: 11 / 110 / 215 / 360 min** (user, 28 Nov; was 15 / 150 / 300 / 500). It counts the Capture
+  Point maps only since 2026.11.28.16, about 72 % of all objective time, so the targets are 0.72 of the old ones: 71 / 2.2 /
+  1.1 / 0 % of regulars have each medal, as before the change (51 % had bronze with the old targets).
 - **Tech Support w/RAD_Natalie crown 30.5 %** (was 30): 12 % of the regulars in the replay sample, near the 15 % it had at
   2.65 m (30 gave 19 %).
 - Update the container; nothing to re-read (stats version 23 from 2026.11.28.16 is still reading).
