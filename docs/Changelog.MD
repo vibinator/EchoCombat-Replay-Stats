@@ -18,6 +18,12 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.28.7 — 08:55
+
+- **Challenges: your best on the card.** The card a challenge opens on a player's page now shows their best so far
+  ("Your best game: 185 s", "Your best 24 hours", "Your best 7 days", or "Your total" for all-time ones), also once the
+  challenge is completed. Won-or-not challenges have no number, so they show none.
+
 ## 2026.11.28.6 — 00:52
 
 Most of this went out early in the second 2026.11.28.5 commit (00:50), which picked up the work in progress; these notes

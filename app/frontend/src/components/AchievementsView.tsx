@@ -455,6 +455,12 @@ function UntriedLoadouts({ list }: { list: NonNullable<Achievement["untried"]> }
   );
 }
 
+/** The player's best on the card (user, 2026-11-28: "put their best achieved"): `count` is the best game / 24 hours /
+ *  7 days / 30 days, or the challenge-period total for all-time ones. */
+const BEST_LABELS: Record<string, string> = {
+  game: "Your best game", day: "Your best 24 hours", week: "Your best 7 days", month: "Your best 30 days", all: "Your total",
+};
+
 /** The card a row opens: what to do, every medal step (ticked when reached), where the player stands, and the big picture. */
 function ChallengeCard({ a, onClose }: { a: AnyBadge; onClose?: () => void }) {
   const catalogue = a.progress === undefined;
@@ -477,6 +483,11 @@ function ChallengeCard({ a, onClose }: { a: AnyBadge; onClose?: () => void }) {
             </li>
           ))}
         </ol>
+        {!catalogue && !a.binary && a.levels && a.count != null && (
+          <span className="ch-best">
+            {BEST_LABELS[a.period] ?? "Your best"}: <b>{a.count.toLocaleString(undefined, { maximumFractionDigits: 2 })}{a.unit ?? ""}</b>
+          </span>
+        )}
         {!catalogue && (
           <span className="ch-status">
             {a.progress! >= 1

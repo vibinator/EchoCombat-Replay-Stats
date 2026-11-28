@@ -5638,6 +5638,8 @@ tr.cloud-drop-on td {
 .ch-step-bar { grid-column: 2 / -1; height: 4px; border-radius: 999px; background: var(--line); overflow: hidden; }
 .ch-step-bar > span { display: block; height: 100%; background: var(--tier); }
 .ch-status { font-size: 0.85rem; font-weight: 600; }
+.ch-best { font-size: 0.85rem; color: var(--muted); }
+.ch-best b { color: var(--tier, var(--text)); font-variant-numeric: tabular-nums; }
 .ch-notes { font-size: 0.75rem; }
 .ch-card-art { position: relative; flex: none; width: 120px; display: grid; place-items: center; align-self: center; height: 120px; }
 .ch-frame { position: absolute; right: -10px; bottom: -10px; width: 58px; height: 58px; object-fit: contain; filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.5)); }
