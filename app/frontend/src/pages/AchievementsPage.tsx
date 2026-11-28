@@ -47,6 +47,8 @@ function MyChallengesButton({ viewing }: { viewing: string | null }) {
   );
 }
 
+/** Find a player's challenges: top right of the page, beside the title, the matches in a list that drops down under it
+ *  (user, 2026-11-28: it sat in a weird spot under the period banner). */
 function PlayerPicker() {
   const [q, setQ] = useState("");
   const [search, setSearch] = useState("");
@@ -58,12 +60,15 @@ function PlayerPicker() {
   }
 
   return (
-    <>
+    <div className="ch-find">
       <form className="search" onSubmit={submit} role="search">
-        <input type="search" maxLength={64} placeholder="Find a player" aria-label="Find a player" value={q} onChange={(e) => setQ(e.target.value)} />
+        <input type="search" maxLength={64} placeholder="Find a player" aria-label="Find a player" value={q}
+          onChange={(e) => { setQ(e.target.value); if (!e.target.value) setSearch(""); }} />
         <button type="submit">Search</button>
       </form>
-      {search && <Status loading={found.loading} error={found.error} />}
+      {search && (found.loading || found.error || found.data) && (
+      <div className="ch-find-results">
+      <Status loading={found.loading} error={found.error} />
       {found.data &&
         (found.data.items.length === 0 ? (
           <p className="muted">No players found for "{search}".</p>
@@ -77,7 +82,10 @@ function PlayerPicker() {
             ))}
           </ul>
         ))}
-    </>
+      <button type="button" className="ch-find-close" aria-label="Close" onClick={() => { setSearch(""); setQ(""); }}>×</button>
+      </div>
+      )}
+    </div>
   );
 }
 
@@ -187,7 +195,7 @@ export function AchievementsPage() {
   if (!visible)
     return (
       <section>
-        <h1>Challenges</h1>
+        <h1>Flamingo Challenges &amp; Mega Prizes</h1>
         <ComingSoon start={start} total={total} peek={peek} />
       </section>
     );
@@ -215,11 +223,12 @@ function LaunchedAchievementsPage() {
   return (
     <section>
       <div className="section-head">
-        <h1>Challenges{player && name.data && <span className="muted"> · {name.data.name}</span>}</h1>
+        <h1>Flamingo Challenges &amp; Mega Prizes{player && name.data && <span className="muted"> · {name.data.name}</span>}</h1>
         {/* one link back (user, 2026-11-27): "All challenges" is already in the site menu */}
         {player && (
           <Link to={d ? playerPath(d.user_id, d.name) : `/players/${encodeURIComponent(player)}`}>← Player profile</Link>
         )}
+        {!player && <PlayerPicker />}
       </div>
       <MyChallengesButton viewing={d?.user_id ?? null} />
       {player ? (
@@ -232,7 +241,6 @@ function LaunchedAchievementsPage() {
           <MegaPrizesSection />
           <div className="ach-intro">
             <ChallengeBanner />
-            <PlayerPicker />
           </div>
           <div className="ach-duo">
             <TopPlayers />

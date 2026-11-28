@@ -18,6 +18,27 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.28.22 — 17:27
+
+- **Challenges page: no more filter button** (user, 28 Nov: "remove the filter icon, its somewhat pointless"). Category, status and sort are now tap chips in plain view under the tabs, so nothing is hidden and nothing needs typing in VR:
+  - **Category** (user: "basically a way to filter it on category"): All plus the topic boxes of the open tab (Weapons, Ordnances,
+    Tac mods, Maps, Movement ...), each with its count. A category the next tab does not have falls back to All.
+  - **Show:** All / In progress / Not started / Completed (only when your progress is shown, as before).
+  - **Sort:** Original / Next tier / Fully done / Rarest / A–Z (hover a chip for the long name).
+  - A small search box sits at the end of the row for keyboards; **Clear** appears while any of them is in use.
+- **Mega Prize cards, smaller** (user, 28 Nov: "too many words, need to reduce the pane size"):
+  - What counts is one short line: Combat "Prize period only · 4+ min · 2v2 or bigger" (no replay wording, user: "its just a counter"), Arena
+    "Prize period only · public · 4+ min · 3v3 or bigger". Also on the player profile.
+  - "No winners yet · all who reach 1000 win"; "Top 10 · ▲▼ last 24 h" (the full meaning on hover).
+  - Gone: the "From <date> / Only matches played from then on count" box (the banner already shows the start; user:
+    "this is duplicated") and the "Recording live data" line in each card (the banner says recording).
+  - Prize pictures shorter: 11rem tall (was 14), 10rem beside the text on wide screens (was 12).
+  - No "draft" tag beside the Mega Prizes heading (user: "you can remove the word draft"); it was left over from 4 Nov.
+- **Find a player moved** (user: "its in a weird location"): top right of the Challenges page, beside the title, instead of
+  under the period banner. The players found drop down under it (× closes); full width on a phone.
+- **Page heading "Flamingo Challenges & Mega Prizes"** (user, 28 Nov; was "Challenges"). The menu link, the address
+  (/challenges) and the browser tab title stay "Challenges".
+
 ## 2026.11.28.21 — 17:19
 
 - **Two more award card challenges, Cumulative** (user, 28 Nov: "only add the easier to achieve ones"). Tank and Defender

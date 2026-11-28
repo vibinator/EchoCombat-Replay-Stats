@@ -544,7 +544,7 @@ export function GroupedBadges<T extends AnyBadge>({ items: all }: { items: T[] }
   const [only, setOnly] = useState<Filter | "">("");
   // the theme chips and the "New only" box are gone (user, 2026-11-07): the search box and the status / sort selects remain
   const [sort, setSort] = useState<SortBy>("default");
-  const [toolsOpen, setToolsOpen] = useState(false);
+  const [topic, setTopic] = useState(""); // category chip (user, 2026-11-28: "a way to filter it on category"), "" = all
   const [tabInfo, setTabInfo] = useState<string | null>(null); // the tab whose ⓘ text is open
   const [params, setParams] = useSearchParams();
   const tracked = items.length > 0 && items.every((a) => status(a) !== null);
@@ -559,17 +559,26 @@ export function GroupedBadges<T extends AnyBadge>({ items: all }: { items: T[] }
   const active = shownSections.find((x) => x.id === wanted) ?? shownSections[0];
   // the theme chips (All / New / Original / Gear / Modes & wins / Other new / Combat) under the tabs were removed
   // (user, 2026-11-07: no longer needed, added confusion); "New only" and the search filter instead
-  const pageItems = active?.items ?? [];
+  // categories = the topic boxes of the open tab; a category the tab does not have counts as All, so a tab is never empty
+  const tabItems = active?.items ?? [];
+  const topics = TOPICS.map((t) => [t, tabItems.filter((a) => topicOf(a) === t).length] as [string, number]).filter(([, n]) => n > 0);
+  const shownTopic = topics.some(([t]) => t === topic) ? topic : "";
+  const pageItems = shownTopic ? tabItems.filter((a) => topicOf(a) === shownTopic) : tabItems;
   function pick(id: string) {
     const next = new URLSearchParams(params);
     if (id === shownSections[0]?.id) next.delete("section");
     else next.set("section", id);
     setParams(next, { replace: true, preventScrollReset: true });
   }
-  // search, status and sort sit behind a filter button (user, 2026-11-26: nobody should have to type in VR); they stay open
-  // while one of them is in use, so a filter is never hidden
-  const filtering = term !== "" || only !== "" || sort !== "default";
-  const showTools = toolsOpen || filtering;
+  // status and sort are tap chips in plain view (user, 2026-11-28: the filter button that hid them was pointless; 2026-11-26:
+  // nobody should have to type in VR), the search box is a small extra at the end of the row for keyboards
+  const filtering = term !== "" || only !== "" || sort !== "default" || topic !== "";
+  const sorts: [SortBy, string, string][] = [
+    ["default", "Original", "Original order"],
+    ...(tracked ? [["closest", "Next tier", "Closest to next tier"], ["complete", "Fully done", "Closest to fully completed (all tiers)"]] as [SortBy, string, string][] : []),
+    ["rarest", "Rarest", "Rarest first"],
+    ["name", "A–Z", "A to Z"],
+  ];
   return (
     <>
       <div className="ch-tabs-row">
@@ -601,10 +610,6 @@ export function GroupedBadges<T extends AnyBadge>({ items: all }: { items: T[] }
             })}
           </div>
         )}
-        <button type="button" className={`ch-filter-btn${filtering ? " on" : ""}`} aria-expanded={showTools} aria-label="Search, filter and sort"
-          title="Search, filter and sort" onClick={() => setToolsOpen((v) => !v)}>
-          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M3 5h18l-7 8v5l-4 2v-7z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" /></svg>
-        </button>
       </div>
       {tabInfo && TAB_INFO[tabInfo] && (
         <p className="ch-tab-note" role="note">
@@ -612,27 +617,33 @@ export function GroupedBadges<T extends AnyBadge>({ items: all }: { items: T[] }
           <button type="button" className="ch-tab-note-close" aria-label="Close" onClick={() => setTabInfo(null)}>×</button>
         </p>
       )}
-      {showTools && (
-        <div className="ach-toolbar">
-          <input type="search" placeholder="Filter challenges" aria-label="Filter challenges" value={q} onChange={(e) => setQ(e.target.value)} />
-          {tracked && (
-            <select aria-label="Status" value={only} onChange={(e) => setOnly(e.target.value as Filter | "")}>
-              <option value="">All statuses</option>
-              {FILTERS.map(([f, text]) => (
-                <option key={f} value={f}>{text}</option>
-              ))}
-            </select>
-          )}
-          <select aria-label="Sort" value={sort} onChange={(e) => setSort(e.target.value as SortBy)}>
-            <option value="default">Original order</option>
-            {tracked && <option value="closest">Closest to next tier</option>}
-            {tracked && <option value="complete">Closest to fully completed (all tiers)</option>}
-            <option value="rarest">Rarest first</option>
-            <option value="name">A to Z</option>
-          </select>
-          {filtering && <button type="button" onClick={() => { setQ(""); setOnly(""); setSort("default"); setToolsOpen(false); }}>Clear</button>}
+      <div className="ach-toolbar ch-tools">
+        {topics.length > 1 && (
+          <div className="ch-pills ch-pills-wide" role="group" aria-label="Category">
+            <span className="ch-pills-label">Category</span>
+            {([["", tabItems.length], ...topics] as [string, number][]).map(([t, n]) => (
+              <button key={t || "all"} type="button" className={`ch-pill${shownTopic === t ? " on" : ""}`} aria-pressed={shownTopic === t}
+                onClick={() => setTopic(t)}>{t || "All"} <span className="ch-pill-n">{n}</span></button>
+            ))}
+          </div>
+        )}
+        {tracked && (
+          <div className="ch-pills" role="group" aria-label="Show">
+            <span className="ch-pills-label">Show</span>
+            {([["", "All"], ...FILTERS] as [Filter | "", string][]).map(([f, text]) => (
+              <button key={f || "all"} type="button" className={`ch-pill${only === f ? " on" : ""}`} aria-pressed={only === f} onClick={() => setOnly(f)}>{text}</button>
+            ))}
+          </div>
+        )}
+        <div className="ch-pills" role="group" aria-label="Sort">
+          <span className="ch-pills-label">Sort</span>
+          {sorts.map(([v, text, long]) => (
+            <button key={v} type="button" className={`ch-pill${sort === v ? " on" : ""}`} aria-pressed={sort === v} title={long} onClick={() => setSort(v)}>{text}</button>
+          ))}
         </div>
-      )}
+        <input type="search" className="ch-search" placeholder="Search" aria-label="Search challenges" value={q} onChange={(e) => setQ(e.target.value)} />
+        {filtering && <button type="button" className="ch-pill" onClick={() => { setQ(""); setOnly(""); setSort("default"); setTopic(""); }}>Clear</button>}
+      </div>
       {shownSections.length === 0 && <p className="muted">No challenge matches.</p>}
       {active && (
         <>
@@ -664,8 +675,9 @@ export function MegaPrizesProfile({ userId }: { userId: string }) {
 const MEGA_NOTES = {
   // Combat: 2v2 and up (user, 2026-11-27: was 3v3); Arena keeps 3v3. The time period line (user, 2026-11-27: "include
   // that there is a time period"), without the end date (removed the same day)
-  combat: ["Time-limited: only matches played inside the Mega Prize period count.", "Only counts games of 4+ minutes with at least 2v2.Matches from the replay files before the live count started are included, linked by Discord ID."],
-  arena: ["Only counts public matches of 4+ minutes with at least 3v3 (or 6+ players)."],
+  // cut to one short line each (user, 2026-11-28: "too many words, need to reduce the pane size")
+  combat: ["Prize period only · 4+ min · 2v2 or bigger"],
+  arena: ["Prize period only · public · 4+ min · 3v3 or bigger"],
 };
 
 function MegaPrizesProfileBody({ userId }: { userId: string }) {
@@ -729,7 +741,7 @@ function MegaPrizesProfileBody({ userId }: { userId: string }) {
 
 /** Every player who reaches the target wins the prize: there can be many winners (user, 2026-11-05). */
 const winnersText = (n: number, target: number) =>
-  `${n === 0 ? "No winners yet" : `${n} ${n === 1 ? "winner" : "winners"} so far`}: everyone who reaches ${target} wins the prize.`;
+  `${n === 0 ? "No winners yet" : `${n} ${n === 1 ? "winner" : "winners"}`} · all who reach ${target} win`;
 
 /** Change over the last day: an arrow for the rank (up / down) and the matches gained, shown next to a player's name. */
 function Move({ r }: { r: { rank_change?: number | null; gained?: number } }) {
@@ -793,9 +805,7 @@ function MegaPrizes() {
   return (
     <div className={`section mega${open ? "" : " closed"}`} id="mega-prizes">
       <div className="mega-banner">
-        <h2>
-          Mega Prizes <span className="tag">draft</span>
-        </h2>
+        <h2>Mega Prizes</h2>{/* no "draft" tag (user, 2026-11-28) */}
         <span className="muted mega-summary">
           {/* the start only, no end date (user, 2026-11-27) */}
           {arena.period.start && <>From {dateTime(arena.period.start)} · </>}
@@ -809,25 +819,18 @@ function MegaPrizes() {
         </button>
       </div>
       {open && <div id="mega-prizes-body">
-      {/* the start only, no end date (user, 2026-11-27) */}
-      {arena.period.start && (
-        <div className={`rec-window${arena.period.active ? "" : " ended"}`} role="note">
-          <span className="rec-dates">From {dateTime(arena.period.start)}</span>
-          <span className="muted">Only matches played from then on count for Mega Prizes.</span>
-        </div>
-      )}
+      {/* no "From <date>" box here: the banner above already shows the start (user, 2026-11-28: "this is duplicated") */}
       <div className="mega-cards">
         <article className="mega-card">
           <PrizePhotos prefix="d13" alt="Delta-13 from Lone Echo 2" />
           <div className="mega-body">
             <strong>Play {combatTarget} Echo Combat Matches</strong>
             <span className="tag mega-prize">Mega Prize: {combat?.prize ?? "Delta-13 from Lone Echo 2"}</span>
-            {arena.period.active && <span className="live-text" title="Matches are being recorded right now">Recording live data</span>}
             {MEGA_NOTES.combat.map((n) => <span key={n} className="muted">{n}</span>)}
             <span className="muted">{winnersText(arena.winners_combat, combatTarget)}</span>
             {arena.top_combat.length > 0 && (
               <>
-                <span className="muted">Top {arena.top_combat.length} (▲▼ = places gained or lost in the last 24 h)</span>
+                <span className="muted" title="▲▼ = places gained or lost in the last 24 h">Top {arena.top_combat.length} · ▲▼ last 24 h</span>
                 <ul className="mega-results scroll">{arena.top_combat.map((r) => <PlayerBar key={r.user_id} r={r} target={combatTarget} />)}</ul>
               </>
             )}
@@ -838,12 +841,11 @@ function MegaPrizes() {
           <div className="mega-body">
             <strong>Play {arena.target} Public Arena Matches</strong>
             <span className="tag mega-prize">Mega Prize: Jack Series 11 from Lone Echo 1/2</span>
-            {arena.period.active && <span className="live-text" title="Matches are being recorded right now">Recording live data</span>}
             {MEGA_NOTES.arena.map((n) => <span key={n} className="muted">{n}</span>)}
             <span className="muted">{winnersText(arena.winners_arena, arena.target)}</span>
             {arena.top_arena.length > 0 && (
               <>
-                <span className="muted">Top {arena.top_arena.length} (▲▼ = places gained or lost in the last 24 h)</span>
+                <span className="muted" title="▲▼ = places gained or lost in the last 24 h">Top {arena.top_arena.length} · ▲▼ last 24 h</span>
                 <ul className="mega-results scroll">{arena.top_arena.map((p) => <PlayerBar key={p.user_id} r={p} target={arena.target} />)}</ul>
               </>
             )}
