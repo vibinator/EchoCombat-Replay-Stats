@@ -804,7 +804,7 @@ export interface AchievementRule {
   period: "game" | "day" | "week" | "month" | "all";
   icon: string | null;
   estimated: boolean;
-  counted: boolean; // false: "Edit your Bio": earns its card, out of overall %, totals and Medal Collector (Combat counts since 2026-11-27)
+  counted: boolean; // false: earns its card, out of overall %, totals and Medal Collector; every challenge counts since 2026-11-28 (Edit your Bio was the last one out)
   new: boolean; // added in this app (80+), not on the original ECRanked site
   group: string | null; // theme of a new achievement
   unit?: string; // ladder targets are in this unit ("%", " m/s", " min"); empty = a count

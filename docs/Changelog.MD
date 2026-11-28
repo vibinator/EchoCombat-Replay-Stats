@@ -18,6 +18,13 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.28.8 — 11:13
+
+- **Challenges: Edit your Bio counts.** It was the last challenge left out of the totals: a player with a bio saw it
+  "Completed!" but "0 of 184 challenges fully complete" at the top. It now counts like every other challenge: in
+  "challenges fully complete" (185 in all), the overall %, the ranking and Medal Collector. Every challenge now counts.
+- **Fixed: the Bio card now follows the bio the page shows,** also for merged players (it looked only at the exact id).
+
 ## 2026.11.28.7 — 08:55
 
 - **Challenges: your best on the card.** The card a challenge opens on a player's page now shows their best so far

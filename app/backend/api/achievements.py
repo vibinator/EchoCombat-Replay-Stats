@@ -607,7 +607,7 @@ def _counted(request: Request) -> dict:
     if memo is not None and memo[0] is data and time.monotonic() - memo[1] < LEAGUE_REFRESH_S:
         return memo[2]
     with sessions() as db:
-        extra = profile_achievements.league_progress(db)
+        extra = profile_achievements.profile_progress(db)  # Edit your Bio and the George League cards
         combat = profile_achievements.combat_progress(db, combat_achievements.everyone(sessions, counted_window(db)))
     out = profile_achievements.with_league(data, extra, combat)
     _league_memo[id(sessions)] = (data, time.monotonic(), out)

@@ -1,9 +1,9 @@
 """Challenges about the player's page rather than their games (user, 2026-11-26: "Edit your Bio", a special; removed and
-brought back the same day). They are added to a player's answer apart from the replay ones; "Edit your Bio" stays out of
-every total, the ranking and Medal Collector (counted=False): the replay evaluation is cached per set of games, and a bio
-changes without any game. The George League ones count as full challenges (user, 2026-11-27), and so do the Combat ones
-(user, 2026-11-27: "Make Combat count"): they are put on top of the cached answers when looked at (counted_answer,
-with_league)."""
+brought back the same day). They are added to a player's answer apart from the replay ones. Every challenge counts as a
+full challenge: the George League ones (user, 2026-11-27), the Combat ones (user, 2026-11-27: "Make Combat count") and
+"Edit your Bio" (user, 2026-11-28: "make the bio count, and other challenges too"; it was out of every total until then).
+The replay evaluation is cached per set of games and these change without any game, so they are put on top of the
+cached answers when looked at (counted_answer, with_league)."""
 
 from sqlalchemy import func, select
 
@@ -14,7 +14,7 @@ from .models import DiscordProfile, LeagueMember, NakamaAccount, Player, PlayerP
 
 GROUP = "Profile"
 BIO_RULE = Rule(277, "Edit your Bio", "Write a bio on your player page (log in with Discord, then edit it on your profile)", "game", None,
-                lambda games: 0.0, new=True, group=GROUP, counted=False, binary=True)
+                lambda games: 0.0, new=True, group=GROUP, counted=True, binary=True)  # counts since 2026-11-28 (user)
 # Echo Combat George League (user, 2026-11-27): Specials from the league's own site, ecgleague.com, Rookie League only
 # (Varsity ignored, user), matched by Discord id (league.py). Ids 280-284 (272 / 276 / 278 are retired ids, never reused).
 LEAGUE_GROUP = "George League"
@@ -82,17 +82,27 @@ def _done(entry: dict, at: str | None) -> dict:
     return entry | {"progress": 1.0 if at else 0.0, "tier": "crown" if at else None, "unlocked_at": at[:10] if at else None}
 
 
+def _bio_row(db, main: str, linked: tuple[str, str] | None) -> PlayerProfile | DiscordProfile | None:
+    """The row whose bio the player page shows (api/profiles.profile_answer): the bot / admin link, else the profile of
+    the Discord account the page shows (a player whose id IS the Discord id, or the one seen on the match list)."""
+    profile = discord_links.profile_of(db, main)
+    if profile is not None or not linked:
+        return profile
+    return db.scalar(select(PlayerProfile).where(PlayerProfile.discord_id == linked[0])) or db.get(DiscordProfile, linked[0])
+
+
+def _bio_at(row) -> str | None:
+    """When the bio was last edited, if there is one."""
+    return row.updated_at if row is not None and row.bio and row.bio.strip() else None
+
+
 def player_items(db, user_id: str) -> list[dict]:
-    """This player's cards: the bio one is complete once their page has a bio (the date it was last edited); the league ones
-    once their Discord account was seen doing it in the Rookie League (the date it was first seen, league.py)."""
-    profile = db.get(PlayerProfile, user_id)
-    linked = discord_links.discord_of(db, discord_links.main_id(db, user_id))
-    if not (profile and profile.bio and profile.bio.strip()) and linked:
-        # no bot link: the bio written on My profile is kept by Discord id (2026-11-27: it never counted before)
-        profile = db.get(DiscordProfile, linked[0]) or profile
-    has_bio = bool(profile and profile.bio and profile.bio.strip())
+    """This player's cards: the bio one is complete once their page shows a bio (the date it was last edited); the league
+    ones once their Discord account was seen doing it in the Rookie League (the date it was first seen, league.py)."""
+    main = discord_links.main_id(db, user_id)
+    linked = discord_links.discord_of(db, main)
     member = db.get(LeagueMember, linked[0]) if linked else None
-    return [_done(_entry(BIO_RULE), profile.updated_at if has_bio else None)] + [
+    return [_done(_entry(BIO_RULE), _bio_at(_bio_row(db, main, linked)))] + [
         _done(_entry(rule), getattr(member, column) if member else None) for rule, column in LEAGUE_RULES.items()]
 
 
@@ -103,7 +113,8 @@ def player_items(db, user_id: str) -> list[dict]:
 
 # The Combat challenges count the same way (user, 2026-11-27: "Make Combat count"): from the recorder's reports, cached
 # apart from the replay answer and only added to it here, never mixed into the replay evaluation.
-EXTRA_RULES = [*LEAGUE_RULES, *COMBAT_RULES]  # put on top of the replay answer, in this order
+# Edit your Bio counts the same way (user, 2026-11-28), first, with the league cards (profile_progress).
+EXTRA_RULES = [*PROFILE_RULES, *COMBAT_RULES]  # put on top of the replay answer, in this order
 COUNTED_RULES = [*RULES, *EXTRA_RULES]  # the rules behind a ranking row's progress list (with_league), in this order
 _EXTRA_BY_ID = {r.id: r for r in EXTRA_RULES}
 _COLLECTOR = next(i for i, r in enumerate(RULES) if r.meta)  # Medal Collector
@@ -146,10 +157,17 @@ def counted_answer(result: dict, items: list[dict]) -> tuple[dict, list[dict]]:
                      "overall": round(summed / total, 4) if total else 0.0}, items
 
 
-def league_progress(db) -> dict[int, list[float]]:
-    """player row id -> progress of each league card (LEAGUE_RULES order), for the members who have a player page here:
-    the same Discord account their page shows (player_items). Merged ids all get it (the ranking is per row)."""
-    out: dict[int, list[float]] = {}
+def profile_progress(db) -> dict[int, list[float]]:
+    """player row id -> progress of Edit your Bio and each league card (PROFILE_RULES order), for the players whose page
+    shows a bio or whose Discord account is in the league: the same rows and account their page shows (player_items).
+    Merged ids all get it (the ranking is per row)."""
+    by_main: dict[str, list[float]] = {}
+    # the bio: every player who may show one (a saved bio is few rows), checked as their page shows it
+    candidates = {discord_links.main_id(db, u) for u, bio in db.execute(select(PlayerProfile.user_id, PlayerProfile.bio)) if bio and bio.strip()}
+    candidates |= {discord_links.player_of(db, d) for d, bio in db.execute(select(DiscordProfile.discord_id, DiscordProfile.bio)) if bio and bio.strip()}
+    for main in candidates - {None}:
+        if _bio_at(_bio_row(db, main, discord_links.discord_of(db, main))):
+            by_main[main] = [1.0] + [0.0] * len(LEAGUE_RULES)
     for member in db.scalars(select(LeagueMember)):
         values = [1.0 if getattr(member, column) else 0.0 for column in LEAGUE_RULES.values()]
         if not any(values):
@@ -160,6 +178,9 @@ def league_progress(db) -> dict[int, list[float]]:
         linked = discord_links.discord_of(db, main)
         if not linked or linked[0] != member.discord_id:
             continue
+        by_main[main] = [by_main.get(main, [0.0])[0], *values]
+    out: dict[int, list[float]] = {}
+    for main, values in by_main.items():
         for pid in db.scalars(select(Player.id).where(Player.user_id.in_(aliases.ids_of(db, main)))):
             out[pid] = values
     return out
@@ -187,7 +208,7 @@ def with_league(data: dict, extra: dict[int, list[float]], combat: dict[int, tup
     Combat cards appended to every progress list (COUNTED_RULES order) and in every average and Medal Collector. A player
     with Combat reports but no replay game in the period joins it, with their Combat games as `games`."""
     combat = combat or {}
-    none = [0.0] * len(LEAGUE_RULES)
+    none = [0.0] * len(PROFILE_RULES)  # Edit your Bio and the league cards (profile_progress)
     no_combat = ([0.0] * len(COMBAT_RULES), 0, 0, True)
     total = len(RULES)
     progress, rows = {}, []
