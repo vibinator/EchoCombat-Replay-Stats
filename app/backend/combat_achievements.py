@@ -168,6 +168,12 @@ COMBAT_RULES: list[Rule] = [
     _rule(239, "Chief Medic (Award card)", "Total Medic cards won (the most healing in a match)", None, _awards("medic"), (3, 9, 15, 25, 40), "all"),  # rounder numbers (user, 2026-11-27), was (3, 9, 16, 27, 41)
     _rule(240, "Saturn Specialist (Award card)", "Total Specialist cards won (the most assists in a match)", None, _awards("specialist"), (2, 6, 10, 20, 30), "all"),  # rounder numbers (user, 2026-11-27), was (2, 6, 10, 18, 28)
     _rule(242, "Streak Master (Award card)", "Total Hot Shot cards won (the longest elimination streak in a match)", None, _awards("hot_shot"), (2, 6, 10, 20, 30), "all"),  # rounder numbers (user, 2026-11-27), was (2, 6, 10, 18, 28)
+    # All time for the two cards now won as often as Specialist / Hot Shot (user, 2026-11-28: "only add the easier to achieve
+    # ones"; 4-27 Nov, 3,902 player-games: Tank 4.4 %, Defender 2.5 %). November's pace over 4 months, 92 players with 10+ games:
+    # Tank 40 / 23 / 15 / 6.5 %, Defender 43 / 43 / 23 / 7.6 %. Bronze needs 2+ cards, so it is not the one-game card again.
+    # Sniper and Cannoneer (2.3 / 1.8 %) and the rarer cards stay one game only for now.
+    _rule(302, "Heavy Chassis (Award card)", "Total Tank cards won (the most damage absorbed in a match)", None, _awards("tank"), (3, 5, 8, 15, 35), "all"),
+    _rule(303, "Defender of the Anomaly (Award card)", "Total Defender cards won (the most eliminations on the objective in a match)", None, _awards("defender"), (2, 3, 5, 10, 15), "all"),
     # One game: each card can be won once per game, so one medal each (user, 2026-11-10; like Flawless Chassis)
     Rule(249, "MVP of Echo Combat (Award card)", "Win the MVP card in one game (the highest score in the match)", "game", None, _total(lambda g: "mvp" in g.awards), new=True, group=GROUP, counted=False),
     Rule(250, "Standing Guard on Kronos II (Award card)", "Win the Guard card in one game (the most time on the objective)", "game", None, _total(lambda g: "guard" in g.awards), new=True, group=GROUP, counted=False),

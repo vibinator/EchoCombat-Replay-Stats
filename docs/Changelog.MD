@@ -18,6 +18,17 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.28.21 — 17:19
+
+- **Two more award card challenges, Cumulative** (user, 28 Nov: "only add the easier to achieve ones"). Tank and Defender
+  are now won about as often as Specialist and Hot Shot (4-27 Nov, 3,902 player-games: Tank 4.4 %, Defender 2.5 %), which
+  already had all-time ladders. Challenge total 200 -> 202.
+  - **Heavy Chassis**: total Tank cards (the most damage absorbed in a match), 3 / 8 / 15 / 35.
+  - **Defender of the Anomaly**: total Defender cards (the most eliminations on the objective), 2 / 5 / 10 / 15.
+  - Set on November's pace over a 4-month period: 40 / 23 / 15 / 6.5 % and 43 / 43 / 23 / 7.6 % of the 92 Combat players
+    with 10+ games. Bronze needs 2+ cards, so it is not the one-game card again.
+  - Sniper and Cannoneer (2.3 / 1.8 %) and the rarer cards stay one game only for now: too few cards yet for fair targets.
+
 ## 2026.11.28.20 — 17:07
 
 - **The 7-day award cards follow the 3-day rule** (user, 28 Nov: "in any 3 days of a 7 day rolling week"). Jack of the

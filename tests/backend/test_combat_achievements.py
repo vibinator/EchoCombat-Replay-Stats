@@ -26,7 +26,7 @@ def results(games):
 def test_kept_apart_from_the_replay_rules():
     ids = {r.id for r in RULES_HERE}
     retired = {164, 165, 166, 167, 168, 169, 198, 199, 200, 202, 203}  # one-game repeats, retired 2026-11-26 (D64)
-    assert ids == (set(range(164, 179)) | set(range(198, 201)) | (set(range(202, 222)) - {211, 212, 216, 218}) | (set(range(233, 244)) - {241, 243}) | set(range(249, 265)) | {293, 294, 295}) - retired and not ids & {r.id for r in RULES}
+    assert ids == (set(range(164, 179)) | set(range(198, 201)) | (set(range(202, 222)) - {211, 212, 216, 218}) | (set(range(233, 244)) - {241, 243}) | set(range(249, 265)) | {293, 294, 295, 302, 303}) - retired and not ids & {r.id for r in RULES}
     assert all(r.group == "Combat" and r.new and r.counted for r in RULES_HERE)  # full challenges since 2026-11-27 (user: "Make Combat count")
     # the module cannot read a replay table: it imports only the combat ones
     tree = ast.parse(Path(ca.__file__).read_text(encoding="utf-8"))

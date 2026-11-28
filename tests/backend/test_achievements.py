@@ -587,7 +587,7 @@ def test_names_carry_no_category_tag():
     from backend.combat_achievements import COMBAT_RULES
     names = [r.name for r in RULES + COMBAT_RULES]
     assert not [n for n in names if n.endswith(")")] and len(set(names)) == len(names)
-    assert sum(r.award for r in COMBAT_RULES) == 25 and not any(r.award for r in RULES)
+    assert sum(r.award for r in COMBAT_RULES) == 27 and not any(r.award for r in RULES)  # + Tank, Defender all time (2026-11-28)
 
 
 def test_period_start_time():
