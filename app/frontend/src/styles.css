@@ -5745,6 +5745,7 @@ tr.cloud-drop-on td {
 .next-tier-bar { height: 10px; border-radius: 999px; background: var(--line); overflow: hidden; }
 .next-tier-bar > div { height: 100%; border-radius: inherit; background: var(--tier); box-shadow: 0 0 10px color-mix(in srgb, var(--tier) 50%, transparent); }
 .next-tier-count { font-size: 0.85rem; font-variant-numeric: tabular-nums; }
+.next-tier-finish { color: var(--tier); font-weight: 600; }
 .next-tier-ladder { display: flex; align-items: center; gap: 6px; margin-top: auto; }
 .next-tier-ladder > span:not(.next-tier-share) { width: 26px; height: 26px; }
 .next-tier-ladder img { width: 100%; height: 100%; object-fit: contain; }

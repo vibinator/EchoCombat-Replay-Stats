@@ -18,6 +18,19 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.28.14 — 12:31
+
+- **Two top speeds removed by hand** (user, 28 Nov): Caprison- 42.1 m/s and Chroined 39.9 m/s, both Dyson 2023-07-17 01:32,
+  both smooth runs out of Dyson's entry tubes (0 → 45-53 m/s from the tube ends at x = ±105). That match now gives them no
+  top speed; the rest of their stats there stay (stats.HIDDEN_TOP_SPEEDS). Other tube runs still count: 15 of the 22 Dyson
+  top speeds of 30+ m/s in the newest 422 Dyson replays are one. New home-page leaders: DinkatorBoi 37.9, JavaBava 35.6
+  (regrabs mid-map), Rapollo2126 34.6. **After the update** that one replay needs reading again (admin console: reprocess
+  `dyson/[2023-07-17 01-31-59] 6439ECE9-….echoreplay`); no stats version change, no full re-read.
+- **Pinned challenges say what is left to complete** (user): next to "x % of the way" on a pinned card, e.g. "40 more games
+  to complete" or "3.2 m/s more in one game to complete", counted to the crown (the last tier).
+- **Flag on a profile says the country and the region** (user): "Jersey - Europe" next to the flag instead of only "Europe"
+  (player page and My profile).
+
 ## 2026.11.28.13 — 12:21
 
 - **Flamingo Challenges panel is smaller** (player page and My profile): about 115 px tall instead of 185, with a smaller

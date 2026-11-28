@@ -159,6 +159,21 @@ def test_top_speed_is_no_peak(tmp_path):
     assert s.players[0].top_speed == pytest.approx(2.0)
 
 
+def test_hidden_top_speed_is_dropped(tmp_path, monkeypatch):
+    import backend.stats as stats
+    heads = [(1.0 + 0.5 * i, 2.0, 3.0) for i in range(60)]
+    frames = []
+    for head in heads:
+        p = rf.player()
+        p["head"], p["velocity"] = _pose(head), [10.0, 0.0, 0.0]
+        frames.append(rf.frame(teams=[{"players": [p]}, {}, {}]))
+    lines = rf.lines_from(frames)
+    session = json.loads(lines[0].split("\t")[1])["sessionid"]
+    monkeypatch.setattr(stats, "HIDDEN_TOP_SPEEDS", {(session.upper(), str(rf.BIG_USER_ID))})
+    p = stats_for(tmp_path, lines).players[0]
+    assert p.top_speed == 0.0 and p.speed_sum == pytest.approx(600.0)  # only the top speed goes
+
+
 def _one_player(tmp_path, heads, velocities, stamps=None):
     frames = []
     for head, velocity in zip(heads, velocities):

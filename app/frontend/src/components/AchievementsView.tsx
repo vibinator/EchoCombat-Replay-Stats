@@ -1607,6 +1607,7 @@ function TierCard({ a, n, share: s, pin = false }: { a: Achievement; n: { fracti
       {how.conditions && <span className="muted next-tier-req">{how.conditions}</span>}
       <span className="next-tier-count">
         <b>{(a.count ?? 0).toLocaleString()}{unit}</b> / {need.toLocaleString()}{unit} <span className="muted">· {pct(n.fraction)} of the way</span>
+        {pin && <span className="next-tier-finish"> · {leftToComplete(a)}</span>}
       </span>
       <div className="next-tier-ladder" aria-hidden="true">
         {a.levels!.map((_, j) => (
@@ -1618,6 +1619,23 @@ function TierCard({ a, n, share: s, pin = false }: { a: Achievement; n: { fracti
       </div>
     </article>
   );
+}
+
+const COUNT_NOUNS = /\b(games|days|kills|assists|wins|matches|rounds|deaths|minutes|checkpoints|captures|points)\b/;
+
+/** What is left to complete a pinned ladder (the crown, its last tier) (user, 2026-11-28: "xx more games/etc to complete"):
+ *  "40 more games to complete". Best-in-one-game / 24 hours / 7 days / 30 days rules say where the rest has to come from. */
+function leftToComplete(a: Achievement): string {
+  const levels = a.levels ?? [];
+  const left = Math.max(0, Math.round(((levels[levels.length - 1] ?? 0) - (a.count ?? 0)) * 100) / 100);
+  const shown = Number.isInteger(left) ? left : Math.ceil(left * 10) / 10; // round up: "0.0 more" would be wrong
+  const n = shown.toLocaleString();
+  const unit = a.unit ?? "";
+  const noun = unit.trim() ? undefined : ruleText(a.description).match(COUNT_NOUNS)?.[1];
+  const one = noun && shown === 1 ? (noun === "matches" ? "match" : noun.slice(0, -1)) : noun;
+  const amount = unit.trim() ? `${n}${unit} more` : one ? `${n} more ${one}` : `${n} more`; // "3.2 m/s more", "40 more games"
+  const within: Record<string, string> = { game: " in one game", day: " within 24 hours", week: " within 7 days", month: " within 30 days" };
+  return `${amount}${within[a.period] ?? ""} to complete`;
 }
 
 // --- Pinned challenges (user, 2026-11-27) ------------------------------------------------------------------------------

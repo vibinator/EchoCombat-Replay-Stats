@@ -16,12 +16,13 @@ export function PlayerPlace({ profile }: { profile: PlayerBioProfile | null }) {
   const flag = flagUrl(profile?.country);
   const region = regionLabel(profile?.region);
   if (!flag && !region) return null;
-  const where = [profile?.country ? countryName(profile.country) : null, region].filter(Boolean).join(" · ");
+  // The country's name beside its flag, then the region (user, 2026-11-28: "it should say Jersey - Europe")
+  const where = [profile?.country ? countryName(profile.country) : null, region].filter(Boolean).join(" - ");
   const how = profile?.place_detected ? " (detected from their connection)" : "";
   return (
     <span className="player-place" title={where + how}>
-      {flag && <img className="player-flag" src={flag} alt={countryName(profile!.country!)} width={28} height={21} />}
-      {region && <span className="player-region">{region}</span>}
+      {flag && <img className="player-flag" src={flag} alt="" width={28} height={21} />}
+      {where && <span className="player-region">{where}</span>}
       {profile?.place_detected && <span className="muted player-place-detected">detected</span>}
     </span>
   );

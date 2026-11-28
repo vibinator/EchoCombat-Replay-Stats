@@ -45,6 +45,16 @@ KILL_TO_EXIT_TYPICAL_S = 6.67
 
 MAX_FRAME_GAP_S = 1.0  # cap per-frame time credit so a recording gap does not count as play time
 
+# Top speeds taken out by hand (user, 2026-11-28: "can you remove these people"): (session id, user id). The two
+# fastest flights on record, both in Dyson's entry tubes in one match (2023-07-17 01:32): Caprison- 42.1 m/s and
+# Chroined 39.9, smooth runs from 0 to 45-53 m/s out of the tube ends at x = +-105. Tube runs as such still count
+# (user chose these two only): 15 of the 22 Dyson top speeds of 30+ m/s in the newest 422 Dyson replays are one.
+# The rest of their stats in that match stay.
+HIDDEN_TOP_SPEEDS = {
+    ("6439ECE9-3B1E-48A9-A095-8E684642AE88", "5768612813157473"),  # Caprison-
+    ("6439ECE9-3B1E-48A9-A095-8E684642AE88", "3566203946796124"),  # Chroined
+}
+
 
 class _MatchEvents:
     """Round, payload-checkpoint and contest transitions."""
@@ -226,6 +236,8 @@ def compute(meta: ReplayMeta, frames: Iterable[Frame], recorder=None, use_kills:
     player_stats = [acc.result(last.timestamp) for acc in players.values()]
     for p in player_stats:
         p.payload_push_s, p.payload_block_s = payload.push_block(p.user_id)
+        if (meta.session_id.upper(), p.user_id) in HIDDEN_TOP_SPEEDS:
+            p.top_speed = 0.0
     return MatchStats(
         map=name,
         mode=mode,
