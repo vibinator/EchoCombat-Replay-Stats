@@ -399,6 +399,10 @@ function ruleSentence(tag: string): string {
     "All-time total": "Every game in the challenge period adds up",
     "2+ players per team": "Only games with 2+ players on each team count", // every challenge (user, 2026-11-28)
   };
+  let r = /^Best (\d+) games in a row$/.exec(tag);
+  if (r) return `Your best ${r[1]} games in a row count, however long they took`;
+  r = /^([\d.]+)\+ min in bounds per game$/.exec(tag);
+  if (r) return `Only games with ${r[1]}+ minutes in bounds count; shorter ones are skipped`;
   if (fixed[tag]) return fixed[tag];
   let m = /^([\d.]+)\+ min games$/.exec(tag);
   if (m) return `Only games of ${m[1]}+ minutes count`;
@@ -409,7 +413,7 @@ function ruleSentence(tag: string): string {
   m = /^"Only" = (\d+%)\+ of the game$/.exec(tag);
   if (m) return `"Only" means ${m[1]}+ of the game with it`;
   m = /^Silver\+: (\d+)\+ different days$/.exec(tag);
-  if (m) return `Silver and up need games on ${m[1]}+ different days`;
+  if (m) return `Silver and up need games on ${m[1]}+ different days of the 7 (any days, not in a row)`;
   m = /^([\d.]+)\+ min per loadout$/.exec(tag);
   if (m) return `A loadout counts after ${m[1]}+ minutes with it`;
   return tag;
@@ -509,6 +513,7 @@ function ChallengeCard({ a, onClose }: { a: AnyBadge; onClose?: () => void }) {
           </span>
         )}
         {!catalogue && a.untried && a.untried.length > 0 && a.progress! < 1 && <UntriedLoadouts list={a.untried} />}
+        {!catalogue && a.needs && a.needs.length > 0 && a.progress! < 1 && <NeedsLeft needs={a.needs} />}
         <div className="ch-rules">
           <span className="ch-rules-head">How it counts</span>
           <ul>{countingRules(a).map((r) => <li key={r}>{r}</li>)}</ul>
@@ -1093,7 +1098,7 @@ function levelText(count: number, levels: number[], unit = ""): string {
   return `${shown.toLocaleString()}${unit} more to reach ${LEVELS[next]}`;
 }
 
-export function Badge({ a, compact = false }: { a: AchievementRule & Partial<Pick<Achievement, "progress" | "tier" | "unlocked_at" | "count" | "try_next" | "untried">> & Partial<Pick<AchievementRarity, "unlocked_share" | "completed_share">>; compact?: boolean }) {
+export function Badge({ a, compact = false }: { a: AchievementRule & Partial<Pick<Achievement, "progress" | "tier" | "unlocked_at" | "count" | "try_next" | "untried" | "needs">> & Partial<Pick<AchievementRarity, "unlocked_share" | "completed_share">>; compact?: boolean }) {
   const tier = a.tier ?? null;
   const catalogue = a.progress === undefined;
   const frame = tier ? `${tier}.png` : "lock_clear_no_square.png";
@@ -1541,6 +1546,29 @@ export function AchievementRules({ open = false }: { open?: boolean }) {
   );
 }
 
+/** What a challenge still needs besides its target (user, 2026-11-28: "tell them how many games left"): games for the
+ *  all-time averages, days and minutes in the latest 7 days for the 7-day ones. */
+function NeedsLeft({ needs }: { needs: NonNullable<Achievement["needs"]> }) {
+  const num = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 1 });
+  const window = needs.find((n) => n.window)?.window;
+  return (
+    <div className="ch-needs">
+      <span className="ch-rules-head">{window ? `Your latest 7 days (to ${window})` : "To count"}</span>
+      <ul>
+        {needs.map((n) => {
+          const left = Math.max(0, n.need - n.have);
+          return (
+            <li key={n.what} className={left > 0 ? "todo" : "done"}>
+              {num(n.have)} of {num(n.need)} {n.what}
+              {left > 0 ? <b> · {num(left)} to go</b> : <span aria-label="done"> ✓</span>}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
 const NEXT_TIERS = 5;
 
 /** How to reach the next tier quickly (user, 2026-11-26): where it has to happen (one game / one day / any 7 days / adds up),
@@ -1556,7 +1584,7 @@ function nextTierHow(a: Achievement, need: number): { where: string; conditions:
     month: `Within any 30 days: reach ${goal}. Your best 30 days so far: ${best}.`,
     all: `${Math.max(0, need - (a.count ?? 0)).toLocaleString(undefined, { maximumFractionDigits: 1 })}${unit} more: everything in the challenge period adds up.`,
   };
-  const tags = (a.rules ?? []).filter((t) => / min games$| players per team$|^"Only"|different days$|min on the map$|^Average/.test(t));
+  const tags = (a.rules ?? []).filter((t) => / min games$| players per team$|^"Only"|different days$|min on the map$|^Average| in a row$| per game$/.test(t));
   return { where: where[a.period] ?? "", conditions: tags.map(ruleSentence).join(" · ") };
 }
 

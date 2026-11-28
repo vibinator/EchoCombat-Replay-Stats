@@ -49,6 +49,9 @@ SEASON_MIN_GAMES = 50  # all-time averages need 50 games (A)
 # SPEED_MIN_GAMES games in a row, however long they took. Was the average over every game, 25+ games. The same day a 30-day
 # window with 5+ days and 50 games / 3 days were tried; on the 95 regulars since 1 Aug the crown stretches took 4-12 days.
 SPEED_MIN_GAMES = 50
+GAME_MIN_IN_BOUNDS_S = 120.0  # all-time averages (73 speed, 71 / 72 close to a teammate / enemy, 74 upside down): a game counts
+# only with 2+ minutes in bounds (user, 2026-11-28: "min of 2 mins in bounds"); shorter ones are skipped, so a short
+# appearance cannot skew the average. The 7-day averages keep WEEK_MIN_IN_BOUNDS_S in total.
 # One ladder per kind of gear challenge, the same for every weapon, ordnance and tac mod, new gear included (user,
 # 2026-11-03). Set from the most-used gear (Pulsar, ~110k games in the archive): 500 games was out of reach in the last 500.
 GEAR_VETERAN = (6, 17, 55, 170, 400)  # games using it
@@ -336,7 +339,7 @@ TUNED_LEVELS: dict[int, tuple[float, ...]] = {
     43: (5, 12, 20, 25, 35),  # harder (user, 2026-11-28, crown was 15.8 %; "around 10 %"): 20 / 25 / 35 = 23 / 16 / 9.5 % of the 95 regulars (25+ games since 1 Aug, 2v2 rule); was 5/10/15/25; rounder numbers (user, 2026-11-27), was (4, 6, 10, 15, 25); Pew Pew Proof (user, 2026-11-05: games in a row averaging under 5 deaths, on 3+ days; 20 / 15 / 8.5 / 3.8 / 1.3 % of the same regulars reach these; 25 was the old single step)
     44: (10, 17, 25, 35, 40),  # rounder numbers (user, 2026-11-27), was (10, 18, 25, 33, 40); I'd Rather Be on Kronos II (user, 2026-11-05: 70 / 21 / 13 / 6 / 4 players since 1 Aug; was 10/18/25/52/65)
     45: (10, 17, 25, 35, 40),  # rounder numbers (user, 2026-11-27), was (10, 18, 25, 33, 40); Sakura's Dancing Flamingo (user, 2026-11-05: 69 / 22 / 13 / 6 / 4 players since 1 Aug; was 10/18/25/52/65)
-    46: (24, 25.5, 27.5, 28, 30),  # 3.5 m (user, 2026-11-28, was 2.65 m): each target moved to the 3.5 m value the same share of players reaches (1,582 recent replays, 74 regulars), was 18/19.5/21/23/25; Tech Support w/RAD_Natalie (2026-11-26, user: a bit harder with Hug Your Frenemy, crown 6 % of 194 regulars, was 9 % at 16 / 19 / 21 / 23) (2026-11-11, user: crown for about 7.5 % of regulars after the death and bounds corrections; was 16/20/24/26/28)
+    46: (24, 25.5, 27.5, 28, 30.5),  # crown 30.5 = 12 % (30 = 19 %, was 15 %); 3.5 m (user, 2026-11-28, was 2.65 m): each target moved to the 3.5 m value the same share of players reaches (1,582 recent replays, 74 regulars), was 18/19.5/21/23/25; Tech Support w/RAD_Natalie (2026-11-26, user: a bit harder with Hug Your Frenemy, crown 6 % of 194 regulars, was 9 % at 16 / 19 / 21 / 23) (2026-11-11, user: crown for about 7.5 % of regulars after the death and bounds corrections; was 16/20/24/26/28)
     47: (14, 15, 16, 19.5, 21.5),  # 3.5 m (user, 2026-11-28, was 2.65 m): each target moved to the 3.5 m value the same share of players reaches (1,582 recent replays, 74 regulars), was 9/10/11/13/15; Hug Your Frenemy (2026-11-26, user: a bit harder with Tech Support, crown 5 % of 194 regulars, was 9 % at 8 / 9.5 / 11 / 13) (2026-11-11, user: crown for about 7.5 % of regulars after the death and bounds corrections; was 12/14/16/18/20)  # loosened 2026-11-11 (user): steps of at least 8 % of the crown, the lower medals eased; was 10/10.5/11/12/13
     49: (9, 10.5, 12, 20, 27),  # I’ɯ ꓭɐʇ ꓭoʇ (2026-11-11, user: crown for about 7.5 % of regulars after the death and bounds corrections; was 9.3/22/36/47/57)
     50: (4, 6, 8, 12, 18),  # Frame-Drop Hell (user, 2026-11-05: the four map ladders stay equal; 4 to 6 players since 1 Aug reach platinum on each; was 4/6/8/23/44)
@@ -475,11 +478,17 @@ def _count(pred, need: int):
 class _AvgValue:
     """100 x sum(attr) / in-bounds frames over the games (percent), or sum(attr) / frames when scale is 1 (speed).
     0 until min_games games (all-time averages ramp: 50+ games), until min_in_bounds_s seconds in bounds in total and
-    until min_days different days (7-day averages: one short game or one session cannot set the week)."""
+    until min_days different days (7-day averages: one short game or one session cannot set the week). `game_min_s`: only
+    games with at least this long in bounds count at all (all-time averages, GAME_MIN_IN_BOUNDS_S); the others are skipped."""
 
-    def __init__(self, attr: str, scale: float = 100.0, min_games: int = 0, min_in_bounds_s: float = 0.0, min_days: int = 0):
+    def __init__(self, attr: str, scale: float = 100.0, min_games: int = 0, min_in_bounds_s: float = 0.0, min_days: int = 0,
+                 game_min_s: float = 0.0):
         self.attr, self.scale, self.min_games = attr, scale, min_games
-        self.min_in_bounds_s, self.min_days = min_in_bounds_s, min_days
+        self.min_in_bounds_s, self.min_days, self.game_min_s = min_in_bounds_s, min_days, game_min_s
+
+    def counts(self, g) -> bool:
+        """Does this game count at all (game_min_s in bounds)?"""
+        return not self.game_min_s or ratio(g.in_bounds, g.frame_rate) >= self.game_min_s
 
     def _value(self, total: float, frames: int, n: int, seconds: float, days: int) -> float:
         if n < self.min_games or seconds < self.min_in_bounds_s or days < self.min_days:
@@ -487,6 +496,8 @@ class _AvgValue:
         return round(self.scale * ratio(total, frames), 6)
 
     def __call__(self, games) -> float:
+        if self.game_min_s:
+            games = [g for g in games if self.counts(g)]
         return self._value(sum(getattr(g, self.attr) for g in games), sum(g.in_bounds for g in games), len(games),
                            sum(ratio(g.in_bounds, g.frame_rate) for g in games),
                            len({g.day for g in games}) if self.min_days else 0)
@@ -494,14 +505,17 @@ class _AvgValue:
     def first_reached(self, ordered: list, need: float) -> int | None:
         """Index of the game at which the running average first reached `need` (it can drop again later, so the
         binary search used for counts does not apply)."""
-        total = frames = seconds = 0
+        total = frames = seconds = n = 0
         days = set()
         for i, g in enumerate(ordered):
+            if not self.counts(g):
+                continue
+            n += 1
             total += getattr(g, self.attr)
             frames += g.in_bounds
             seconds += ratio(g.in_bounds, g.frame_rate)
             days.add(g.day)
-            if self._value(total, frames, i + 1, seconds, len(days)) >= need:
+            if self._value(total, frames, n, seconds, len(days)) >= need:
                 return i
         return None
 
@@ -510,8 +524,8 @@ class _BestRunAvg(_AvgValue):
     """The best average (sum(attr) / in-bounds frames x scale) over any `run` games in a row, however long they took; 0
     with fewer games. Linear: a sliding window over the games in time order. first_reached is the window's last game."""
 
-    def __init__(self, attr: str, scale: float, run: int):
-        super().__init__(attr, scale, run)
+    def __init__(self, attr: str, scale: float, run: int, game_min_s: float = 0.0):
+        super().__init__(attr, scale, run, game_min_s=game_min_s)
         self.window_note = f"Best {run} games in a row"
 
     def _windows(self, games):
@@ -520,6 +534,10 @@ class _BestRunAvg(_AvgValue):
         if len(games) < run:
             return
         ordered = sorted(games, key=lambda g: g.start_dt)
+        index = [i for i, g in enumerate(ordered) if self.counts(g)]  # games under game_min_s in bounds are skipped
+        if len(index) < run:
+            return
+        ordered = [ordered[i] for i in index]
         values = [getattr(g, self.attr) for g in ordered]
         frames_of = [g.in_bounds for g in ordered]
         total, frames = sum(values[:run]), sum(frames_of[:run])
@@ -527,7 +545,7 @@ class _BestRunAvg(_AvgValue):
             if last >= run:
                 total += values[last] - values[last - run]
                 frames += frames_of[last] - frames_of[last - run]
-            yield round(self.scale * ratio(total, frames), 6), last
+            yield round(self.scale * ratio(total, frames), 6), index[last]  # position among all the games, skipped ones too
 
     def __call__(self, games) -> float:
         return max((v for v, _ in self._windows(games)), default=0.0)
@@ -863,13 +881,13 @@ def _build_rules() -> list[Rule]:
         _tiered(69, "King of the Hill", "Play Capture Point games", "capture_point", _capture, (12, 29, 58, 115, 288)),
         _tiered(70, "Feed the Flamingo", "Play Payload games", "payload", _payload, (12, 29, 58, 115, 288)),
         _ladder(71, "Robot Wrecking Squad", "Average share of each game spent close to a teammate (needs 50+ games)", "team_proximity",
-                _AvgValue("near_mate", 100.0, SEASON_MIN_GAMES), (14, 15.5, 17, 19.5, 22.5), "all", "%"),
+                _AvgValue("near_mate", 100.0, SEASON_MIN_GAMES, game_min_s=GAME_MIN_IN_BOUNDS_S), (14, 15.5, 17, 19.5, 22.5), "all", "%"),
         _ladder(72, "Roboticide", "Average share of each game spent close to an enemy (needs 50+ games)", "enemy_proximity",
-                _AvgValue("near_enemy", 100.0, SEASON_MIN_GAMES), (6, 8, 10, 12.5, 15), "all", "%"),
+                _AvgValue("near_enemy", 100.0, SEASON_MIN_GAMES, game_min_s=GAME_MIN_IN_BOUNDS_S), (6, 8, 10, 12.5, 15), "all", "%"),
         _ladder(73, "Cyberkinetic Enhancements", "Your best average speed over 50 games in a row", "launch",
-                _BestRunAvg("speed_sum", 1.0, SPEED_MIN_GAMES), (2.6, 2.8, 3.0, 3.2, 3.5), "all", " m/s"),  # 33 / 25 / 16 / 7.4 % of the 95 regulars
+                _BestRunAvg("speed_sum", 1.0, SPEED_MIN_GAMES, GAME_MIN_IN_BOUNDS_S), (2.6, 2.8, 3.0, 3.2, 3.5), "all", " m/s"),  # 33 / 25 / 16 / 7.4 % of the 95 regulars
         _ladder(74, "toB taB m'I", "Average share of each game spent upside down (needs 50+ games)", "inverted",
-                _AvgValue("upside", 100.0, SEASON_MIN_GAMES), (2, 4, 8, 20, 40), "all", "%"),
+                _AvgValue("upside", 100.0, SEASON_MIN_GAMES, game_min_s=GAME_MIN_IN_BOUNDS_S), (2, 4, 8, 20, 40), "all", "%"),
     ]
     for rid, name, m in ((75, "Brute Force Attack", "dyson"), (76, "Molten Mechanical Mayhem", "combustion"),
                          (77, "George and I Go Way Back", "fission"), (78, "Good ol' George", "surge")):
@@ -1096,6 +1114,8 @@ def _rule_notes(rule: Rule) -> list[str]:
     if rule.period == "all":
         need = getattr(rule.count, "min_games", 0)
         notes = [getattr(rule.count, "window_note", None) or (f"Average, {need}+ games" if need else "All-time total")]
+        if getattr(rule.count, "game_min_s", 0):
+            notes.append(f"{rule.count.game_min_s / 60:g}+ min in bounds per game")
     if getattr(fn, "min_length", False) or rule.id in _NOTE_MIN_IDS:
         notes.append(f"{getattr(fn, 'min_s', FULL_GAME_S) / 60:g}+ min games")
     if rule.id != FULL_LOBBY_RULE_ID:  # every challenge (user, 2026-11-28); Full Lobby says its 5v5 itself (EXTRA_NOTES)
@@ -1145,6 +1165,49 @@ def plain_name(name: str) -> str:
 
 
 RULES = [replace(r, name=plain_name(r.name)) for r in (_tuned(r) for r in _build_rules()) if r.id not in RETIRED_IDS]
+
+
+# Any 7 days is time-limited, all time is game-based (user, 2026-11-28): every 7-day challenge needs games on WEEK_MIN_DAYS
+# different days of the 7 for silver and up, like the gear ones; bronze can be won in one session. The averages already need
+# the days for every medal. Left out: the streaks, where a run of games in a row is the point (Gearhead, Pew Pew Proof,
+# Two-Handed Bot). Measured on the 95 replay / 92 Combat regulars it moves silver and up by 2 points at most: the players who
+# reach them already play on 3+ days.
+WEEK_SPREAD_EXEMPT = frozenset({42, 43, 201})
+
+
+def _days_adding(count, games) -> set:
+    """The days whose games alone add to `count`: Dyson days for a Dyson challenge, days with kills for kills (user,
+    2026-11-28: the 3 days must be days the challenge was played, not any 3 days with a game)."""
+    by_day: dict = defaultdict(list)
+    for g in games:
+        by_day[g.day].append(g)
+    return {day for day, day_games in by_day.items() if count(day_games) > 0}
+
+
+def spread_week(rule: Rule) -> Rule:
+    """The rule with the 3-day rule for silver and up, if it is a 7-day ladder without a day rule of its own."""
+    count = rule.count
+    if (rule.period != "week" or not rule.levels or rule.id in WEEK_SPREAD_EXEMPT or isinstance(count, _AvgValue)
+            or getattr(count, "min_days", 0)):
+        return rule
+    cap = rule.levels[0]
+
+    def spread(games):
+        value = count(games)
+        if value <= cap:
+            return value
+        return value if len(_days_adding(count, games)) >= WEEK_MIN_DAYS else cap
+    spread.days_adding = lambda games: _days_adding(count, games)
+    for attr in ("min_length", "min_s", "enough_players", "min_per_team", "use_only"):
+        if hasattr(count, attr):
+            setattr(spread, attr, getattr(count, attr))
+    spread.min_days = WEEK_MIN_DAYS  # rule note "Silver+: 3+ different days"
+    what, _, targets = rule.description.rpartition(" (")
+    text = f"{what}, silver and up on at least {WEEK_MIN_DAYS} different days ({targets}" if what else rule.description
+    return replace(rule, description=text, count=spread, score=_levelled(spread, rule.levels))
+
+
+RULES = [spread_week(r) for r in RULES]
 
 # Mega Prize (user, 2026-11-04): NOT in RULES on purpose. RULES feeds every public list, ranking, medal feed and total; the
 # prize is Preview-only and only served by api/arena.py and the Console report (mega_prizes.py). Written targets are
@@ -1236,6 +1299,34 @@ def _reached_gold(entry: dict, rule: Rule) -> bool:
     return entry["count"] >= rule.levels[1] if rule.levels else entry["progress"] >= 1
 
 
+def requirements(rule: Rule, games: list) -> list[dict]:
+    """What a challenge needs besides its target and how much of it the player has (user, 2026-11-28: the challenge popup
+    says how many games / days / minutes are left). All-time averages: games that count; 7-day rules with a day or time
+    rule: the player's latest 7 days of play (to their latest game). [] when the rule has no such need."""
+    count = rule.count
+    if rule.period == "all" and isinstance(count, _AvgValue) and count.min_games:
+        what = f"games with {count.game_min_s / 60:g}+ min in bounds" if count.game_min_s else "games"
+        if isinstance(count, _BestRunAvg):
+            what += " (in a row)"
+        return [{"what": what, "have": sum(1 for g in games if count.counts(g)), "need": count.min_games}]
+    if rule.period != "week" or not games or not (getattr(count, "min_days", 0) or getattr(count, "min_in_bounds_s", 0)):
+        return []
+    latest = max(g.start_dt for g in games)
+    window = [g for g in games if g.start_dt > latest - WEEK]
+    out = []
+    to = latest.date().isoformat()
+    if isinstance(count, _AvgValue):
+        if count.min_days:
+            out.append({"what": "different days", "have": len({g.day for g in window}), "need": count.min_days, "window": to})
+        if count.min_in_bounds_s:
+            out.append({"what": "minutes in bounds", "have": round(sum(ratio(g.in_bounds, g.frame_rate) for g in window) / 60, 1),
+                        "need": count.min_in_bounds_s / 60, "window": to})
+    else:
+        days = count.days_adding(window) if hasattr(count, "days_adding") else _days_adding(count, window)
+        out.append({"what": "different days (for silver and up)", "have": len(days), "need": count.min_days, "window": to})
+    return out
+
+
 def evaluate(games: list, rules: list[Rule] = RULES) -> list[dict]:
     """Progress per rule: best period, capped at 1. Ladders also report the best count per period group."""
     groups = {p: _groups(games, p) for p in _used_periods(rules) | {"all"}}
@@ -1257,6 +1348,9 @@ def evaluate(games: list, rules: list[Rule] = RULES) -> list[dict]:
         }
         if n is not None:  # the website shows "12 / 25 for diamond"
             entry |= {"tier": level_tier(n, rule.levels), "count": round(n, 2), "levels": list(rule.levels), "unit": rule.unit}
+        needs = requirements(rule, games)
+        if needs:
+            entry["needs"] = needs
         if rule.id == LOADOUT_RULE_ID:
             # "try these next" (the website links each to its leaderboard) and every loadout not used yet (user, 2026-11-27)
             entry |= loadout_hints(games)

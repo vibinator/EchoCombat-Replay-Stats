@@ -35,8 +35,8 @@ def test_kept_apart_from_the_replay_rules():
 
 
 def test_one_game_ladders():
-    assert results([game(kills=12, deaths=0)])[170]["progress"] == 1 and results([game(kills=10, deaths=0)])[170]["progress"] == 0.75
-    assert results([game(kills=19, deaths=1)])[170]["progress"] == 0 and results([game(kills=4, deaths=0)])[170]["progress"] < 0.25  # medals since 2026-11-28
+    assert results([game(kills=12, deaths=0)])[170]["progress"] == 1 and results([game(kills=9, deaths=0)])[170]["progress"] == 0.75
+    assert results([game(kills=19, deaths=1)])[170]["progress"] == 0 and results([game(kills=3, deaths=0)])[170]["progress"] < 0.25  # medals since 2026-11-28
     assert rule_notes(next(x for x in RULES_HERE if x.id == 170)) == ["Best game", "4+ min games", "2+ players per team"]  # Combat: 2v2 and up (user, 2026-11-27)
 
 
@@ -64,7 +64,8 @@ def test_time_on_the_objective_counts_on_capture_point_maps_only():
     """Hold the Hill, Anomaly Watch and The Anomaly Doesn't Move: Dyson and Combustion only (user, 2026-11-28)."""
     r = results([game(time_s=600.0), game(time_s=240.0, map_="combustion"), game(time_s=120.0, map_="fission"),
                  game(time_s=60.0, map_="surge"), game(time_s=900.0, map_="")])
-    assert r[206]["count"] == r[294]["count"] == r[217]["count"] == 14  # 600 + 240 s
+    assert r[206]["count"] == r[217]["count"] == 14  # 600 + 240 s
+    assert r[294]["count"] == 10  # the same 14 min, but all on one day: a 7-day one stops at bronze (silver+ needs 3 days)
     assert r[206]["name"] == "Hold the Hill" and not {285, 286, 287} & set(r)
 
 
@@ -81,7 +82,9 @@ def test_any_7_days_is_a_rolling_window():
     games = [game(kills=70, deaths=1, started="2026-11-05T20:00:00"), game(kills=70, deaths=90, started="2026-11-11T19:00:00"),
              game(kills=70, deaths=1, started="2026-11-13T21:00:00")]
     r = results(games)
-    assert r[209]["count"] == 140 and r[214]["count"] == 1  # 5 + 11 Nov and 11 + 13 Nov fit in 7 days, all three do not
+    assert r[209]["count"] == 30 and r[214]["count"] == 1  # 5 + 11 Nov and 11 + 13 Nov fit in 7 days, all three do not;
+    # 140 kills on 2 days stops at bronze (30): silver and up need 3 different days (2026-11-28)
+    assert results(games + [game(kills=70, started="2026-11-12T20:00:00")])[209]["count"] == 210  # 11, 12 and 13 Nov
     assert r[173]["count"] == 210 and r[221]["count"] == 2  # all time keeps everything
     times = medal_times(games, RULES_HERE)
     assert times[209]["bronze"] == "2026-11-11T19:00:00"  # complete at the window's last game, like the other 7-day rules

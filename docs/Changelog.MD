@@ -18,13 +18,36 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.28.17 — 15:02
+
+- **Any 7 Days challenges need games on 3 different days for silver and up** (user, 28 Nov: "One week should be time
+  limited"), any 3 days of the 7, not in a row, and days the challenge was actually played (Dyson days for a Dyson one).
+  Bronze can still be won in one session. It was already the rule for the gear ones; now every 7-day challenge has it:
+  maps, modes, pubs, Payload push / block time, wins and all the Combat ones. Left out: the streaks (Gearhead, Pew Pew
+  Proof, Two-Handed Bot). Slightly harder in principle; on the regulars silver and up move by 2 points at most, because
+  players who reach them already play on 3+ days (Medic on Call crown 4.3 → 3.3 %).
+- **All Time averages only count games with 2+ minutes in bounds** (user, 28 Nov): Cyberkinetic Enhancements, Robot
+  Wrecking Squad, Roboticide and toB taB m'I. Shorter games are skipped, so a short appearance can't skew an average.
+- **The challenge popup says what is left** (user, 28 Nov): "38 of 50 games with 2+ min in bounds · 12 to go" on the All
+  Time averages, and for the 7-day ones the latest 7 days of play: "2 of 3 different days · 1 to go", "6 of 10 minutes in
+  bounds · 4 to go".
+- **Flawless Chassis slightly easier** (user, 28 Nov): 4 / 7 / 9 / 11 kills without dying, was 5 / 8 / 10 / 12; 32 / 11 /
+  7.6 / 6.5 % of the 92 Combat regulars (was 25 / 10 / 6.5 / 3.3 %).
+- **Hold the Hill slightly harder** (user, 28 Nov): 6 / 10 / 15 / 20 min, was 5 / 9 / 14 / 18; 65 / 30 / 16 / 6.5 % of the
+  92 Combat regulars (was 75 / 37 / 20 / 7.6 %).
+- **Tech Support w/RAD_Natalie crown 30.5 %** (was 30): 12 % of the regulars in the replay sample, near the 15 % it had at
+  2.65 m (30 gave 19 %).
+- Update the container; nothing to re-read (stats version 23 from 2026.11.28.16 is still reading).
+
 ## 2026.11.28.16 — 13:28
 
-- **"Close to a teammate / enemy" now means within 5 m** (user, 28 Nov: 2.65 m was "too close"): Full Team Salvo,
-  Can We Talk About This?, Tech Support w/RAD_Natalie, Hug Your Frenemy, Robot Wrecking Squad and Roboticide, plus the
-  "Near a teammate / enemy" stats on leaderboards, profiles and match pages. On 400 recent replays the typical share of
-  a game roughly doubles (teammate 8 → 18 %, enemy 7 → 18 %). Tier numbers are unchanged for now. Lone Echo keeps
-  10 m. Stats version 23: every replay is read again; until it finishes, older matches still show the 2.65 m numbers.
+- **"Close to a teammate / enemy" now means within 3.5 m** (user, 28 Nov: 2.65 m was "too close"; 5 m was tried first
+  and made the targets trivial): Tech Support w/RAD_Natalie, Hug Your Frenemy, Robot Wrecking Squad and Roboticide, plus
+  the "Near a teammate / enemy" stats on leaderboards, profiles and match pages. Their targets moved to the 3.5 m value
+  the same share of players reaches (1,582 recent replays): Tech Support 24 / 27.5 / 28 / 30 %, Hug Your Frenemy
+  14 / 16 / 19.5 / 21.5 %, Robot Wrecking Squad 17 / 19.5 / 21.5 / 24.5 %, Roboticide 10 / 14 / 15 / 16 % (were 18 / 21 /
+  23 / 25, 9 / 11 / 13 / 15, 12 / 14 / 16 / 18, 6 / 9 / 10 / 11). Lone Echo keeps 10 m. Stats version 23: every replay is
+  read again; until it finishes, older matches still show the 2.65 m numbers (and so look harder).
 - **Objective time counts on the Capture Point maps only** (user, 28 Nov): what the Combat reports count as objective
   time on Fission and Surge is unknown. Camping Out on Dyson is now **Hold the Hill**: time on the objective on Dyson and
   Combustion in any 24 hours, 5 / 9 / 14 / 18 min (crown 7.6 % of the 92 Combat regulars, 4-27 Nov; was 5 / 10 / 15 /

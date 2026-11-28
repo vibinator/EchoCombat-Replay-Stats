@@ -5825,6 +5825,11 @@ tr.cloud-drop-on td {
 .ch-rules-head { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); }
 .ch-rules ul { margin: 0; padding-left: 16px; font-size: 0.8rem; color: var(--muted); }
 .ch-rules li { line-height: 1.35; }
+.ch-needs { display: flex; flex-direction: column; gap: 2px; margin-top: 2px; }
+.ch-needs ul { margin: 0; padding-left: 16px; font-size: 0.8rem; }
+.ch-needs li { line-height: 1.35; }
+.ch-needs li.todo b { color: var(--blue); font-weight: 600; }
+.ch-needs li.done { color: var(--muted); }
 
 /* The challenge bar, complete challenges only (user, 2026-11-26): one crown-pink fill and the share at its right end */
 .complete-track { position: relative; width: 100%; height: 1.6rem; border-radius: 999px; background: var(--line); overflow: hidden; }

@@ -23,7 +23,7 @@ from itertools import groupby
 
 from sqlalchemy import func, select
 
-from .achievements import FULL_GAME_S, Rule, _ladder, _tuned, evaluate, plain_name, icon_file, in_window, medal_times, rule_notes, unlock_dates, unlock_threshold
+from .achievements import FULL_GAME_S, Rule, _ladder, _tuned, evaluate, plain_name, icon_file, in_window, medal_times, rule_notes, spread_week, unlock_dates, unlock_threshold
 from .aliases import alias_map
 from .models import CombatFile, CombatMatch, CombatPlayer
 
@@ -94,7 +94,7 @@ COMBAT_RULES: list[Rule] = [
     _rule(168, "Point Denied (Combat)", "Get objective eliminations in one game", None, lambda g: g.objective_eliminations, (8, 12, 14, 16, 18), "game"),
     _rule(169, "Parked on the Point (Combat)", "Spend time on the objective yourself in one game, in seconds", None, lambda g: g.objective_time, (115, 165, 195, 210, 225), "game", " s"),
     _rule(170, "Flawless Chassis (Combat)", "Get kills in one game without dying", "deaths", lambda g: g.kills if g.deaths == 0 else 0,
-          (5, 6, 8, 10, 12), "game"),  # medals (user, 2026-11-28): 5 / 8 / 10 / 12 kills = 25 / 10 / 7 / 3 % of the 92 regulars (10+ games,
+          (4, 5, 7, 9, 11), "game"),  # slightly easier (user, 2026-11-28): 4 / 7 / 9 / 11 kills = 32 / 11 / 7.6 / 6.5 % of the 92 regulars; was 5 / 8 / 10 / 12; medals (user, 2026-11-28): 5 / 8 / 10 / 12 kills = 25 / 10 / 7 / 3 % of the 92 regulars (10+ games,
     # 4-26 Nov reports), the crown rising toward ~7.5 % over the period; the old won-or-not "10 or more kills" is now gold
     _rule(171, "Kill Spree Bot (Combat)", "Get kills in any 24 hours", "deaths", lambda g: g.kills, (20, 50, 85, 115, 135), "day"),  # harder (user, 2026-11-28, after any 24 hours made the crown 18.5 %; then "10 %"): 85 / 115 / 135 = 19.6 / 17.4 / 9.8 % of the 92 regulars (10+ games, 4-26 Nov); was 20/45/65/100; 2026-11-26, user: harder (combat review, 66 regulars, 4-25 Nov): crown 12 %, was 20 %; rounder numbers (user, 2026-11-27), was (20, 35, 45, 65, 95)
     _rule(172, "Helping Hands of Kronos II (Combat)", "Get assists in any 24 hours", "team_proximity", lambda g: g.assists, (25, 60, 105, 125, 140), "day"),  # harder (user, 2026-11-28, crown was 17 %; then "10 %"): 105 / 125 / 140 = 21.7 / 15.2 / 10.9 %, above kills at every medal; was 25/55/80/120; 2026-11-26, user: harder (combat review, 66 regulars, 4-25 Nov): crown 15 %, was 27 % (assists stay above kills); rounder numbers (user, 2026-11-27), was (25, 42, 55, 80, 115)
@@ -132,7 +132,7 @@ COMBAT_RULES: list[Rule] = [
     # 2026-11-26, user: harder (combat review, 66 regulars, 4-25 Nov): crown 3 %, was 17 %; rounder numbers (2026-11-27), was
     # (4, 6, 10, 16, 24). Now 5 / 9 / 14 / 18 min = 75 / 37 / 20 / 7.6 % of the 92 regulars (best 70 min; 20 min would be 6.5 %).
     _rule(206, "Hold the Hill", "Spend time on the objective yourself on the Capture Point maps (Dyson, Combustion) in any 24 hours, in minutes",
-          "capture_point", _on_the_hill, (5, 7, 9, 14, 18), "day", " min"),
+          "capture_point", _on_the_hill, (6, 8, 10, 15, 20), "day", " min"),  # slightly harder (user, 2026-11-28): 65 / 30 / 16 / 6.5 %, was 5 / 9 / 14 / 18 = 75 / 37 / 20 / 7.6 %
     # Games with more kills than deaths in any 24 hours (user, 2026-11-28: the day between Above the Rings and Ready At Dawn);
     # crown for about 7.5 % of the 92 regulars (10+ Combat games, 4-27 Nov), best 29. Ids 293-295: 280-287 are taken.
     _rule(295, "Kronos II Day Shift", "Games in any 24 hours with more kills than deaths", "deaths", lambda g: g.kills > g.deaths, (3, 4, 5, 7, 14), "day"),
@@ -209,6 +209,8 @@ COMBAT_RULES = [replace(r, award=r.name.endswith("(Award card)"), name=plain_nam
 # Full challenges (user, 2026-11-27: "Make Combat count"): were counted=False (provisional, 2026-11-05). Changing a target now
 # changes people's tiers, totals and ranking.
 COMBAT_RULES = [replace(r, counted=True) for r in COMBAT_RULES]
+# Any 7 days: silver and up need games on 3+ different days, like the replay ones (user, 2026-11-28; achievements.spread_week)
+COMBAT_RULES = [spread_week(r) for r in COMBAT_RULES]
 
 
 def _card_list(raw) -> list[str]:

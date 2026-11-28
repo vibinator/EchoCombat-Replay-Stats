@@ -106,13 +106,28 @@ def test_average_speed_is_the_best_50_games_in_a_row():
     rule = [r for r in RULES if r.id == 73]
     on = lambda n, first=0, speed=3000.0: [Game(**{**game((date(2026, 10, 1) + timedelta(days=first + i // 10)).isoformat()).__dict__,
                                                    "started_at": f"{(date(2026, 10, 1) + timedelta(days=first + i // 10)).isoformat()}T{10 + i % 10:02d}:00:00.000",
-                                                   "speed_sum": speed}) for i in range(n)]
+                                                   "speed_sum": speed * 2.4, "in_bounds": 2400}) for i in range(n)]  # 2 min in bounds each
     count = lambda gs: evaluate(gs, rule)[0]["count"]
-    assert count(on(49)) == 0 and count(on(50)) == 3.0  # 3,000 m over 1,000 frames at 20 Hz = 3 m/s
+    assert count(on(49)) == 0 and count(on(50)) == 3.0  # 7,200 m over 2,400 frames at 20 Hz = 3 m/s
+    short = [Game(**{**g.__dict__, "in_bounds": 2399}) for g in on(10, first=1)]  # under 2 min in bounds: skipped
+    assert count(on(45) + short) == 0 and count(on(45) + short + on(5, first=2)) == 3.0
     fast, slow = on(50, speed=3500.0), on(80, first=20)  # a slower stretch later does not lower the best one
     assert count(fast + slow) == 3.5 and rule_notes(rule[0])[0] == "Best 50 games in a row"
     assert count(on(30, speed=3500.0) + on(30, first=40)) == 3.3  # 30 fast + 20 slow: (30 x 3.5 + 20 x 3) / 50
     assert medal_times(fast + slow, rule)[73]["crown"].startswith("2026-10-05T19")  # the 50th fast game
+
+
+def test_the_popup_says_what_is_left():
+    """Games / days / minutes a challenge still needs (user, 2026-11-28: the popup tells players how many are left)."""
+    long = [Game(**{**game(f"2026-10-0{1 + i % 2}").__dict__, "in_bounds": 2400}) for i in range(30)]
+    r = by_id(evaluate(long + [game("2026-10-02")]))  # one more game, but under 2 min in bounds
+    assert r[73]["needs"] == [{"what": "games with 2+ min in bounds (in a row)", "have": 30, "need": 50}]
+    assert r[71]["needs"] == [{"what": "games with 2+ min in bounds", "have": 30, "need": 50}]
+    assert r[48]["needs"] == [{"what": "different days", "have": 2, "need": 3, "window": "2026-10-02"},
+                              {"what": "minutes in bounds", "have": 60.8, "need": 10.0, "window": "2026-10-02"}]
+    assert r[50]["needs"] == [{"what": "different days (for silver and up)", "have": 2, "need": 3, "window": "2026-10-02"}]
+    assert r[53]["needs"][0]["have"] == 0  # no Surge games: no Surge days
+    assert "needs" not in r[23] and "needs" not in r[69]  # one game / a plain total: nothing else needed
 
 
 def test_all_time_and_overall():
@@ -205,24 +220,27 @@ def test_average_unlock_date_is_when_first_reached():
     from backend.achievements import unlock_dates
 
     # Inverted 40%+ (gold) over 50+ games: reached on day 2 (games 1-50 are 90 % inverted), then diluted, still above 40%
-    games = [game("2026-10-01", upside=900)] * 25 + [game("2026-10-02", upside=900)] * 25 + [game("2026-10-20")] * 20
+    long = lambda day, upside=0: Game(**{**game(day).__dict__, "in_bounds": 2400, "upside": upside})  # 2 min in bounds (2026-11-28)
+    games = [long("2026-10-01", 2160)] * 25 + [long("2026-10-02", 2160)] * 25 + [long("2026-10-20")] * 20
     assert by_id(evaluate(games))[74]["progress"] == 1.0
     assert unlock_dates(games)[74] == "2026-10-02"
 
 
 def test_teammate_proximity_targets():
-    """Tech Support: ladder 16 / 20 / 24 / 26 / 28 % over a week on 3+ days with 10+ minutes in bounds (these games have 50 s each);
-    Robot Wrecking Squad: 14 / 15.5 / 17 / 19.5 / 22.5 % all-time over 50+ games."""
+    """Tech Support: 24 / 27.5 / 28 / 30.5 % over a week on 3+ days with 10+ minutes in bounds (these games have 50 s each);
+    Robot Wrecking Squad all-time over 50+ games (3.5 m targets since 2026-11-28)."""
     def over_days(mate, *per_day):
         return [g for i, n in enumerate(per_day) for g in [game(f"2026-10-0{i + 1}", mate=mate)] * n]
-    r = by_id(evaluate(over_days(180, 4, 4, 4)))
-    assert (r[46]["tier"], r[46]["count"]) == ("bronze", 18) and r[71]["count"] == 0  # 12 games: the all-time one needs 50
-    assert by_id(evaluate(over_days(180, 4, 4, 3)))[46]["tier"] is None  # under 10 minutes in bounds
-    assert by_id(evaluate(over_days(150, 4, 4, 4)))[46]["tier"] is None
-    assert by_id(evaluate(over_days(180, 6, 6)))[46]["tier"] is None  # two days only
-    assert by_id(evaluate([game(mate=120)] * 50))[71]["tier"] == "bronze"  # 12 / 14 / 16 / 18 % (2026-11-11)
-    assert by_id(evaluate([game(mate=140)] * 50))[71]["tier"] == "silver"
-    assert by_id(evaluate([game(mate=110)] * 50))[71]["tier"] is None
+    r = by_id(evaluate(over_days(240, 4, 4, 4)))
+    assert (r[46]["tier"], r[46]["count"]) == ("bronze", 24) and r[71]["count"] == 0  # 12 games: the all-time one needs 50
+    assert by_id(evaluate(over_days(240, 4, 4, 3)))[46]["tier"] is None  # under 10 minutes in bounds
+    assert by_id(evaluate(over_days(230, 4, 4, 4)))[46]["tier"] is None
+    assert by_id(evaluate(over_days(240, 6, 6)))[46]["tier"] is None  # two days only
+    long = lambda share: Game(**{**game().__dict__, "in_bounds": 2400, "near_mate": int(24 * share)})  # 2 min in bounds each
+    assert by_id(evaluate([long(17)] * 50))[71]["tier"] == "bronze"  # 17 / 19.5 / 21.5 / 24.5 % (3.5 m, 2026-11-28)
+    assert by_id(evaluate([long(19.5)] * 50))[71]["tier"] == "silver"
+    assert by_id(evaluate([long(16.5)] * 50))[71]["tier"] is None
+    assert by_id(evaluate([game(mate=500)] * 50))[71]["tier"] is None  # 50 % but 50 s in bounds each: under 2 min, not counted
 
 
 def test_new_gear_challenges():
@@ -412,20 +430,20 @@ def test_seven_day_speed_needs_three_days_and_ten_minutes_in_bounds():
 
 
 def test_seven_day_enemy_share_needs_three_days_and_ten_minutes_in_bounds():
-    assert next(rule for rule in RULES if rule.id == 47).levels == (9, 11, 13, 15)
+    assert next(rule for rule in RULES if rule.id == 47).levels == (14, 16, 19.5, 21.5)  # 3.5 m (2026-11-28)
     def close(day, frames=4000):
-        return Game(**{**game(day).__dict__, "near_enemy": frames // 5, "in_bounds": frames})
-    assert by_id(evaluate([close("2026-10-01"), close("2026-10-02"), close("2026-10-03")]))[47]["tier"] == "crown"  # 20 % for exactly 10 minutes at 20 Hz
+        return Game(**{**game(day).__dict__, "near_enemy": frames * 22 // 100, "in_bounds": frames})
+    assert by_id(evaluate([close("2026-10-01"), close("2026-10-02"), close("2026-10-03")]))[47]["tier"] == "crown"  # 22 % for exactly 10 minutes at 20 Hz
     assert by_id(evaluate([close("2026-10-01"), close("2026-10-02"), close("2026-10-03", 3995)]))[47]["count"] == 0
     assert by_id(evaluate([close("2026-10-01", 12000), close("2026-10-02", 12000)]))[47]["count"] == 0  # two days
 
 
 
 def test_seven_day_teammate_share_needs_three_days_and_ten_minutes_in_bounds():
-    assert next(rule for rule in RULES if rule.id == 46).levels == (18, 21, 23, 25)
+    assert next(rule for rule in RULES if rule.id == 46).levels == (24, 27.5, 28, 30.5)  # 3.5 m (2026-11-28)
     def close(day, frames=4000):
-        return Game(**{**game(day).__dict__, "near_mate": frames * 7 // 25, "in_bounds": frames})
-    assert by_id(evaluate([close("2026-10-01"), close("2026-10-02"), close("2026-10-03")]))[46]["tier"] == "crown"  # 28 % for exactly 10 minutes at 20 Hz
+        return Game(**{**game(day).__dict__, "near_mate": frames * 31 // 100, "in_bounds": frames})
+    assert by_id(evaluate([close("2026-10-01"), close("2026-10-02"), close("2026-10-03")]))[46]["tier"] == "crown"  # 31 % for exactly 10 minutes at 20 Hz
     assert by_id(evaluate([close("2026-10-01"), close("2026-10-02"), close("2026-10-03", 3975)]))[46]["count"] == 0
     assert by_id(evaluate([close("2026-10-01", 12000), close("2026-10-02", 12000)]))[46]["count"] == 0  # two days
 
@@ -441,7 +459,7 @@ def test_one_day_targets():
 
 def test_impossible_top_medals_were_lowered():
     levels = {rule.id: rule.levels for rule in RULES}
-    assert levels[72] == (6, 9, 10, 11) and levels[73] == (2.6, 2.85, 3.1, 3.4) and levels[100] == (40, 125, 150, 225)
+    assert levels[72] == (10, 14, 15, 16) and levels[73] == (2.6, 2.85, 3.1, 3.4) and levels[100] == (40, 125, 150, 225)
     assert levels[150] == (8, 24, 32, 40) and levels[151] == (16, 24, 28, 32)  # doubled again (user, 2026-11-27)
 
 
@@ -454,7 +472,13 @@ def test_seven_day_map_and_mode_targets():
     assert by_id(evaluate(days * 3))[53]["tier"] == "crown"  # 18 games over 6 days
     assert by_id(evaluate(days * 2 + days[:5]))[53]["tier"] == "gold"  # 17
     spread = [game("2026-10-01", map_="surge")] * 9 + [game("2026-10-20", map_="surge")] * 9
-    assert by_id(evaluate(spread))[53]["tier"] == "silver"  # 18 games, but only 9 in any 7 days
+    assert by_id(evaluate(spread))[53]["tier"] == "bronze"  # 18 games, but only 9 in any 7 days, all on one day
+    assert by_id(evaluate([game("2026-10-01", map_="surge")] * 18))[53]["tier"] == "bronze"  # one day: silver+ needs 3 days
+    assert by_id(evaluate([game(f"2026-10-0{1 + i % 3}", map_="surge") for i in range(18)]))[53]["tier"] == "crown"
+    gaps = [game(f"2026-10-0{(1, 4, 7)[i % 3]}", map_="surge") for i in range(18)]  # any 3 days of the 7, not in a row
+    assert by_id(evaluate(gaps))[53]["tier"] == "crown"
+    other_days = [game("2026-10-02", map_="dyson"), game("2026-10-03", map_="dyson")]  # the 3 days must be Surge days
+    assert by_id(evaluate([game("2026-10-01", map_="surge")] * 18 + other_days))[53]["tier"] == "bronze"
 
 
 def test_seven_day_gear_needs_three_days_from_silver():
