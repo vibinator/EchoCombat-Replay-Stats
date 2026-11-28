@@ -347,18 +347,18 @@ TUNED_LEVELS: dict[int, tuple[float, ...]] = {
     52: (4, 6, 8, 12, 18),  # Phoeniconaias minor
     53: (4, 6, 8, 12, 18),  # Phoenicopterus ruber
     54: (15, 30, 50, 65, 80),  # Who Do I Have to Pew Pew Pew to Get a Combat Update Around Here? (user, 2026-11-05: 99 / 27 / 11 / 6 / 5 players since 1 Aug; was 15/30/60/130/195, which nobody ever reached)
-    55: (20, 35, 50, 80, 120),  # Pulsar Veteran
-    56: (20, 35, 50, 80, 120),  # Nova Veteran
-    57: (20, 35, 50, 80, 120),  # Comet Veteran
-    58: (20, 35, 50, 80, 120),  # Meteor Veteran
-    59: (20, 35, 50, 80, 120),  # Detonator Veteran
-    60: (20, 35, 50, 80, 120),  # Stun Field Veteran
-    61: (20, 35, 50, 80, 120),  # Arc Mine Veteran
-    62: (20, 35, 50, 80, 120),  # Instant Repair Veteran
-    63: (20, 35, 50, 80, 120),  # Repair Matrix Veteran
-    64: (20, 35, 50, 80, 120),  # Threat Scanner Veteran
-    65: (20, 35, 50, 80, 120),  # Energy Barrier Veteran
-    66: (20, 35, 50, 80, 120),  # Phase Shift Veteran
+    55: (20, 40, 60, 100, 180),  # Pulsar Veteran
+    56: (20, 40, 60, 100, 180),  # Nova Veteran
+    57: (20, 40, 60, 100, 180),  # Comet Veteran
+    58: (20, 40, 60, 100, 180),  # Meteor Veteran
+    59: (20, 40, 60, 100, 180),  # Detonator Veteran
+    60: (20, 40, 60, 100, 180),  # Stun Field Veteran
+    61: (20, 40, 60, 100, 180),  # Arc Mine Veteran
+    62: (20, 40, 60, 100, 180),  # Instant Repair Veteran
+    63: (20, 40, 60, 100, 180),  # Repair Matrix Veteran
+    64: (20, 40, 60, 100, 180),  # Threat Scanner Veteran
+    65: (20, 40, 60, 100, 180),  # Energy Barrier Veteran
+    66: (20, 40, 60, 100, 180),  # Phase Shift Veteran
     # 4-month challenge period (user, 2026-11-26): the ladders nobody could finish in the last real 4 months (27 Jul-26 Nov,
     # 255 regulars) made reachable; the rest already land at a 2-6 % crown and stay.
     17: (1, 1.5, 2, 3, 4),  # Versatile Bot: days with all 12 items (best regular 2; was 1 / 5 / 13 / 23)
@@ -371,10 +371,10 @@ TUNED_LEVELS: dict[int, tuple[float, ...]] = {
     70: (20, 47, 75, 125, 150),  # rounder numbers (user, 2026-11-27), was (20, 47.5, 75, 130, 150); halfway to November's pace (user, 2026-11-26);  # Feed the Flamingo (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 14/29/51/90/155)
     72: (10, 12, 14, 15, 16),  # 3.5 m (user, 2026-11-28, was 2.65 m): each target moved to the 3.5 m value the same share of players reaches (1,582 recent replays, 74 regulars), was 6/7.5/9/10/11; Roboticide (2026-11-11, user: crown for about 7.5 % of regulars after the death and bounds corrections; was 6/8/9/11/14)
     73: (2.6, 2.725, 2.85, 3.1, 3.4),  # Cyberkinetic Enhancements (2026-11-11, user: crown for about 7.5 % of regulars after the death and bounds corrections; was 2.6/2.8/3.0/3.2/3.5)  # loosened 2026-11-11 (user): steps of at least 8 % of the crown, the lower medals eased; was 2.6/2.8/3/3.2/3.4  # 2026-11-11 (user): bronze back at 2.6 (held by 68 % of regulars), steps of 0.25 / 0.25 / 0.3; was 2/2.25/2.5/3/3.4
-    75: (10, 25, 40, 60, 75),  # rounder numbers (user, 2026-11-27), was (12, 26, 40, 60, 74); halfway to November's pace (user, 2026-11-26);  # Brute Force Attack (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 8/16/27/50/80)
-    76: (10, 25, 40, 60, 75),  # rounder numbers (user, 2026-11-27), was (12, 26, 40, 60, 74); halfway to November's pace (user, 2026-11-26);  # Molten Mechanical Mayhem (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 7/15/26/49/80)
-    77: (10, 25, 40, 60, 75),  # rounder numbers (user, 2026-11-27), was (12, 26, 40, 60, 74); halfway to November's pace (user, 2026-11-26);  # George and I Go Way Back (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 7/15/26/45/80)
-    78: (10, 25, 40, 60, 75),  # rounder numbers (user, 2026-11-27), was (12, 26, 40, 60, 74); halfway to November's pace (user, 2026-11-26);  # Good ol' George (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 7/15/26/46/75)
+    75: (10, 25, 45, 85, 150),  # November's pace over 4 months (user, 2026-11-28: "base it on projected data in the last 1 month"): 85-78 / 51-37 / 21-17 / 9-4 % of the 95 regulars, was 10 / 40 / 60 / 75; rounder numbers (user, 2026-11-27), was (12, 26, 40, 60, 74); halfway to November's pace (user, 2026-11-26);  # Brute Force Attack (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 8/16/27/50/80)
+    76: (10, 25, 45, 85, 150),  # November's pace over 4 months (user, 2026-11-28: "base it on projected data in the last 1 month"): 85-78 / 51-37 / 21-17 / 9-4 % of the 95 regulars, was 10 / 40 / 60 / 75; rounder numbers (user, 2026-11-27), was (12, 26, 40, 60, 74); halfway to November's pace (user, 2026-11-26);  # Molten Mechanical Mayhem (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 7/15/26/49/80)
+    77: (10, 25, 45, 85, 150),  # November's pace over 4 months (user, 2026-11-28: "base it on projected data in the last 1 month"): 85-78 / 51-37 / 21-17 / 9-4 % of the 95 regulars, was 10 / 40 / 60 / 75; rounder numbers (user, 2026-11-27), was (12, 26, 40, 60, 74); halfway to November's pace (user, 2026-11-26);  # George and I Go Way Back (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 7/15/26/45/80)
+    78: (10, 25, 45, 85, 150),  # November's pace over 4 months (user, 2026-11-28: "base it on projected data in the last 1 month"): 85-78 / 51-37 / 21-17 / 9-4 % of the 95 regulars, was 10 / 40 / 60 / 75; rounder numbers (user, 2026-11-27), was (12, 26, 40, 60, 74); halfway to November's pace (user, 2026-11-26);  # Good ol' George (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 7/15/26/46/75)
     79: (50, 150, 250, 500, 1000),  # rounder numbers (user, 2026-11-27), was (39, 89, 140, 250, 290); halfway to November's pace (user, 2026-11-26);  # King/Queen of Pubs (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 28/60/105/190/320)
     90: (3, 4, 5, 7, 10),  # crown an even 10 (user, 2026-11-27), was 9; On a Roll / Echo Streak (2026-11-26, user: harder at the top, crown 4 % of 194 regulars, was 9 % at 3 / 5 / 6 / 7)
     96: (100, 200, 210, 225, 240),  # Pedal to the Metal: harder (user, 2026-11-28, after the 2v2 rule made it 88 / 65 / 47 / 24 %): 100 / 210 / 225 / 240 s = 88 / 20 / 13 / 6 % of the 95 regulars (25+ games since 1 Aug); was 100/140/175/205  # 2026-11-11 (user): crown unchanged at about 7.5 % of regulars, steps of 40 / 35 / 30 s; was 112/160/182/198/207
@@ -392,11 +392,11 @@ TUNED_LEVELS: dict[int, tuple[float, ...]] = {
     102: (2, 4, 6, 8, 10),  # Protostar Power Trip
     103: (2, 4, 6, 8, 10),  # Quark Storm
     104: (2, 4, 6, 8, 10),  # Here, There and Everywhere
-    105: (20, 35, 50, 80, 120),  # Starburst Veteran
-    106: (20, 35, 50, 80, 120),  # Protostar Veteran
-    107: (20, 35, 50, 80, 120),  # Quark Veteran
-    108: (20, 35, 50, 80, 120),  # Translocator Veteran
-    112: (20, 35, 50, 80, 120),  # Overcharged (renamed 2026-11-26, user; was "Overclocked")
+    105: (20, 40, 60, 100, 180),  # Starburst Veteran
+    106: (20, 40, 60, 100, 180),  # Protostar Veteran
+    107: (20, 40, 60, 100, 180),  # Quark Veteran
+    108: (20, 40, 60, 100, 180),  # Translocator Veteran
+    112: (20, 40, 60, 100, 180),  # Overcharged (renamed 2026-11-26, user; was "Overclocked")
     114: (20, 22, 25, 35, 45),  # rounder numbers (user, 2026-11-27), was (18, 22, 26, 35, 46); halfway to November's pace (user, 2026-11-26);  # Lobby Regular (Activity) (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 10/19/31/47/75)
     115: (7, 8.5, 10, 12, 15),  # halfway to November's pace (user, 2026-11-26);  # Loyal Bot (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 6/11/16/23/32)
     117: (5, 12, 20, 30, 35),  # rounder numbers (user, 2026-11-27), was (5, 12, 19, 30, 36); halfway to November's pace (user, 2026-11-26);  # Time Well Wasted on Kronos II (Activity) (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 3.5/7.7/14/26/43)
@@ -407,19 +407,19 @@ TUNED_LEVELS: dict[int, tuple[float, ...]] = {
     130: (5, 8, 10, 15, 20),  # Blink and You'll Miss It
     131: (2, 4, 6, 8, 10),  # Full Charge
     132: (5, 8, 10, 15, 20),  # Charged Up
-    133: (20, 35, 50, 80, 120),  # Blazar Veteran
-    134: (20, 35, 50, 80, 120),  # Dot Field Veteran
+    133: (20, 40, 60, 100, 180),  # Blazar Veteran
+    134: (20, 40, 60, 100, 180),  # Dot Field Veteran
     135: (2, 4, 6, 8, 10),  # Blazing Trail
     136: (2, 4, 6, 8, 10),  # Dot to Dot
     137: (5, 8, 10, 15, 20),  # Blazar Barrage
     138: (5, 8, 10, 15, 20),  # Dot Matrix
-    265: (20, 35, 50, 80, 120),  # Attack Drone Veteran (user, 2026-11-20: the same gear numbers)
+    265: (20, 40, 60, 100, 180),  # Attack Drone Veteran (user, 2026-11-20: the same gear numbers)
     266: (2, 4, 6, 8, 10),  # Attack Drone Ace
     267: (5, 8, 10, 15, 20),  # Attack Drone Swarm
-    269: (20, 35, 50, 80, 120),  # Umbral Veil Veteran
+    269: (20, 40, 60, 100, 180),  # Umbral Veil Veteran
     270: (2, 4, 6, 8, 10),  # Behind the Umbral Veil
     271: (5, 8, 10, 15, 20),  # Shrouded in the Umbral Veil
-    273: (20, 35, 50, 80, 120),  # Neutron Veteran
+    273: (20, 40, 60, 100, 180),  # Neutron Veteran
     274: (2, 4, 6, 8, 10),  # Neutron Star
     275: (5, 8, 10, 15, 20),  # Neutron Flux
     142: (50, 55, 60, 67.5, 75),  # Statue (2026-11-11, user: eased and rounded after the play-area bounds, spawn points and death rules were corrected (stats version 16), which made it harder; was 54/61/67/73/80)  # loosened 2026-11-11 (user): steps of at least 8 % of the crown, the lower medals eased; was 50/55/60/70/75
