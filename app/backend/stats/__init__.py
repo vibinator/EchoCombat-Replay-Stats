@@ -49,10 +49,24 @@ MAX_FRAME_GAP_S = 1.0  # cap per-frame time credit so a recording gap does not c
 # fastest flights on record, both in Dyson's entry tubes in one match (2023-07-17 01:32): Caprison- 42.1 m/s and
 # Chroined 39.9, smooth runs from 0 to 45-53 m/s out of the tube ends at x = +-105. Tube runs as such still count
 # (user chose these two only): 15 of the 22 Dyson top speeds of 30+ m/s in the newest 422 Dyson replays are one.
-# The rest of their stats in that match stay.
+# The rest of their stats in that match stay. Their match just before, Fission 2023-07-17 01:25 (Caprison- 41.9,
+# Chroined 37.8), went too (user, same day: "there speed on fission looks fake/cheating"), and so did 255hp's 33.8 in
+# it: the same flight, 1-3 m beside Caprison-, the same speed-up across open space into the same wall.
+# Lag, hidden by hand the same day (user chose this over a rule; the same lag elsewhere still counts):
+# - longthegreat 35.4 (Combustion 2022-12-02 02:32): 0.5 m/s, a 0.67 s hole in the recording, then 60 m/s and in 0.1 s
+#   11.5 m/s the other way. A launch inside a gap over TOP_SPEED_MAX_GAP_S is not seen by the launch rule.
+# - Bree_Plays 33.2 (Dyson 2022-08-28 22:44) and Checkyour6 32.6 (Surge 2022-12-01 23:49): rubber-banding as ping jumps
+#   to 170, the head snapping back and forth; the way travelled counts both ways, the straight line is 20.5 / 19.4 m.
+# In the top 25 of the live list (2026-11-28) every other second covered its top speed in a straight line.
 HIDDEN_TOP_SPEEDS = {
-    ("6439ECE9-3B1E-48A9-A095-8E684642AE88", "5768612813157473"),  # Caprison-
-    ("6439ECE9-3B1E-48A9-A095-8E684642AE88", "3566203946796124"),  # Chroined
+    ("6439ECE9-3B1E-48A9-A095-8E684642AE88", "5768612813157473"),  # Caprison-, Dyson
+    ("6439ECE9-3B1E-48A9-A095-8E684642AE88", "3566203946796124"),  # Chroined, Dyson
+    ("9EDD0D45-78A4-4785-9174-B6073C57CCAA", "5768612813157473"),  # Caprison-, Fission
+    ("9EDD0D45-78A4-4785-9174-B6073C57CCAA", "3566203946796124"),  # Chroined, Fission
+    ("9EDD0D45-78A4-4785-9174-B6073C57CCAA", "4650551985052108"),  # 255hp, Fission
+    ("EC608911-CEA2-4373-96DB-3BCF1445FA09", "6418887628183184"),  # longthegreat, Combustion
+    ("A7591FBC-4D6A-4D1A-AAFC-44D43C61FEA6", "2659289784148280"),  # Bree_Plays, Dyson
+    ("869081BB-DDED-42C1-A063-F41EC9A3C62F", "1080726748697791"),  # Checkyour6, Surge
 }
 
 

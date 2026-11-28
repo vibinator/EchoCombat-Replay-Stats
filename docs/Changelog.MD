@@ -18,6 +18,37 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.28.24 — 18:23
+
+- **Top 25 fastest players checked one by one** (user, 28 Nov: "check all of them ... look for laggy and weird speeding
+  up"). Four more top speeds removed by hand (stats.HIDDEN_TOP_SPEEDS; the rest of their stats in those matches stay):
+  - **255hp 33.8 m/s** (Fission 2023-07-17 01:25): the same flight as Caprison-'s, 1-3 m beside them, the same speed-up
+    across open space into the same wall.
+  - **longthegreat 35.4** (Combustion 2022-12-02 02:32): standing still, a 0.67 s hole in the recording, then 60 m/s,
+    then 11.5 m/s the other way within 0.1 s: lag or a launch hidden in the gap.
+  - **Bree_Plays 33.2** (Dyson 2022-08-28 22:44) and **Checkyour6 32.6** (Surge 2022-12-01 23:49): rubber-banding as
+    ping jumps to 170: they snap back and forth, so the way travelled counts twice; in a straight line that second was
+    only 20.5 / 19.4 m.
+  - The other 21 look real: they covered their top speed in a straight line, with no snapping back and forth and no
+    holes. Fifteen are Dyson entry-tube runs (most with a partner beside them), and the others are regrab pairs and a
+    group flight on Combustion. Chosen by hand over a new rule (user), so the same kinds of lag further down the list
+    still count.
+  - **After the update** these replays need reading again (admin console: reprocess), together with the one from
+    2026.11.28.23 (the same Fission file):
+    `fission/[2023-07-17 01-25-37] 9EDD0D45-….echoreplay`, `combustion/[2022-12-02 02-32-38] EC608911-….echoreplay`,
+    `dyson/[2022-08-28 22-44-51] A7591FBC-….echoreplay`, `surge/[2022-12-01 23-49-30] 869081BB-….echoreplay`.
+    No stats version change, no full re-read.
+
+## 2026.11.28.23 — 18:02
+
+- **Caprison- and Chroined's Fission top speeds removed too** (user, 28 Nov: "there speed on fission looks fake/cheating"):
+  Caprison- 41.9 m/s and Chroined 37.8 m/s, Fission 2023-07-17 01:25, the match just before the Dyson one hidden in
+  2026.11.28.14. Since that update they led the home page's fastest players from this match (1st and 3rd). That match now
+  gives them no top speed; the rest of their stats there stay (stats.HIDDEN_TOP_SPEEDS). Their next-best matches are under
+  30 m/s. Expected home-page top 5: DinkatorBoi 37.9, JavaBava 37.7, davidyarker 37.2, then the next two.
+  **After the update** that one replay needs reading again (admin console: reprocess
+  `fission/[2023-07-17 01-25-37] 9EDD0D45-….echoreplay`); no stats version change, no full re-read.
+
 ## 2026.11.28.22 — 17:27
 
 - **Challenges page: no more filter button** (user, 28 Nov: "remove the filter icon, its somewhat pointless"). Category and status are now tap chips in plain view under the tabs, so nothing is hidden and nothing needs typing in VR:
