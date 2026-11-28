@@ -27,11 +27,15 @@ Working record of what changed in each release, newest first.
   (Cyberkinetic 17 / 11 / 8 / 3 %, toB taB m'I 14 / 5 / 3 / 2 %) and rise as the period goes on.
 - **Cyberkinetic Enhancements slightly easier** (user, 28 Nov): 2.5 / 2.75 / 3.0 / 3.3 m/s, 0.1 off every medal (was 2.6 /
   2.85 / 3.1 / 3.4). With 100 games in a row: 17 / 15 / 8.4 / 5.3 % of the 95 regulars (was 17 / 11 / 8.4 / 3.2 %).
-- **toB taB m'I slightly easier** (user, 28 Nov): 1.5 / 6 / 9 / 14 % of each game upside down, about a fifth off every medal
-  (was 2 / 8 / 11 / 17). With 100 games: 15 / 8.4 / 5.3 / 2.1 % of the 95 regulars (was 14 / 5.3 / 3.2 / 2.1 %).
-- **Robot Wrecking Squad slightly easier** (user, 28 Nov): 16 / 18.5 / 20.5 / 23.5 % of each game close to a teammate, a
-  point off every medal (was 17 / 19.5 / 21.5 / 24.5). With 100 games: 15 / 12 / 9 / 7 % of the regulars in the replay
-  sample (was 15 / 11 / 8 / 4 %).
+- **toB taB m'I is for players who really play upside down** (user, 28 Nov): 5 / 15 / 25 / 35 % of each game upside down
+  over 100+ games, was 2 / 8 / 11 / 17. The players who play that way average 43-57 % (rev2600, gfunkadelic, Alpha-Phoenix,
+  monkeybanana since 1 Aug), so the old crown was no goal for them, and others could reach it by chance.
+- **Robot Wrecking Squad and Roboticide set for the 4-month period** (user, 28 Nov: "use projection"): at November's pace
+  65 of the 95 regulars reach the 100 games in 4 months (18 have them today), so the targets are set on that. Robot
+  Wrecking Squad 16 / 20 / 24 / 27 % of each game close to a teammate (was 16 / 18.5 / 20.5 / 23.5, which would have given
+  69 / 51 / 39 / 23 %), Roboticide 12 / 14.5 / 17 / 19.5 % close to an enemy (was 10 / 14 / 15 / 16: 78 / 50 / 39 / 30 %).
+  Now about 70 / 40 / 20 / 7.5 % at that pace, from the 3.5 m replay sample; to check again on the full data after the
+  re-read.
 - **Versatile Bot counts days with any 12 different items** (user, 28 Nov: "this should be any 12 items"), from all 22
   weapons, ordnances and tac mods, experimental ones too; it was all 12 standard ones. Easier, so the targets are new:
   1 / 5 / 10 / 20 days, was 1 / 2 / 3 / 4. At November's pace over 4 months 31 / 24 / 18 / 9 % of regulars; best so far

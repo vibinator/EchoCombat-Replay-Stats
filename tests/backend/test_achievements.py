@@ -247,9 +247,9 @@ def test_teammate_proximity_targets():
     assert by_id(evaluate(over_days(230, 4, 4, 4)))[46]["tier"] is None
     assert by_id(evaluate(over_days(240, 6, 6)))[46]["tier"] is None  # two days only
     long = lambda share: Game(**{**game().__dict__, "in_bounds": 2400, "near_mate": int(24 * share)})  # 2 min in bounds each
-    assert by_id(evaluate([long(16)] * 100))[71]["tier"] == "bronze"  # 16 / 18.5 / 20.5 / 23.5 % (3.5 m, 2026-11-28)
-    assert by_id(evaluate([long(18.5)] * 100))[71]["tier"] == "silver"
-    assert by_id(evaluate([long(18.5)] * 99))[71]["tier"] is None  # 100 games needed (2026-11-28)
+    assert by_id(evaluate([long(16)] * 100))[71]["tier"] == "bronze"  # 16 / 20 / 24 / 27 % (3.5 m, projected, 2026-11-28)
+    assert by_id(evaluate([long(20)] * 100))[71]["tier"] == "silver"
+    assert by_id(evaluate([long(20)] * 99))[71]["tier"] is None  # 100 games needed (2026-11-28)
     assert by_id(evaluate([long(15.5)] * 100))[71]["tier"] is None
     assert by_id(evaluate([game(mate=500)] * 100))[71]["tier"] is None  # 50 % but 50 s in bounds each: under 2 min, not counted
 
@@ -470,7 +470,7 @@ def test_one_day_targets():
 
 def test_impossible_top_medals_were_lowered():
     levels = {rule.id: rule.levels for rule in RULES}
-    assert levels[72] == (10, 14, 15, 16) and levels[73] == (2.5, 2.75, 3.0, 3.3) and levels[100] == (40, 125, 150, 225)
+    assert levels[72] == (12, 14.5, 17, 19.5) and levels[73] == (2.5, 2.75, 3.0, 3.3) and levels[100] == (40, 125, 150, 225)
     assert levels[150] == (8, 24, 32, 40) and levels[151] == (16, 24, 28, 32)  # doubled again (user, 2026-11-27)
 
 
