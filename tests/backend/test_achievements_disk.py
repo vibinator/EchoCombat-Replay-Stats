@@ -54,7 +54,7 @@ def test_built_ahead_for_the_most_active_players(tmp_path):
         add(c, {"dyson/0.echoreplay": rf.plain(rf.lines(20, teams=rf.two_v_two()))})
         act(c, actions.set_challenge_window, "2026-01-01", None)
         warmer = heights_warm.HeightsWarmer(c.app.state.sessionmaker, settings, c.app.state.worker, c.app)
-        assert warmer.build_challenges(rest=False) == 2  # both players of the match
+        assert warmer.build_challenges(rest=False) == 4  # all four players of the 2v2 match
         assert warmer.build_challenges(rest=False) == 0  # still current
         with pytest.MonkeyPatch.context() as patch:
             no_build(patch)

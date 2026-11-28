@@ -16,7 +16,7 @@ export const keepsColours = (icon: string | null | undefined) => !!icon && (icon
 const GENERIC_ICON = "happy_cubesat.png";
 export const GROUPS: [Achievement["period"], string][] = [
   ["game", "One Match"],
-  ["day", "One Day"],
+  ["day", "One Day"], // counts any 24 hours since 2026-11-28 (was the UK calendar day): said by the tab's ⓘ (TAB_INFO)
   ["week", "One Week"],
   ["month", "One Month"], // no challenge uses it now (user, 2026-11-10); an empty page is hidden
   ["all", "Cumulative"],
@@ -93,6 +93,12 @@ function sortItems<T extends AnyBadge>(list: T[], by: SortBy, shares: Shares): T
 }
 
 /** Colour of each tab (user, 2026-11-26: big coloured tabs, like the old site's Community / Day / Week / Season). */
+/** What the time period of a tab means, behind an ⓘ on the tab (user, 2026-11-28): hover shows it, a tap opens it under the tabs (VR). */
+const TAB_INFO: Record<string, string> = {
+  "p-day": "In any 24 hours: your best 24 hours in a row count, starting at any of your games, so a session across midnight counts as one.",
+  "p-week": "In any 7 days: your best 7 days in a row count, starting at any of your games.",
+};
+
 const SECTION_COLOUR: Record<string, string> = {
   "p-game": "var(--period-game)",
   "p-day": "var(--period-day)",
@@ -264,20 +270,20 @@ const HINTS: Record<number, string> = {
   143: "Far from teammates, one game", 147: "Time on a contested point, one game", 150: "Emotes in one game",
   151: "Emotes in a game you win", 170: "Kills without dying, one game", 176: "Most kills in the match",
   177: "Games with 5 kills, 5 assists, 5 objective eliminations", 178: "Games with 8+ assists, twice your kills",
-  208: "Most kills in the match, in a day", 213: "Most kills in the match, in 7 days",
+  208: "Most kills in the match, in 24 hours", 213: "Most kills in the match, in 7 days",
 };
 
 export function shortHint(a: { id: number; description: string; period: string }): string {
   if (HINTS[a.id]) return HINTS[a.id];
   const rule = ruleText(a.description);
-  const when = (s: string) => (/in one day/.test(s) ? ", in a day" : /in any 7 days/.test(s) ? ", in 7 days" : /in any 30 days/.test(s) ? ", in 30 days" : "");
-  let m = /^Play games using only (.+?) in (?:one day|any 7 days|any 30 days)/.exec(rule);
+  const when = (s: string) => (/in any 24 hours/.test(s) ? ", in 24 hours" : /in any 7 days/.test(s) ? ", in 7 days" : /in any 30 days/.test(s) ? ", in 30 days" : "");
+  let m = /^Play games using only (.+?) in (?:any 24 hours|any 7 days|any 30 days)/.exec(rule);
   if (m) return `Only ${m[1]}${when(rule)}`;
   m = /^Play games using (.+)$/.exec(rule);
   if (m) return `Games with ${m[1]}`;
-  m = /^Play games on (\w+)(?: in (?:one day|any 7 days))?$/.exec(rule);
+  m = /^Play games on (\w+)(?: in (?:any 24 hours|any 7 days))?$/.exec(rule);
   if (m) return `${m[1]} games${when(rule)}`;
-  m = /^Play (Capture Point|Payload|Combat pubs?)(?: games)?(?: in (?:one day|any 7 days))?$/.exec(rule);
+  m = /^Play (Capture Point|Payload|Combat pubs?)(?: games)?(?: in (?:any 24 hours|any 7 days))?$/.exec(rule);
   if (m) return `${m[1].replace(/ pubs?$/, " pubs")}${/games/.test(rule) ? " games" : ""}${when(rule)}`;
   const first = rule.split(/, | \(|: /)[0];
   if (first.length <= HINT_MAX) return first;
@@ -387,7 +393,7 @@ function ChallengeRow({ a, side }: { a: AnyBadge; side: "left" | "right" }) {
 function ruleSentence(tag: string): string {
   const fixed: Record<string, string> = {
     "Best game": "Your best single game counts",
-    "Best day": "Your best day counts (UK time)",
+    "Best 24 hours": "Your best 24 hours in a row count",
     "Best 7 days": "Your best 7 days in a row count",
     "Best 30 days": "Your best 30 days in a row count",
     "All-time total": "Every game in the challenge period adds up",
@@ -520,6 +526,7 @@ export function GroupedBadges<T extends AnyBadge>({ items: all }: { items: T[] }
   // the theme chips and the "New only" box are gone (user, 2026-11-07): the search box and the status / sort selects remain
   const [sort, setSort] = useState<SortBy>("default");
   const [toolsOpen, setToolsOpen] = useState(false);
+  const [tabInfo, setTabInfo] = useState<string | null>(null); // the tab whose ⓘ text is open
   const [params, setParams] = useSearchParams();
   const tracked = items.length > 0 && items.every((a) => status(a) !== null);
   const term = q.trim().toLowerCase();
@@ -552,13 +559,25 @@ export function GroupedBadges<T extends AnyBadge>({ items: all }: { items: T[] }
             {shownSections.map((x) => {
               const progress = listProgress(x.items);
               const done = progress === null ? 0 : x.items.filter((a) => status(a) === "done").length;
-              return (
+              const info = TAB_INFO[x.id];
+              const tab = (
                 <button key={x.id} role="tab" aria-selected={active.id === x.id} className={`ch-tab${active.id === x.id ? " active" : ""}`}
                   style={{ "--per": SECTION_COLOUR[x.id] ?? "var(--blue)" } as React.CSSProperties} onClick={() => pick(x.id)}>
                   <span className="ch-tab-fill" style={{ width: `${(progress ?? 0) * 100}%` }} aria-hidden="true" />
                   <span className="ch-tab-label">{x.label}</span>
                   <span className="ch-tab-hint">{progress === null ? `${x.items.length} challenges` : `${done}/${x.items.length} · ${pct(progress)}`}</span>
                 </button>
+              );
+              if (!info) return tab;
+              // the ⓘ sits beside the tab button, not inside it (a button cannot hold another one)
+              return (
+                <div key={x.id} className="ch-tab-wrap" role="presentation">
+                  {tab}
+                  <button type="button" className={`ch-tab-info${tabInfo === x.id ? " on" : ""}`} title={info} aria-label={`${x.label}: ${info}`}
+                    aria-expanded={tabInfo === x.id} onClick={() => setTabInfo((v) => (v === x.id ? null : x.id))}>
+                    i
+                  </button>
+                </div>
               );
             })}
           </div>
@@ -568,6 +587,12 @@ export function GroupedBadges<T extends AnyBadge>({ items: all }: { items: T[] }
           <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M3 5h18l-7 8v5l-4 2v-7z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" /></svg>
         </button>
       </div>
+      {tabInfo && TAB_INFO[tabInfo] && (
+        <p className="ch-tab-note" role="note">
+          <strong>{TAB_LABELS[tabInfo.slice(2)]}</strong> · {TAB_INFO[tabInfo]}
+          <button type="button" className="ch-tab-note-close" aria-label="Close" onClick={() => setTabInfo(null)}>×</button>
+        </p>
+      )}
       {showTools && (
         <div className="ach-toolbar">
           <input type="search" placeholder="Filter challenges" aria-label="Filter challenges" value={q} onChange={(e) => setQ(e.target.value)} />
@@ -1470,7 +1495,7 @@ export function AchievementRules({ open = false }: { open?: boolean }) {
           the game in its slot, so a short switch is fine: in a 10-minute game up to 1 minute of something else is allowed.
         </li>
         <li>
-          <strong>Days are UK days</strong>, midnight to midnight UK time, so everyone is counted on the same clock. That covers "in one day", "any 7 days" and the challenge dates. Match times on the site are shown in your own timezone.
+          <strong>"Any 24 hours" and "any 7 days" slide</strong>: they can start at any of your games, so a session across midnight counts as one. The challenge dates are UK days, midnight to midnight UK time. Match times on the site are shown in your own timezone.
         </li>
         <li>
           <strong>Highlighted cards</strong> are close to their next medal: at least a quarter of the way there, from yellow to green as you get closer.
@@ -1495,7 +1520,7 @@ function nextTierHow(a: Achievement, need: number): { where: string; conditions:
   const goal = `${need.toLocaleString()}${unit}`;
   const where: Record<string, string> = {
     game: `In a single game: reach ${goal}. Your best game so far: ${best}.`,
-    day: `All in one day (UK time): reach ${goal}. Your best day so far: ${best}.`,
+    day: `Within any 24 hours: reach ${goal}. Your best 24 hours so far: ${best}.`,
     week: `Within any 7 days: reach ${goal}. Your best 7 days so far: ${best}.`,
     month: `Within any 30 days: reach ${goal}. Your best 30 days so far: ${best}.`,
     all: `${Math.max(0, need - (a.count ?? 0)).toLocaleString(undefined, { maximumFractionDigits: 1 })}${unit} more: everything in the challenge period adds up.`,

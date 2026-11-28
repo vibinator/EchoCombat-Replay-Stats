@@ -121,7 +121,7 @@ def test_api_and_leaderboard(tmp_path):
         assert client.get("/api/players/nobody/achievements").status_code == 404
         assert len(client.get("/api/achievements").json()) == len(RULES) + len(COMBAT_RULES) + len(PROFILE_RULES)
         board = client.get("/api/leaderboard", params={"stat": "achievements", "min_games": 1}).json()
-        assert {r["name"] for r in board["items"]} == {"Player", "Other"}
+        assert {r["name"] for r in board["items"]} == {"Player", "Other", "Mate", "Rival"}
         assert board["label"] == "Challenges (overall %)"
 
 
@@ -153,21 +153,22 @@ def test_logic_follows_the_text():
     notes = {r.id: rule_notes(r) for r in RULES}
     assert "4+ min games" in notes[18] and "4+ min games" in notes[43] and "4+ min games" in notes[42]
     assert "Best game" in notes[23] and "Best 7 days" in notes[43]
-    assert "3+ players per team" in notes[143] and "3+ players per team" not in notes[86]
-    assert {"4+ min games", "3+ players per team"} <= set(notes[23])  # top speed: full-size games only (user, 2026-11-26)
+    # every challenge says 2+ players per team (user, 2026-11-28), Full Lobby its own 5v5
+    assert all("2+ players per team" in n for i, n in notes.items() if i not in (279, 126))  # 126: Medal Collector counts medals, not games and "2+ players per team" not in notes[279]
+    assert {"4+ min games", "2+ players per team"} <= set(notes[23])  # top speed: full-size games only (user, 2026-11-26)
     assert by_id(evaluate([game(top=30.0, play=200.0)]))[23]["count"] == 0  # under 4 minutes
     small = game(top=30.0)
     small.enough_players = False
-    assert by_id(evaluate([small]))[23]["count"] == 0  # under 3 per team
+    assert by_id(evaluate([small]))[23]["count"] == 0  # under 2 per team
     assert not any("4+ minutes" in d or "best game" in d for d in text.values())
     # 4+ minutes: a short game does not count, even with 0 deaths
     assert by_id(evaluate([game(deaths=0, play=60.0)]))[18]["progress"] == 0
     assert by_id(evaluate([game(deaths=3)]))[18]["count"] == 1
     # Pew Pew Proof: "fewer than 5" -> an average of exactly 5 is not enough, and it needs 3 different days
-    week = [game(f"2026-10-{d:02d}", deaths=5) for d in (26, 27, 28) for _ in range(9)]
+    week = [game(f"2026-10-{d:02d}", deaths=5) for d in (26, 27, 28) for _ in range(12)]  # 36: a crown since 2026-11-28 (35)
     assert by_id(evaluate(week))[43]["count"] == 0
     week[0] = game("2026-10-26", deaths=4)
-    assert by_id(evaluate(week))[43]["count"] == 27 and by_id(evaluate(week))[43]["tier"] == "crown"
+    assert by_id(evaluate(week))[43]["count"] == 36 and by_id(evaluate(week))[43]["tier"] == "crown"
     one_evening = [game("2026-10-26", deaths=0)] * 30
     assert by_id(evaluate(one_evening))[43]["count"] == 0  # all on one day
     assert by_id(evaluate([game("2026-10-26", deaths=0, play=60.0)] * 30))[43]["count"] == 0  # short games do not count
@@ -332,7 +333,7 @@ def test_ranking_only_re_evaluates_changed_players(tmp_path, monkeypatch):
         assert api._compute(sessions, ("2030-01-01", None))["rows"] == [] and evaluated == []  # no games in window
         add(client, {"dyson/1.echoreplay": rf.plain(rf.lines(20, teams=rf.two_v_two()))})
         again = api._compute(sessions, (None, None))
-        assert evaluated == [2, 2]  # both players gained a game
+        assert evaluated == [2, 2, 2, 2]  # all four players (2v2) gained a game
         api._evaluated.clear()
         assert api._compute(sessions, (None, None)) == again
 
@@ -351,7 +352,7 @@ def test_new_gear_matches_the_older_gear():
 
 def test_one_game_challenges_need_enough_players():
     far = {**game("2026-10-01").__dict__, "in_bounds": 1200}  # Lone Echo, never near a teammate (Marathon Bot, Space Statue retired)
-    assert by_id(evaluate([Game(**{**far, "enough_players": False})]))[143]["count"] == 0  # fewer than 3 per team
+    assert by_id(evaluate([Game(**{**far, "enough_players": False})]))[143]["count"] == 0  # fewer than 2 per team
     assert by_id(evaluate([Game(**far)]))[143]["tier"] == "crown"
 
 
@@ -478,13 +479,23 @@ def test_achiever_facts_and_endpoint(tmp_path):
     index = next(i for i, r in enumerate(RULES) if r.id == 7)
     one[index] = 0.5
     facts = achiever_facts(one)
-    assert (facts["completed"], facts["medals"], facts["gold_plus"]) == (0, 2, 1) and facts["best_section"] == "In one day"
+    assert (facts["completed"], facts["medals"], facts["gold_plus"]) == (0, 2, 1) and facts["best_section"] == "In any 24 hours"
     with app_client(make_settings(tmp_path)) as client:
         add(client, {f"dyson/{i}.echoreplay": rf.plain(rf.lines(20, teams=rf.two_v_two())) for i in range(2)})
         act(client, actions.set_challenge_window, "2026-01-01", None)
         top = client.get("/api/leaderboard/achievers").json()  # no minimum of games (user, 2026-11-27)
-        assert {r["name"] for r in top} == {"Player", "Other"}
+        assert {r["name"] for r in top} == {"Player", "Other", "Mate", "Rival"}
         assert all(r["total"] == len(COUNTED_RULES) and 0 <= r["completed"] <= len(RULES) and "medals" in r for r in top)  # + George League (user, 2026-11-27)
+
+
+def test_day_challenges_count_any_24_hours():
+    """One Day became any 24 hours (user, 2026-11-28): a session across midnight counts together, two sessions a day apart do not."""
+    late = [Game(**{**game().__dict__, "started_at": f"2026-10-28T{h}:00:00.000", "mode": "payload"}) for h in (22, 23)]
+    early = [Game(**{**game().__dict__, "started_at": f"2026-10-29T0{h}:00:00.000", "mode": "payload"}) for h in (0, 1, 2)]
+    assert by_id(evaluate(late + early))[20]["count"] == 5  # Checkpoint Reached: 22:00 to 02:00 is one stretch
+    apart = late + [Game(**{**game().__dict__, "started_at": "2026-10-29T22:00:00.000", "mode": "payload"})]
+    assert by_id(evaluate(apart))[20]["count"] == 2  # exactly 24 hours after the first game: a new window
+    assert "Best 24 hours" in rule_notes(next(r for r in RULES if r.id == 20)) and "any 24 hours" in next(r for r in RULES if r.id == 20).description
 
 
 def test_test_drives_are_retired():

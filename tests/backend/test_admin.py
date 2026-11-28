@@ -232,19 +232,22 @@ def test_challenge_period(client):
     rest = [r for r in RULES if r.id not in REVEALED_IDS]
     assert not any(r.name in str(peek) or r.description in str(peek) for r in rest)
     assert client.get("/api/players/100/achievements").status_code == 403  # coming soon
+    # the fixture's matches are 1v1, which count for no challenge (2v2 and up, user 2026-11-28): two 2v2 ones of their own
+    add(client, {f"dyson/2v2-{i}.echoreplay": rf.plain(rf.lines(30, teams=rf.two_v_two())) for i in range(2)})
+    player = f"/api/players/{rf.BIG_USER_ID}/achievements"
     act(client, actions.set_challenge_window, "2026-01-01", None)
-    before = client.get("/api/players/100/achievements").json()
+    before = client.get(player).json()
     assert before["games"] == 2
 
     with pytest.raises(actions.AdminError, match="on or before"):
         act(client, actions.set_challenge_window, "2026-11-02", "2026-11-01")
     assert act(client, actions.set_challenge_window, "2026-01-01", "2026-01-31") == ("2026-01-01", "2026-01-31")
-    after = client.get("/api/players/100/achievements").json()
+    after = client.get(player).json()
     assert after["games"] == 0 and after["overall"] == 0  # sample matches are on 2026-10-28
     assert after["window"] == {"start": "2026-01-01", "end": "2026-01-31"}
 
     act(client, actions.set_challenge_window, "2026-01-01", None)
-    assert client.get("/api/players/100/achievements").json()["games"] == 2
+    assert client.get(player).json()["games"] == 2
 
 
 def test_settings_and_merges_survive_database_rebuild(tmp_path):

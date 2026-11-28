@@ -5522,6 +5522,20 @@ tr.cloud-drop-on td {
   content: ""; position: absolute; inset: 0 auto 0 0; width: 6px; background: var(--per);
 }
 .ch-tab-label, .ch-tab-hint { position: relative; }
+/* the ⓘ of the One Day / One Week tabs (user, 2026-11-28): top-right corner of the tab, its own button */
+.ch-tab-wrap { position: relative; display: grid; }
+.ch-tab-wrap > .ch-tab { padding-right: 30px; }
+.ch-tab-info {
+  position: absolute; top: 6px; right: 6px; width: 22px; height: 22px; display: grid; place-items: center; padding: 0;
+  border: 1px solid var(--line); border-radius: 50%; background: var(--panel); color: var(--muted);
+  font: italic 700 0.8rem/1 Georgia, serif; cursor: pointer;
+}
+.ch-tab-info:hover, .ch-tab-info.on { color: var(--text); border-color: var(--muted); }
+.ch-tab-note {
+  display: flex; align-items: baseline; gap: 6px; margin: 8px 0 0; padding: 8px 12px; border: 1px solid var(--line);
+  border-radius: 10px; background: var(--panel); font-size: 0.9rem;
+}
+.ch-tab-note-close { margin-left: auto; padding: 0 6px; border: 0; background: none; color: var(--muted); font-size: 1.1rem; cursor: pointer; }
 .ch-tab-label { font-weight: 700; font-size: 1rem; letter-spacing: 0.02em; }
 .ch-tab-hint { font-size: 0.75rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 .ch-tab:hover { border-color: var(--per); }

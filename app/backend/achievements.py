@@ -330,7 +330,7 @@ TUNED_LEVELS: dict[int, tuple[float, ...]] = {
     40: (5, 8, 10, 15, 20),  # Check Out My Cool Screensaver
     41: (5, 8, 10, 15, 20),  # Ghost in the Shell
     42: (5, 10, 15, 20, 25),  # Gearhead (user, 2026-11-05: 4+ min games with 3+ players per team; 41 / 19 / 11 / 7 / 5 % of the 843 regulars with 20+ such games reach these; was 4/8/15/39/65, platinum 0.5 %)
-    43: (5, 7, 10, 15, 25),  # rounder numbers (user, 2026-11-27), was (4, 6, 10, 15, 25); Pew Pew Proof (user, 2026-11-05: games in a row averaging under 5 deaths, on 3+ days; 20 / 15 / 8.5 / 3.8 / 1.3 % of the same regulars reach these; 25 was the old single step)
+    43: (5, 12, 20, 25, 35),  # harder (user, 2026-11-28, crown was 15.8 %; "around 10 %"): 20 / 25 / 35 = 23 / 16 / 9.5 % of the 95 regulars (25+ games since 1 Aug, 2v2 rule); was 5/10/15/25; rounder numbers (user, 2026-11-27), was (4, 6, 10, 15, 25); Pew Pew Proof (user, 2026-11-05: games in a row averaging under 5 deaths, on 3+ days; 20 / 15 / 8.5 / 3.8 / 1.3 % of the same regulars reach these; 25 was the old single step)
     44: (10, 17, 25, 35, 40),  # rounder numbers (user, 2026-11-27), was (10, 18, 25, 33, 40); I'd Rather Be on Kronos II (user, 2026-11-05: 70 / 21 / 13 / 6 / 4 players since 1 Aug; was 10/18/25/52/65)
     45: (10, 17, 25, 35, 40),  # rounder numbers (user, 2026-11-27), was (10, 18, 25, 33, 40); Sakura's Dancing Flamingo (user, 2026-11-05: 69 / 22 / 13 / 6 / 4 players since 1 Aug; was 10/18/25/52/65)
     46: (18, 19.5, 21, 23, 25),  # Tech Support w/RAD_Natalie (2026-11-26, user: a bit harder with Hug Your Frenemy, crown 6 % of 194 regulars, was 9 % at 16 / 19 / 21 / 23) (2026-11-11, user: crown for about 7.5 % of regulars after the death and bounds corrections; was 16/20/24/26/28)
@@ -371,8 +371,8 @@ TUNED_LEVELS: dict[int, tuple[float, ...]] = {
     78: (10, 25, 40, 60, 75),  # rounder numbers (user, 2026-11-27), was (12, 26, 40, 60, 74); halfway to November's pace (user, 2026-11-26);  # Good ol' George (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 7/15/26/46/75)
     79: (50, 150, 250, 500, 1000),  # rounder numbers (user, 2026-11-27), was (39, 89, 140, 250, 290); halfway to November's pace (user, 2026-11-26);  # King/Queen of Pubs (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 28/60/105/190/320)
     90: (3, 4, 5, 7, 10),  # crown an even 10 (user, 2026-11-27), was 9; On a Roll / Echo Streak (2026-11-26, user: harder at the top, crown 4 % of 194 regulars, was 9 % at 3 / 5 / 6 / 7)
-    96: (100, 120, 140, 175, 205),  # Pedal to the Metal  # 2026-11-11 (user): crown unchanged at about 7.5 % of regulars, steps of 40 / 35 / 30 s; was 112/160/182/198/207
-    97: (22, 34, 45, 60, 70),  # Payload Roadblock (2026-11-11, user: crown for about 7.5 % of regulars after the death and bounds corrections; was 22/44/60/73/84)
+    96: (100, 200, 210, 225, 240),  # Pedal to the Metal: harder (user, 2026-11-28, after the 2v2 rule made it 88 / 65 / 47 / 24 %): 100 / 210 / 225 / 240 s = 88 / 20 / 13 / 6 % of the 95 regulars (25+ games since 1 Aug); was 100/140/175/205  # 2026-11-11 (user): crown unchanged at about 7.5 % of regulars, steps of 40 / 35 / 30 s; was 112/160/182/198/207
+    97: (22, 45, 60, 70, 90),  # harder (user, 2026-11-28, crown was 15.8 %; "around 10 %"): 60 / 70 / 90 s = 21 / 16 / 9.5 % of the 95 regulars (25+ games since 1 Aug, 2v2 rule); was 22/45/60/70; Payload Roadblock (2026-11-11, user: crown for about 7.5 % of regulars after the death and bounds corrections; was 22/44/60/73/84)
     98: (5, 15, 25, 40, 50),  # rounder numbers (user, 2026-11-27), was (5, 14, 23, 38, 53); halfway to November's pace (user, 2026-11-26);  # Payload Freight Train (Payload) (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 3.3/8.6/15/25/46)
     100: (40, 82, 125, 150, 225),  # rounder numbers (user, 2026-11-27), was (38, 79, 120, 150, 230); halfway to November's pace (user, 2026-11-26);  # Dance Floor Legend (user, 2026-11-05: nobody had reached 12480, 5th best since 1 Aug 116; was 48/240/960/3120/12480)
     101: (2, 4, 6, 8, 10),  # Starburst Stream
@@ -387,7 +387,7 @@ TUNED_LEVELS: dict[int, tuple[float, ...]] = {
     114: (20, 22, 25, 35, 45),  # rounder numbers (user, 2026-11-27), was (18, 22, 26, 35, 46); halfway to November's pace (user, 2026-11-26);  # Lobby Regular (Activity) (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 10/19/31/47/75)
     115: (7, 8.5, 10, 12, 15),  # halfway to November's pace (user, 2026-11-26);  # Loyal Bot (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 6/11/16/23/32)
     117: (5, 12, 20, 30, 35),  # rounder numbers (user, 2026-11-27), was (5, 12, 19, 30, 36); halfway to November's pace (user, 2026-11-26);  # Time Well Wasted on Kronos II (Activity) (2026-11-11, user: crown for about 5 % (volume) of regulars after the death and bounds corrections; was 3.5/7.7/14/26/43)
-    122: (1, 2, 3, 7, 12),  # Grand Tour
+    122: (1, 5, 8, 13, 18),  # harder (user, 2026-11-28, crown was 15.8 %; "around 10 %"): 8 / 13 / 18 = 26 / 15 / 9.5 % of the 95 regulars (25+ games since 1 Aug, 2v2 rule); was 1/3/7/12;  # Grand Tour
     127: (5, 8, 10, 15, 20),  # Star Power
     128: (5, 8, 10, 15, 20),  # Protostar Powerhouse
     129: (5, 8, 10, 15, 20),  # Quark Quake
@@ -757,15 +757,15 @@ def _build_rules() -> list[Rule]:
     i = 5
     for slot, items in (("weapon", WEAPONS), ("ordnance", ORDNANCES), ("tacmod", TACMODS)):
         for code, label, icon in items:
-            rules.append(_ladder(i, names[code], f"Play games using only {label} in one day", icon,
+            rules.append(_ladder(i, names[code], f"Play games using only {label} in any 24 hours", icon,
                                  _only_games(slot, code), GEAR_DAY, "day"))
             i += 1
     rules += [
         _ladder(17, "Versatile Bot", "Days on which you used all 12 items (4 weapons, 4 ordnances, 4 tac mods)", None, _days_all_equipables, (1, 2, 4, 8, 15)),
         _tiered(18, "My Other Chassis Is a Toaster", "Play games in which you die no more than 3 times", "deaths",
                 lambda g: g.play_time_s >= FULL_GAME_S and g.deaths <= 3, (1, 4, 7, 16, 24), estimated=True),
-        _tiered(19, "Point Captured", "Play Capture Point games in one day", "capture_point", _capture, (5, 7, 9, 12, 17), "day"),
-        _tiered(20, "Checkpoint Reached", "Play Payload games in one day", "payload", _payload, (5, 7, 9, 12, 17), "day"),
+        _tiered(19, "Point Captured", "Play Capture Point games in any 24 hours", "capture_point", _capture, (5, 7, 9, 12, 17), "day"),
+        _tiered(20, "Checkpoint Reached", "Play Payload games in any 24 hours", "payload", _payload, (5, 7, 9, 12, 17), "day"),
         _ladder(21, "Full Team Salvo", "Share of one game spent close to a teammate, with at least 1 minute in bounds", "team_proximity",
                 _full(_if_on_the_map(_pct("near_mate"))), (45, 55, 65, 80, 92), "game", "%"),
         _ladder(22, "Can We Talk About This?", "Share of one game spent close to an enemy, with at least 1 minute in bounds", "enemy_proximity",
@@ -777,9 +777,9 @@ def _build_rules() -> list[Rule]:
     ]
     for rid, name, m in ((25, "Constant Contesting", "dyson"), (26, "Blast Furnace", "combustion"),
                          (27, "Meltdown on Fission", "fission"), (28, "Bird of Prey", "surge")):
-        rules.append(_tiered(rid, name, f"Play games on {m.title()} in one day", m,
+        rules.append(_tiered(rid, name, f"Play games on {m.title()} in any 24 hours", m,
                              lambda g, m=m: g.map == m, (3, 4, 6, 8, 10), "day"))
-    rules.append(_tiered(29, "Combat on Quest When?", "Play Combat pubs in one day", "colour_sweaty", _pub, (9, 13, 18, 24, 32), "day"))  # 20 % lower (user, 2026-11-03)
+    rules.append(_tiered(29, "Combat on Quest When?", "Play Combat pubs in any 24 hours", "colour_sweaty", _pub, (9, 13, 18, 24, 32), "day"))  # 20 % lower (user, 2026-11-03)
 
     # Weekly (30-54): the most in one calendar week (Monday start)
     names = {
@@ -877,7 +877,7 @@ def _build_rules() -> list[Rule]:
     now_public = (("weapon", "rifle", "Starburst", "Starburst Stream (Weapon)"), ("weapon", "magnum", "Protostar", "Protostar Power Trip (Weapon)"),
                   ("weapon", "smg", "Quark", "Quark Storm (Weapon)"), ("ordnance", "loc", "Translocator", "Here, There and Everywhere (Ordnance)"))
     for i, (slot, code, label, name) in enumerate(now_public, 101):
-        rules.append(_ladder(i, name, f"Play games using only {label} in one day", GEAR_ICONS[code],
+        rules.append(_ladder(i, name, f"Play games using only {label} in any 24 hours", GEAR_ICONS[code],
                              _only_games(slot, code), GEAR_DAY, "day", new=True, group="Experimental gear"))
     for i, (slot, code, label, _) in enumerate(now_public, 105):
         rules.append(_ladder(i, f"{label} Veteran ({GEAR_TAG[slot]})", f"Play games using {label}", GEAR_ICONS[code], _games_using(slot, code),
@@ -902,7 +902,7 @@ def _build_rules() -> list[Rule]:
         _ladder(117, "Time Well Wasted on Kronos II (Activity)", "Total hours played", "colour_sweaty", lambda gs: sum(g.play_time_s for g in gs) / 3600, (1, 5, 20, 50, 80), "all", " h",
                 new=True, group="Activity"),
         _tiered(118, "Overtime on Kronos II (Activity)", "Games of 10 minutes or longer", "colour_sweaty", lambda g: g.play_time_s >= 600, (5, 20, 50, 100, 250), new=True, group="Activity"),
-        _tiered(119, "Hot Day Bot (Wins)", "Win games in one day", None, lambda g: g.enough_players and g.won, (3, 5, 8, 12, 18), "day", new=True, group="Wins"),
+        _tiered(119, "Hot Day Bot (Wins)", "Win games in any 24 hours", None, lambda g: g.enough_players and g.won, (3, 5, 8, 12, 18), "day", new=True, group="Wins"),
         _tiered(120, "Point Taker (Capture Point)", "Win Capture Point games", "capture_point", lambda g: g.enough_players and _capture(g) and g.won, (5, 10, 30, 80, 150), new=True, group="Capture Point"),
         _tiered(121, "Payload Hauler (Payload)", "Win Payload games", "payload", lambda g: g.enough_players and _payload(g) and g.won, (5, 10, 30, 80, 150), new=True, group="Payload"),
         _ladder(122, "Four-Map Tour (Map)", "Win games on all 4 maps (your weakest map sets the count)", None, _v4(_fewest_wins), (1, 3, 6, 12, 20),
@@ -925,7 +925,7 @@ def _build_rules() -> list[Rule]:
         rules.append(_ladder(i, name, f"Play games using only {label} in any 7 days, silver and up on at least {WEEK_MIN_DAYS} different days", GEAR_ICONS[code],
                              _only_games(slot, code, WEEK_MIN_DAYS), GEAR_WEEK, "week", new=True, group="Experimental gear"))
     rules += [
-        _ladder(131, "Full Charge (Tac Mod)", "Play games using only Overcharge in one day", GEAR_ICONS["buff"],
+        _ladder(131, "Full Charge (Tac Mod)", "Play games using only Overcharge in any 24 hours", GEAR_ICONS["buff"],
                 _only_games("tacmod", "buff"), GEAR_DAY, "day", new=True, group="Experimental gear"),
         _ladder(132, "Charged Up (Tac Mod)", f"Play games using only Overcharge in any 7 days, silver and up on at least {WEEK_MIN_DAYS} different days", GEAR_ICONS["buff"],
                 _only_games("tacmod", "buff", WEEK_MIN_DAYS), GEAR_WEEK, "week", new=True, group="Experimental gear"),
@@ -934,9 +934,9 @@ def _build_rules() -> list[Rule]:
                 new=True, group="Experimental gear"),
         _ladder(134, "Dot Field Veteran (Ordnance)", "Play games using Dot Field", GEAR_ICONS["dot"], _games_using("ordnance", "dot"), GEAR_VETERAN,
                 new=True, group="Experimental gear"),
-        _ladder(135, "Blazing Trail (Weapon)", "Play games using only Blazar in one day", "blazar",
+        _ladder(135, "Blazing Trail (Weapon)", "Play games using only Blazar in any 24 hours", "blazar",
                 _only_games("weapon", "chain"), GEAR_DAY, "day", new=True, group="Experimental gear"),
-        _ladder(136, "Dot to Dot (Ordnance)", "Play games using only Dot Field in one day", GEAR_ICONS["dot"],
+        _ladder(136, "Dot to Dot (Ordnance)", "Play games using only Dot Field in any 24 hours", GEAR_ICONS["dot"],
                 _only_games("ordnance", "dot"), GEAR_DAY, "day", new=True, group="Experimental gear"),
         _ladder(137, "Blazar Barrage (Weapon)", f"Play games using only Blazar in any 7 days, silver and up on at least {WEEK_MIN_DAYS} different days", "blazar",
                 _only_games("weapon", "chain", WEEK_MIN_DAYS), GEAR_WEEK, "week", new=True, group="Experimental gear"),
@@ -1003,7 +1003,7 @@ def _build_rules() -> list[Rule]:
         rules += [
             _ladder(i, f"{label} Veteran ({tag})", f"Play games using {label}", icon, _games_using(slot, code), GEAR_VETERAN,
                     new=True, group="Experimental gear"),
-            _ladder(i + 1, f"{day_name} ({tag})", f"Play games using only {label} in one day", icon,
+            _ladder(i + 1, f"{day_name} ({tag})", f"Play games using only {label} in any 24 hours", icon,
                     _only_games(slot, code), GEAR_DAY, "day", new=True, group="Experimental gear"),
             _ladder(i + 2, f"{week_name} ({tag})", f"Play games using only {label} in any 7 days, silver and up on at least {WEEK_MIN_DAYS} different days", icon,
                     _only_games(slot, code, WEEK_MIN_DAYS), GEAR_WEEK, "week", new=True, group="Experimental gear"),
@@ -1038,7 +1038,7 @@ def rule_notes(rule: Rule) -> list[str]:
 def _rule_notes(rule: Rule) -> list[str]:
     fn = rule.count or rule.score
     # Short tags (user, 2026-11-04): the site shows them on one line, "Best game · 4+ min · 3+ players per team · "Only" = 90%+"
-    notes = [{"game": "Best game", "day": "Best day", "week": "Best 7 days", "month": "Best 30 days"}.get(rule.period)]
+    notes = [{"game": "Best game", "day": "Best 24 hours", "week": "Best 7 days", "month": "Best 30 days"}.get(rule.period)]
     if rule.period == "all":
         need = getattr(rule.count, "min_games", 0)
         notes = [f"Average, {need}+ games" if need else "All-time total"]
@@ -1120,7 +1120,8 @@ def tier(progress: float) -> str | None:
 
 WEEK = timedelta(days=7)
 MONTH = timedelta(days=30)  # "any 30 days" (user, 2026-11-09: one-month Combat challenges), rolling like the 7 days
-ROLLING = ("week", "month")  # periods counted over a rolling window, complete at the window's last game
+DAY = timedelta(hours=24)  # "any 24 hours" (user, 2026-11-28: was the UK calendar day), rolling like the 7 days
+ROLLING = ("day", "week", "month")  # periods counted over a rolling window, complete at the window's last game
 
 
 def _rolling_weeks(games: list[Game], maximal: bool, length: timedelta = WEEK) -> list[list[Game]]:
@@ -1167,6 +1168,8 @@ def _groups(games: list[Game], period: str) -> list[list[Game]]:
         return _rolling_weeks(games, maximal=period == "week")
     if period in ("month", "month_all"):
         return _rolling_weeks(games, maximal=period == "month", length=MONTH)
+    if period in ("day", "day_all"):
+        return _rolling_weeks(games, maximal=period == "day", length=DAY)
     key = lambda g: g.day
     groups = defaultdict(list)
     for g in games:
@@ -1216,7 +1219,7 @@ def evaluate(games: list, rules: list[Rule] = RULES) -> list[dict]:
     return [entries[rule.id] for rule in rules]
 
 
-PERIOD_SECTIONS = {"game": "In one game", "day": "In one day", "week": "In any 7 days", "month": "In any 30 days", "all": "All time"}
+PERIOD_SECTIONS = {"game": "In one game", "day": "In any 24 hours", "week": "In any 7 days", "month": "In any 30 days", "all": "All time"}
 SECTION_MIN_RULES = 4  # a section needs this many challenges to be somebody's "strongest" (not a lone rule)
 
 

@@ -18,6 +18,54 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.28.6 — 00:52
+
+Most of this went out early in the second 2026.11.28.5 commit (00:50), which picked up the work in progress; these notes
+cover all of it.
+
+- **Every challenge counts 2v2 and up** (user, 28 Nov). Only games where both teams had at least 2 players for at least
+  half of the match count, for every challenge: Specials, One Day, One Week and Cumulative alike. Full Lobby keeps its 5v5.
+  - Before, the Specials and the win / Payload challenges needed 3+ per team, and the rest had no minimum: 1v1 and solo
+    lobbies counted for them.
+  - Every card now shows "2+ players per team".
+  - Targets unchanged (user: "don't change the tier numbers, only the 2v2 rule"). On the local archive since 1 Aug
+    (111 regulars), most crowns move by under 3 points. The biggest moves: Payload Pedal to the Metal 10.8 -> 22.5 %,
+    Pew Pew Proof and Four-Map Tour 8.1 -> 13.5 %, Checkpoint Reached 8.1 -> 1.8 %, Combat on Quest When? 8.1 -> 2.7 %,
+    Blast Furnace 6.3 -> 2.7 %.
+  - Since 1 Nov, 35 % of matches had a team under 2 players and 23 % were exactly 2 on the smaller team.
+  - No re-read needed; the challenge answers rebuild after the update.
+- **Payload Pedal to the Metal and Payload Roadblock are back in Specials** (user, 28 Nov: Capture Point has Contested
+  Point, Payload had nothing). Longest push / block in one game, with the targets they had (push 100 / 140 / 175 / 205 s,
+  block 22 / 45 / 60 / 70 s). They were retired on 26 Nov as repeats of the all-time totals, but one game is not the
+  all-time total. Challenge total +2.
+- **One Day is now any 24 hours** (user, 28 Nov). Every day challenge, replay and Combat, counts your best 24 hours in
+  a row, starting at any of your games, like "any 7 days" does. Before, it was the UK calendar day, so a session across
+  midnight UK (most play is 22:00-03:00 UK) was cut in two.
+  - The tab is still "One Day", with an ⓘ button in its corner: "In any 24 hours: your best 24 hours in a row count,
+    starting at any of your games ..." (user, 28 Nov). One Week has one too ("In any 7 days ..."). Hover shows the text, and
+    a tap opens it under the tabs, so it works in VR. The cards say "Best 24 hours" and the descriptions "in any 24 hours".
+  - Targets unchanged, apart from the two below. On the local archive (95 regulars since 1 Aug), the day crowns rise by
+    2.7 points on average: a 24-hour window can hold two sessions. The volume ones rise most: Point Captured 4 -> 13 %,
+    Constant Contesting 5 -> 12 %, Damage Control 28 -> 40 %. The skill ones barely move.
+  - No re-read; the challenge answers rebuild after the update.
+- **Kill Spree Bot and Helping Hands of Kronos II harder** (user, 28 Nov: crowns around 10 %): the easiest challenges
+  outside gear after the change (crowns 18.5 and 17 %).
+  - Kill Spree Bot: 20 / 85 / 115 / 135 kills (was 20 / 45 / 65 / 100).
+  - Helping Hands: 25 / 105 / 125 / 140 assists (was 25 / 55 / 80 / 120). Assists stay above kills at every medal.
+  - Reached by 19.6 / 17.4 / 9.8 % and 21.7 / 15.2 / 10.9 % of the 92 Combat regulars (10+ games, 4-26 Nov) at
+    silver / gold / crown.
+- **Pew Pew Proof, Four-Map Tour and Payload Roadblock harder** (user, 28 Nov: crowns "around 10 %"): the next easiest
+  outside gear (crowns 15.8 % each). Measured on the 95 regulars (25+ games since 1 Aug, 2v2 rule); bronze unchanged.
+  - Pew Pew Proof: 5 / 20 / 25 / 35 games in a row (was 5 / 10 / 15 / 25), reached by 63 / 23 / 16 / 9.5 %.
+  - Four-Map Tour: 1 / 8 / 13 / 18 wins on every map (was 1 / 3 / 7 / 12), 92 / 26 / 15 / 9.5 %.
+  - Payload Roadblock: 22 / 60 / 70 / 90 s (was 22 / 45 / 60 / 70), 74 / 21 / 16 / 9.5 %.
+- **Payload Pedal to the Metal harder** (user, 28 Nov): 100 / 210 / 225 / 240 s for bronze / silver / gold / crown (was
+  100 / 140 / 175 / 205). Under the 2v2 rule the old ones were reached by 88 / 65 / 47 / 24 % of the 95 regulars (25+ games
+  since 1 Aug on the local archive); the new ones by 88 / 20 / 13 / 6 %, in line with the target policy.
+- **Flawless Chassis has medals** (user, 28 Nov): kills in one game without dying, bronze 5, silver 8, gold 10, crown 12.
+  It was a single crown for 10+ kills, which is now gold. In the combat reports (4-26 Nov, 92 regulars with 10+ games),
+  25 / 10 / 7 / 3 % reach them; the crown should get close to 7.5 % over the challenge period.
+
 ## 2026.11.28.5 — 00:30
 
 - **Lobby Mime Troupe and Showbot say that emotes count anywhere** (user, 28 Nov: they "are allowed to be done out of

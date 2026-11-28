@@ -87,8 +87,8 @@ COMBAT_RULES: list[Rule] = [
     _rule(170, "Flawless Chassis (Combat)", "Get kills in one game without dying", "deaths", lambda g: g.kills if g.deaths == 0 else 0,
           (5, 6, 8, 10, 12), "game"),  # medals (user, 2026-11-28): 5 / 8 / 10 / 12 kills = 25 / 10 / 7 / 3 % of the 92 regulars (10+ games,
     # 4-26 Nov reports), the crown rising toward ~7.5 % over the period; the old won-or-not "10 or more kills" is now gold
-    _rule(171, "Kill Spree Bot (Combat)", "Get kills in one day", "deaths", lambda g: g.kills, (20, 32, 45, 65, 100), "day"),  # 2026-11-26, user: harder (combat review, 66 regulars, 4-25 Nov): crown 12 %, was 20 %; rounder numbers (user, 2026-11-27), was (20, 35, 45, 65, 95)
-    _rule(172, "Helping Hands of Kronos II (Combat)", "Get assists in one day", "team_proximity", lambda g: g.assists, (25, 40, 55, 80, 120), "day"),  # 2026-11-26, user: harder (combat review, 66 regulars, 4-25 Nov): crown 15 %, was 27 % (assists stay above kills); rounder numbers (user, 2026-11-27), was (25, 42, 55, 80, 115)
+    _rule(171, "Kill Spree Bot (Combat)", "Get kills in any 24 hours", "deaths", lambda g: g.kills, (20, 50, 85, 115, 135), "day"),  # harder (user, 2026-11-28, after any 24 hours made the crown 18.5 %; then "10 %"): 85 / 115 / 135 = 19.6 / 17.4 / 9.8 % of the 92 regulars (10+ games, 4-26 Nov); was 20/45/65/100; 2026-11-26, user: harder (combat review, 66 regulars, 4-25 Nov): crown 12 %, was 20 %; rounder numbers (user, 2026-11-27), was (20, 35, 45, 65, 95)
+    _rule(172, "Helping Hands of Kronos II (Combat)", "Get assists in any 24 hours", "team_proximity", lambda g: g.assists, (25, 60, 105, 125, 140), "day"),  # harder (user, 2026-11-28, crown was 17 %; then "10 %"): 105 / 125 / 140 = 21.7 / 15.2 / 10.9 %, above kills at every medal; was 25/55/80/120; 2026-11-26, user: harder (combat review, 66 regulars, 4-25 Nov): crown 15 %, was 27 % (assists stay above kills); rounder numbers (user, 2026-11-27), was (25, 42, 55, 80, 115)
     _rule(173, "Ring Debris (Combat)", "Total kills", "deaths", lambda g: g.kills, (100, 475, 850, 1700, 3000), "all"),  # rounder numbers (user, 2026-11-27), was (120, 400, 850, 1700, 2900)
     _rule(174, "The Whole Echo Crew (Combat)", "Total assists", "team_proximity", lambda g: g.assists, (150, 575, 1000, 2000, 3500), "all"),  # rounder numbers (user, 2026-11-27), was (140, 450, 950, 1900, 3200)
     _rule(175, "Kronos II Salvage (Combat)", "Total damage dealt", "enemy_proximity", lambda g: g.damage, (25000, 100000, 175000, 350000, 600000), "all"),  # rounder numbers (user, 2026-11-27), was (23000, 80000, 180000, 350000, 580000)
@@ -114,12 +114,12 @@ COMBAT_RULES: list[Rule] = [
     _rule(203, "Ghost of Sparta", "Get kills in one game while dying 3 times or fewer", "deaths",
           lambda g: g.kills if g.deaths <= 3 else 0, (4, 8, 10, 12, 15), "game"),
     # In one day
-    _rule(204, "Wrath of Saturn", "Deal damage in one day", "enemy_proximity", lambda g: g.damage, (5000, 9000, 14000, 21000, 30000), "day"),  # 2026-11-26, user: harder (combat review, 66 regulars, 4-25 Nov): crown 3 %, was 12 %
-    _rule(205, "Fission Reaction", "Get objective eliminations in one day", None, lambda g: g.objective_eliminations, (30, 50, 75, 120, 165), "day"),  # 2026-11-26, user: harder (combat review, 66 regulars, 4-25 Nov): crown 3 %, was 11 %
-    _rule(206, "Camping Out on Dyson", "Spend time on the objective yourself in one day, in minutes", None, lambda g: g.objective_time / 60,
+    _rule(204, "Wrath of Saturn", "Deal damage in any 24 hours", "enemy_proximity", lambda g: g.damage, (5000, 9000, 14000, 21000, 30000), "day"),  # 2026-11-26, user: harder (combat review, 66 regulars, 4-25 Nov): crown 3 %, was 12 %
+    _rule(205, "Fission Reaction", "Get objective eliminations in any 24 hours", None, lambda g: g.objective_eliminations, (30, 50, 75, 120, 165), "day"),  # 2026-11-26, user: harder (combat review, 66 regulars, 4-25 Nov): crown 3 %, was 11 %
+    _rule(206, "Camping Out on Dyson", "Spend time on the objective yourself in any 24 hours, in minutes", None, lambda g: g.objective_time / 60,
           (5, 7, 10, 15, 25), "day", " min"),  # 2026-11-26, user: harder (combat review, 66 regulars, 4-25 Nov): crown 3 %, was 17 %; rounder numbers (user, 2026-11-27), was (4, 6, 10, 16, 24)
-    _rule(207, "Keeping Liv Alive", "Use heal bubbles in one day", "repair_matrix", lambda g: g.heal_bubbles, (12, 22, 35, 55, 80), "day"),  # 2026-11-26, user: harder (combat review, 66 regulars, 4-25 Nov): crown 3 %, was 15 %
-    _rule(208, "Spontaneous Combustion", "Games in one day where you got the most kills in the match (a tie counts)", None, lambda g: g.top_fragger,
+    _rule(207, "Keeping Liv Alive", "Use heal bubbles in any 24 hours", "repair_matrix", lambda g: g.heal_bubbles, (12, 22, 35, 55, 80), "day"),  # 2026-11-26, user: harder (combat review, 66 regulars, 4-25 Nov): crown 3 %, was 15 %
+    _rule(208, "Spontaneous Combustion", "Games in any 24 hours where you got the most kills in the match (a tie counts)", None, lambda g: g.top_fragger,
           (2, 3, 4, 6, 8), "day"),  # 2026-11-26, user: harder with Most Valuable Jack (combat review, 66 regulars, 4-25 Nov): crown 2 %, was 11 %
     # In any 7 days (user, 2026-11-10: the 30-day set became the first Combat 7-day challenges, targets = the old ones x 7/30;
     # the month period stays supported in the code but no challenge uses it, so its page is hidden)
@@ -136,7 +136,7 @@ COMBAT_RULES: list[Rule] = [
     # (fewer than 10 of the 31 regular players have won one: Tank, Sniper, Cannoneer, Controller, Assassin, Renegade, Defender) are one game only (user, 2026-11-10); so are Super Star, Shock
     # Trooper, Infiltrator and Immovable Object (2-11 winners so far, re-check as more reports come in).
     # Ids 222-232 (an earlier "any card" / collector set, never released) stay unused.
-    _rule(233, "Most Valuable Jack (Award card)", "Win the MVP card in one day", None, _awards("mvp"), (2, 3, 4, 6, 8), "day"),  # 2026-11-26, user: harder (combat review, 66 regulars, 4-25 Nov), with Spontaneous Combustion: crown 3 %, was 9 %
+    _rule(233, "Most Valuable Jack (Award card)", "Win the MVP card in any 24 hours", None, _awards("mvp"), (2, 3, 4, 6, 8), "day"),  # 2026-11-26, user: harder (combat review, 66 regulars, 4-25 Nov), with Spontaneous Combustion: crown 3 %, was 9 %
     _rule(234, "Jack of the Week (Award card)", "Win the MVP card in any 7 days", None, _awards("mvp"), (3, 6, 9, 12, 16), "week"),
     _rule(235, "Lone Echo MVP (Award card)", "Total MVP cards won (the highest score in a match)", None, _awards("mvp"), (4, 20, 40, 70, 120), "all"),
     _rule(236, "Guard Duty on Kronos II (Award card)", "Win the Guard card in any 7 days (the most time on the objective in a match)", None, _awards("guard"), (2, 2, 3, 5, 7), "week"),  # 2026-11-26, user: harder (combat review, 66 regulars, 4-25 Nov), with Medic on Call: crown 5 %, was 14 %
