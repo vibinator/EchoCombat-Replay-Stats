@@ -117,6 +117,13 @@ def test_average_speed_is_the_best_100_games_in_a_row():
     assert medal_times(fast + slow, rule)[73]["crown"].startswith("2026-10-10T19")  # the 100th fast game
 
 
+def test_seven_day_averages_need_more_than_the_all_time_ones():
+    """A 7-day average is over a shorter time, so it needs more at every medal than its All Time partner (user, 2026-11-28)."""
+    levels = {r.id: r.levels for r in RULES}
+    for week, all_time in ((46, 71), (47, 72), (48, 73), (49, 74)):
+        assert all(w > a for w, a in zip(levels[week], levels[all_time])), (week, levels[week], all_time, levels[all_time])
+
+
 def test_least_used_challenges_list_every_item():
     """No Gun Left Behind / Loadout Scholar Bot / Forbidden Arsenal: the popup lists the games with each item, least first."""
     games = [game(loadout=("assault", "heal", "det"))] * 3 + [game(loadout=("rocket", "heal", "det"))]
@@ -418,7 +425,7 @@ def test_lone_wolf_has_no_value_before_the_replay_is_read_again():
 
 
 def test_seven_day_upside_down_needs_three_days_and_ten_minutes_in_bounds():
-    assert next(rule for rule in RULES if rule.id == 49).levels == (9, 12, 20, 27)
+    assert next(rule for rule in RULES if rule.id == 49).levels == (10, 20, 35, 50)  # 2026-11-28
     def flipped(day, frames=4000):
         return Game(**{**game(day).__dict__, "upside": frames * 3 // 5, "in_bounds": frames})
     assert by_id(evaluate([flipped("2026-10-01"), flipped("2026-10-02"), flipped("2026-10-03")]))[49]["tier"] == "crown"
@@ -431,7 +438,7 @@ def test_seven_day_speed_needs_three_days_and_ten_minutes_in_bounds():
     base = game("2026-10-01").__dict__  # 20 Hz, 4 m/s below
     def fast(frames, day="2026-10-01"):
         return Game(**{**base, "started_at": f"{day}T20:00:00.000", "in_bounds": frames, "speed_sum": 4.0 * frames})
-    assert next(rule for rule in RULES if rule.id == 48).levels == (2.25, 2.75, 3.25, 3.65)
+    assert next(rule for rule in RULES if rule.id == 48).levels == (2.6, 3.0, 3.3, 3.65)  # 2026-11-28
     assert by_id(evaluate([fast(4000), fast(4000, "2026-10-03"), fast(4000, "2026-10-07")]))[48]["tier"] == "crown"  # exactly 10 minutes, any 3 days of the 7
     assert by_id(evaluate([fast(4000), fast(4000, "2026-10-03"), fast(3999, "2026-10-07")]))[48]["count"] == 0
     assert by_id(evaluate([fast(24000)]))[48]["count"] == 0  # one long game

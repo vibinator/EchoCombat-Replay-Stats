@@ -36,6 +36,11 @@ Working record of what changed in each release, newest first.
   69 / 51 / 39 / 23 %), Roboticide 12 / 14.5 / 17 / 19.5 % close to an enemy (was 10 / 14 / 15 / 16: 78 / 50 / 39 / 30 %).
   Now about 70 / 40 / 20 / 7.5 % at that pace, from the 3.5 m replay sample; to check again on the full data after the
   re-read.
+- **The 7-day averages need more than the All Time ones at every medal** (user, 28 Nov: "the 7 day ones should be harder,
+  as it's over a shorter period"). Two were not: I'm Bat Bot is now 10 / 20 / 35 / 50 % upside down (was 9 / 12 / 20 /
+  27; its crown is now exactly the five players who really play upside down, 59-71 % in their best week) and The Wings
+  of RAD_Wyvern 2.6 / 3.0 / 3.3 / 3.65 m/s (was 2.25 / 2.75 / 3.25 / 3.65; 75 / 50 / 22 / 5.3 % of the 95 regulars, was 90 /
+  65 / 27 / 5.3 %).
 - **Versatile Bot counts days with any 12 different items** (user, 28 Nov: "this should be any 12 items"), from all 22
   weapons, ordnances and tac mods, experimental ones too; it was all 12 standard ones. Easier, so the targets are new:
   1 / 5 / 10 / 20 days, was 1 / 2 / 3 / 4. At November's pace over 4 months 31 / 24 / 18 / 9 % of regulars; best so far
