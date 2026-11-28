@@ -5859,7 +5859,7 @@ tr.cloud-drop-on td {
 .ach-hero-tabs .label { font-size: 0.8rem; color: var(--muted); }
 .ach-hero-tabs strong { font-size: 1.25rem; }
 .ach-hero-tabs strong .muted { font-size: 0.95rem; font-weight: 500; }
-.ach-hero-button { flex: 0 1 240px; min-height: 96px; font-size: 1.15rem; text-align: center; }
+.ach-hero-button { order: -1; /* on the left (user, 2026-11-28) */ flex: 0 1 240px; min-height: 96px; font-size: 1.15rem; text-align: center; }
 @media (max-width: 720px) { .ach-hero-button { flex: 1 1 100%; min-height: 56px; } }
 
 /* Flag and game region beside a player's name (user, 2026-11-28) */
@@ -5871,3 +5871,8 @@ tr.cloud-drop-on td {
 .profile-place legend { padding: 0 4px; font-weight: 600; }
 .profile-place label.checkbox { flex: 1 1 100%; }
 .profile-place select { display: block; margin-top: 2px; }
+
+/* Own challenges button at the top of the Challenges page (user, 2026-11-28) */
+.my-challenges { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; margin: 4px 0 16px; }
+.my-challenges-button { flex: 0 1 auto; min-width: 280px; font-size: 1.1rem; }
+@media (max-width: 720px) { .my-challenges-button { flex: 1 1 100%; min-width: 0; } }

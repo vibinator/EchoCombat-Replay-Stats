@@ -1,12 +1,51 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, Navigate, useLocation, useParams, useSearchParams } from "react-router";
-import { getAchievements, getAchievers, getChallenges, getRarity, getRecentUnlocks, searchPlayers } from "../api";
+import { getAchievements, getAchievers, getChallenges, getMe, getMyProfile, getRarity, getRecentUnlocks, loginUrl, searchPlayers } from "../api";
 import { AchievementRules, AchievementsView, ChallengeBanner, ComingSoon, GroupedBadges, keepsColours, MegaPrizesSection, ScrollToNew, useAchievementsAccess } from "../components/AchievementsView";
 import { Avatar, useAvatars } from "../components/Avatar";
 import { Status } from "../components/common";
 import { achievementsPath, dateTime, int, medalRuleText, nameSlug, pct, playerPath } from "../format";
 import { useApi } from "../useApi";
 import { usePageTitle } from "../usePageTitle";
+
+/** An obvious way to one's own challenges (user, 2026-11-28: "on the challenges page, put a button (obvious) to let the
+ *  user view their own profile"): logged in, their own challenges and player page; logged out, the Discord login; not
+ *  on their own page already. */
+function MyChallengesButton({ viewing }: { viewing: string | null }) {
+  const me = useApi(getMe, "me");
+  const loggedIn = !!me.data?.user;
+  const mine = useApi(() => (loggedIn ? getMyProfile() : Promise.resolve(null)), `my-profile|${loggedIn}`);
+  const { pathname } = useLocation();
+  if (!me.data?.enabled) return null; // no Discord login on this server
+  if (!loggedIn) {
+    return (
+      <div className="my-challenges">
+        <a className="ach-all-big my-challenges-button" href={loginUrl(pathname)}>
+          See your own challenges: log in with Discord <span aria-hidden="true">→</span>
+        </a>
+      </div>
+    );
+  }
+  const p = mine.data;
+  if (!p) return null;
+  if (!p.user_id) {
+    return (
+      <div className="my-challenges">
+        <Link className="ach-all-big my-challenges-button" to="/profile">My profile <span aria-hidden="true">→</span></Link>
+        <span className="muted">Your Discord account is not linked to a player yet: play a match, or ask an admin to link it.</span>
+      </div>
+    );
+  }
+  if (viewing === p.user_id) return null;
+  return (
+    <div className="my-challenges">
+      <Link className="ach-all-big my-challenges-button" to={achievementsPath(p.user_id, p.name)}>
+        View my challenges <span aria-hidden="true">→</span>
+      </Link>
+      <Link to={playerPath(p.user_id, p.name)}>My player page</Link>
+    </div>
+  );
+}
 
 function PlayerPicker() {
   const [q, setQ] = useState("");
@@ -182,6 +221,7 @@ function LaunchedAchievementsPage() {
           <Link to={d ? playerPath(d.user_id, d.name) : `/players/${encodeURIComponent(player)}`}>← Player profile</Link>
         )}
       </div>
+      <MyChallengesButton viewing={d?.user_id ?? null} />
       {player ? (
         <>
           <ChallengeBanner />

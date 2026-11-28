@@ -18,6 +18,17 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.28.12 — 12:04
+
+- **Flamingo Challenges panel: "View all Flamingo Challenges" is on the left** (player page and My profile); on phones
+  it is at the top of the panel.
+
+## 2026.11.28.11 — 12:03
+
+- **Challenges page: a big "View my challenges" button** at the top, for the logged-in player (with a link to their
+  player page beside it); hidden on their own challenges. Not logged in, it says "See your own challenges: log in with
+  Discord"; a Discord account not linked to a player yet gets a button to My profile.
+
 ## 2026.11.28.10 — 11:58
 
 - **The game region follows the country.** Every country has its own game region (the nearest servers: Europe, Japan,
