@@ -14,7 +14,7 @@ from .results import EventRecord, PlayerStats
 
 LEFT_EARLY_S = 45.0  # last seen more than 45 s before the end (old "crashed")
 NEAR_DISTANCE_SQ = 7.0  # head distance² in m² (≈ 2.65 m)
-LONE_WOLF_DISTANCE_SQ = 12.25  # head distance² in m² (3.5 m): Lone Wolf only; every other "near" stat keeps NEAR_DISTANCE_SQ
+LONE_WOLF_DISTANCE_SQ = 100.0  # head distance² in m² (10 m; user, 2026-11-28: was 3.5 m, too close): Lone Echo only; every other "near" stat keeps NEAR_DISTANCE_SQ
 STOPPED_SPEED = 1.0  # m/s
 PING_PLACEHOLDER = 999  # API value when there is no reading; excluded from average ping
 PING_CAP = 400  # a reading above this counts as this much in averages (profile, leaderboard, trends); the match page shows the raw average

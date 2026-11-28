@@ -84,7 +84,7 @@ class Game:
     right_arm: int = 0
     capture_s: float = 0.0  # capture point: time the player's team's progress was rising
     contested_s: float = 0.0
-    lone_wolf_near: int | None = 0  # in-bounds frames within 3.5 m of a teammate: Lone Wolf only (None: replay not read again yet, D57)
+    lone_wolf_near: int | None = 0  # in-bounds frames within 10 m of a teammate (was 3.5 m until stats version 22): Lone Echo only (None: replay not read again yet, D57)
     full_lobby: bool = False  # both teams had 5 players for at least half of the match (Full Lobby, user 2026-11-26)
     enough_players: bool = True  # both teams had at least 3 players for at least half of the match (3v3, 3v4, 4v4, 5v5 ... all fine); one-game, win and Payload challenges need it (user, 2026-11-04)
 
@@ -408,7 +408,7 @@ TUNED_LEVELS: dict[int, tuple[float, ...]] = {
     274: (2, 4, 6, 8, 10),  # Neutron Star
     275: (5, 8, 10, 15, 20),  # Neutron Flux
     142: (50, 55, 60, 67.5, 75),  # Statue (2026-11-11, user: eased and rounded after the play-area bounds, spawn points and death rules were corrected (stats version 16), which made it harder; was 54/61/67/73/80)  # loosened 2026-11-11 (user): steps of at least 8 % of the crown, the lower medals eased; was 50/55/60/70/75
-    143: (95, 96, 98, 99, 99.5),  # Lone Echo (2026-11-26, user: harder, 95 / 98 / 99 / 99.5 = 53 / 24 / 13 / 9 % of the 219 regulars in the local stats-version-20 matches, 4+ min 3v3 games; 93 / 97 / 98 / 99 was 72 / 35 / 24 / 13 %) (2026-11-11, user: eased and rounded after the play-area bounds, spawn points and death rules were corrected (stats version 16), which made it harder; was 94.6/96.4/98.2/99.1/100)
+    143: (70, 72, 75, 80, 88),  # slightly easier (user, 2026-11-28): 70 / 75 / 80 / 88 = 68 / 48 / 27 / 10 %, was 75 / 80 / 85 / 90; Lone Echo at 10 m (user, 2026-11-28: 3.5 m was too close, "10 meters, but a lower percentage"): 75 / 80 / 85 / 90 = 48 / 27 / 17 / 8 % of the 130 regulars in the 1,657 local recent replays, 4+ min 3v3 games (the same pass at 3.5 m gave 51 / 21 / 11 / 8 % on the old targets); was (95, 96, 98, 99, 99.5) at 3.5 m (2026-11-26, user: harder, 95 / 98 / 99 / 99.5 = 53 / 24 / 13 / 9 % of the 219 regulars in the local stats-version-20 matches, 4+ min 3v3 games; 93 / 97 / 98 / 99 was 72 / 35 / 24 / 13 %) (2026-11-11, user: eased and rounded after the play-area bounds, spawn points and death rules were corrected (stats version 16), which made it harder; was 94.6/96.4/98.2/99.1/100)
     48: (2.25, 2.5, 2.75, 3.25, 3.65),  # The Wings of RAD_Wyvern (2026-11-11, user: crown for about 7.5 % of regulars after the death and bounds corrections; was 2.75/3/3.25/3.5/3.75)  # loosened 2026-11-11 (user): steps of at least 8 % of the crown, the lower medals eased; was 2.75/3/3.25/3.5/3.65
     145: (3.25, 3.5, 3.75, 4.25, 4.75),  # Speed Demon (2026-11-11, user: crown for about 7.5 % of regulars after the death and bounds corrections; was 3.5/3.75/4/4.5/5)  # loosened 2026-11-11 (user): steps of at least 8 % of the crown, the lower medals eased; was 3.5/3.75/4/4.5/4.75
     146: (2, 3, 3.5, 4, 4.5),  # Point Guard (user, 2026-11-05: nobody had reached 6.5, best since 1 Aug 5; was 2/3/3.5/5.5/6.5)
@@ -686,7 +686,7 @@ def _on_the_map(g) -> bool:
 
 
 def _away_from_mates(games):
-    """% of the in-bounds time more than 3.5 m from every teammate (4+ minute games only, see _full). Needs
+    """% of the in-bounds time more than 10 m from every teammate (4+ minute games only, see _full; 3.5 m until 2026-11-28). Needs
     MIN_IN_BOUNDS_S in bounds: a few seconds counted in bounds would otherwise reach 100 %. None = this replay has not
     been read again since the column was added (D57): no value yet, so no false medal during the re-read."""
     g = games[0]
@@ -955,7 +955,7 @@ def _build_rules() -> list[Rule]:
                 lambda g: g.enough_players and _capture(g) and g.won and g.rounds_lost == 1, (1, 5, 15, 40, 100), new=True, group="Capture Point"),
         _ladder(142, "Space Statue (Movement)", "Stand still (moving slower than 1 m/s) for part of one game, with at least 1 minute in bounds", None,
                 _v4(_full(_if_on_the_map(_pct("stopped")))), (50, 60, 70, 80, 90), "game", "%", new=True, group="Movement"),
-        _ladder(143, "Lone Echo (Movement)", "Stay far from your teammates (more than 3.5 m away) for most of one game, with at least 1 minute in bounds",
+        _ladder(143, "Lone Echo (Movement)", "Stay far from your teammates (more than 10 m away) for most of one game, with at least 1 minute in bounds",
                 "team_proximity", _v4(_full(_away_from_mates)), (93.2, 95.8, 97.5, 98.7, 99.6), "game", "%", new=True, group="Movement"),
         Rule(144, "Ambidextrous Bot (Movement)", "Play one game using both the left-arm and the right-arm setting, each for at least 40 % of the time", "game", None,
              _v4(_full(_both_arms)), new=True, group="Movement"),

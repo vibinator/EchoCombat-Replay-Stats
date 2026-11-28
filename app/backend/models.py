@@ -111,7 +111,7 @@ class MatchPlayer(Base):
     frames_stopped: Mapped[int]
     frames_upside_down: Mapped[int]
     frames_near_mate: Mapped[int]
-    frames_lone_wolf_near: Mapped[int | None]  # within 3.5 m of a teammate: Lone Wolf only. Added in place, NULL until the replay is read again (D57)
+    frames_lone_wolf_near: Mapped[int | None]  # within 10 m of a teammate (stats version 22; was 3.5 m): Lone Echo only. Added in place, NULL until the replay is read again (D57)
     frames_near_enemy: Mapped[int]
     frames_left_arm: Mapped[int]
     frames_right_arm: Mapped[int]

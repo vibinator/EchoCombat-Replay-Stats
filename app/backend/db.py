@@ -45,6 +45,7 @@ def open_db(db_path: Path, cache_mb: int = 0) -> tuple[Engine, sessionmaker]:
     _add_missing_columns(engine)
     _add_missing_indexes(engine)
     _backfill_counted(engine)
+    _forget_old_lone_echo(engine)
     return engine, sessionmaker(engine, expire_on_commit=False)
 
 
@@ -137,6 +138,20 @@ def _backfill_counted(engine: Engine) -> None:
     from .stats.quality import BACKFILL_SQL
     with engine.begin() as conn:
         conn.execute(text(BACKFILL_SQL))
+
+
+LONE_ECHO_SINCE = 22  # the stats version that counts Lone Echo at 10 m
+
+
+def _forget_old_lone_echo(engine: Engine) -> None:
+    """Lone Echo's count changed distance (3.5 m -> 10 m, stats version 22; user, 2026-11-28). A row from an older read
+    holds the 3.5 m count, which the new, lower targets would turn into false medals: it is set to NULL (no value yet,
+    D57) until its replay is read again. Only rows still holding a value: nothing to do once they are all read again."""
+    with engine.begin() as conn:
+        conn.execute(text(
+            "UPDATE match_players SET frames_lone_wolf_near = NULL WHERE frames_lone_wolf_near IS NOT NULL AND match_id IN "
+            "(SELECT m.id FROM matches m JOIN replays r ON r.id = m.replay_id "
+            "WHERE r.stats_version IS NULL OR CAST(r.stats_version AS INTEGER) < :since)"), {"since": LONE_ECHO_SINCE})
 
 
 def _add_columns_in_place(engine: Engine) -> None:

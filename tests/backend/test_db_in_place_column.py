@@ -44,3 +44,29 @@ def test_old_database_keeps_its_rows_and_gets_the_column(tmp_path):
         replay = db.scalars(select(Replay)).one()
         assert replay.stats_version == "9"  # not cleared: the re-read comes from the version check, the old rows stay until then
     engine.dispose()
+
+
+def test_lone_echo_counts_from_an_older_read_are_forgotten(tmp_path):
+    """Lone Echo went from 3.5 m to 10 m (stats version 22; user, 2026-11-28): a row from an older read is set to NULL (no
+    value yet, no false medal against the lower targets) until its replay is read again; a row read at 22 keeps its value."""
+    path = tmp_path / "t.db"
+    engine, sessions = open_db(path, 0)
+    engine.dispose()
+    con = sqlite3.connect(path)
+    con.execute("PRAGMA foreign_keys=OFF")
+    for rid, version in ((1, "21"), (2, "22")):
+        con.execute("INSERT INTO replays (id, source_path, size_bytes, source_mtime, discovered_at, status, stats_version) "
+                    "VALUES (?, ?, 1, 1.0, 'x', 'done', ?)", (rid, f"{rid}.echoreplay", version))
+        mcols = [r[1] for r in con.execute("PRAGMA table_info(matches)") if r[3] and r[1] != "id"]
+        con.execute(f"INSERT INTO matches (id, {', '.join(mcols)}) VALUES (?, {', '.join('?' * len(mcols))})",
+                    [rid, *(rid if c == "replay_id" else 0 for c in mcols)])
+        pcols = [r[1] for r in con.execute("PRAGMA table_info(match_players)") if r[1] not in ("id", "match_id", "frames_lone_wolf_near")]
+        con.execute(f"INSERT INTO match_players (match_id, frames_lone_wolf_near, {', '.join(pcols)}) VALUES (?, 50, {', '.join('?' * len(pcols))})",
+                    [rid, *(0 for _ in pcols)])
+    con.commit()
+    con.close()
+
+    engine, sessions = open_db(path, 0)  # the upgrade
+    with sessions() as db:
+        assert dict(db.execute(select(MatchPlayer.match_id, MatchPlayer.frames_lone_wolf_near)).all()) == {1: None, 2: 50}
+    engine.dispose()

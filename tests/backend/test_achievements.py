@@ -357,11 +357,11 @@ def test_one_game_challenges_need_enough_players():
 
 def test_lone_wolf_uses_its_own_distance():
     base = game("2026-10-01", mate=0).__dict__
-    far_from_2_6m_only = Game(**{**base, "in_bounds": 2000, "lone_wolf_near": 400})  # always over 2.6 m, within 3.5 m for 20 %
+    far_from_2_6m_only = Game(**{**base, "in_bounds": 2000, "lone_wolf_near": 400})  # always over 2.6 m, within 10 m for 20 %
     assert by_id(evaluate([far_from_2_6m_only]))[143]["count"] == pytest.approx(80)
     assert by_id(evaluate([Game(**{**base, "in_bounds": 1200})]))[143]["tier"] == "crown"  # exactly 1 minute at 20 Hz
     assert by_id(evaluate([Game(**{**base, "in_bounds": 1199})]))[143]["count"] == 0  # just under: a few seconds of play do not count
-    assert "3.5 m" in next(rule for rule in RULES if rule.id == 143).description
+    assert "10 m" in next(rule for rule in RULES if rule.id == 143).description  # 3.5 m until 2026-11-28 (user)
 
 
 

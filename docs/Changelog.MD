@@ -18,6 +18,24 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.28.1 — 00:22
+
+- **Lone Echo counts teammates within 10 m, with lower targets** (user, 28 Nov: 3.5 m was too close, "10 meters, but
+  a lower precentage").
+  - At 3.5 m nearly everyone was far enough nearly all game, so the tiers sat at 95-99.5 % and a few seconds next to a
+    teammate decided them.
+  - New targets: bronze 70 %, silver 75 %, gold 80 %, crown 88 % of the in-bounds time more than 10 m from every
+    teammate (was 95 / 98 / 99 / 99.5 %). First set at 75 / 80 / 85 / 90, then made slightly easier (user, 28 Nov).
+  - Measured on the 1,657 local recent replays (130 regulars, 4+ minute 3v3 games), these are reached by 68 / 48 / 27 /
+    10 % of regulars (75 / 80 / 85 / 90 would be 48 / 27 / 17 / 8 %). The same pass at 3.5 m on the old targets gave
+    51 / 21 / 11 / 8 %, in line with the live numbers.
+  - A typical game is 46 % at 10 m.
+- **Stats version 22: every replay is read again after the update** (hours on the NAS); the site keeps its stats
+  meanwhile (D57).
+  - Lone Echo's count from an older read is set to empty at startup (db._forget_old_lone_echo, 0.2 s on the local
+    archive), so the old 3.5 m numbers can never give a false medal against the lower targets.
+  - Lone Echo fills in again as each replay is read. "Near teammates" (2.65 m) is unchanged.
+
 ## 2026.11.27.23 — 23:46
 
 - **The Combat challenges count** (user, 27 Nov: "Make Combat count"). They were provisional since 5 Nov (out of every
