@@ -30,9 +30,9 @@ def test_catalogue():
     removed = {91, 99, 80, 81, 82, 83, 84, 85, 113}  # Unstoppable, the first Showboat, and the duplicates removed on 2026-11-05
     # 75 original + 63 new + Switch Hitter + Attack Drone / Umbral Veil / Neutron (3 each, 2026-11-20); the 22 Test Drives (179-197,
     # 268, 272, 276) were retired on 2026-11-26 (D63); Combat has its own list (combat_achievements); the Mega Prize is not in RULES
-    retired = {21, 22, 24, 87, 88, 89, 92, 96, 97, 109, 110, 111, 121, 139, 140, 142, 144, 145, 146, 149}  # Specials trimmed (2026-11-26, D64)
+    retired = {21, 22, 24, 87, 88, 89, 92, 109, 110, 111, 121, 139, 140, 142, 144, 145, 146, 149}  # Specials trimmed (2026-11-26, D64); 96, 97 back 2026-11-28
     expected = [i for i in range(5, 152) if i not in removed | retired] + [201, 279] + [i for i in range(265, 277) if (i - 265) % 4 != 3]
-    assert ids == expected and len(set(ids)) == 129  # + Full Lobby on Kronos II (279, 2026-11-26)
+    assert ids == expected and len(set(ids)) == 131  # + Full Lobby on Kronos II (279, 2026-11-26); + 96, 97 (2026-11-28)
     assert next(r for r in RULES if r.id == 151).name == "Showbot" and sum(r.name == "Showbot" for r in RULES) == 1  # no "(Emotes)" tag (2026-11-26)
     assert [r.id for r in RULES if r.new] == [i for i in expected if i >= 80]
     assert all(r.counted for r in RULES)
@@ -114,7 +114,7 @@ def test_old_replays_without_loadouts():
 
 def test_api_and_leaderboard(tmp_path):
     with app_client(make_settings(tmp_path)) as client:
-        add(client, {f"dyson/{i}.echoreplay": rf.plain(rf.lines(20)) for i in range(2)})
+        add(client, {f"dyson/{i}.echoreplay": rf.plain(rf.lines(20, teams=rf.two_v_two())) for i in range(2)})
         act(client, actions.set_challenge_window, "2026-01-01", None)
         a = client.get(f"/api/players/{BLUE}/achievements").json()
         assert a["total"] == len(COUNTED_RULES) and len(a["items"]) == len(RULES) + len(COMBAT_RULES) + len(PROFILE_RULES) and 0 <= a["overall"] <= 1
@@ -127,7 +127,7 @@ def test_api_and_leaderboard(tmp_path):
 
 def test_coming_soon_until_the_start_date(tmp_path):
     with app_client(make_settings(tmp_path)) as client:
-        add(client, {"dyson/0.echoreplay": rf.plain(rf.lines(20))})
+        add(client, {"dyson/0.echoreplay": rf.plain(rf.lines(20, teams=rf.two_v_two()))})
         paths = [f"/api/players/{BLUE}/achievements", "/api/achievements", "/api/achievements/recent",
                  "/api/leaderboard?stat=achievements"]
 
@@ -323,14 +323,14 @@ def test_ranking_only_re_evaluates_changed_players(tmp_path, monkeypatch):
 
     with app_client(make_settings(tmp_path)) as client:
         sessions = client.app.state.sessionmaker
-        add(client, {"dyson/0.echoreplay": rf.plain(rf.lines(20))})
+        add(client, {"dyson/0.echoreplay": rf.plain(rf.lines(20, teams=rf.two_v_two()))})
         first = api._compute(sessions, (None, None))
         evaluated = []
         real = api.evaluate
         monkeypatch.setattr(api, "evaluate", lambda games: evaluated.append(len(games)) or real(games))
         assert api._compute(sessions, (None, None)) == first and evaluated == []  # nothing changed
         assert api._compute(sessions, ("2030-01-01", None))["rows"] == [] and evaluated == []  # no games in window
-        add(client, {"dyson/1.echoreplay": rf.plain(rf.lines(20))})
+        add(client, {"dyson/1.echoreplay": rf.plain(rf.lines(20, teams=rf.two_v_two()))})
         again = api._compute(sessions, (None, None))
         assert evaluated == [2, 2]  # both players gained a game
         api._evaluated.clear()
@@ -480,7 +480,7 @@ def test_achiever_facts_and_endpoint(tmp_path):
     facts = achiever_facts(one)
     assert (facts["completed"], facts["medals"], facts["gold_plus"]) == (0, 2, 1) and facts["best_section"] == "In one day"
     with app_client(make_settings(tmp_path)) as client:
-        add(client, {f"dyson/{i}.echoreplay": rf.plain(rf.lines(20)) for i in range(2)})
+        add(client, {f"dyson/{i}.echoreplay": rf.plain(rf.lines(20, teams=rf.two_v_two())) for i in range(2)})
         act(client, actions.set_challenge_window, "2026-01-01", None)
         top = client.get("/api/leaderboard/achievers").json()  # no minimum of games (user, 2026-11-27)
         assert {r["name"] for r in top} == {"Player", "Other"}

@@ -46,6 +46,13 @@ def frame(match_type: str = "Echo_Combat", payload: bool = False, **overrides) -
     return d
 
 
+def two_v_two() -> list[dict]:
+    """The default players (Player blue, Other orange) each with a teammate: challenges count only 2v2 and up (user, 2026-11-28)."""
+    return [{"team": "BLUE TEAM", "players": [player(), player(43, "Mate", 2)]},
+            {"team": "ORANGE TEAM", "players": [player(42, "Other", 1), player(44, "Rival", 3)]},
+            {"team": "SPECTATORS"}]
+
+
 def new_session_id() -> str:
     """Each generated file is its own match: all start at START, so one shared id would make them copies (D13)."""
     return f"00000000-0000-4000-8000-{next(_sessions):012d}"

@@ -800,7 +800,7 @@ export interface AchievementRule {
   id: number;
   name: string;
   description: string;
-  rules?: string[]; // how it is counted (best game / day / 7 days, minimum length, 3v3+, "only" share)
+  rules?: string[]; // how it is counted (best game / day / 7 days, minimum length, 2v2+, "only" share)
   period: "game" | "day" | "week" | "month" | "all";
   icon: string | null;
   estimated: boolean;
@@ -811,7 +811,7 @@ export interface AchievementRule {
   levels?: number[] | null; // tiered achievements: count targets for bronze, silver, gold, crown
   prize?: string | null; // Mega Prize (in-game item) for completing it
   award?: boolean; // one of the game's end-of-match award cards (the "Award cards" box)
-  binary?: boolean; // won or not: one tier, the crown (one-match award cards, Flawless Chassis, Edit your Bio)
+  binary?: boolean; // won or not: one tier, the crown (one-match award cards, Edit your Bio)
 }
 
 export const LEVELS = ["bronze", "silver", "gold", "crown"] as const;
@@ -1031,7 +1031,7 @@ export interface AchievementPeek {
   periods: Partial<Record<AchievementRule["period"], number>>;
   revealed: AchievementRule[]; // shown in full before the launch
   icons: string[]; // more badge pictures, shown blurred
-  one_game: number; // "In one game" challenges (all 3v3 or bigger)
+  one_game: number; // "In one game" challenges (all 2v2 or bigger)
 }
 
 export interface Me {

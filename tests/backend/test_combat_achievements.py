@@ -35,8 +35,8 @@ def test_kept_apart_from_the_replay_rules():
 
 
 def test_one_game_ladders():
-    assert results([game(kills=10, deaths=0)])[170]["progress"] == 1
-    assert results([game(kills=10, deaths=1)])[170]["progress"] == 0 and results([game(kills=9, deaths=0)])[170]["progress"] == 0
+    assert results([game(kills=12, deaths=0)])[170]["progress"] == 1 and results([game(kills=10, deaths=0)])[170]["progress"] == 0.75
+    assert results([game(kills=19, deaths=1)])[170]["progress"] == 0 and results([game(kills=4, deaths=0)])[170]["progress"] < 0.25  # medals since 2026-11-28
     assert rule_notes(next(x for x in RULES_HERE if x.id == 170)) == ["Best game", "4+ min games", "2+ players per team"]  # Combat: 2v2 and up (user, 2026-11-27)
 
 
@@ -211,7 +211,7 @@ def test_icons_and_sheet_know_them():
 def test_one_match_award_cards_and_flawless_are_won_or_not():
     """User, 2026-11-26: "there is no point having different medals, it is just won / not won": one tier, the crown."""
     binary = {r.id for r in RULES_HERE if r.binary}
-    assert binary == {170, *range(249, 265)}
+    assert binary == set(range(249, 265))  # Flawless Chassis has medals since 2026-11-28
     won = results([game(awards=["mvp"])])[249]
     assert (won["binary"], won["tier"], won["progress"]) == (True, "crown", 1)
     assert results([game(awards=[])])[249]["tier"] is None

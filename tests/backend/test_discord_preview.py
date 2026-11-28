@@ -71,7 +71,7 @@ def login(client, user_id: str) -> httpx.Response:
 
 def test_preview_role_sees_achievements_before_launch(tmp_path, discord):
     with app_client(settings(tmp_path)) as client:
-        add(client, {"dyson/0.echoreplay": rf.plain(rf.lines(20))})
+        add(client, {"dyson/0.echoreplay": rf.plain(rf.lines(20, teams=rf.two_v_two()))})
         act(client, actions.set_challenge_window, "2999-01-01", None)  # launch still to come
         assert client.get("/api/auth/me").json() == {"enabled": True, "user": None}
         assert client.get(f"/api/players/{BLUE}/achievements").status_code == 403
@@ -216,7 +216,7 @@ def _png(width=64, height=64) -> bytes:
 def test_console_changes_achievement_icons(tmp_path, discord):
     headers = {"X-EchoVR": "1"}
     with app_client(settings(tmp_path)) as client:
-        add(client, {"dyson/0.echoreplay": rf.plain(rf.lines(20))})
+        add(client, {"dyson/0.echoreplay": rf.plain(rf.lines(20, teams=rf.two_v_two()))})
         act(client, actions.set_challenge_window, "2026-01-01", None)
         login(client, NO_ROLE)
         # no console access: refused (and without the header the site stays read-only)
@@ -334,7 +334,7 @@ CONSOLE = {"X-EchoVR": "1"}
 def test_console_page_for_yaml_preview_roles_only(tmp_path, discord):
     """D45: admin.bat on the website, only for roles from ECHOVR_DISCORD_PREVIEW_ROLES (not the console's own)."""
     with app_client(settings(tmp_path)) as client:
-        add(client, {"dyson/0.echoreplay": rf.plain(rf.lines(20))})
+        add(client, {"dyson/0.echoreplay": rf.plain(rf.lines(20, teams=rf.two_v_two()))})
         assert client.post("/api/admin/console/status", json={}, headers=CONSOLE).status_code == 403  # logged out
         act(client, actions.add_discord_role, "preview", DB_ROLE)
         login(client, DB_MEMBER)  # preview from the admin console: preview, but no Console page
@@ -371,7 +371,7 @@ def test_console_page_for_a_user_id_in_the_yaml(tmp_path, discord):
 def test_after_the_launch_no_login_is_needed(tmp_path, discord):
     """From the start date on achievements are public (D40): Discord login is on, but nobody has to use it."""
     with app_client(settings(tmp_path)) as client:
-        add(client, {"dyson/0.echoreplay": rf.plain(rf.lines(20))})
+        add(client, {"dyson/0.echoreplay": rf.plain(rf.lines(20, teams=rf.two_v_two()))})
         act(client, actions.set_challenge_window, "2026-01-01", None)  # launched
         assert client.get("/api/auth/me").json() == {"enabled": True, "user": None}
         challenges = client.get("/api/challenges").json()
@@ -418,7 +418,7 @@ def test_console_output_uses_the_page_names(tmp_path, discord):
     for old, _ in page.WEB_WORDING:
         assert old in source, f"admin_console.py no longer says {old!r}: update WEB_WORDING"
     with app_client(settings(tmp_path)) as client:
-        add(client, {"dyson/0.echoreplay": rf.plain(rf.lines(20))})
+        add(client, {"dyson/0.echoreplay": rf.plain(rf.lines(20, teams=rf.two_v_two()))})
         login(client, MEMBER)
         out = client.post("/api/admin/console/status", json={}, headers=CONSOLE).json()["output"]
         assert out.startswith("Server: running\n") and "http://" not in out
@@ -546,7 +546,7 @@ def test_permissions_give_access(tmp_path, discord):
 
 def test_status_page_for_admins_and_console_users(tmp_path, discord):
     with app_client(settings(tmp_path)) as client:
-        add(client, {"dyson/0.echoreplay": rf.plain(rf.lines(20))})
+        add(client, {"dyson/0.echoreplay": rf.plain(rf.lines(20, teams=rf.two_v_two()))})
         assert client.get("/api/admin/status").status_code == 403  # logged out
         login(client, NO_ROLE)
         assert client.get("/api/admin/status").status_code == 403

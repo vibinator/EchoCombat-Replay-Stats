@@ -84,7 +84,9 @@ COMBAT_RULES: list[Rule] = [
     _rule(167, "Net Positive Bot (Combat)", "Finish one game with more kills than deaths (kills minus deaths)", "deaths", lambda g: max(0, g.kills - g.deaths), (3, 6, 8, 11, 13), "game"),
     _rule(168, "Point Denied (Combat)", "Get objective eliminations in one game", None, lambda g: g.objective_eliminations, (8, 12, 14, 16, 18), "game"),
     _rule(169, "Parked on the Point (Combat)", "Spend time on the objective yourself in one game, in seconds", None, lambda g: g.objective_time, (115, 165, 195, 210, 225), "game", " s"),
-    Rule(170, "Flawless Chassis (Combat)", "Get 10 or more kills in one game without dying", "game", "deaths", _total(lambda g: g.kills >= 10 and g.deaths == 0), new=True, group=GROUP, counted=False),
+    _rule(170, "Flawless Chassis (Combat)", "Get kills in one game without dying", "deaths", lambda g: g.kills if g.deaths == 0 else 0,
+          (5, 6, 8, 10, 12), "game"),  # medals (user, 2026-11-28): 5 / 8 / 10 / 12 kills = 25 / 10 / 7 / 3 % of the 92 regulars (10+ games,
+    # 4-26 Nov reports), the crown rising toward ~7.5 % over the period; the old won-or-not "10 or more kills" is now gold
     _rule(171, "Kill Spree Bot (Combat)", "Get kills in one day", "deaths", lambda g: g.kills, (20, 32, 45, 65, 100), "day"),  # 2026-11-26, user: harder (combat review, 66 regulars, 4-25 Nov): crown 12 %, was 20 %; rounder numbers (user, 2026-11-27), was (20, 35, 45, 65, 95)
     _rule(172, "Helping Hands of Kronos II (Combat)", "Get assists in one day", "team_proximity", lambda g: g.assists, (25, 40, 55, 80, 120), "day"),  # 2026-11-26, user: harder (combat review, 66 regulars, 4-25 Nov): crown 15 %, was 27 % (assists stay above kills); rounder numbers (user, 2026-11-27), was (25, 42, 55, 80, 115)
     _rule(173, "Ring Debris (Combat)", "Total kills", "deaths", lambda g: g.kills, (100, 475, 850, 1700, 3000), "all"),  # rounder numbers (user, 2026-11-27), was (120, 400, 850, 1700, 2900)
@@ -175,8 +177,8 @@ COMBAT_RULES = [r for r in COMBAT_RULES if r.id not in RETIRED_COMBAT_IDS]
 # All-time Combat ladders (user, 2026-11-26: "remember this is a 4 month challenge period"): set for a 5 % crown over 4 months,
 # projected from the 3 weeks of reports (4-25 Nov, x5.8, 66 regulars); assists stay above kills, paired award cards equal.
 # Won or not (user, 2026-11-26: "there is no point having different medals, it is just won / not won"): the one-match award cards
-# and Flawless Chassis have one tier, the crown.
-BINARY_COMBAT_IDS = frozenset({170, *range(249, 265)})
+# have one tier, the crown (Flawless Chassis too until 2026-11-28).
+BINARY_COMBAT_IDS = frozenset(range(249, 265))  # Flawless Chassis (170) has medals again since 2026-11-28 (user)
 COMBAT_RULES = [replace(r, binary=True) if r.id in BINARY_COMBAT_IDS else r for r in COMBAT_RULES]
 # The award cards are flagged (the site's "Award cards" box), and no rule carries a category tag in its name (achievements.plain_name)
 COMBAT_RULES = [replace(r, award=r.name.endswith("(Award card)"), name=plain_name(r.name)) for r in COMBAT_RULES]

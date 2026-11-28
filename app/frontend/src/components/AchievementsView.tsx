@@ -260,9 +260,9 @@ const HINTS: Record<number, string> = {
   48: "Average speed, in 7 days", 49: "Upside down, in 7 days", 71: "Close to teammates, all games",
   72: "Close to enemies, all games", 73: "Average speed, all games", 74: "Upside down, all games",
   86: "Least-used experimental weapon", 93: "Capture Point wins, 2-0", 112: "Games with Overcharge",
-  123: "Least-used weapon", 124: "Least-used item", 141: "Capture Point win after losing round one",
+  123: "Least-used weapon", 124: "Least-used item", 141: "Capture Point win after losing round one", 96: "Longest payload push, one game", 97: "Longest payload block, one game",
   143: "Far from teammates, one game", 147: "Time on a contested point, one game", 150: "Emotes in one game",
-  151: "Emotes in a game you win", 170: "10+ kills without dying, one game", 176: "Most kills in the match",
+  151: "Emotes in a game you win", 170: "Kills without dying, one game", 176: "Most kills in the match",
   177: "Games with 5 kills, 5 assists, 5 objective eliminations", 178: "Games with 8+ assists, twice your kills",
   208: "Most kills in the match, in a day", 213: "Most kills in the match, in 7 days",
 };
@@ -391,8 +391,7 @@ function ruleSentence(tag: string): string {
     "Best 7 days": "Your best 7 days in a row count",
     "Best 30 days": "Your best 30 days in a row count",
     "All-time total": "Every game in the challenge period adds up",
-    "3+ players per team": "Only games with 3+ players on each team count",
-    "2+ players per team": "Only games with 2+ players on each team count", // Combat challenges (user, 2026-11-27)
+    "2+ players per team": "Only games with 2+ players on each team count", // every challenge (user, 2026-11-28)
   };
   if (fixed[tag]) return fixed[tag];
   let m = /^([\d.]+)\+ min games$/.exec(tag);
@@ -1461,7 +1460,7 @@ export function AchievementRules({ open = false }: { open?: boolean }) {
         </li>
         <li>
           <strong>Each challenge lists its own rules</strong> under its description: whether the best game, day or 7 days counts, whether games
-          under 4 minutes are ignored, whether it needs 3+ players per team and how "only" is judged. <strong>"3+ players per team"</strong> = both teams had at least 3 players for at least half of the match (3v3, 3v4, 4v4, 5v5 and so on all count); smaller games do not count towards it. The Combat challenges say <strong>"2+ players per team"</strong>: 2v2 and up count there. Recordings that cover less than half a match are ignored
+          under 4 minutes are ignored, and how "only" is judged. <strong>"2+ players per team"</strong> (every challenge) = both teams had at least 2 players for at least half of the match (2v2, 2v3, 3v3, 5v5 and so on all count); smaller games count for no challenge. Recordings that cover less than half a match are ignored
           everywhere.
         </li>
         <li>

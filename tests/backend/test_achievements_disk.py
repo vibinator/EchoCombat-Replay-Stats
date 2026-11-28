@@ -23,7 +23,7 @@ def no_build(patch):
 def test_kept_on_disk_and_not_rebuilt_for_other_players_replays(tmp_path):
     settings = make_settings(tmp_path, answer_cache_mb=8)
     with app_client(settings) as c:
-        add(c, {"dyson/0.echoreplay": rf.plain(rf.lines(20))})
+        add(c, {"dyson/0.echoreplay": rf.plain(rf.lines(20, teams=rf.two_v_two()))})
         act(c, actions.set_challenge_window, "2026-01-01", None)
         first = c.get(f"/api/players/{BLUE}/achievements").json()
         assert len(list((settings.data_dir / "cache" / "answers").glob("*.bin"))) == 1
@@ -41,17 +41,17 @@ def test_kept_on_disk_and_not_rebuilt_for_other_players_replays(tmp_path):
 
 def test_a_new_match_of_the_player_builds_it_again(tmp_path):
     with app_client(make_settings(tmp_path, answer_cache_mb=8)) as c:
-        add(c, {"dyson/0.echoreplay": rf.plain(rf.lines(20))})
+        add(c, {"dyson/0.echoreplay": rf.plain(rf.lines(20, teams=rf.two_v_two()))})
         act(c, actions.set_challenge_window, "2026-01-01", None)
         assert c.get(f"/api/players/{BLUE}/achievements").json()["games"] == 1
-        add(c, {"dyson/1.echoreplay": rf.plain(rf.lines(20, start=rf.START.replace(hour=rf.START.hour + 1)))})
+        add(c, {"dyson/1.echoreplay": rf.plain(rf.lines(20, teams=rf.two_v_two(), start=rf.START.replace(hour=rf.START.hour + 1)))})
         assert c.get(f"/api/players/{BLUE}/achievements").json()["games"] == 2  # tests rebuild before answering
 
 
 def test_built_ahead_for_the_most_active_players(tmp_path):
     settings = make_settings(tmp_path, answer_cache_mb=8)
     with app_client(settings) as c:
-        add(c, {"dyson/0.echoreplay": rf.plain(rf.lines(20))})
+        add(c, {"dyson/0.echoreplay": rf.plain(rf.lines(20, teams=rf.two_v_two()))})
         act(c, actions.set_challenge_window, "2026-01-01", None)
         warmer = heights_warm.HeightsWarmer(c.app.state.sessionmaker, settings, c.app.state.worker, c.app)
         assert warmer.build_challenges(rest=False) == 2  # both players of the match
@@ -66,7 +66,7 @@ def test_cloudflare_may_keep_the_public_answer(tmp_path):
     """Once challenges are public the answer is the same for everyone: Cloudflare keeps it (D53). Pins and who may edit
     them come from a separate per-visitor call, never from this answer."""
     with app_client(make_settings(tmp_path, answer_cache_mb=8, edge_cache_s=300)) as c:
-        add(c, {"dyson/0.echoreplay": rf.plain(rf.lines(20))})
+        add(c, {"dyson/0.echoreplay": rf.plain(rf.lines(20, teams=rf.two_v_two()))})
         act(c, actions.set_challenge_window, "2026-01-01", None)
         r = c.get(f"/api/players/{BLUE}/achievements", headers={"X-EchoVR": "1"})
         assert r.status_code == 200
@@ -80,7 +80,7 @@ def test_a_damaged_saved_answer_is_built_again(tmp_path):
     """Review 2026-11-27: Disk.load checks only the header; a body cut short (power cut on the NAS) must not 500 forever."""
     settings = make_settings(tmp_path, answer_cache_mb=8)
     with app_client(settings) as c:
-        add(c, {"dyson/0.echoreplay": rf.plain(rf.lines(20))})
+        add(c, {"dyson/0.echoreplay": rf.plain(rf.lines(20, teams=rf.two_v_two()))})
         act(c, actions.set_challenge_window, "2026-01-01", None)
         assert c.get(f"/api/players/{BLUE}/achievements").status_code == 200
     (saved,) = (settings.data_dir / "cache" / "answers").glob("*.bin")
@@ -96,7 +96,7 @@ def test_pins_ride_in_the_shared_answer(tmp_path):
     from backend.models import ChallengePin
 
     with app_client(make_settings(tmp_path, answer_cache_mb=8)) as c:
-        add(c, {"dyson/0.echoreplay": rf.plain(rf.lines(20))})
+        add(c, {"dyson/0.echoreplay": rf.plain(rf.lines(20, teams=rf.two_v_two()))})
         act(c, actions.set_challenge_window, "2026-01-01", None)
         with c.app.state.sessionmaker() as db:
             db.add(ChallengePin(user_id=BLUE, achievement_id=RULES[-1].id, pinned_at="2026-11-27T10:00:00"))

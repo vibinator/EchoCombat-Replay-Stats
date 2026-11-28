@@ -36,6 +36,8 @@ LATE_GEAR = (("ordnance", "drone", "Ordnance", "Attack Drone Ace", "Attack Drone
 
 ONLY_SHARE = 0.90  # "use only X": X is at least 90 % of the game's loadout time (was 95; user, 2026-11-04: room for mistakes)
 USED_SHARE = 0.10  # below 10 % of the game does not count as "used" (was 5 %, the old loadoutCutoff; user, 2026-11-04)
+MIN_PER_TEAM = 2  # every replay challenge counts only games with 2+ players per team (user, 2026-11-28: was 3+ for the one-game, win and
+# Payload ones and no minimum for the rest); api/achievements._games leaves smaller games out, the rules' own checks stay
 UNTOUCHABLE_GAME_S = 360.0  # Untouchable Chassis: 6 minutes (user, 2026-11-11: 4 minutes gave 42 % of regulars a medal that is meant to be hard, almost all of them from short games; 6 minutes: 21 %)
 FULL_GAME_S = 240.0  # was 180 (user, 2026-11-04); per-game rules ignore short appearances (A: avoids 0-death 10-second games)
 WEEK_MIN_IN_BOUNDS_S = 600.0  # 7-day averages (user, 2026-11-05): all 16 Wings of RAD_Wyvern platinum windows had under 5 minutes
@@ -86,7 +88,7 @@ class Game:
     contested_s: float = 0.0
     lone_wolf_near: int | None = 0  # in-bounds frames within 10 m of a teammate (was 3.5 m until stats version 22): Lone Echo only (None: replay not read again yet, D57)
     full_lobby: bool = False  # both teams had 5 players for at least half of the match (Full Lobby, user 2026-11-26)
-    enough_players: bool = True  # both teams had at least 3 players for at least half of the match (3v3, 3v4, 4v4, 5v5 ... all fine); one-game, win and Payload challenges need it (user, 2026-11-04)
+    enough_players: bool = True  # both teams had at least MIN_PER_TEAM (2) players for at least half of the match (2v2, 2v3, 3v3, 5v5 ... all fine); every challenge needs it (user, 2026-11-28; 3+ for some until then)
 
     @property
     def won(self) -> bool:
@@ -671,7 +673,8 @@ def _least_used_equipable(games):
 
 
 def _v4(count):
-    """Challenges that only count games with at least 3 players per team (was 4v4 only, user 2026-11-03; eased and widened 2026-11-04)."""
+    """Challenges that only count games with at least MIN_PER_TEAM players per team (was 4v4 only, user 2026-11-03; 3+ from 2026-11-04; 2+ from
+    2026-11-28, now for every challenge)."""
     def only_enough(games):
         games = [g for g in games if g.enough_players]
         return count(games) if games else 0.0
@@ -1010,7 +1013,7 @@ def _build_rules() -> list[Rule]:
 
 _NOTE_MAP_IDS = {139}  # rules that need MIN_IN_BOUNDS_S on the map, said in a tag instead of the description
 _NOTE_MIN_IDS = {18, 139, 150, 201}  # rules that check the length in their own function
-_NOTE_4V4_IDS = {95, 119, 120, 121, 139, 141, 148, 92, 93, 94}  # rules whose test is a lambda that checks enough_players itself
+FULL_LOBBY_RULE_ID = 279
 _NOTE_ONLY_IDS = {42, 148}
 
 
@@ -1041,8 +1044,8 @@ def _rule_notes(rule: Rule) -> list[str]:
         notes = [f"Average, {need}+ games" if need else "All-time total"]
     if getattr(fn, "min_length", False) or rule.id in _NOTE_MIN_IDS:
         notes.append(f"{getattr(fn, 'min_s', FULL_GAME_S) / 60:g}+ min games")
-    if getattr(fn, "enough_players", False) or rule.id in _NOTE_4V4_IDS:
-        notes.append(f"{getattr(fn, 'min_per_team', 3)}+ players per team")  # Combat: 2+ (user, 2026-11-27)
+    if rule.id != FULL_LOBBY_RULE_ID:  # every challenge (user, 2026-11-28); Full Lobby says its 5v5 itself (EXTRA_NOTES)
+        notes.append(f"{getattr(fn, 'min_per_team', MIN_PER_TEAM)}+ players per team")
     if rule.id in _NOTE_MAP_IDS:
         notes.append(f"{MIN_IN_BOUNDS_S / 60:g}+ min on the map")
     if getattr(fn, "use_only", False) or rule.id in _NOTE_ONLY_IDS:
@@ -1075,7 +1078,9 @@ def _tuned(rule: Rule, levels: tuple[float, ...] | None = None) -> Rule:
 # Guard (146, time on the objective), and the two counts made entirely of others: Centurion Bot (92, Capture Point + Payload wins)
 # and Payload Hauler (121, attacking + defending wins); Space Statue (142, user: it rewards standing still, "it seems like
 # throwing"). Their functions stay, unused, so an id can come back by taking it out.
-RETIRED_IDS = frozenset({21, 22, 24, 87, 88, 89, 92, 96, 97, 109, 110, 111, 121, 139, 140, 142, 144, 145, 146, 149})
+# Payload Pedal to the Metal (96) and Roadblock (97) are back (user, 2026-11-28: Capture Point has Contested Point, Payload had no
+# one-game challenge; one game is not the all-time total, so not a duplicate).
+RETIRED_IDS = frozenset({21, 22, 24, 87, 88, 89, 92, 109, 110, 111, 121, 139, 140, 142, 144, 145, 146, 149})
 # No category tag in the names (user, 2026-11-26: "now that the challenges are organised, you don't need to put (weapon) etc in
 # the title"): the site's tabs and topic boxes say it. The names themselves stay.
 _TAG = re.compile(r"\s*\((?:Weapon|Ordnance|Tac Mod|Payload|Capture Point|Emotes|Movement|Activity|Wins|Loadout|Map|Combat|Award card)\)$")
@@ -1249,7 +1254,7 @@ def overall(results: list[dict]) -> float:
 
 def mega_combat_games(games: list[Game], start: str | None, end: str | None) -> int:
     """Combat games that count for the Mega Prize (user, 2026-11-04): started inside the challenge period and 4+ minutes
-    played (FULL_GAME_S), so a short appearance does not count, and 3v3 or bigger (enough_players)."""
+    played (FULL_GAME_S), so a short appearance does not count, and 2v2 or bigger (enough_players)."""
     return sum(1 for g in in_window(games, start, end) if g.play_time_s >= FULL_GAME_S and g.enough_players)
 
 

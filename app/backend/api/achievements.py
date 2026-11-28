@@ -21,7 +21,7 @@ from fastapi import APIRouter, Query, Request
 from sqlalchemy import func, select
 
 from .. import auth, combat_achievements, icons, profile_achievements
-from ..achievements import RULES, Game, evaluate, icon_file, in_window, medal_times, overall, rule_notes, unlock_dates, unlock_threshold
+from ..achievements import MIN_PER_TEAM, RULES, Game, evaluate, icon_file, in_window, medal_times, overall, rule_notes, unlock_dates, unlock_threshold
 from ..admin_actions import (WINDOW_KEYS, achievements_counting, achievements_launched, achievements_visibility,
                              challenge_window, mega_visible, previews_can_see, window_active)
 from .. import achievements as engine, gear as gear_tables
@@ -105,7 +105,7 @@ def _peek() -> dict:
     shown = {r["icon"] for r in revealed}
     art = [f for f in dict.fromkeys(icon_file(r) for r in RULES if r.icon) if f and f not in shown]
     step = max(1, len(art) // 6)
-    one_game = sum(1 for r in [*RULES, *combat_achievements.COMBAT_RULES] if r.period == "game")  # original and new: every one needs 3+ players per team
+    one_game = sum(1 for r in [*RULES, *combat_achievements.COMBAT_RULES] if r.period == "game")  # original and new: every one needs 2+ players per team
     return {"periods": dict(periods), "revealed": revealed, "icons": art[::step][:6], "one_game": one_game}
 
 
@@ -143,7 +143,7 @@ def _games(db, player_ids: list[int] | None = None, fingerprints: dict[int, int]
     if player_ids is not None:
         query = query.where(MatchPlayer.player_id.in_(player_ids))
         lo_query = lo_query.where(MatchPlayerLoadout.player_id.in_(player_ids))
-    # players per team who were there for at least half of the match: 3 or more each = enough (3v3, 4v4, 5v4 ...)
+    # players per team who were there for at least half of the match: MIN_PER_TEAM (2) or more each = enough (2v2, 3v3, 5v4 ...)
     size_query = (select(MatchPlayer.match_id, MatchPlayer.team, func.count())
                   .join(Match, Match.id == MatchPlayer.match_id)
                   .where(counted(MatchPlayer.match_id), MatchPlayer.play_time_s >= 0.5 * Match.duration_s)
@@ -163,9 +163,11 @@ def _games(db, player_ids: list[int] | None = None, fingerprints: dict[int, int]
         (pid, mid, started, map_, mode, private, play, deaths, bounds, mate, enemy, upside, speed, top, hz,
          team, winner, attacking, blue_rounds, orange_rounds, push, block, emotes, stopped, left, right, contested,
          blue_cap, orange_cap, lone_wolf_near) = row = tuple(row)
-        four = sizes.get((mid, "blue"), 0) >= 3 and sizes.get((mid, "orange"), 0) >= 3
+        four = sizes.get((mid, "blue"), 0) >= MIN_PER_TEAM and sizes.get((mid, "orange"), 0) >= MIN_PER_TEAM
         full = sizes.get((mid, "blue"), 0) >= 5 and sizes.get((mid, "orange"), 0) >= 5  # Full Lobby (5v5)
         fp[pid] = (fp.get(pid, 0) + _stable_hash(row + (four, full))) & FINGERPRINT_MASK
+        if not four:  # smaller games count for no challenge (user, 2026-11-28: 2v2 and up everywhere)
+            continue
         games[pid].append(Game(
             started_at=started, map=map_, mode=mode, private=private, play_time_s=play, deaths=deaths,
             in_bounds=bounds, near_mate=mate, near_enemy=enemy, upside=upside, speed_sum=speed, top_speed=top,

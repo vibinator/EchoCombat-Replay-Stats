@@ -32,7 +32,7 @@ class SideLanes:
 def test_helper_process_gives_the_same_answers(tmp_path, monkeypatch):
     settings = make_settings(tmp_path)
     with app_client(settings) as client:
-        add(client, {f"dyson/{i}.echoreplay": rf.plain(rf.lines(20)) for i in range(2)})
+        add(client, {f"dyson/{i}.echoreplay": rf.plain(rf.lines(20, teams=rf.two_v_two())) for i in range(2)})
         act(client, actions.set_challenge_window, "2026-01-01", None)
         paths = [f"/api/players/{BLUE}/achievements", "/api/achievements", "/api/achievements/recent",
                  "/api/leaderboard?stat=achievements&min_games=1", "/api/leaderboard/achievers"]
@@ -64,7 +64,7 @@ def test_helper_that_fails_falls_back_to_this_process(tmp_path, monkeypatch):
 
     settings = make_settings(tmp_path)
     with app_client(settings) as client:
-        add(client, {"dyson/0.echoreplay": rf.plain(rf.lines(20))})
+        add(client, {"dyson/0.echoreplay": rf.plain(rf.lines(20, teams=rf.two_v_two()))})
         act(client, actions.set_challenge_window, "2026-01-01", None)
         sessions = client.app.state.sessionmaker
         monkeypatch.setattr(api, "OFFLOAD_MIN_GAMES", 1)
@@ -90,7 +90,7 @@ def test_ranking_still_being_built_says_try_again(tmp_path, monkeypatch):
 
     settings = make_settings(tmp_path)
     with app_client(settings) as client:
-        add(client, {"dyson/0.echoreplay": rf.plain(rf.lines(20))})
+        add(client, {"dyson/0.echoreplay": rf.plain(rf.lines(20, teams=rf.two_v_two()))})
         act(client, actions.set_challenge_window, "2026-01-01", None)
         sessions = client.app.state.sessionmaker
         api._cache.pop(id(sessions), None)
@@ -112,7 +112,7 @@ def test_saved_results_survive_a_new_version_and_keep_medal_times(tmp_path, monk
     """Until 2026-11-10 the saved results carried the app version: every update evaluated all players again."""
     with app_client(make_settings(tmp_path)) as client:
         sessions = client.app.state.sessionmaker
-        add(client, {"dyson/0.echoreplay": rf.plain(rf.lines(20))})
+        add(client, {"dyson/0.echoreplay": rf.plain(rf.lines(20, teams=rf.two_v_two()))})
         first = api._compute(sessions, (None, None))
         signature, saved = pickle.loads(api._cache_file(sessions).read_bytes())
         assert signature == api._signature() and saved
@@ -140,14 +140,14 @@ def test_every_api_answer_names_its_version(tmp_path):
 def test_ranking_is_refreshed_at_most_every_ranking_refresh_s(tmp_path, monkeypatch):
     """New data: the ranking is recalculated once it is ranking_refresh_s old, not after the shorter cache_refresh_s."""
     with app_client(make_settings(tmp_path, cache_refresh_s=1, ranking_refresh_s=900)) as client:
-        add(client, {"dyson/0.echoreplay": rf.plain(rf.lines(20))})
+        add(client, {"dyson/0.echoreplay": rf.plain(rf.lines(20, teams=rf.two_v_two()))})
         act(client, actions.set_challenge_window, "2026-01-01", None)
         sessions = client.app.state.sessionmaker
         board = {"stat": "achievements", "min_games": 1}
         assert client.get("/api/leaderboard", params=board).status_code == 200
         started = []
         monkeypatch.setattr(api, "_refresh_in_background", lambda s, key: started.append(key))
-        add(client, {"dyson/1.echoreplay": rf.plain(rf.lines(20))})  # the data changed
+        add(client, {"dyson/1.echoreplay": rf.plain(rf.lines(20, teams=rf.two_v_two()))})  # the data changed
         key, built_at, data = api._cache[id(sessions)]
         api._cache[id(sessions)] = (key, built_at - 600, data)  # 10 minutes old: past cache_refresh_s, not ranking_refresh_s
         assert client.get("/api/leaderboard", params=board).status_code == 200 and started == []
