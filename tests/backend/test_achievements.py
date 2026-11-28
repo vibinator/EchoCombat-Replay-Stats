@@ -5,7 +5,7 @@ import replay_factory as rf
 from app_helpers import act, add, app_client, make_settings
 
 from backend import admin_actions as actions
-from backend.achievements import rule_notes, RULES, Game, _all_time, _easier_platinum, _harder, _scaled, evaluate, icon_file, overall, tier
+from backend.achievements import rule_notes, RULES, Game, _all_time, _easier_platinum, _harder, _scaled, evaluate, icon_file, medal_times, overall, tier
 
 from backend.combat_achievements import COMBAT_RULES
 from backend.profile_achievements import COUNTED_RULES, PROFILE_RULES
@@ -99,6 +99,22 @@ def test_per_game_rules_ignore_short_appearances():
     assert (r[18]["tier"], r[18]["count"]) == (None, 1) and r[18]["estimated"]
 
 
+def test_average_speed_is_the_best_50_games_in_a_row():
+    """Cyberkinetic Enhancements (73): the best average over any 50 games in a row, however long they took (user,
+    2026-11-28; was the average over every game, 25+ games)."""
+    from datetime import timedelta
+    rule = [r for r in RULES if r.id == 73]
+    on = lambda n, first=0, speed=3000.0: [Game(**{**game((date(2026, 10, 1) + timedelta(days=first + i // 10)).isoformat()).__dict__,
+                                                   "started_at": f"{(date(2026, 10, 1) + timedelta(days=first + i // 10)).isoformat()}T{10 + i % 10:02d}:00:00.000",
+                                                   "speed_sum": speed}) for i in range(n)]
+    count = lambda gs: evaluate(gs, rule)[0]["count"]
+    assert count(on(49)) == 0 and count(on(50)) == 3.0  # 3,000 m over 1,000 frames at 20 Hz = 3 m/s
+    fast, slow = on(50, speed=3500.0), on(80, first=20)  # a slower stretch later does not lower the best one
+    assert count(fast + slow) == 3.5 and rule_notes(rule[0])[0] == "Best 50 games in a row"
+    assert count(on(30, speed=3500.0) + on(30, first=40)) == 3.3  # 30 fast + 20 slow: (30 x 3.5 + 20 x 3) / 50
+    assert medal_times(fast + slow, rule)[73]["crown"].startswith("2026-10-05T19")  # the 50th fast game
+
+
 def test_all_time_and_overall():
     games = [game(deaths=10) for _ in range(100)]
     r = by_id(evaluate(games))
@@ -149,7 +165,7 @@ def test_coming_soon_until_the_start_date(tmp_path):
 def test_logic_follows_the_text():
     """Every condition is in the description (user, 2026-10-30)."""
     text = {r.id: r.description for r in RULES}
-    assert "25+ games" in text[73] and "dying fewer than 5 times a game" in text[43]
+    assert "50 games in a row" in text[73] and "dying fewer than 5 times a game" in text[43]
     # the counting rules are listed per achievement, not repeated in the description
     notes = {r.id: rule_notes(r) for r in RULES}
     assert "4+ min games" in notes[18] and "4+ min games" in notes[43] and "4+ min games" in notes[42]

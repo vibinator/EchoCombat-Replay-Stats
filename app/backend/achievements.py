@@ -45,7 +45,10 @@ WEEK_MIN_DAYS = 3  # 7-day averages (user, 2026-11-05): "any 3 days within 7 day
 MIN_IN_BOUNDS_S = 60.0  # Lone Wolf, Untouchable, Speed Demon, Can We Talk About This?, Statue, Full Team Salvo (user, 2026-11-05): 25 of 39 Lone Wolf platinum games since 1 Aug had less; 122 of 134 Untouchable wins had none at all
 LOADOUT_USED_S = 60.0  # "different loadouts": at least 1 min each (was 3 min; user, 2026-11-04: more achievable)
 SEASON_MIN_GAMES = 50  # all-time averages need 50 games (A)
-SPEED_MIN_GAMES = 25  # Cyberkinetic Enhancements: 50 left 76 % of the active players out (user, 2026-10-31)
+# Cyberkinetic Enhancements (user, 2026-11-28: "within 50 games, no time period"): the best average speed over any
+# SPEED_MIN_GAMES games in a row, however long they took. Was the average over every game, 25+ games. The same day a 30-day
+# window with 5+ days and 50 games / 3 days were tried; on the 95 regulars since 1 Aug the crown stretches took 4-12 days.
+SPEED_MIN_GAMES = 50
 # One ladder per kind of gear challenge, the same for every weapon, ordnance and tac mod, new gear included (user,
 # 2026-11-03). Set from the most-used gear (Pulsar, ~110k games in the archive): 500 games was out of reach in the last 500.
 GEAR_VETERAN = (6, 17, 55, 170, 400)  # games using it
@@ -503,6 +506,36 @@ class _AvgValue:
         return None
 
 
+class _BestRunAvg(_AvgValue):
+    """The best average (sum(attr) / in-bounds frames x scale) over any `run` games in a row, however long they took; 0
+    with fewer games. Linear: a sliding window over the games in time order. first_reached is the window's last game."""
+
+    def __init__(self, attr: str, scale: float, run: int):
+        super().__init__(attr, scale, run)
+        self.window_note = f"Best {run} games in a row"
+
+    def _windows(self, games):
+        """(value, index of the window's last game) for every run of `min_games` games, oldest first."""
+        run = self.min_games
+        if len(games) < run:
+            return
+        ordered = sorted(games, key=lambda g: g.start_dt)
+        values = [getattr(g, self.attr) for g in ordered]
+        frames_of = [g.in_bounds for g in ordered]
+        total, frames = sum(values[:run]), sum(frames_of[:run])
+        for last in range(run - 1, len(ordered)):
+            if last >= run:
+                total += values[last] - values[last - run]
+                frames += frames_of[last] - frames_of[last - run]
+            yield round(self.scale * ratio(total, frames), 6), last
+
+    def __call__(self, games) -> float:
+        return max((v for v, _ in self._windows(games)), default=0.0)
+
+    def first_reached(self, ordered: list, need: float) -> int | None:
+        return next((last for v, last in self._windows(ordered) if v >= need), None)
+
+
 def _full(value, min_s: float = FULL_GAME_S):
     """Per-game rules: only games played at least FULL_GAME_S (or `min_s`)."""
     def full(games):
@@ -833,8 +866,8 @@ def _build_rules() -> list[Rule]:
                 _AvgValue("near_mate", 100.0, SEASON_MIN_GAMES), (14, 15.5, 17, 19.5, 22.5), "all", "%"),
         _ladder(72, "Roboticide", "Average share of each game spent close to an enemy (needs 50+ games)", "enemy_proximity",
                 _AvgValue("near_enemy", 100.0, SEASON_MIN_GAMES), (6, 8, 10, 12.5, 15), "all", "%"),
-        _ladder(73, "Cyberkinetic Enhancements", "Your average speed across all games (needs 25+ games)", "launch",
-                _AvgValue("speed_sum", 1.0, SPEED_MIN_GAMES), (2.6, 2.8, 3.0, 3.2, 3.5), "all", " m/s"),
+        _ladder(73, "Cyberkinetic Enhancements", "Your best average speed over 50 games in a row", "launch",
+                _BestRunAvg("speed_sum", 1.0, SPEED_MIN_GAMES), (2.6, 2.8, 3.0, 3.2, 3.5), "all", " m/s"),  # 33 / 25 / 16 / 7.4 % of the 95 regulars
         _ladder(74, "toB taB m'I", "Average share of each game spent upside down (needs 50+ games)", "inverted",
                 _AvgValue("upside", 100.0, SEASON_MIN_GAMES), (2, 4, 8, 20, 40), "all", "%"),
     ]
@@ -1062,7 +1095,7 @@ def _rule_notes(rule: Rule) -> list[str]:
     notes = [{"game": "Best game", "day": "Best 24 hours", "week": "Best 7 days", "month": "Best 30 days"}.get(rule.period)]
     if rule.period == "all":
         need = getattr(rule.count, "min_games", 0)
-        notes = [f"Average, {need}+ games" if need else "All-time total"]
+        notes = [getattr(rule.count, "window_note", None) or (f"Average, {need}+ games" if need else "All-time total")]
     if getattr(fn, "min_length", False) or rule.id in _NOTE_MIN_IDS:
         notes.append(f"{getattr(fn, 'min_s', FULL_GAME_S) / 60:g}+ min games")
     if rule.id != FULL_LOBBY_RULE_ID:  # every challenge (user, 2026-11-28); Full Lobby says its 5v5 itself (EXTRA_NOTES)

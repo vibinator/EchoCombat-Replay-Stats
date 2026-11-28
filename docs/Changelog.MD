@@ -29,8 +29,12 @@ Working record of what changed in each release, newest first.
   time on Fission and Surge is unknown. Camping Out on Dyson is now **Hold the Hill**: time on the objective on Dyson and
   Combustion in any 24 hours, 5 / 9 / 14 / 18 min (crown 7.6 % of the 92 Combat regulars, 4-27 Nov; was 5 / 10 / 15 /
   25 on every map). The Anomaly Doesn't Move (all time) counts the same two maps with its targets unchanged: 51 % of
-  regulars have bronze (was 69 %), 1.1 % silver (was 2.2 %). The all-time total (The
-  Anomaly Doesn't Move) still counts every map. Update the container; nothing to re-read.
+  regulars have bronze (was 69 %), 1.1 % silver (was 2.2 %). Update the container; nothing to re-read.
+- **Cyberkinetic Enhancements is your best average speed over 50 games in a row** (user, 28 Nov: "within 50 games,
+  no time period"), however long they took; it was the average over all your games once you had 25. A slower stretch
+  later no longer pulls it down. Targets unchanged (2.6 / 2.85 / 3.1 / 3.4 m/s): of the 95 regulars, 42 have 50 games;
+  33 / 25 / 16 / 7.4 % reach bronze / silver / gold / crown (was 70 / 45 / 25 / 4.2 %). The crown stretches were played
+  over 4 to 12 different days.
 - **Eight new challenges fill the missing periods** (user, 28 Nov, after a review of Special / One Day / Any 7 Days /
   All Time). Crown for about 7.5 % of regulars (95 with 25+ games since 1 Aug; Combat: 92 with 10+ games, 4-27 Nov):
   - Payload Rush Hour: push the payload in any 24 hours, 4 / 7 / 10 / 13.5 min
