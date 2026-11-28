@@ -1350,9 +1350,9 @@ function StripBody({ userId, onOpen }: { userId: string; onOpen: () => void }) {
   const counted = d.items.filter((a) => a.counted && !a.prize);
   const path = achievementsPath(d.user_id, d.name);
   return (
-    <section className="ach-strip ach-hero" aria-label="Challenges">
+    <section className="ach-strip ach-hero" aria-label="Flamingo Challenges">
       <div className="ach-hero-main">
-        <button className="ach-hero-label" onClick={onOpen} title="Open the Challenges tab">Challenges</button>
+        <button className="ach-hero-label" onClick={onOpen} title="Open the challenges">Flamingo Challenges</button>
         <MedalBar items={d.items} overall={d.overall} />
         <ul className="ach-hero-tabs">
           {HERO_TABS.map((period) => {
@@ -1368,7 +1368,7 @@ function StripBody({ userId, onOpen }: { userId: string; onOpen: () => void }) {
         </ul>
       </div>
       <Link className="ach-all-big ach-hero-button" to={path} title={`All of ${d.name}'s challenges`}>
-        View all challenges <span aria-hidden="true">→</span>
+        View all Flamingo Challenges <span aria-hidden="true">→</span>
       </Link>
     </section>
   );

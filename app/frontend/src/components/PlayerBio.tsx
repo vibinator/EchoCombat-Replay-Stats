@@ -8,7 +8,7 @@ import {
   type PlayerBioProfile,
   type ProfileEdit,
 } from "../api";
-import { COUNTRIES, countryName, flagUrl, REGIONS, regionLabel } from "../regions";
+import { COUNTRIES, countryName, flagUrl, pickerLabel, regionLabel, regionsFor } from "../regions";
 import { useApi } from "../useApi";
 
 /** The flag and game region the player picked, or detected from their connection (user, 2026-11-28), beside their name. */
@@ -142,16 +142,22 @@ export function PlayerBio({
           </label>
           <label>
             Country
-            <select value={country} disabled={placeAuto} onChange={(e) => setCountry(e.target.value)}>
+            <select value={country} disabled={placeAuto} onChange={(e) => {
+              // the region follows the country (user, 2026-11-28): its own one, or East / Central / West to pick from
+              const next = e.target.value;
+              const allowed = regionsFor(next);
+              setCountry(next);
+              setRegion(allowed.length === 1 ? allowed[0] : allowed.includes(region) ? region : "");
+            }}>
               <option value="">No flag</option>
               {COUNTRIES.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
             </select>
           </label>
           <label>
             Game region
-            <select value={region} disabled={placeAuto} onChange={(e) => setRegion(e.target.value)}>
-              <option value="">None</option>
-              {REGIONS.map((r) => <option key={r.key} value={r.key}>{r.label}</option>)}
+            <select value={region} disabled={placeAuto || regionsFor(country).length < 2} onChange={(e) => setRegion(e.target.value)}>
+              {regionsFor(country).length !== 1 && <option value="">{country ? "Pick one" : "Pick a country first"}</option>}
+              {regionsFor(country).map((key) => <option key={key} value={key}>{pickerLabel(key, country)}</option>)}
             </select>
           </label>
         </fieldset>

@@ -52,3 +52,40 @@ export const REGIONS: { key: string; label: string }[] = [
 ];
 
 export const regionLabel = (key: string | null | undefined): string | null => REGIONS.find((r) => r.key === key)?.label ?? null;
+
+/** The game region follows the country (user, 2026-11-28: "the region should match the country"; "if they pick United
+ *  States they should only see East, West, Central"). The same table as backend/regions.py _NEAREST
+ *  (tests/backend/test_profile_place.py keeps them equal). */
+// region-table-start
+const NEAREST: Record<string, string> = {
+  "europe": [
+    "ad al at ax ba be bg by ch cy cz de dk ee es fi fo fr gb gg gi gr hr hu ie im is it je li lt lu lv mc md me mk",
+    "mt nl no pl pt ro rs ru se si sj sk sm ua va xk ic bv tf gb-eng gb-sct gb-wls gb-nir tr il ae am az bh ge iq",
+    "ir jo kw lb om ps qa sa sy ye kz kg tj tm uz dz ao bj bw bf bi cm cv cf td km cg cd ci dj eg gq er sz et ga gm",
+    "gh gn gw ke ls lr ly mg mw ml mr mu yt ma mz na ne ng re rw sh st sn sc sl so za ss sd tz tg tn ug eh zm zw",
+  ].join(" "),
+  "japan": "jp kr kp tw hk mo cn mn",
+  "singapore": "sg my id th vn ph kh la mm bn tl in pk bd lk np bt mv af io dg",
+  "australia": "au nz fj pg sb vu nc pf ws to tv ki nr fm mh pw gu mp as ck nu tk wf pn nf cc cx hm aq",
+  "us-east": [
+    "ar bo br cl co ec fk gf gy py pe sr uy ve gs gl pm ag ai aw bb bl bm bq bs cu cw dm do gd gp ht jm kn ky lc mf",
+    "mq ms pr sx tc tt vc vg vi",
+  ].join(" "),
+  "us-central": "mx gt bz sv hn ni cr pa",
+  "us-west": "um cp",
+};
+// region-table-end
+const REGION_OF: Record<string, string> = {};
+for (const [region, codes] of Object.entries(NEAREST)) for (const code of codes.split(" ")) REGION_OF[code] = region;
+const NORTH_AMERICA = ["us-east", "us-central", "us-west"];
+
+/** The regions that match a country: its one, or East / Central / West for the US and Canada. */
+export function regionsFor(country: string | null | undefined): string[] {
+  if (!country) return [];
+  if (country === "us" || country === "ca") return NORTH_AMERICA;
+  return REGION_OF[country] ? [REGION_OF[country]] : [];
+}
+
+/** How a region reads in the picker once a country is chosen: "East" for a US player, "Europe" for a French one. */
+export const pickerLabel = (key: string, country: string | null | undefined): string =>
+  (country === "us" || country === "ca") ? (regionLabel(key) ?? key).replace(/^US /, "") : (regionLabel(key) ?? key);

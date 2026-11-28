@@ -265,6 +265,8 @@ def _apply_place(row, edit: ProfileEdit) -> None:
             row.country = regions.clean_country(edit.country)
         if "region" in edit.model_fields_set:
             row.region = regions.clean_region(edit.region)
+        # the region follows the country (user, 2026-11-28): the country's own one; the US and Canada pick one of theirs
+        row.region = regions.matching_region(row.country, row.region)
         row.place_set_by = PLACE_BY_PLAYER
 
 

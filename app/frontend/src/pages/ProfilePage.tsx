@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { getMyProfile, loginUrl, saveMyProfile, type MyProfile } from "../api";
+import { AchievementsStrip } from "../components/AchievementsView";
 import { PlayerAvatar, PlayerBio, PlayerPlace } from "../components/PlayerBio";
+import { achievementsPath } from "../format";
 import { useApi } from "../useApi";
 import { usePageTitle } from "../usePageTitle";
 
@@ -13,6 +15,7 @@ export function ProfilePage() {
   const [saved, setSaved] = useState<MyProfile | null>(null);
   useEffect(() => setSaved(null), [loaded.data]);
   const profile = saved ?? loaded.data;
+  const navigate = useNavigate();
 
   if (loaded.error && !profile) {
     return (
@@ -40,9 +43,13 @@ export function ProfilePage() {
             save={(edit) => saveMyProfile(edit)}
           />
           {profile.user_id && (
-            <p>
-              <Link to={`/players/${profile.user_id}`}>Your player page and stats</Link>
-            </p>
+            <>
+              {/* the Flamingo Challenges panel here too (user, 2026-11-28: "wheres the button for flamingo challenges") */}
+              <AchievementsStrip userId={profile.user_id} onOpen={() => navigate(achievementsPath(profile.user_id!, profile.name))} />
+              <p>
+                <Link to={`/players/${profile.user_id}`}>Your player page and stats</Link>
+              </p>
+            </>
           )}
         </>
       ) : (

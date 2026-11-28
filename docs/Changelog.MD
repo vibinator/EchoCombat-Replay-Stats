@@ -18,6 +18,14 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.28.10 — 11:58
+
+- **The game region follows the country.** Every country has its own game region (the nearest servers: Europe, Japan,
+  Singapore, Australia, or US East / Central / West for the Americas), picked for you. Only United States and Canada
+  players choose, and they see just East, Central and West. A region that does not match the country is never kept.
+- **Flamingo Challenges panel on My profile too,** with the same big "View all Flamingo Challenges" button as the
+  player page; the panel is now titled Flamingo Challenges.
+
 ## 2026.11.28.9 — 11:48
 
 - **Profiles: flag and game region.** Players can pick their country (shown as a flag beside their name) and their game

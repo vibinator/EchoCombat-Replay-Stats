@@ -21,7 +21,17 @@ def test_lists_and_region_for_a_country():
         regions.clean_region("mars")
     assert [regions.region_for(c, s) for c, s in [("de", None), ("gb-sct", None), ("au", None), ("kr", None), ("sg", None),
                                                    ("us", "TX"), ("us", "ny"), ("ca", "BC"), ("us", None), ("br", None)]] == [
-        "europe", "europe", "australia", "japan", "singapore", "us-central", "us-east", "us-west", None, None]
+        "europe", "europe", "australia", "japan", "singapore", "us-central", "us-east", "us-west", None, "us-east"]
+
+
+def test_the_region_follows_the_country():
+    """User, 2026-11-28: "the region should match the country". Every country has its region; only the US and Canada
+    pick one of three."""
+    assert all(regions.regions_for(c) for c in regions.COUNTRIES)
+    assert regions.regions_for("us") == regions.regions_for("ca") == ("us-east", "us-central", "us-west")
+    assert regions.matching_region("gb-wls", "us-east") == "europe"  # a mismatch is never kept
+    assert regions.matching_region("us", "europe") is None and regions.matching_region("us", "us-west") == "us-west"
+    assert regions.matching_region(None, "europe") is None
 
 
 def _client(tmp_path):
@@ -49,14 +59,19 @@ def test_detected_unless_the_player_picked_one(tmp_path, avatars, monkeypatch):
 
         # the player picks one: never overwritten by detection again
         saved = client.post("/api/profiles/me", json={"bio": "hi", "country": "gb-wls", "region": "us-east"}, headers=SITE).json()
-        assert (saved["country"], saved["region"], saved["place_detected"], saved["place_auto"]) == ("gb-wls", "us-east", False, False)
+        assert (saved["country"], saved["region"], saved["place_detected"], saved["place_auto"]) == ("gb-wls", "europe", False, False)
         profiles._detected.clear()
         client.get("/api/auth/me", headers={"cf-ipcountry": "JP"})
         assert client.get("/api/profiles/me").json()["country"] == "gb-wls"
 
         # a save from a page opened before the fields existed changes neither
         client.post("/api/profiles/me", json={"bio": "hello"}, headers=SITE)
-        assert client.get("/api/profiles/me").json()["region"] == "us-east"
+        assert client.get("/api/profiles/me").json()["region"] == "europe"
+
+        # the US: one of its three regions, kept when the country stays the same
+        us = client.post("/api/profiles/me", json={"bio": "hello", "country": "us", "region": "us-west"}, headers=SITE).json()
+        assert (us["country"], us["region"]) == ("us", "us-west")
+        assert client.post("/api/profiles/me", json={"bio": "hello", "country": "us", "region": "japan"}, headers=SITE).json()["region"] is None
 
         # back to automatic: detected again at once, from this request's connection
         auto = client.post("/api/profiles/me", json={"bio": "hello", "place_auto": True}, headers={**SITE, "cf-ipcountry": "AU"}).json()
@@ -99,3 +114,15 @@ def test_place_goes_with_the_discord_account_when_linked_and_unlinked(tmp_path):
         db.commit()
         kept = db.get(DiscordProfile, d)
         assert (kept.country, kept.region, kept.place_set_by) == ("be", "europe", "player")
+
+
+def test_the_frontend_has_the_same_region_table():
+    """frontend/src/regions.ts repeats backend/regions.py's table for the picker: the two must not drift apart."""
+    import re
+    from pathlib import Path
+    ts = (Path(__file__).parents[2] / "app" / "frontend" / "src" / "regions.ts").read_text(encoding="utf-8")
+    block = ts.split("// region-table-start")[1].split("// region-table-end")[0]
+    table = {}
+    for region, body in re.findall(r'"([a-z-]+)": (\[[^\]]*\]\.join\(" "\)|"[^"]*")', block):
+        table[region] = set(" ".join(re.findall(r'"([^"]*)"', body)).split())
+    assert table == {region: set(codes.split()) for region, codes in regions._NEAREST.items()}
