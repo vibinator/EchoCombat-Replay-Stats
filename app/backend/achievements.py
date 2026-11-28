@@ -408,7 +408,7 @@ TUNED_LEVELS: dict[int, tuple[float, ...]] = {
     274: (2, 4, 6, 8, 10),  # Neutron Star
     275: (5, 8, 10, 15, 20),  # Neutron Flux
     142: (50, 55, 60, 67.5, 75),  # Statue (2026-11-11, user: eased and rounded after the play-area bounds, spawn points and death rules were corrected (stats version 16), which made it harder; was 54/61/67/73/80)  # loosened 2026-11-11 (user): steps of at least 8 % of the crown, the lower medals eased; was 50/55/60/70/75
-    143: (70, 72, 75, 80, 88),  # slightly easier (user, 2026-11-28): 70 / 75 / 80 / 88 = 68 / 48 / 27 / 10 %, was 75 / 80 / 85 / 90; Lone Echo at 10 m (user, 2026-11-28: 3.5 m was too close, "10 meters, but a lower percentage"): 75 / 80 / 85 / 90 = 48 / 27 / 17 / 8 % of the 130 regulars in the 1,657 local recent replays, 4+ min 3v3 games (the same pass at 3.5 m gave 51 / 21 / 11 / 8 % on the old targets); was (95, 96, 98, 99, 99.5) at 3.5 m (2026-11-26, user: harder, 95 / 98 / 99 / 99.5 = 53 / 24 / 13 / 9 % of the 219 regulars in the local stats-version-20 matches, 4+ min 3v3 games; 93 / 97 / 98 / 99 was 72 / 35 / 24 / 13 %) (2026-11-11, user: eased and rounded after the play-area bounds, spawn points and death rules were corrected (stats version 16), which made it harder; was 94.6/96.4/98.2/99.1/100)
+    143: (70, 72, 75, 80, 87.5),  # crown 87.5 (user, 2026-11-28), was 85 (evenly spaced, 17 %); slightly easier (user, 2026-11-28): 70 / 75 / 80 / 88 = 68 / 48 / 27 / 10 %, was 75 / 80 / 85 / 90; Lone Echo at 10 m (user, 2026-11-28: 3.5 m was too close, "10 meters, but a lower percentage"): 75 / 80 / 85 / 90 = 48 / 27 / 17 / 8 % of the 130 regulars in the 1,657 local recent replays, 4+ min 3v3 games (the same pass at 3.5 m gave 51 / 21 / 11 / 8 % on the old targets); was (95, 96, 98, 99, 99.5) at 3.5 m (2026-11-26, user: harder, 95 / 98 / 99 / 99.5 = 53 / 24 / 13 / 9 % of the 219 regulars in the local stats-version-20 matches, 4+ min 3v3 games; 93 / 97 / 98 / 99 was 72 / 35 / 24 / 13 %) (2026-11-11, user: eased and rounded after the play-area bounds, spawn points and death rules were corrected (stats version 16), which made it harder; was 94.6/96.4/98.2/99.1/100)
     48: (2.25, 2.5, 2.75, 3.25, 3.65),  # The Wings of RAD_Wyvern (2026-11-11, user: crown for about 7.5 % of regulars after the death and bounds corrections; was 2.75/3/3.25/3.5/3.75)  # loosened 2026-11-11 (user): steps of at least 8 % of the crown, the lower medals eased; was 2.75/3/3.25/3.5/3.65
     145: (3.25, 3.5, 3.75, 4.25, 4.75),  # Speed Demon (2026-11-11, user: crown for about 7.5 % of regulars after the death and bounds corrections; was 3.5/3.75/4/4.5/5)  # loosened 2026-11-11 (user): steps of at least 8 % of the crown, the lower medals eased; was 3.5/3.75/4/4.5/4.75
     146: (2, 3, 3.5, 4, 4.5),  # Point Guard (user, 2026-11-05: nobody had reached 6.5, best since 1 Aug 5; was 2/3/3.5/5.5/6.5)
@@ -1019,6 +1019,9 @@ EXTRA_NOTES: dict[int, list[str]] = {
     279: ["5 players on each team for at least half of the match"],
     23: ["Top speed = your fastest average speed over 1 second", "Regrab flights and shooting backwards count",
          "Instant launches, readings over 100 m/s and jumps in the recorder's clock do not count"],
+    # emotes count anywhere (user, 2026-11-28): stats/player.py counts them on every frame, before any bounds check
+    150: ["Emotes count anywhere: on the map, out of bounds or in the war room"],
+    151: ["Emotes count anywhere: on the map, out of bounds or in the war room"],
 }
 
 

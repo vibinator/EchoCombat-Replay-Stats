@@ -18,6 +18,30 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.28.5 — 00:30
+
+- **Lobby Mime Troupe and Showbot say that emotes count anywhere** (user, 28 Nov: they "are allowed to be done out of
+  bounds and inside the war room"). They already did: every frame of the game is counted, before any bounds check
+  (stats/player.py), war room and load-in spot included. The cards now have a note saying so.
+
+## 2026.11.28.4 — 00:28
+
+- **Lone Echo crown 87.5 %** (user, 28 Nov): bronze 70 %, silver 75 %, gold 80 %, crown 87.5 % at 10 m (85 % in
+  2026.11.28.3). The crown is reached by 11 % of regulars in the local recent replays (17 % at 85 %). Same deploy and
+  re-read as 2026.11.28.1.
+
+## 2026.11.28.3 — 00:27
+
+- **Lone Echo crown 85 %, evenly spaced** (user, 28 Nov: "so it looks more even"): bronze 70 %, silver 75 %, gold 80 %,
+  crown 85 % at 10 m (crown was 88 % in 2026.11.28.2). The crown is reached by 17 % of regulars in the local recent
+  replays (was 10 %), more than the 7.5 % policy: the user's choice for even steps. Same deploy and re-read as 2026.11.28.1.
+
+## 2026.11.28.2 — 00:26
+
+- **Lone Echo slightly easier** (user, 28 Nov): bronze 70 %, silver 75 %, gold 80 %, crown 88 % at 10 m (was 75 / 80 /
+  85 / 90 in 2026.11.28.1), reached by 68 / 48 / 27 / 10 % of regulars in the local recent replays. Same deploy and
+  re-read as 2026.11.28.1.
+
 ## 2026.11.28.1 — 00:22
 
 - **Lone Echo counts teammates within 10 m, with lower targets** (user, 28 Nov: 3.5 m was too close, "10 meters, but
