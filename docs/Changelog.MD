@@ -26,7 +26,8 @@ Working record of what changed in each release, newest first.
     sideways, the count on hover (user: "less cluttered"). A category the next tab does not have falls back to All.
   - **Show:** All / In progress / Not started / Completed (only when your progress is shown, as before).
   - **No sort** any more (user: "looking a bit cluttered"): always the original order.
-  - A small search box sits at the end of the row for keyboards; **Clear** appears while any of them is in use.
+  - Switching tabs puts Category and Show back to All (user, 28 Nov).
+  - No search box any more (user: "no need for it, as we have filters"); **Clear** appears while a filter is in use.
 - **Mega Prize cards, smaller** (user, 28 Nov: "too many words, need to reduce the pane size"):
   - What counts is one short line: Combat "Prize period only · 4+ min · 2v2 or bigger" (no replay wording, user: "its just a counter"), Arena
     "Prize period only · public · 4+ min · 3v3 or bigger". Also on the player profile.

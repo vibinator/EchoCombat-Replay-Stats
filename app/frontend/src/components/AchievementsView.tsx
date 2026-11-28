@@ -540,7 +540,6 @@ export function GroupedBadges<T extends AnyBadge>({ items: all }: { items: T[] }
   const items = all.filter((a) => !a.prize);
   const rarity = useApi(getRarity, "rarity").data;
   const shares: Shares = new Map((rarity ?? []).map((r) => [r.id, r.unlocked_share]));
-  const [q, setQ] = useState("");
   const [only, setOnly] = useState<Filter | "">("");
   // the theme chips and the "New only" box are gone (user, 2026-11-07): the search box and the status / sort selects remain
   const sort: SortBy = "default"; // no sort chips (user, 2026-11-28: "looking a bit cluttered"): the original order only
@@ -548,9 +547,8 @@ export function GroupedBadges<T extends AnyBadge>({ items: all }: { items: T[] }
   const [tabInfo, setTabInfo] = useState<string | null>(null); // the tab whose ⓘ text is open
   const [params, setParams] = useSearchParams();
   const tracked = items.length > 0 && items.every((a) => status(a) !== null);
-  const term = q.trim().toLowerCase();
-  const visible = items.filter((a) => (!term || `${a.name} ${ruleText(a.description)}`.toLowerCase().includes(term))
-    && (!tracked || !only || status(a) === only));
+  // no search box (user, 2026-11-28: "no need for it, as we have filters")
+  const visible = items.filter((a) => !tracked || !only || status(a) === only);
   const sections: { id: string; label: string; items: T[] }[] = SECTION_LIST.map(([id, label]) => ({ id, label, items: [] as T[] }));
   for (const a of visible) sections.find((x) => x.id === sectionId(a))?.items.push(a);
   const shownSections = sections.filter((x) => x.items.length > 0);
@@ -564,6 +562,9 @@ export function GroupedBadges<T extends AnyBadge>({ items: all }: { items: T[] }
   const topics = TOPICS.map((t) => [t, tabItems.filter((a) => topicOf(a) === t).length] as [string, number]).filter(([, n]) => n > 0);
   const shownTopic = topics.some(([t]) => t === topic) ? topic : "";
   const pageItems = shownTopic ? tabItems.filter((a) => topicOf(a) === shownTopic) : tabItems;
+  // every tab opens on All for both filters (user, 2026-11-28), also when the tab changes through the address (back / forward)
+  const activeId = active?.id;
+  useEffect(() => { setTopic(""); setOnly(""); }, [activeId]);
   function pick(id: string) {
     const next = new URLSearchParams(params);
     if (id === shownSections[0]?.id) next.delete("section");
@@ -572,7 +573,7 @@ export function GroupedBadges<T extends AnyBadge>({ items: all }: { items: T[] }
   }
   // status and sort are tap chips in plain view (user, 2026-11-28: the filter button that hid them was pointless; 2026-11-26:
   // nobody should have to type in VR), the search box is a small extra at the end of the row for keyboards
-  const filtering = term !== "" || only !== "" || topic !== "";
+  const filtering = only !== "" || topic !== "";
   return (
     <>
       <div className="ch-tabs-row">
@@ -629,8 +630,7 @@ export function GroupedBadges<T extends AnyBadge>({ items: all }: { items: T[] }
             ))}
           </div>
         )}
-        <input type="search" className="ch-search" placeholder="Search" aria-label="Search challenges" value={q} onChange={(e) => setQ(e.target.value)} />
-        {filtering && <button type="button" className="ch-pill" onClick={() => { setQ(""); setOnly(""); setTopic(""); }}>Clear</button>}
+        {filtering && <button type="button" className="ch-pill" onClick={() => { setOnly(""); setTopic(""); }}>Clear</button>}
       </div>
       {shownSections.length === 0 && <p className="muted">No challenge matches.</p>}
       {active && (

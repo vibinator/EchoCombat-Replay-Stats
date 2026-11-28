@@ -5565,7 +5565,6 @@ tr.cloud-drop-on td {
 .ch-cat:hover { color: var(--text); }
 .ch-cat.on { color: var(--blue); border-bottom-color: var(--blue); }
 .ch-pill.on { color: var(--text); border-color: var(--blue); background: color-mix(in srgb, var(--blue) 14%, var(--panel)); }
-.ach-toolbar input.ch-search { flex: 0 1 11rem; min-height: 34px; margin-left: auto; }
 
 /* topic boxes (user, 2026-11-26): long topics across the page in two columns, short ones side by side */
 .ch-groups { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; align-items: start; }
