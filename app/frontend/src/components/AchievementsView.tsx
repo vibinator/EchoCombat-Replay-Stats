@@ -1344,18 +1344,38 @@ function StripBody({ userId, onOpen }: { userId: string; onOpen: () => void }) {
       </section>
     );
   }
-  // one row (user, 2026-11-26: "too much data"): the label, a button to the full page (on the left, user 2026-11-27),
-  // then the headline and the bar
+  // a big area (user, 2026-11-28: "on their profile, there should be a big button/area with info about their challenges"),
+  // was one row (2026-11-26): the headline and bar, how far along each tab is, and a big button to it all (the pins have
+  // their own row just below)
+  const counted = d.items.filter((a) => a.counted && !a.prize);
+  const path = achievementsPath(d.user_id, d.name);
   return (
-    <section className="ach-strip ach-row" aria-label="Challenges">
-      <button className="ach-row-label" onClick={onOpen} title="Open the Challenges tab">Challenges</button>
-      <Link className="ach-all-big compact" to={achievementsPath(d.user_id, d.name)} title={`All of ${d.name}'s challenges`}>
-        View all <span aria-hidden="true">→</span>
+    <section className="ach-strip ach-hero" aria-label="Challenges">
+      <div className="ach-hero-main">
+        <button className="ach-hero-label" onClick={onOpen} title="Open the Challenges tab">Challenges</button>
+        <MedalBar items={d.items} overall={d.overall} />
+        <ul className="ach-hero-tabs">
+          {HERO_TABS.map((period) => {
+            const list = counted.filter((a) => a.period === period);
+            if (!list.length) return null;
+            return (
+              <li key={period} style={{ "--tab-colour": `var(--period-${period})` } as React.CSSProperties}>
+                <span className="label">{TAB_LABELS[period] ?? period}</span>
+                <strong>{list.filter((a) => a.progress >= 1).length}<span className="muted"> / {list.length}</span></strong>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+      <Link className="ach-all-big ach-hero-button" to={path} title={`All of ${d.name}'s challenges`}>
+        View all challenges <span aria-hidden="true">→</span>
       </Link>
-      <MedalBar items={d.items} overall={d.overall} compact />
     </section>
   );
 }
+
+/** The tabs of the Challenges page, in their order (Specials, One Day, One Week, Cumulative). */
+const HERO_TABS = ["game", "day", "week", "all"];
 
 export function AchievementsSummary({ userId }: { userId: string }) {
   const { visible, start, total } = useAchievementsAccess();

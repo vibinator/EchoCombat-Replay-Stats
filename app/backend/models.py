@@ -180,6 +180,10 @@ class PlayerProfile(Base):
     show_avatar: Mapped[bool] = mapped_column(default=True)
     linked_at: Mapped[str]
     updated_at: Mapped[str]
+    # chosen by the player with the bio (user, 2026-11-28; regions.py): flag and game region, NULL = not chosen
+    country: Mapped[str | None]
+    region: Mapped[str | None]
+    place_set_by: Mapped[str | None]  # "player" (chosen, never overwritten), "ip" (detected, user 2026-11-28), NULL = neither
 
 
 class DiscordProfile(Base):
@@ -193,6 +197,9 @@ class DiscordProfile(Base):
     bio: Mapped[str | None]
     show_avatar: Mapped[bool] = mapped_column(default=True)
     updated_at: Mapped[str]
+    country: Mapped[str | None]  # as on PlayerProfile (user, 2026-11-28)
+    region: Mapped[str | None]
+    place_set_by: Mapped[str | None]
 
 
 class DiscordLinkBlock(Base):

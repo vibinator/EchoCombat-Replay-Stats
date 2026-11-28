@@ -150,6 +150,7 @@ def _drop(db: Session, profile: PlayerProfile) -> None:
         kept = DiscordProfile(discord_id=profile.discord_id)
         db.add(kept)
     kept.bio, kept.show_avatar, kept.updated_at = profile.bio, profile.show_avatar, profile.updated_at
+    kept.country, kept.region, kept.place_set_by = profile.country, profile.region, profile.place_set_by  # flag and region go with the account too (2026-11-28)
     db.delete(profile)
 
 
@@ -171,7 +172,9 @@ def link(db: Session, user_id: str, discord_id: str) -> tuple[PlayerProfile, boo
     mine = db.get(DiscordProfile, discord_id)
     now = utcnow()
     profile = PlayerProfile(user_id=main, discord_id=discord_id, bio=mine.bio if mine else None,
-                            show_avatar=mine.show_avatar if mine else True, linked_at=now, updated_at=now)
+                            show_avatar=mine.show_avatar if mine else True, linked_at=now, updated_at=now,
+                            country=mine.country if mine else None, region=mine.region if mine else None,
+                            place_set_by=mine.place_set_by if mine else None)
     db.add(profile)
     _refresh_accounts(db, touched)
     return profile, True

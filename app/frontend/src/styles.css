@@ -5844,3 +5844,30 @@ tr.cloud-drop-on td {
 .untried-loadouts > ul { margin: 6px 0 0; padding-left: 0; list-style: none; max-height: 260px; overflow-y: auto; }
 .untried-loadouts > ul > li { margin-bottom: 6px; }
 .untried-loadouts ul ul { margin: 2px 0 0; padding-left: 1.1em; }
+
+/* Challenges on the player page as one big area (user, 2026-11-28): headline + bar, each tab, a big button */
+.ach-hero { display: flex; flex-wrap: wrap; align-items: stretch; gap: 16px 20px; padding: 18px 20px; border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--tier-crown) 35%, var(--line));
+  background: linear-gradient(135deg, color-mix(in srgb, var(--period-game) 10%, var(--panel)), color-mix(in srgb, var(--period-all) 10%, var(--panel))); }
+.ach-hero-main { flex: 1 1 420px; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.ach-hero-label { align-self: flex-start; padding: 0; border: 0; background: none; color: var(--muted); font: inherit; font-size: 0.8rem;
+  font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; cursor: pointer; }
+.ach-hero-label:hover { color: var(--text); }
+.ach-hero-tabs { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin: 2px 0 0; padding: 0; list-style: none; }
+.ach-hero-tabs li { display: flex; flex-direction: column; gap: 2px; padding: 8px 12px; border-radius: 10px; background: var(--panel);
+  border-left: 4px solid var(--tab-colour, var(--line)); }
+.ach-hero-tabs .label { font-size: 0.8rem; color: var(--muted); }
+.ach-hero-tabs strong { font-size: 1.25rem; }
+.ach-hero-tabs strong .muted { font-size: 0.95rem; font-weight: 500; }
+.ach-hero-button { flex: 0 1 240px; min-height: 96px; font-size: 1.15rem; text-align: center; }
+@media (max-width: 720px) { .ach-hero-button { flex: 1 1 100%; min-height: 56px; } }
+
+/* Flag and game region beside a player's name (user, 2026-11-28) */
+.player-place { display: inline-flex; align-items: center; gap: 6px; margin-left: 6px; vertical-align: middle; font-size: 0.95rem; font-weight: 600; }
+.player-flag { width: 28px; height: 21px; border-radius: 3px; box-shadow: 0 0 0 1px var(--line); object-fit: cover; }
+.player-region { color: var(--muted); }
+.player-place-detected { font-size: 0.75rem; font-weight: 500; }
+.profile-place { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 4px 0; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; }
+.profile-place legend { padding: 0 4px; font-weight: 600; }
+.profile-place label.checkbox { flex: 1 1 100%; }
+.profile-place select { display: block; margin-top: 2px; }

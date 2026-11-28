@@ -44,6 +44,9 @@ def me(request: Request, response: Response):
                             samesite="lax", secure=auth.secure_cookies(settings), path="/")
     elif hinted and not admin:
         response.delete_cookie(auth.ADMIN_HINT_COOKIE, path="/")
+    if user:  # the player's country and game region from their connection, unless they chose one (user, 2026-11-28)
+        from .profiles import detect_place
+        detect_place(request, user["id"])
     return {"enabled": auth.enabled(request.app.state.settings),
             "user": user and {"name": user["name"], "preview": auth.has_preview(request), "admin": admin,
                               "console": auth.has_console(request), "cloud": auth.cloud_access(request)}}

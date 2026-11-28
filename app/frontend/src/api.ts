@@ -1455,12 +1455,27 @@ export interface PlayerBioProfile {
   editable: boolean;
   /** the Echo account linked to this player, seen on the live match list (no Discord id) */
   account?: { name: string; last_seen: string } | null;
+  /** chosen by the player (user, 2026-11-28): flag-icons country code, game region key (regions.ts); null = none */
+  country?: string | null;
+  region?: string | null;
+  /** true: detected from the player's connection (Cloudflare's country), not picked */
+  place_detected?: boolean;
+  /** true: not picked by the player, so detection may set it */
+  place_auto?: boolean;
+}
+/** What the owner may change on their profile. place_auto: take country and region from the connection again. */
+export interface ProfileEdit {
+  bio: string | null;
+  show_avatar: boolean;
+  country: string | null;
+  region: string | null;
+  place_auto: boolean;
 }
 export const BIO_MAX = 500;
 export const getPlayerBio = (userId: string) => send<PlayerBioProfile>(`/api/profiles/${encodeURIComponent(userId)}`);
 /** The same profile as everybody who is not logged in sees it: one shared copy Cloudflare keeps (never editable). */
 export const getPublicBio = (userId: string) => request<PlayerBioProfile>(`/api/players/${encodeURIComponent(userId)}/bio`);
-export const savePlayerBio = (userId: string, edit: { bio: string | null; show_avatar: boolean }) =>
+export const savePlayerBio = (userId: string, edit: ProfileEdit) =>
   send<PlayerBioProfile>(`/api/profiles/${encodeURIComponent(userId)}`, {
     method: "POST",
     headers: { ...ADMIN_WRITE, "Content-Type": "application/json" },
@@ -1485,7 +1500,7 @@ export const savePin = (userId: string, id: number, pinned: boolean) =>
 /** The logged-in visitor's own profile; known = their Discord account has been seen playing. */
 export type MyProfile = PlayerBioProfile & { name: string; known: boolean; user_id: string | null };
 export const getMyProfile = () => send<MyProfile>("/api/profiles/me");
-export const saveMyProfile = (edit: { bio: string | null; show_avatar: boolean }) =>
+export const saveMyProfile = (edit: ProfileEdit) =>
   send<MyProfile>("/api/profiles/me", {
     method: "POST",
     headers: { ...ADMIN_WRITE, "Content-Type": "application/json" },

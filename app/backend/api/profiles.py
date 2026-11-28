@@ -10,6 +10,8 @@
 """
 
 import hmac
+import threading
+import time
 import unicodedata
 from datetime import datetime, timezone
 
@@ -17,7 +19,7 @@ from fastapi import APIRouter, Request
 from pydantic import BaseModel
 from sqlalchemy import select
 
-from .. import aliases, auth, discord_links, discord_names
+from .. import aliases, auth, discord_links, discord_names, guard, regions
 from ..discord_links import main_id as _main_id
 from ..errors import ApiError
 from ..models import ArenaPlayer, DiscordProfile, NakamaAccount, NakamaCombatPlayer, Player, PlayerProfile
@@ -100,10 +102,14 @@ def _public(request: Request, profile: PlayerProfile | None, viewer: dict | None
     settings = request.app.state.settings
     if profile is None:
         return {"linked": False, "bio": None, "avatar_url": name_avatar, "show_avatar": name_avatar is not None,
-                "editable": False}
+                "editable": False, "country": None, "region": None}
     return {
         "linked": True,
         "bio": profile.bio,
+        "country": profile.country,
+        "region": profile.region,
+        "place_detected": profile.place_set_by == PLACE_BY_IP,
+        "place_auto": profile.place_set_by != PLACE_BY_PLAYER,
         "show_avatar": profile.show_avatar,
         "avatar_url": auth.avatar_url(settings, profile.discord_id) if profile.show_avatar else None,
         "editable": bool(viewer and viewer["id"] == profile.discord_id),
@@ -121,7 +127,7 @@ def my_profile(request: Request):
     with request.app.state.sessionmaker() as db:
         if not _known_discord(db, viewer["id"]):  # never seen on the match list: nothing to show yet
             return {"linked": False, "bio": None, "show_avatar": True, "avatar_url": None, "editable": False, "user_id": None,
-                    "name": viewer["name"], "known": False}
+                    "name": viewer["name"], "known": False, "country": None, "region": None}
         return _discord_public(request, db, viewer["id"], viewer) | {"name": viewer["name"], "known": True}
 
 
@@ -179,6 +185,9 @@ def _discord_public(request: Request, db, discord_id: str, viewer: dict | None) 
     row = linked or db.get(DiscordProfile, discord_id)  # a bot-linked player's profile is the one profile of that account
     show = row.show_avatar if row is not None else True
     return {"linked": True, "bio": row.bio if row is not None else None, "show_avatar": show,
+            "country": row.country if row is not None else None, "region": row.region if row is not None else None,
+            "place_detected": row is not None and row.place_set_by == PLACE_BY_IP,
+            "place_auto": row is None or row.place_set_by != PLACE_BY_PLAYER,
             "avatar_url": auth.avatar_url(request.app.state.settings, discord_id) if show else None,
             "editable": bool(viewer and hmac.compare_digest(viewer["id"], discord_id)),
             # the replay player page, when there is one: bot-linked, a replay player whose id IS the Discord id, or the
@@ -208,6 +217,7 @@ def edit_discord_profile(request: Request, discord_id: str, edit: "ProfileEdit")
         raise ApiError(403, "not_your_profile", "You can only edit your own profile")
     if edit.bio is not None and len(edit.bio) > BIO_MAX * 4:
         raise ApiError(400, "bio_too_long", f"The bio can be at most {BIO_MAX} characters")
+    _check_place(edit)
     with request.app.state.sessionmaker() as db:
         if not _known_discord(db, discord_id):
             raise ApiError(404, "unknown_profile", "Play a match first: your Discord account is not known here yet")
@@ -217,8 +227,10 @@ def edit_discord_profile(request: Request, discord_id: str, edit: "ProfileEdit")
             db.add(row)
         row.bio = clean_bio(edit.bio)
         row.show_avatar = edit.show_avatar
+        _apply_place(row, edit)
         row.updated_at = _now()
         db.commit()
+        _detect_now(request, db, discord_id, edit)
         if row.show_avatar:
             auth.avatar_url(request.app.state.settings, discord_id, fresh=True)
         return _discord_public(request, db, discord_id, viewer)
@@ -227,6 +239,96 @@ def edit_discord_profile(request: Request, discord_id: str, edit: "ProfileEdit")
 class ProfileEdit(BaseModel):
     bio: str | None = None
     show_avatar: bool = True
+    # flag and game region (user, 2026-11-28; regions.py): only changed when sent, so a page opened before they existed
+    # does not clear them; null or "" = none
+    country: str | None = None
+    region: str | None = None
+    place_auto: bool = False  # true: taken from the player's connection again (country / region ignored)
+
+
+def _check_place(edit: ProfileEdit) -> None:
+    """A country or region that is not on the lists is refused before anything is saved."""
+    try:
+        regions.clean_country(edit.country)
+        regions.clean_region(edit.region)
+    except ValueError:
+        raise ApiError(400, "bad_region", "Pick a country and region from the lists")
+
+
+def _apply_place(row, edit: ProfileEdit) -> None:
+    """The player's own choice is never overwritten by detection; choosing "automatic" hands it back to detection."""
+    if edit.place_auto:
+        row.country = row.region = row.place_set_by = None  # detected again at once (_detect_now)
+        return
+    if "country" in edit.model_fields_set or "region" in edit.model_fields_set:
+        if "country" in edit.model_fields_set:
+            row.country = regions.clean_country(edit.country)
+        if "region" in edit.model_fields_set:
+            row.region = regions.clean_region(edit.region)
+        row.place_set_by = PLACE_BY_PLAYER
+
+
+# --- country and game region from the connection (user, 2026-11-28: "auto gather the region via their IP address too,
+# unless it's manually set"; shown at once, marked as detected, the player can change it). Only for the logged-in
+# visitor's own Discord account; from Cloudflare's CF-IPCountry header, believed only through the tunnel (guard.py).
+# No IP address is kept or sent anywhere. A VPN shows the VPN's country.
+PLACE_BY_IP, PLACE_BY_PLAYER = "ip", "player"
+DETECT_EVERY_S = 3600  # per account: page loads ask /api/auth/me every time, the database is asked at most hourly
+_detected: dict[str, tuple[float, str]] = {}  # Discord id -> (when, country seen)
+_detected_lock = threading.Lock()
+
+
+def _seen_place(request: Request) -> tuple[str, str | None] | None:
+    """(country, game region) of the visitor's connection, or None when not known (not through Cloudflare, Tor, unknown)."""
+    if not guard._from_inside(request.client.host if request.client else None):
+        return None
+    try:
+        country = regions.clean_country(request.headers.get("cf-ipcountry"))
+    except ValueError:
+        return None  # XX (unknown), T1 (Tor)
+    return (country, regions.region_for(country, request.headers.get("cf-region-code"))) if country else None
+
+
+def _store_place(db, discord_id: str, place: tuple[str, str | None]) -> bool:
+    """Saves a detected place on the account's profile row unless the player chose one; True when it changed. The bio's
+    date (updated_at) is not touched: it dates the Edit your Bio challenge."""
+    row = db.scalar(select(PlayerProfile).where(PlayerProfile.discord_id == discord_id)) or db.get(DiscordProfile, discord_id)
+    if row is None:
+        if not _known_discord(db, discord_id):
+            return False
+        row = DiscordProfile(discord_id=discord_id, bio=None, show_avatar=True, updated_at=_now())
+        db.add(row)
+    if row.place_set_by == PLACE_BY_PLAYER or (row.country, row.region, row.place_set_by) == (*place, PLACE_BY_IP):
+        return False
+    row.country, row.region, row.place_set_by = place[0], place[1], PLACE_BY_IP
+    db.commit()
+    return True
+
+
+def detect_place(request: Request, discord_id: str) -> None:
+    """Called on the logged-in visitor's page loads (/api/auth/me): at most once an hour per account, or when the
+    country seen changes. Never fails the request it rides on."""
+    place = _seen_place(request)
+    if place is None:
+        return
+    now = time.monotonic()
+    with _detected_lock:
+        last = _detected.get(discord_id)
+        if last is not None and last[1] == place[0] and now - last[0] < DETECT_EVERY_S:
+            return
+        _detected[discord_id] = (now, place[0])
+    try:
+        with request.app.state.sessionmaker() as db:
+            _store_place(db, discord_id, place)
+    except Exception:  # a locked database must not break the login check
+        with _detected_lock:
+            _detected.pop(discord_id, None)
+
+
+def _detect_now(request: Request, db, discord_id: str, edit: ProfileEdit) -> None:
+    """After "automatic" was chosen: detected in the same request, so the page shows it at once."""
+    if edit.place_auto and (place := _seen_place(request)) is not None:
+        _store_place(db, discord_id, place)
 
 
 @router.post("/{user_id}")
@@ -237,6 +339,7 @@ def edit_profile(request: Request, user_id: str, edit: ProfileEdit):
         raise ApiError(401, "login_required", "Log in with Discord to edit your profile")
     if edit.bio is not None and len(edit.bio) > BIO_MAX * 4:
         raise ApiError(400, "bio_too_long", f"The bio can be at most {BIO_MAX} characters")
+    _check_place(edit)
     with request.app.state.sessionmaker() as db:
         main = _main_id(db, user_id)
         profile = discord_links.profile_of(db, main)
@@ -250,8 +353,10 @@ def edit_profile(request: Request, user_id: str, edit: ProfileEdit):
             raise ApiError(403, "not_your_profile", "Only the Discord account linked to this player can edit it")
         profile.bio = clean_bio(edit.bio)
         profile.show_avatar = edit.show_avatar
+        _apply_place(profile, edit)
         profile.updated_at = _now()
         db.commit()
+        _detect_now(request, db, profile.discord_id, edit)
         if profile.show_avatar:
             auth.avatar_url(request.app.state.settings, profile.discord_id, fresh=True)  # a new avatar shows at once
         return _public(request, profile, viewer) | {"account": _account(db, main)}

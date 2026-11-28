@@ -18,6 +18,19 @@ Working record of what changed in each release, newest first.
 
 ---
 
+## 2026.11.28.9 — 11:48
+
+- **Profiles: flag and game region.** Players can pick their country (shown as a flag beside their name) and their game
+  region (US East, US Central, US West, Europe, Japan, Singapore, Australia) in Edit profile, on their player page or
+  My profile. Flags are pictures, so they show on Windows too.
+- **Detected automatically until picked.** For a player who has not picked one, the country comes from their connection
+  when they visit the site logged in (Cloudflare's country, no IP address kept), with the nearest game region; it shows
+  with a small "detected" tag. Picking one by hand always wins and is never overwritten; "Set them from my connection"
+  turns detection back on. US and Canada get the flag only, unless Cloudflare's visitor location headers are on.
+- **Player page: Challenges as one big area.** The one-line Challenges row is now a large panel: how many are fully
+  complete with the bar, how far along each tab is (Specials, One Day, One Week, Cumulative), and a big "View all
+  challenges" button.
+
 ## 2026.11.28.8 — 11:13
 
 - **Challenges: Edit your Bio counts.** It was the last challenge left out of the totals: a player with a bio saw it

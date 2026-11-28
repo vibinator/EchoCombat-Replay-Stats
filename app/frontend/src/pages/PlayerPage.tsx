@@ -10,7 +10,7 @@ import { ShareBar, Sparkline, SplitBar, VsAverage } from "../components/bars";
 import { LineChart } from "../components/charts";
 import { GearName, LocalTime, MatchTable, NotFoundBox, Status, TableWrap, TeamBadge, isNotFound } from "../components/common";
 import { HEATMAP_CELL_M, HEATMAP_MODES, HeatmapView } from "../components/HeatmapView";
-import { PlayerAvatar, PlayerBio, usePlayerBio } from "../components/PlayerBio";
+import { PlayerAvatar, PlayerBio, PlayerPlace, usePlayerBio } from "../components/PlayerBio";
 import { InfoTip, MoreCard, Skeleton, useActiveTabInView, useColumns } from "../components/ui";
 import { CompareView } from "../components/CompareView";
 import { MAPS, dateTime, hoursMinutes, int, nameSlug, num, pct, periodLabel, playerPath, title } from "../format";
@@ -213,7 +213,7 @@ function ProfileHeader({ p, combat, onOpenCombat, onCompare }: { p: PlayerProfil
         <PlayerAvatar profile={bio.profile} />
         <div>
           <h1>
-            {p.name}
+            {p.name} <PlayerPlace profile={bio.profile} />
           </h1>
         <p className="muted">
           {p.level != null && `Level ${p.level} · `}First seen {dateTime(p.first_seen_at).slice(0, 10)} · Last seen {dateTime(p.last_seen_at).slice(0, 10)}

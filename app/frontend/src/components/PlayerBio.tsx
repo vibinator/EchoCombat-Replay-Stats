@@ -6,8 +6,26 @@ import {
   getPublicBio,
   savePlayerBio,
   type PlayerBioProfile,
+  type ProfileEdit,
 } from "../api";
+import { COUNTRIES, countryName, flagUrl, REGIONS, regionLabel } from "../regions";
 import { useApi } from "../useApi";
+
+/** The flag and game region the player picked, or detected from their connection (user, 2026-11-28), beside their name. */
+export function PlayerPlace({ profile }: { profile: PlayerBioProfile | null }) {
+  const flag = flagUrl(profile?.country);
+  const region = regionLabel(profile?.region);
+  if (!flag && !region) return null;
+  const where = [profile?.country ? countryName(profile.country) : null, region].filter(Boolean).join(" · ");
+  const how = profile?.place_detected ? " (detected from their connection)" : "";
+  return (
+    <span className="player-place" title={where + how}>
+      {flag && <img className="player-flag" src={flag} alt={countryName(profile!.country!)} width={28} height={21} />}
+      {region && <span className="player-region">{region}</span>}
+      {profile?.place_detected && <span className="muted player-place-detected">detected</span>}
+    </span>
+  );
+}
 
 /** Profile picture beside the player's name: the linked Discord account's avatar, or the avatar of the one Discord
  * member with exactly this name (served by Discord's CDN); nothing when neither, or the player turned it off. */
@@ -55,11 +73,14 @@ export function PlayerBio({
   profile: PlayerBioProfile | null;
   onSaved: (p: PlayerBioProfile) => void;
   /** another way to save (the logged-in owner's own profile page) */
-  save?: (edit: { bio: string | null; show_avatar: boolean }) => Promise<PlayerBioProfile>;
+  save?: (edit: ProfileEdit) => Promise<PlayerBioProfile>;
 }) {
   const [editing, setEditing] = useState(false);
   const [bio, setBio] = useState("");
   const [showAvatar, setShowAvatar] = useState(true);
+  const [placeAuto, setPlaceAuto] = useState(true);
+  const [country, setCountry] = useState("");
+  const [region, setRegion] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -68,6 +89,9 @@ export function PlayerBio({
   function start() {
     setBio(profile!.bio ?? "");
     setShowAvatar(profile!.show_avatar);
+    setPlaceAuto(profile!.place_auto ?? true);
+    setCountry(profile!.country ?? "");
+    setRegion(profile!.region ?? "");
     setError(null);
     setEditing(true);
   }
@@ -76,7 +100,7 @@ export function PlayerBio({
     setBusy(true);
     setError(null);
     try {
-      const edit = { bio: bio.trim() || null, show_avatar: showAvatar };
+      const edit: ProfileEdit = { bio: bio.trim() || null, show_avatar: showAvatar, country: country || null, region: region || null, place_auto: placeAuto };
       onSaved(await (saveFn ? saveFn(edit) : savePlayerBio(userId!, edit)));
       setEditing(false);
     } catch (e) {
@@ -110,6 +134,27 @@ export function PlayerBio({
           />
           Use my Discord avatar as profile picture
         </label>
+        <fieldset className="profile-place">
+          <legend>Flag and region</legend>
+          <label className="checkbox">
+            <input type="checkbox" checked={placeAuto} onChange={(e) => setPlaceAuto(e.target.checked)} />
+            Set them from my connection (shown as "detected"; a VPN shows the VPN's country)
+          </label>
+          <label>
+            Country
+            <select value={country} disabled={placeAuto} onChange={(e) => setCountry(e.target.value)}>
+              <option value="">No flag</option>
+              {COUNTRIES.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
+            </select>
+          </label>
+          <label>
+            Game region
+            <select value={region} disabled={placeAuto} onChange={(e) => setRegion(e.target.value)}>
+              <option value="">None</option>
+              {REGIONS.map((r) => <option key={r.key} value={r.key}>{r.label}</option>)}
+            </select>
+          </label>
+        </fieldset>
         {error && <p className="error">{error}</p>}
         <div className="profile-actions">
           <button onClick={save} disabled={busy}>

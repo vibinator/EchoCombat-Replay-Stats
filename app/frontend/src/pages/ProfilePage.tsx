@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { getMyProfile, loginUrl, saveMyProfile, type MyProfile } from "../api";
-import { PlayerAvatar, PlayerBio } from "../components/PlayerBio";
+import { PlayerAvatar, PlayerBio, PlayerPlace } from "../components/PlayerBio";
 import { useApi } from "../useApi";
 import { usePageTitle } from "../usePageTitle";
 
@@ -30,7 +30,7 @@ export function ProfilePage() {
     <section>
       <div className="profile-identity">
         <PlayerAvatar profile={profile} />
-        <h1>{profile.name}</h1>
+        <h1>{profile.name} <PlayerPlace profile={profile} /></h1>
       </div>
       {profile.known ? (
         <>
